@@ -118,6 +118,7 @@ export default function UserManagement() {
   const validate = () => {
     const e = {};
     if (!form.full_name.trim()) e.full_name = "Name is required";
+    else if (/\d/.test(form.full_name)) e.full_name = "Full Name must not contain numeric values";
     if (!form.email.trim()) e.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Enter a valid email";
     if (!editing && form.password.length < 6) e.password = "Password must be at least 6 characters";
