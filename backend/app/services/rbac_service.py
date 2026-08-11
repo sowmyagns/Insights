@@ -150,6 +150,18 @@ def create_user(db: Session, tenant_id: int, payload: UserCreate) -> dict:
             status_code=status.HTTP_409_CONFLICT,
             detail="An account with this email already exists",
         )
+    if payload.employee_id:
+        employee_clash = db.scalars(
+            select(User).where(
+                User.tenant_id == tenant_id,
+                User.employee_id == payload.employee_id,
+            )
+        ).first()
+        if employee_clash:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Employee ID already in use",
+            )
     if is_public_email_domain(email_domain(payload.email)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=MSG_PUBLIC_EMAIL)
 
@@ -202,6 +214,19 @@ def update_user(
     if "phone" in data:
         user.phone = data["phone"]
     if "employee_id" in data:
+        if data["employee_id"] and data["employee_id"] != user.employee_id:
+            employee_clash = db.scalars(
+                select(User).where(
+                    User.tenant_id == tenant_id,
+                    User.employee_id == data["employee_id"],
+                    User.id != user.id,
+                )
+            ).first()
+            if employee_clash:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Employee ID already in use",
+                )
         user.employee_id = data["employee_id"]
     if "designation" in data:
         user.designation = data["designation"]

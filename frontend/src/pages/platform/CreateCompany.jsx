@@ -79,7 +79,11 @@ function formatApiError(detail) {
 }
 
 function clientValidate(form, isTrial) {
-  if (!form.company_name.trim()) return { _form: "Company Name is required." };
+  const companyName = form.company_name.trim();
+  if (!companyName) return { _form: "Company Name is required." };
+  if (!/[\p{L}]/u.test(companyName)) {
+    return { company_name: "Company Name must contain alphabetic characters." };
+  }
   if (!form.company_email.trim()) return { _form: "Company Email is required." };
   if (!form.admin_name.trim()) return { _form: "Admin Name is required." };
   if (!form.admin_email.trim()) return { _form: "Admin Email is required." };
@@ -541,9 +545,12 @@ function Field({ label, required, className = "", error, hint, ...props }) {
 
 function Row({ label, value, mono }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
-      <span className="text-slate-500">{label}</span>
-      <span className={`font-medium text-slate-900 ${mono ? "font-mono text-xs" : ""}`}>
+    <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+      <span className="shrink-0 text-slate-500">{label}</span>
+      <span
+        className={`max-w-[60%] break-words overflow-wrap-anywhere font-medium text-slate-900 ${mono ? "font-mono text-xs" : ""}`}
+        style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+      >
         {value ?? "—"}
       </span>
     </div>

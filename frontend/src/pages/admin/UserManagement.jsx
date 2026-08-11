@@ -9,6 +9,7 @@ import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import AccessDenied from "../../components/admin/AccessDenied";
 import usePermissions from "../../hooks/usePermissions";
 import { useToast } from "../../context/ToastContext";
+import { ROLES } from "../../config/permissions";
 import {
   getUsers,
   getRoles,
@@ -62,6 +63,9 @@ export default function UserManagement() {
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [resettingId, setResettingId] = useState(null);
+
+  const supportedRoleNames = new Set(ROLES.map((role) => role.name));
+  const availableRoles = roles.filter((role) => supportedRoleNames.has(role.name));
 
   const load = useCallback(() => {
     setLoading(true);
@@ -117,10 +121,17 @@ export default function UserManagement() {
 
   const validate = () => {
     const e = {};
-    if (!form.full_name.trim()) e.full_name = "Name is required";
-    else if (/\d/.test(form.full_name)) e.full_name = "Full Name must not contain numeric values";
+    const fullName = form.full_name.trim();
+    if (!fullName) e.full_name = "Name is required";
+    else if (!/[A-Za-z]/.test(fullName)) e.full_name = "Full Name must contain at least one letter";
+    else if (/\d/.test(fullName)) e.full_name = "Full Name must not contain numeric values";
+    else if (!/^[A-Za-z][A-Za-z\s.'-]*$/.test(fullName))
+      e.full_name = "Full Name contains invalid characters";
     if (!form.email.trim()) e.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Enter a valid email";
+    if (form.phone.trim() && !/^\d{10}$/.test(form.phone.trim())) {
+      e.phone = "Phone must be exactly 10 digits";
+    }
     if (!editing && form.password.length < 6) e.password = "Password must be at least 6 characters";
     if (editing && form.password && form.password.length < 6)
       e.password = "Password must be at least 6 characters";
@@ -346,6 +357,7 @@ export default function UserManagement() {
             error={errors.full_name}
             onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
             placeholder="Jane Doe"
+            maxLength={100}
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
@@ -359,9 +371,12 @@ export default function UserManagement() {
             />
             <Input
               label="Phone"
+              type="tel"
               value={form.phone}
+              error={errors.phone}
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              placeholder="Optional"
+              placeholder="10-digit phone number"
+              maxLength={10}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -414,11 +429,11 @@ export default function UserManagement() {
             <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
               Roles
             </label>
-            {roles.length === 0 ? (
-              <p className="text-xs text-slate-400">No roles available. Create roles first.</p>
+            {availableRoles.length === 0 ? (
+              <p className="text-xs text-slate-400">No supported roles available. Create supported roles first.</p>
             ) : (
               <div className="grid max-h-44 grid-cols-1 gap-1.5 overflow-y-auto rounded-xl border border-slate-200 p-2 dark:border-slate-600 sm:grid-cols-2">
-                {roles.map((r) => (
+                {availableRoles.map((r) => (
                   <label
                     key={r.id}
                     className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50"

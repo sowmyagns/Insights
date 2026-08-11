@@ -422,6 +422,11 @@ class PlatformCompanyService:
 
     def reset_company_admin_password(self, tenant_id: int, new_password: str) -> dict:
         tenant = self._get_tenant_or_404(tenant_id)
+        if (tenant.status or "").strip().lower() == "deleted":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot reset password for a deleted company.",
+            )
         admin = _get_tenant_admin(self.db, tenant_id)
         if not admin:
             raise HTTPException(

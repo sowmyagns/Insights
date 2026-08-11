@@ -97,10 +97,16 @@ function CompanyDetailContent() {
   const handleResetPassword = async (e) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 8) return;
-    const res = await resetCompanyPassword(tenantId, newPassword);
-    setMessage(res.message);
-    setNewPassword("");
+    try {
+      const res = await resetCompanyPassword(tenantId, newPassword);
+      setMessage(res.message);
+      setNewPassword("");
+    } catch (err) {
+      setMessage(err.response?.data?.detail || "Unable to reset the company admin password.");
+    }
   };
+
+  const isDeletedCompany = (company?.status || "").toLowerCase() === "deleted";
 
   if (loading) return (
     <div className="ap-root"><PortalDecorations />
@@ -148,7 +154,7 @@ function CompanyDetailContent() {
             {/* Company Info */}
             <div className="ap-card">
               <div className="ap-section-head">
-                <div className="ap-section-head__icon"><Building2 size={16} /></div>
+                <div className="ap-section-head__icon"><Building2 size={16} /></div> 
                 <div>
                   <div className="ap-section-head__title">{company.company_name}</div>
                   <div className="ap-section-head__sub" style={{fontFamily:"monospace"}}>{company.company_code}</div>
@@ -192,25 +198,39 @@ function CompanyDetailContent() {
             )}
 
             {/* Reset Password */}
-            <div className="ap-card">
-              <div className="ap-section-head">
-                <div className="ap-section-head__icon"><Users size={16} /></div>
-                <div><div className="ap-section-head__title">Reset Company Admin Password</div></div>
+            {!isDeletedCompany ? (
+              <div className="ap-card">
+                <div className="ap-section-head">
+                  <div className="ap-section-head__icon"><Users size={16} /></div>
+                  <div><div className="ap-section-head__title">Reset Company Admin Password</div></div>
+                </div>
+                <div className="ap-section-body">
+                  {message && <div className="ap-alert ap-alert--success" style={{marginBottom:"0.75rem"}}>{message}</div>}
+                  <form onSubmit={handleResetPassword} style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+                    <input
+                      type="password" value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="New password (min 8 chars)"
+                      className="ap-input" style={{ minWidth: "200px", flex: 1 }}
+                      minLength={8} required
+                    />
+                    <button type="submit" className="ap-btn ap-btn--primary">Reset Password</button>
+                  </form>
+                </div>
               </div>
-              <div className="ap-section-body">
-                {message && <div className="ap-alert ap-alert--success" style={{marginBottom:"0.75rem"}}>{message}</div>}
-                <form onSubmit={handleResetPassword} style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-                  <input
-                    type="password" value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="New password (min 8 chars)"
-                    className="ap-input" style={{ minWidth: "200px", flex: 1 }}
-                    minLength={8} required
-                  />
-                  <button type="submit" className="ap-btn ap-btn--primary">Reset Password</button>
-                </form>
+            ) : (
+              <div className="ap-card">
+                <div className="ap-section-head">
+                  <div className="ap-section-head__icon"><Users size={16} /></div>
+                  <div><div className="ap-section-head__title">Reset Company Admin Password</div></div>
+                </div>
+                <div className="ap-section-body">
+                  <div className="ap-alert ap-alert--warning" style={{marginBottom:0}}>
+                    Password reset is unavailable for deleted companies.
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Users Table */}
             <div className="ap-card">
