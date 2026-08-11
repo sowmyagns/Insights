@@ -15,6 +15,7 @@ import {
 import { deleteDocument } from "../../api/documentsApi";
 import { getVendorDetail } from "../../api/procurementApi";
 import usePermissions from "../../hooks/usePermissions";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { starRating } from "../../data/vendorsMasterData";
 import { useToast } from "../../context/ToastContext";
 
@@ -74,6 +75,8 @@ export default function VendorDetail() {
       setLoading(false);
     }
   }, [vendorId]);
+
+  usePageRefresh(load);
 
   useEffect(() => {
     load();
@@ -157,13 +160,6 @@ export default function VendorDetail() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </button>
           {!viewOnly && (
             <>
               <Link

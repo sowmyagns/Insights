@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, IndianRupee, RefreshCw, ShoppingCart, Truck, Users } from "lucide-react";
+import { AlertTriangle, IndianRupee, ShoppingCart, Truck, Users } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
@@ -54,10 +54,8 @@ export default function SupplyChainDashboard() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Procurement Dashboard</h1>
           <p className="mt-1 text-sm text-slate-500">Purchase spend, vendor performance, pending orders, and procurement alerts.</p>
         </div>
-        <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
       </header>
 
       <ManufacturingWorkflowBar currentStepId="purchase_order" />

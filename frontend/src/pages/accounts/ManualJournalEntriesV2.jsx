@@ -213,12 +213,6 @@ export default function ManualJournalEntriesV2() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">
-            Manual Journal Entries
-          </h1>
-        </div>
-
         <div className="overflow-hidden rounded-xl border border-[#cfcfd6] bg-white shadow-sm">
           <div className="flex flex-wrap items-center gap-3 border-b border-[#cfcfd6] px-4 py-3.5 sm:px-5">
             <div className="relative min-w-[200px] flex-1">

@@ -7,6 +7,7 @@ import PageHeader from "./PageHeader";
 import SkeletonTable from "./SkeletonTable";
 import { ErrorState, OfflineState } from "./states";
 import useAuth from "../../hooks/useAuth";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { useNetworkStatus } from "../../context/NetworkStatusContext";
 import { useToast } from "../../context/ToastContext";
 
@@ -64,8 +65,8 @@ export default function ResourcePage({
   useEffect(() => { fetcherRef.current = fetcher; }, [fetcher]);
   useEffect(() => { fallbackRef.current = fallbackData; }, [fallbackData]);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
+  const reload = useCallback(async ({ soft = false } = {}) => {
+    if (!soft) setLoading(true);
     setLoadError("");
     markRequestStart();
     try {
@@ -82,6 +83,17 @@ export default function ResourcePage({
       if (fallbackRef.current?.length > 0) {
         setRows(fallbackRef.current);
         setLoadError("");
+      } else if (soft) {
+        // Keep existing rows on soft refresh failure.
+        const detail = err.response?.data?.detail;
+        setLoadError(
+          typeof detail === "string"
+            ? detail
+            : !navigator.onLine
+              ? "You appear to be offline."
+              : "Failed to load data"
+        );
+        throw err;
       } else {
         const detail = err.response?.data?.detail;
         setLoadError(
@@ -100,6 +112,8 @@ export default function ResourcePage({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markRequestStart, markRequestEnd]);
 
+  const softReload = useCallback(() => reload({ soft: true }), [reload]);
+
   useEffect(() => {
     reload();
   // only run on mount (reload is stable)
@@ -107,6 +121,7 @@ export default function ResourcePage({
   }, []);
 
   useEffect(() => registerRetry(reload), [registerRetry, reload]);
+  usePageRefresh(softReload);
 
   const openModal = () => {
     setForm(initialForm);

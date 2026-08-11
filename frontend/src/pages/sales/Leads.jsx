@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Filter, LayoutGrid, List, PhoneCall, Plus, RefreshCw, Target, TrendingUp, UserPlus, Users, XCircle } from "lucide-react";
+import { Filter, LayoutGrid, List, PhoneCall, Plus, Target, TrendingUp, UserPlus, Users, XCircle } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -8,6 +8,7 @@ import CreateLeadModal from "../../components/sales/CreateLeadModal";
 import LeadDetailModal from "../../components/sales/LeadDetailModal";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import {
   convertLeadToQuotation,
   createLead,
@@ -64,6 +65,9 @@ export default function Leads() {
     setLoading(true);
     try {
       const [summaryRes, listRes] = await Promise.allSettled([getLeadSummary(), getLeadsEnriched()]);
+
+  usePageRefresh(load);
+
       const liveRows = listRes.status === "fulfilled" && Array.isArray(listRes.value?.data)
         ? listRes.value.data
         : [];
@@ -206,7 +210,6 @@ export default function Leads() {
           >
             <Plus className="h-4 w-4" /> New Lead
           </button>
-          <button type="button" onClick={async () => { setRefreshing(true); await load(); setRefreshing(false); }} disabled={refreshing} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60"><RefreshCw className={`h-4 w-4 transition-transform ${refreshing ? "animate-spin" : ""}`} /> Refresh</button>
         </div>
       </header>
 

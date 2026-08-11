@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle, Clock, FileSearch, RefreshCw, Timer, XCircle } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { AlertCircle, CheckCircle, Clock, FileSearch, Timer, XCircle } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import QualityFilters from "../../components/quality/QualityFilters";
@@ -10,13 +11,19 @@ import { DEMO_INCOMING_LIST, DEMO_INCOMING_SUMMARY, QUALITY_FLOW, qcStatusColor 
 
 function KpiCard({ label, value, icon: Icon, color, suffix }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-slate-900">{value}{suffix || ""}</p>
-        </div>
-        {Icon && <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}><Icon className="h-5 w-5 text-white" /></div>}
+    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
+      <div className="flex items-center justify-between gap-1.5 min-w-0">
+        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
+        {Icon && (
+          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
+            <Icon className="h-3.5 w-3.5 text-white" />
+          </div>
+        )}
+      </div>
+      <div className="mt-2">
+        <p className="truncate text-xl font-bold tabular-nums text-slate-900 leading-none sm:text-2xl">
+          {value}{suffix || ""}
+        </p>
       </div>
     </div>
   );
@@ -43,6 +50,9 @@ export default function IncomingInspection() {
         setRows(listRes.value.data);
       } else {
         setRows([]);
+
+  usePageRefresh(load);
+
       }
     } catch {
       setSummary({ todays_inspections: 0, pending_grn: 0, passed: 0, rejected: 0, vendor_rejection_rate: "0%" });
@@ -105,10 +115,8 @@ export default function IncomingInspection() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Incoming Inspection</h1>
           <p className="mt-1 text-sm text-slate-500">IQC for raw materials — PO, vendor, batch verification before inventory receipt.</p>
         </div>
-        <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle, ClipboardList, RefreshCw, User } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { AlertTriangle, CheckCircle, ClipboardList, User } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import QualityFilters from "../../components/quality/QualityFilters";
@@ -11,17 +12,17 @@ import { DEFECT_WORKFLOW, DEMO_DEFECT_LIST, DEMO_DEFECT_SUMMARY, qcStatusColor, 
 
 function KpiCard({ label, value, icon: Icon, color }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium text-slate-500">{label}</p>
-          <p className="mt-1 truncate text-lg font-bold tabular-nums text-slate-900 sm:text-xl">{value}</p>
-        </div>
+    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
+      <div className="flex items-center justify-between gap-1.5 min-w-0">
+        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
         {Icon && (
-          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${color}`}>
-            <Icon className="h-4.5 w-4.5 text-white" />
+          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
+            <Icon className="h-3.5 w-3.5 text-white" />
           </div>
         )}
+      </div>
+      <div className="mt-2">
+        <p className="truncate text-xl font-bold tabular-nums text-slate-900 leading-none sm:text-2xl">{value}</p>
       </div>
     </div>
   );
@@ -57,6 +58,9 @@ export default function DefectTracking() {
         setRows(listRes.value.data);
       } else {
         setRows([]);
+
+  usePageRefresh(load);
+
       }
     } catch {
       setSummary({ total_defects: 0, critical: 0, major: 0, minor: 0, defect_rate: "0%", top_cause: "None" });
@@ -120,14 +124,12 @@ export default function DefectTracking() {
     <div className="min-h-full pb-8 print:p-0" style={{ background: "#F5F5F5" }}>
       <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">Defect Tracking & CAPA</h1>
           <p className="mt-0.5 text-xs text-slate-500 print:hidden">Non-conformance, root cause analysis, corrective/preventive actions, and NCR workflow.</p>
         </div>
 
 
         <div className="mb-0 flex flex-wrap items-center justify-between gap-2 print:hidden">
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]"><RefreshCw className="h-4 w-4" /> Refresh</button>
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, TrendingUp, HelpCircle, FileSpreadsheet, ShieldAlert, Plus, X, Edit2 } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { TrendingUp, HelpCircle, FileSpreadsheet, ShieldAlert, Plus, X, Edit2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import FinanceFilters from "../../components/finance/FinanceFilters";
 import Loader from "../../components/common/Loader";
@@ -77,6 +78,8 @@ export default function BudgetActual() {
     }
   }, [financialYear, month, branch, addToast]);
 
+  usePageRefresh(load);
+
   useEffect(() => { load(); }, [load]);
 
   // Map expense category strings to our standard categories
@@ -130,25 +133,9 @@ export default function BudgetActual() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 border-b-0 pb-0">Budget vs Actual</h1>
           <p className="mt-1 text-sm text-slate-500 font-medium">Monitor departmental budget targets against real spending data.</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={openModal}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all"
-          >
-            <Edit2 className="h-4 w-4" /> Set Budget Targets
-          </button>
-          <button
-            type="button"
-            onClick={() => load({ isRefresh: true })}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition-all"
-          >
-            <RefreshCw className={`h-4 w-4 transition-transform duration-700 ${refreshing ? "animate-spin" : ""}`} />
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
         </div>
       </header>
 

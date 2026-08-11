@@ -53,11 +53,6 @@ export default function MachineStatus() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Machine Live Status
-          </h1>
-        </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <div
@@ -77,9 +72,6 @@ export default function MachineStatus() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Machine Live Status
-          </h1>
           <p className="mt-1 text-slate-600 dark:text-slate-400">
             Monitor and control machines in real time
           </p>

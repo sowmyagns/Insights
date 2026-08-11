@@ -13,7 +13,7 @@
   --color-running: #22c55e;
   --color-stopped: #ef4444;
   --color-maintenance: #facc15;
-  --color-bg: #f8fafc;
+  --color-bg: #E4F0FD;
   --color-surface: #ffffff;
   --color-text: #0f172a;
   --color-text-muted: #475569;
@@ -236,6 +236,12 @@ textarea {
   font-size: 0.875rem;
   color: var(--color-text);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.ui-input.pl-10,
+.ui-input.pl-9,
+input.pl-10,
+input.pl-9 {
+  padding-left: 2.5rem !important;
 }
 .dark .ui-input {
   border-color: rgb(71 85 105);

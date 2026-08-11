@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState, useCallback } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
 import { getExtendedReports } from "../../api/accountsApi";
@@ -333,6 +334,9 @@ export default function BalanceSheet() {
     finally { setLoading(false); }
   }, [financialYear, month, branch]);
 
+  usePageRefresh(load);
+
+
   useEffect(() => { load(); }, [load]);
 
   /* ── CSV export ── */
@@ -405,7 +409,6 @@ export default function BalanceSheet() {
     <div style={S.page}>
 
       {/* title */}
-      <h1 style={S.title}>Balance Sheet</h1>
       <p  style={S.sub}>{range}</p>
 
       {/* ── Download buttons ── */}

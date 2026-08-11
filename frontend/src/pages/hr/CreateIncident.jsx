@@ -82,7 +82,6 @@ export default function CreateIncident() {
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight font-sans">Report Safety Incident</h1>
           <p className="text-xs text-slate-500">Record a new workplace safety event, near-miss, or hazard observation.</p>
         </div>
       </div>

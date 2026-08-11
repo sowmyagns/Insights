@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle, Package, Plus, RefreshCw, X } from "lucide-react";
+import { CheckCircle, Package, Plus, X } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -287,7 +287,6 @@ export default function GoodsReceipt() {
       {storeMode ? <StoreManagerNav /> : null}
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Stock In (GRN)</h1>
           <p className="mt-1 text-sm text-slate-500">
             Receive materials against purchase orders and post accepted quantity to inventory.
           </p>
@@ -296,13 +295,6 @@ export default function GoodsReceipt() {
           <Link to="/procurement/goods-receipt/create" className="ui-btn-primary">
             <Plus className="h-4 w-4" /> New GRN
           </Link>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </button>
         </div>
       </header>
 

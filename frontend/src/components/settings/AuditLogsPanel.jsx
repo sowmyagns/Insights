@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Download,
-  Loader2,
-  RefreshCw,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { Download, Loader2, Search, Trash2 } from "lucide-react";
 
 import {
   deleteAuditLog,
@@ -15,6 +9,7 @@ import {
   getMyAuditLogs,
 } from "../../api/auditLogsApi";
 import useAuth from "../../hooks/useAuth";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { useToast } from "../../context/ToastContext";
 
 const MODULES = [
@@ -95,6 +90,8 @@ export default function AuditLogsPanel() {
       setLoading(false);
     }
   }, [page, pageSize, sortBy, sortDir, filters, scope, isAdmin, addToast]);
+
+  usePageRefresh(load);
 
   useEffect(() => {
     load();
@@ -178,9 +175,6 @@ export default function AuditLogsPanel() {
               ))}
             </div>
           )}
-          <button type="button" onClick={load} className="ui-btn-secondary text-xs">
-            <RefreshCw className="h-3.5 w-3.5" /> Refresh
-          </button>
           <button
             type="button"
             disabled={exporting}

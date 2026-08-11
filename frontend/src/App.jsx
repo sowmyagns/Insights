@@ -6,6 +6,7 @@ import RouteFallback from "./components/common/RouteFallback";
 import Navbar from "./components/layout/Navbar";
 import Sidebar from "./components/layout/Sidebar";
 import AiChatWidget from "./components/ai/AiChatWidget";
+import GlobalRefreshButton from "./components/common/GlobalRefreshButton";
 import useAuth from "./hooks/useAuth";
 
 /** Settings routes that render inside the main ERP shell (sidebar + navbar). */
@@ -166,6 +167,7 @@ export default function App() {
     location.pathname === "/ledger" ||
     location.pathname.startsWith("/ledger/");
   const isEInvoiceLogin = location.pathname === "/sales/e-invoice";
+  const isProductionPlanning = location.pathname === "/production/planning";
   const isFullBleedSales = isInvoiceEditor || isSalesDocList || isEInvoiceLogin;
 
   if (isShellLessRoute(location.pathname)) {
@@ -180,7 +182,7 @@ export default function App() {
   }
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-[#F4F7FE] dark:bg-slate-950">
+    <div className="relative flex h-screen overflow-hidden bg-[#E4F0FD] dark:bg-slate-950">
       <a
         href="#main-content"
         className="absolute left-4 top-4 z-[100] -translate-y-[200%] rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white shadow-lg outline-none ring-2 ring-teal-500 ring-offset-2 transition-transform focus:translate-y-0 dark:ring-offset-slate-900"
@@ -213,7 +215,9 @@ export default function App() {
               ? "overflow-hidden bg-[#F5F5F5]"
               : isSalesDocList
                 ? "overflow-y-auto bg-[#F5F5F5]"
-                : "overflow-y-auto bg-[#F4F7FE] p-4 pb-8 sm:p-5 lg:p-6 dark:bg-slate-950"
+                : isProductionPlanning
+                  ? "overflow-y-auto bg-[#EFF2FC] p-4 pb-24 sm:p-5 lg:p-6 dark:bg-slate-950"
+                  : "overflow-y-auto bg-[#E4F0FD] p-4 pb-24 sm:p-5 lg:p-6 dark:bg-slate-950"
           }`}
         >
           {isFullBleedSales ? (
@@ -231,6 +235,7 @@ export default function App() {
           )}
           {showChatbot && <AiChatWidget />}
         </main>
+        {!isInvoiceEditor ? <GlobalRefreshButton offsetForChat={showChatbot} /> : null}
       </div>
     </div>
   );

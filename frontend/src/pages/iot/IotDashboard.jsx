@@ -116,9 +116,6 @@ export default function IotDashboard() {
     <div className="space-y-6 p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            {t("iot.title")}
-          </h1>
           <p className="mt-1 text-slate-600 dark:text-slate-400">
             {t("iot.subtitle")}
           </p>

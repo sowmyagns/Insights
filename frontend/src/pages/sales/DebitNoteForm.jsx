@@ -754,9 +754,6 @@ export default function DebitNoteForm() {
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-[20px] font-bold text-[#1a1a1f]">
-            {isEdit ? "Edit Sales Debit Note" : "Create Sales Debit Note"}
-          </h1>
         </div>
         <div className="flex items-center gap-2">
           <button

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Banknote, CheckCircle, CreditCard, IndianRupee, Plus, RefreshCw, Users, XCircle } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { Banknote, CheckCircle, CreditCard, IndianRupee, Plus, Users, XCircle } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import FinanceFilters from "../../components/finance/FinanceFilters";
@@ -56,6 +57,9 @@ export default function PaymentTracking() {
     setLoading(true);
     try {
       const [sumRes, listRes] = await Promise.allSettled([getPaymentSummary(), getPaymentsEnriched()]);
+
+  usePageRefresh(load);
+
       if (sumRes.status === "fulfilled" && sumRes.value?.data) setSummary({ ...INITIAL_PAY_SUMMARY, ...sumRes.value.data });
       // Use API data only — no localStorage fallback
       if (listRes.status === "fulfilled" && listRes.value?.data?.length) {
@@ -187,13 +191,6 @@ export default function PaymentTracking() {
             className="ui-btn-primary"
           >
             <Plus className="h-4 w-4" /> Record Payment
-          </button>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4" /> Refresh
           </button>
         </div>
       </header>

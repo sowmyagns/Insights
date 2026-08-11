@@ -1,11 +1,14 @@
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
+  BadgeCheck,
   CheckCircle2,
+  ClipboardList,
+  Cog,
   Cpu,
   Factory,
   Package,
-  RefreshCw,
+  PlayCircle,
   Users,
   AlertTriangle,
 } from "lucide-react";
@@ -24,7 +27,7 @@ import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { useCallback, useEffect, useState } from "react";
 
-function KpiCard({ label, value, accent = false, tone }) {
+function KpiCard({ label, value, accent = false, tone, icon: Icon, iconWrap = "bg-sky-50 text-sky-700" }) {
   const valueClass =
     tone === "success"
       ? "text-emerald-700"
@@ -38,8 +41,17 @@ function KpiCard({ label, value, accent = false, tone }) {
       }`}
     >
       {accent ? <span className="absolute inset-x-0 top-0 h-0.5 bg-teal-600" aria-hidden /> : null}
-      <p className="text-[11px] font-medium text-slate-500">{label}</p>
-      <p className={`mt-1 text-3xl font-bold tabular-nums ${valueClass}`}>{value ?? 0}</p>
+      <div className="flex items-start gap-3">
+        {Icon ? (
+          <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconWrap}`}>
+            <Icon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+          </div>
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-medium text-slate-500">{label}</p>
+          <p className={`mt-1 text-3xl font-bold tabular-nums ${valueClass}`}>{value ?? 0}</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -49,8 +61,8 @@ function StatusPanel({ title, items, icon: Icon }) {
     <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="mb-3 flex items-center gap-2">
         {Icon ? (
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-800">
-            <Icon className="h-4 w-4" />
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-teal-800">
+            <Icon className="h-4 w-4" strokeWidth={1.75} />
           </span>
         ) : null}
         <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
@@ -128,22 +140,15 @@ export default function ProductionDashboard() {
             Planning, schedule, allocation, shop floor, batches, and quality in one control center.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={load}
-          className="inline-flex items-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-        >
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </button>
       </header>
 
       <ManufacturingWorkflowBar currentStepId="production" />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Running Jobs" value={hub.running_jobs} accent />
-        <KpiCard label="Production In Progress" value={hub.production_in_progress} />
-        <KpiCard label="Completed Today" value={hub.production_completed_today} tone="success" />
-        <KpiCard label="Quality Passed" value={hub.quality_passed} tone="success" />
+        <KpiCard label="Running Jobs" value={hub.running_jobs} accent icon={Cog} iconWrap="bg-violet-50 text-violet-700" />
+        <KpiCard label="Production In Progress" value={hub.production_in_progress} icon={PlayCircle} iconWrap="bg-sky-50 text-sky-700" />
+        <KpiCard label="Completed Today" value={hub.production_completed_today} tone="success" icon={CheckCircle2} iconWrap="bg-emerald-50 text-emerald-700" />
+        <KpiCard label="Quality Passed" value={hub.quality_passed} tone="success" icon={BadgeCheck} iconWrap="bg-teal-50 text-teal-700" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

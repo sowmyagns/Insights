@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BookOpen, Building2, IndianRupee, Landmark, RefreshCw, Scale, TrendingUp } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { BookOpen, Building2, IndianRupee, Landmark, Scale, TrendingUp } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import FinanceFilters from "../../components/finance/FinanceFilters";
@@ -49,6 +50,8 @@ export default function GeneralLedger() {
     setLoading(true);
     try {
       const [sumRes, listRes] = await Promise.allSettled([getGLSummary(), getGLEnriched()]);
+
+  usePageRefresh(load);
 
       // Use API data only — no localStorage fallback
       if (listRes.status === "fulfilled" && listRes.value?.data?.length) {
@@ -123,7 +126,6 @@ export default function GeneralLedger() {
           <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">General Ledger</h2>
           <p className="mt-1 text-sm text-slate-500">Central accounting ledger — vouchers, journal entries, and cost center allocation.</p>
         </div>
-        <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

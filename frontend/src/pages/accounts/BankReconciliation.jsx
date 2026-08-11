@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { RefreshCw, CheckCircle, HelpCircle, Upload, Check } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { CheckCircle, HelpCircle, Upload, Check } from "lucide-react";
 import FinanceFilters from "../../components/finance/FinanceFilters";
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
@@ -89,6 +90,9 @@ export default function BankReconciliation() {
         getExtendedReports(financialYear, month, branch),
         getTenantPref(PREF_KEY),
       ]);
+
+  usePageRefresh(load);
+
       const pref =
         prefRes.status === "fulfilled" ? prefRes.value?.data?.value || {} : {};
       const reconciled = new Set(pref.reconciled_ledger_ids || []);
@@ -188,7 +192,6 @@ export default function BankReconciliation() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 border-b-0 pb-0">Bank Reconciliation</h1>
           <p className="mt-1 text-sm text-slate-500 font-medium">
             Verify company cash postings against monthly bank statements to ensure ledger integrity.
           </p>
@@ -209,13 +212,6 @@ export default function BankReconciliation() {
             className="hidden"
             onChange={handleUploadFile}
           />
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </button>
         </div>
       </header>
 

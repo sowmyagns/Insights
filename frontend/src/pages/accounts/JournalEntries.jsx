@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, CheckCircle, RefreshCw, Trash2, X } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { Plus, CheckCircle, Trash2, X } from "lucide-react";
 import FinanceFilters from "../../components/finance/FinanceFilters";
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
@@ -40,6 +41,9 @@ export default function JournalEntries() {
       const res = await getExtendedReports(financialYear, month, branch);
       const list = res?.data?.journal_entries || res?.data?.data?.journal_entries || [];
       setEntries(Array.isArray(list) ? list : []);
+
+  usePageRefresh(load);
+
     } catch (error) {
       const detail = error?.response?.data?.detail || error?.message || "Failed to load Journal Entries data";
       console.error("JournalEntries load failed", error);
@@ -127,26 +131,9 @@ export default function JournalEntries() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 border-b-0 pb-0">Journal Entries</h1>
           <p className="mt-1 text-sm text-slate-500">Record manual adjustments, accrued expenses, and general ledger corrections.</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all"
-          >
-            <Plus className="h-4 w-4" />
-            New Entry
-          </button>
-          <button
-            type="button"
-            onClick={() => load({ isRefresh: true })}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition-all"
-          >
-            <RefreshCw className={`h-4 w-4 transition-transform duration-700 ${refreshing ? "animate-spin" : ""}`} />
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
         </div>
       </header>
 

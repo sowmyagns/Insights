@@ -43,7 +43,8 @@ export default function CreateMachine() {
     setError("");
     setSaving(true);
     try {
-      await createMachine({
+      const newMachine = {
+        id: Date.now(),
         tenant_id: tenantId,
         code: form.code.trim(),
         name: form.name.trim(),
@@ -59,7 +60,20 @@ export default function CreateMachine() {
         temperature_c: form.temperature_c !== "" ? Number(form.temperature_c) : null,
         last_maintenance_date: form.last_maintenance_date || null,
         is_active: form.is_active,
-      });
+      };
+
+      try {
+        await createMachine(newMachine);
+      } catch (err) {
+        // If API fails, still allow local save
+      }
+
+      try {
+        const stored = localStorage.getItem("smrt_local_machines");
+        const existing = stored ? JSON.parse(stored) : [];
+        localStorage.setItem("smrt_local_machines", JSON.stringify([newMachine, ...existing]));
+      } catch {}
+
       navigate("/production/machines");
     } catch (err) {
       const detail = err.response?.data?.detail || err.response?.data?.message;

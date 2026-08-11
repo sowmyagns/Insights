@@ -44,9 +44,6 @@ export default function MachineAnalytics() {
             <Cpu className="h-8 w-8 text-teal-600 dark:text-teal-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-              {t("nav.machineAnalytics")}
-            </h1>
             <p className="text-slate-600 dark:text-slate-400">
               Predictive maintenance & inventory streamlining
             </p>

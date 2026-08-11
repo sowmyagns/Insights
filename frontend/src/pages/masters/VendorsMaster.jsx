@@ -187,7 +187,6 @@ export default function VendorsMaster() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
-        <h1 className="mb-4 text-[22px] font-semibold tracking-tight text-[#1a1a1f]">Vendors</h1>
 
         <div className="rounded-xl border border-[#e4e4ea] bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-4 flex flex-wrap items-center gap-2.5">

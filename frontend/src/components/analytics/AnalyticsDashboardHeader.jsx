@@ -1,4 +1,4 @@
-import { Clock, RefreshCw } from "lucide-react";
+import { Clock } from "lucide-react";
 
 function formatTime(iso) {
   if (!iso) return "—";
@@ -9,19 +9,28 @@ function formatTime(iso) {
   }
 }
 
+/**
+ * Analytics toolbar only — page title is shown in the global Navbar (AppPageTitle).
+ * Refresh is handled by the global bottom-right Refresh control.
+ */
 export default function AnalyticsDashboardHeader({
-  title, subtitle, lastUpdated, onRefresh, autoRefresh, onAutoRefreshChange, loading,
+  title: _title,
+  subtitle,
+  lastUpdated,
+  onRefresh: _onRefresh,
+  autoRefresh,
+  onAutoRefreshChange,
+  loading: _loading,
 }) {
   return (
-    <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
-        {lastUpdated && (
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        {subtitle ? <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p> : null}
+        {lastUpdated ? (
           <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
             <Clock className="h-3 w-3" /> Last updated: {formatTime(lastUpdated)}
           </p>
-        )}
+        ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
@@ -33,14 +42,6 @@ export default function AnalyticsDashboardHeader({
           />
           Auto refresh (60s)
         </label>
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </button>
       </div>
     </header>
   );

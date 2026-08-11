@@ -1,7 +1,14 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Upload, X } from "lucide-react";
 
 const PURPLE = "#6b4eff";
+
+function paintCanvasStyle(ctx) {
+  ctx.strokeStyle = "#1a1a1f";
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+}
 
 /**
  * Signature pad + stamp upload for Create Invoice (screenshot match).
@@ -17,34 +24,70 @@ export default function SignatureAndStampPanel({
   const canvasRef = useRef(null);
   const drawing = useRef(false);
   const fileRef = useRef(null);
+  const dirtyRef = useRef(false);
+  const [savedFlash, setSavedFlash] = useState(false);
 
+  const sizeCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    if (!parent) return;
+
+    const w = Math.max(Math.floor(parent.clientWidth), 280);
+    const h = 140;
+    if (canvas.width === w && canvas.height === h) return;
+
+    const prev = canvas.width > 0 ? canvas.toDataURL("image/png") : null;
+    const hadInk = dirtyRef.current || Boolean(prev && prev.length > 100);
+
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    paintCanvasStyle(ctx);
+
+    if (!hadInk || !prev) return;
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      paintCanvasStyle(ctx);
+    };
+    img.src = prev;
+  }, []);
+
+  // Size canvas when shown / on resize — do not depend on signatureDataUrl
+  // (that was wiping strokes and breaking Clear/Save).
+  useEffect(() => {
+    if (!enabled) return;
+    const id = requestAnimationFrame(() => sizeCanvas());
+    window.addEventListener("resize", sizeCanvas);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener("resize", sizeCanvas);
+    };
+  }, [enabled, sizeCanvas]);
+
+  // Restore saved signature from parent without resetting dimensions.
   useEffect(() => {
     if (!enabled) return;
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const setup = () => {
-      const parent = canvas.parentElement;
-      if (!parent) return;
-      const w = Math.max(parent.clientWidth, 280);
-      const h = 140;
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      ctx.strokeStyle = "#1a1a1f";
-      ctx.lineWidth = 2;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      if (signatureDataUrl) {
-        const img = new Image();
-        img.onload = () => ctx.drawImage(img, 0, 0, w, h);
-        img.src = signatureDataUrl;
+    if (!canvas || !canvas.width) return;
+    const ctx = canvas.getContext("2d");
+    if (!signatureDataUrl) {
+      if (!dirtyRef.current) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        paintCanvasStyle(ctx);
       }
+      return;
+    }
+    if (dirtyRef.current) return;
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      paintCanvasStyle(ctx);
     };
-
-    setup();
-    window.addEventListener("resize", setup);
-    return () => window.removeEventListener("resize", setup);
+    img.src = signatureDataUrl;
   }, [enabled, signatureDataUrl]);
 
   if (!enabled) return null;
@@ -62,7 +105,9 @@ export default function SignatureAndStampPanel({
   const start = (e) => {
     e.preventDefault();
     drawing.current = true;
+    dirtyRef.current = true;
     const ctx = canvasRef.current.getContext("2d");
+    paintCanvasStyle(ctx);
     const { x, y } = getPos(e);
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -81,16 +126,47 @@ export default function SignatureAndStampPanel({
     drawing.current = false;
   };
 
-  const clear = () => {
+  const clear = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    paintCanvasStyle(ctx);
+    dirtyRef.current = false;
+    setSavedFlash(false);
     onSignatureChange?.(null);
   };
 
-  const save = () => {
-    const url = canvasRef.current.toDataURL("image/png");
+  const save = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    // Detect blank canvas (all transparent / white)
+    const blank = (() => {
+      try {
+        const { data } = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
+        for (let i = 3; i < data.length; i += 4) {
+          if (data[i] !== 0) return false;
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+    if (blank) {
+      dirtyRef.current = false;
+      onSignatureChange?.(null);
+      setSavedFlash(false);
+      return;
+    }
+    const url = canvas.toDataURL("image/png");
+    dirtyRef.current = false;
     onSignatureChange?.(url);
+    setSavedFlash(true);
+    window.setTimeout(() => setSavedFlash(false), 1500);
   };
 
   const onStampFile = (e) => {
@@ -114,12 +190,12 @@ export default function SignatureAndStampPanel({
           <img
             src={stampDataUrl}
             alt="Stamp"
-            className="pointer-events-none absolute bottom-8 right-3 h-16 w-16 object-contain opacity-80"
+            className="pointer-events-none absolute bottom-8 right-3 z-[1] h-16 w-16 object-contain opacity-80"
           />
         ) : null}
         <canvas
           ref={canvasRef}
-          className="block h-[140px] w-full touch-none cursor-crosshair"
+          className="relative z-0 block h-[140px] w-full touch-none cursor-crosshair"
           onMouseDown={start}
           onMouseMove={move}
           onMouseUp={end}
@@ -128,11 +204,12 @@ export default function SignatureAndStampPanel({
           onTouchMove={move}
           onTouchEnd={end}
         />
-        <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center gap-5">
+        <div className="pointer-events-none absolute inset-x-0 bottom-2 z-10 flex items-center justify-center gap-5">
           <button
             type="button"
             onClick={clear}
-            className="inline-flex items-center gap-1 text-[12px] font-semibold"
+            onMouseDown={(e) => e.stopPropagation()}
+            className="pointer-events-auto inline-flex items-center gap-1 text-[12px] font-semibold"
             style={{ color: PURPLE }}
           >
             <X className="h-3.5 w-3.5" /> Clear
@@ -140,10 +217,11 @@ export default function SignatureAndStampPanel({
           <button
             type="button"
             onClick={save}
-            className="inline-flex items-center gap-1 text-[12px] font-semibold"
+            onMouseDown={(e) => e.stopPropagation()}
+            className="pointer-events-auto inline-flex items-center gap-1 text-[12px] font-semibold"
             style={{ color: PURPLE }}
           >
-            <Check className="h-3.5 w-3.5" /> Save
+            <Check className="h-3.5 w-3.5" /> {savedFlash ? "Saved" : "Save"}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Calendar, ChevronLeft, ChevronRight, Info, MoreVertical, Pencil, Plus, User } from "lucide-react";
 
@@ -183,6 +184,9 @@ export default function ChartOfAccountDetailV2() {
         fetchSubAccounts(accountId),
         fetchManualJournals(),
       ]);
+
+  usePageRefresh(load);
+
       const found = mains.find((a) => String(a.id) === String(accountId) || String(a.code) === String(accountId));
       setAccount(found || null);
       setSubs(children);

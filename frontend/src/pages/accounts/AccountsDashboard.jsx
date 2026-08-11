@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link, useLocation } from "react-router-dom";
-import {
-  AlertTriangle, ArrowDownRight, ArrowUpRight, IndianRupee, Landmark, RefreshCw, TrendingDown, TrendingUp,
-} from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, IndianRupee, Landmark, TrendingDown, TrendingUp } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
@@ -82,6 +81,9 @@ export default function AccountsDashboard() {
         getInvoices(),
         getPayments(),
       ]);
+
+  usePageRefresh(load);
+
       if (invRes.status === "fulfilled") {
         const d = invRes.value?.data ?? invRes.value ?? [];
         allInv = Array.isArray(d) ? d : [];
@@ -187,7 +189,6 @@ export default function AccountsDashboard() {
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => setShowRecordIncome(true)} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700">+ Record Income</button>
           <button type="button" onClick={() => setShowRecordExpense(true)} className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700">+ Record Expense</button>
-          <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
         </div>
       </header>
 

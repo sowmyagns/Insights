@@ -9,6 +9,7 @@ import DataTable from "../../components/common/DataTable";
 import EmptyState from "../../components/common/EmptyState";
 import { getSuppliers } from "../../api/inventoryApi";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 
 export default function Suppliers() {
   const tenantId = useTenantId();
@@ -67,6 +68,8 @@ export default function Suppliers() {
       Create supplier
     </Link>
   );
+
+  usePageRefresh(load);
 
   return (
     <div className="space-y-6">

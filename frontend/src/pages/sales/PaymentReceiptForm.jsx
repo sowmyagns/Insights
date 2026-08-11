@@ -405,9 +405,6 @@ export default function PaymentReceiptForm() {
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-[20px] font-bold text-[#1a1a1f]">
-            {isEdit ? "Edit Payment Receipt" : "Create Payment Receipt"}
-          </h1>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -562,7 +559,7 @@ export default function PaymentReceiptForm() {
                       className="flex w-full items-center justify-center gap-1 border-t border-[#ececf0] py-3 text-[13px] font-semibold"
                       style={{ background: LAVENDER, color: PURPLE }}
                     >
-                      + Add New Party
+                      + Add Customer
                     </button>
                   </div>
                 ) : null}

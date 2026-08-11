@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { IndianRupee, RefreshCw, TrendingDown, Users, Wallet } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { IndianRupee, TrendingDown, Users, Wallet } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 import DataTable from "../../components/common/DataTable";
@@ -53,6 +54,9 @@ export default function AccountsReceivable() {
     setLoading(true);
     try {
       const [sumRes, listRes] = await Promise.allSettled([getARSummary(), getAREnriched()]);
+
+  usePageRefresh(load);
+
       if (sumRes.status === "fulfilled" && sumRes.value?.data) setSummary(sumRes.value.data);
       if (listRes.status === "fulfilled" && listRes.value?.data) setRows(listRes.value.data);
     } catch {
@@ -146,18 +150,10 @@ export default function AccountsReceivable() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Accounts Receivable</h1>
           <p className="mt-1 text-sm text-slate-500">
             Customer invoices, collections, and aging analysis for finance team.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={load}
-          className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </button>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">

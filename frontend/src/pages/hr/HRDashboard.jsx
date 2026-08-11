@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link } from "react-router-dom";
-import { AlertTriangle, Briefcase, Clock, IndianRupee, RefreshCw, UserCheck, Users } from "lucide-react";
+import { AlertTriangle, Briefcase, Clock, IndianRupee, UserCheck, Users } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
@@ -9,19 +10,19 @@ import { HR_FLOW, formatInr } from "../../data/hrMasterData";
 
 function KpiCard({ label, value, icon: Icon, color }) {
   return (
-    <div className="group rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md">
-      <div className="flex items-center justify-between gap-2.5">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[11px] font-bold uppercase tracking-wider text-slate-400 font-sans">{label}</p>
-          <p className="mt-1 text-lg sm:text-xl font-black tracking-tight text-slate-900 tabular-nums truncate" title={String(value)}>
-            {value}
-          </p>
-        </div>
+    <div className="group rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md" title={typeof label === "string" ? label : undefined}>
+      <div className="flex items-center justify-between gap-1.5 min-w-0">
+        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
         {Icon && (
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-xs transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-5 w-5 text-white shrink-0" />
+          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-105 ${color}`}>
+            <Icon className="h-3.5 w-3.5 text-white shrink-0" />
           </div>
         )}
+      </div>
+      <div className="mt-2">
+        <p className="truncate text-xl font-bold tabular-nums text-slate-900 leading-none sm:text-2xl" title={String(value)}>
+          {value}
+        </p>
       </div>
     </div>
   );
@@ -53,6 +54,8 @@ export default function HRDashboard() {
     await load();
   };
 
+  usePageRefresh(handleRefresh);
+
   useEffect(() => { load(); }, [load]);
 
   if (loading && !hub.total_employees) return <Loader label="Loading HR dashboard..." />;
@@ -61,16 +64,8 @@ export default function HRDashboard() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight font-sans">HR Dashboard</h1>
           <p className="mt-1 text-sm text-slate-500">Workforce analytics, attendance, leave, payroll, and manufacturing HR insights.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:border-blue-300 transition-all"
-        >
-          <RefreshCw className="h-4 w-4 text-slate-600" /> Refresh
-        </button>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

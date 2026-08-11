@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, Download, Layers, Building2, TrendingUp, TrendingDown } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { Download, Layers, Building2, TrendingUp, TrendingDown } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import FinanceFilters from "../../components/finance/FinanceFilters";
 import Loader from "../../components/common/Loader";
@@ -24,6 +25,9 @@ export default function MultiBranchLedger() {
       const res = await getExtendedReports(financialYear, month, branch);
       if (res.data) {
         setPostings(res.data.journal_entries || []);
+
+  usePageRefresh(load);
+
         
         // Calculate dynamic branch breakdowns
         const hoPostings = (res.data.journal_entries || []).filter((p) => p.branch === "Head Office");
@@ -71,12 +75,8 @@ export default function MultiBranchLedger() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 border-b-0 pb-0">Multi-Branch Ledger</h1>
           <p className="mt-1 text-sm text-slate-500">Consolidated posting logs and branch-level financial comparison dashboard.</p>
         </div>
-        <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </button>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

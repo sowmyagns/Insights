@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, CreditCard, Users } from "lucide-react";
 
@@ -280,6 +281,8 @@ function Item({ label, value }) {
 }
 
 export default function CompanyDetail() {
+  usePageRefresh(load);
+
   return (
     <PlatformProtectedRoute>
       <CompanyDetailContent />

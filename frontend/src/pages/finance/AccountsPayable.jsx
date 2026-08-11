@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link } from "react-router-dom";
-import { AlertCircle, Building2, Clock, FileText, IndianRupee, RefreshCw } from "lucide-react";
+import { AlertCircle, Building2, Clock, FileText, IndianRupee } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import FinanceFilters from "../../components/finance/FinanceFilters";
@@ -41,6 +42,9 @@ export default function AccountsPayable() {
     setLoading(true);
     try {
       const [sumRes, listRes] = await Promise.allSettled([getAPSummary(), getAPEnriched()]);
+
+  usePageRefresh(load);
+
       if (sumRes.status === "fulfilled" && sumRes.value?.data) {
         setSummary((prev) => ({ ...prev, ...sumRes.value.data }));
       }
@@ -94,12 +98,10 @@ export default function AccountsPayable() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Accounts Payable</h1>
           <p className="mt-1 text-sm text-slate-500">Vendor bills, payment scheduling, and outstanding payables management.</p>
         </div>
         <div className="flex gap-2">
           <Link to="/purchases/payments-made/create" className="inline-flex items-center rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Record Payment</Link>
-          <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
         </div>
       </header>
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link } from "react-router-dom";
 import { Calendar, ChevronLeft, ChevronRight, FileText, Filter, ListFilter, Plus, Search, X } from "lucide-react";
 
@@ -142,6 +143,9 @@ export default function PurchaseDebitNotes() {
       });
       const items = res?.data?.items || res?.data || [];
       setRows(Array.isArray(items) ? items : []);
+
+  usePageRefresh(load);
+
     } catch {
       addToast("Failed to load debit notes", "error");
       setRows([]);
@@ -240,7 +244,6 @@ export default function PurchaseDebitNotes() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="space-y-4 p-4 sm:p-6">
-        <h1 className="text-[22px] font-bold text-[#1a1a1f]">Debit Note</h1>
 
         <div className="overflow-hidden rounded-xl border border-[#e4e4ea] bg-[#efeaf8]">
           <div className="flex flex-wrap">

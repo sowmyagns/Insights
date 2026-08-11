@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link } from "react-router-dom";
 import { Calendar, ChevronLeft, ChevronRight, ListFilter, Plus, Receipt, Search } from "lucide-react";
 
@@ -119,6 +120,9 @@ export default function PaymentsMade() {
     } catch {
       addToast("Failed to load payments made", "error");
       setRows([]);
+
+  usePageRefresh(load);
+
     } finally {
       setLoading(false);
     }
@@ -195,7 +199,6 @@ export default function PaymentsMade() {
 
   return (
     <div className="min-h-full space-y-4 bg-[#F5F5F5] p-4 sm:p-6">
-      <h1 className="text-[22px] font-bold text-[#1a1a1f]">Payments Made</h1>
 
       <div className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-[#efeaf8]">
         <div className="flex overflow-x-auto">

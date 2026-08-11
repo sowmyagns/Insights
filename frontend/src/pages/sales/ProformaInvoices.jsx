@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link, useLocation } from "react-router-dom";
 import { Calendar, ChevronLeft, ChevronRight, FileText, Filter, ListFilter, Plus, Search, X } from "lucide-react";
 
@@ -139,6 +140,9 @@ export default function ProformaInvoices() {
     } catch {
       addToast("Failed to load proforma invoices", "error");
       setRows([]);
+
+  usePageRefresh(load);
+
     } finally {
       setLoading(false);
     }
@@ -212,7 +216,6 @@ export default function ProformaInvoices() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="space-y-4 p-4 sm:p-6">
-        <h1 className="text-[22px] font-bold text-[#1a1a1f]">{pageTitle}</h1>
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-[200px] rounded-xl border border-[#e4e4ea] border-b-[3px] border-b-[#3d3560] bg-white px-5 py-3.5 shadow-sm">

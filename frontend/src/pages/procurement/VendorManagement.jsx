@@ -1,18 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  AlertCircle,
-  Building2,
-  Download,
-  FileText,
-  Plus,
-  Printer,
-  RefreshCw,
-  Star,
-  Upload,
-  UserCheck,
-  UserX,
-  Wallet,
-} from "lucide-react";
+import { AlertCircle, Building2, Download, FileText, Plus, Printer, Star, Upload, UserCheck, UserX, Wallet } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -20,6 +7,7 @@ import VendorDetailModal, { VendorFormModal } from "../../components/procurement
 import { useToast } from "../../context/ToastContext";
 import usePermissions from "../../hooks/usePermissions";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import {
   createVendor,
   deactivateVendor,
@@ -119,6 +107,7 @@ export default function VendorManagement() {
     }
   }, []);
 
+  usePageRefresh(loadVendors);
 
   useEffect(() => {
     loadVendors();
@@ -341,7 +330,6 @@ export default function VendorManagement() {
     <div className="space-y-6 pb-8">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Vendor Management</h1>
           <p className="mt-1 text-sm text-slate-500">
             Manage vendors, purchase history, outstanding payables, and performance ratings.
           </p>
@@ -361,9 +349,6 @@ export default function VendorManagement() {
           </button>
           <button type="button" onClick={handlePrint} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
             <Printer className="h-4 w-4" /> Print
-          </button>
-          <button type="button" onClick={loadVendors} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            <RefreshCw className="h-4 w-4" /> Refresh
           </button>
         </div>
       </header>

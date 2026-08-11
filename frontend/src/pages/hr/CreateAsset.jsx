@@ -87,7 +87,6 @@ export default function CreateAsset() {
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight font-sans">Register Asset</h1>
           <p className="text-xs text-slate-500">Add a new company asset, IT equipment, safety gear, or tool into the register.</p>
         </div>
       </div>

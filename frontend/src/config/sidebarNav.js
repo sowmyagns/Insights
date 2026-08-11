@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Factory,
   FolderOpen,
-  GitMerge,
   Landmark,
   Layers,
   LayoutDashboard,
@@ -29,7 +28,6 @@ export const SIDEBAR_NAV = [
     module: "dashboard",
     end: true,
   },
-
   {
     key: "masters",
     labelKey: "erpNav.masters",

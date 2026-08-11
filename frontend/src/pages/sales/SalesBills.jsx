@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { CheckCircle, FileText, Plus, TrendingUp, Download, RefreshCw, Search } from "lucide-react";
+import { CheckCircle, FileText, Plus, TrendingUp, Download, Search } from "lucide-react";
 import DataTable from "../../components/common/DataTable";
 import BillFormModal from "../../components/sales/BillFormModal";
 import { exportToExcel } from "../../utils/exportUtils";
 import api from "../../api/axiosConfig";
 import { getInvoices } from "../../api/salesApi";
 import { useToast } from "../../context/ToastContext";
+import usePageRefresh from "../../hooks/usePageRefresh";
 
 const fmt = (v) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(v) || 0);
@@ -42,7 +43,6 @@ export default function SalesBills() {
   const { addToast } = useToast();
   const [bills, setBills] = useState([]);
   const [loadingBills, setLoadingBills] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -68,6 +68,8 @@ export default function SalesBills() {
       setLoadingBills(false);
     }
   }, [addToast]);
+
+  usePageRefresh(fetchBills);
 
   // Reload every time user navigates to this page
   useEffect(() => {
@@ -265,10 +267,6 @@ export default function SalesBills() {
           )}
             className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
             <Download className="h-4 w-4" /> Export
-          </button>
-          <button type="button" onClick={async () => { setRefreshing(true); await fetchBills(); setRefreshing(false); }} disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-            <RefreshCw className={`h-4 w-4 transition-transform ${refreshing ? "animate-spin" : ""}`} /> Refresh
           </button>
         </div>
       </header>

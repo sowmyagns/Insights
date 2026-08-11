@@ -1,26 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import {
-  AlertTriangle,
-  CheckCircle,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  ClipboardList,
-  Download,
-  Eye,
-  FileSpreadsheet,
-  FileText,
-  Pause,
-  Play,
-  Plus,
-  Printer,
-  RefreshCw,
-  Search,
-  Send,
-  Upload,
-  X,
-} from "lucide-react";
+import { AlertTriangle, Ban, CheckCircle, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, FileSpreadsheet, FileText, Filter, Play, Plus, Printer, Search, Send, Target, Upload, X } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -33,13 +13,17 @@ import { useToast } from "../../context/ToastContext";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 import { notifyManufacturingSpine, MANUFACTURING_EVENTS } from "../../utils/manufacturingEvents";
 import useAuth from "../../hooks/useAuth";
+import useTenantId from "../../hooks/useTenantId";
 import { isOperator } from "../../config/permissions";
+import { PLANNING_SPINE_STEP_IDS } from "../../config/manufacturingWorkflow";
 import {
   completeProductionOrder,
+  createProductionOrder,
   getProductionOrderDetail,
   getProductionOrderStartChecks,
   getProductionOrders,
   getProductionPlanningSummary,
+  getProducts,
   pauseProductionOrder,
   startProductionOrder,
   updateProductionOrderPriority,
@@ -48,12 +32,10 @@ import {
 } from "../../api/productionApi";
 import {
   DEPARTMENTS,
-  IMPORT_TEMPLATE_HEADERS,
   ORDER_STATUSES,
   PRIORITIES,
   SHIFTS,
   STATUS_FLOW,
-  canComplete,
   canPause,
   canStart,
   calculateProgressPct,
@@ -63,41 +45,43 @@ import {
   statusLabel,
 } from "../../data/productionPlanningMasterData";
 import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
-import { printProductionOrder } from "../../utils/printUtils";
 import QuickWorkOrderModal from "../../components/production/QuickWorkOrderModal";
 import IssueMaterialsModal from "../../components/production/IssueMaterialsModal";
 
-const PAGE_BG = "#F5F5F5";
-const YELLOW = "#F5C518";
+const PAGE_BG = "#EFF2FC";
+const DECO_BG = "#EDF3FD";
+const NAVY = "#002C66";
+const PRIMARY_BLUE = "#0025D4";
 const PAGE_SIZES = [20, 50, 100];
 
-function SummaryCard({ label, value, icon: Icon, color, onClick }) {
+const TOOLBAR_BTN =
+  "inline-flex items-center gap-1.5 rounded-lg border border-[#d7e6f8] bg-white px-3.5 py-2 text-[13px] font-semibold text-[#002C66] hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-60";
+
+function SummaryCard({ label, value, icon: Icon, iconWrap, onClick }) {
   const displayVal =
     value === null || value === undefined
-      ? "0"
+      ? "—"
       : typeof value === "object"
-      ? (value?.value ?? value?.count ?? value?.total ?? JSON.stringify(value))
+      ? (value?.value ?? value?.count ?? value?.total ?? "—")
       : String(value);
 
   return (
     <div
       onClick={onClick}
-      className={`rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden ${
-        onClick ? "cursor-pointer hover:shadow-md transition-shadow" : ""
+      className={`min-h-[86px] min-w-0 overflow-hidden rounded-xl border border-[#d7e6f8] bg-white p-3.5 shadow-[0_4px_16px_rgba(15,23,42,0.04)] ${
+        onClick ? "cursor-pointer hover:shadow-md" : ""
       }`}
       title={typeof label === "string" ? label : undefined}
     >
       <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
+        <p className="min-w-0 flex-1 truncate text-[11px] font-medium leading-tight text-slate-500 sm:text-xs">{label}</p>
         {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white" />
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconWrap}`}>
+            <Icon className="h-4 w-4" strokeWidth={2} />
           </div>
         )}
       </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-extrabold tabular-nums text-slate-900 leading-none">{displayVal}</p>
-      </div>
+      <p className="mt-2 truncate text-xl font-extrabold tabular-nums leading-none text-[#002C66]">{displayVal}</p>
     </div>
   );
 }
@@ -134,6 +118,7 @@ function ProgressCell({ row }) {
 }
 
 const defaultFilters = {
+  q: "",
   order_number: "",
   product: "",
   customer: "",
@@ -213,8 +198,11 @@ function OrderCreatedToast({ order, onClose }) {
 
 export default function ProductionPlanning() {
   const { user } = useAuth();
+  const tenantId = useTenantId();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [orders, setOrders] = useState([]);
   const [apiSummary, setApiSummary] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -248,59 +236,40 @@ export default function ProductionPlanning() {
 
   const fileInputRef = useRef(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts = {}) => {
+    const isRefresh = Boolean(opts?.isRefresh);
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
     try {
       const [oRes, sRes, mRes] = await Promise.all([
-        getProductionOrders().catch(() => ({ data: [] })),
+        getProductionOrders(),
         getProductionPlanningSummary().catch(() => ({ data: null })),
         getMachines().catch(() => ({ data: [] })),
       ]);
       setMachines(mRes?.data || []);
       const apiOrders = Array.isArray(oRes.data) ? oRes.data.map(enrichApiOrder) : [];
-      let localOrders = [];
-      try {
-        const stored = localStorage.getItem("smrt_local_production_orders");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          let modified = false;
-          localOrders = parsed.map((r, i) => {
-            if (r && typeof r.shift === "object" && r.shift !== null) {
-              r.shift = r.shift.label || r.shift.id || "General";
-              modified = true;
-            }
-            return enrichApiOrder(r, i);
-          });
-          if (modified) {
-            try {
-              localStorage.setItem("smrt_local_production_orders", JSON.stringify(localOrders));
-            } catch (e) {}
-          }
-        }
-      } catch (e) {}
-      const rawList = [...localOrders, ...apiOrders];
-      const seen = new Set();
-      const list = rawList.filter((o) => {
-        const key = o.id ? `id-${o.id}` : o.order_number ? `num-${o.order_number}` : null;
-        if (!key) return true;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      list.sort((a, b) => {
+      apiOrders.sort((a, b) => {
         const idA = typeof a.id === "number" ? a.id : Number(String(a.id).replace(/\D/g, "")) || 0;
         const idB = typeof b.id === "number" ? b.id : Number(String(b.id).replace(/\D/g, "")) || 0;
         if (idA && idB && idA !== idB) return idB - idA;
         const dateA = a.created_at || a.start_date || "";
         const dateB = b.created_at || b.start_date || "";
-        return dateB.localeCompare(dateA);
+        return String(dateB).localeCompare(String(dateA));
       });
-      setOrders(list);
+      setOrders(apiOrders);
       setApiSummary(sRes.data || null);
+      if (isRefresh) addToast("Production planning updated.", "success");
+    } catch (err) {
+      addToast(err?.response?.data?.detail || "Could not load production planning", "error");
+      if (!isRefresh) {
+        setOrders([]);
+        setApiSummary(null);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, []);
+  }, [addToast]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -324,9 +293,24 @@ export default function ProductionPlanning() {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
+      const q = String(filters.q || "").trim().toLowerCase();
+      if (q) {
+        const hay = [
+          o.order_number,
+          o.product_name,
+          o.customer_name,
+          o.buyer_company,
+          o.work_order_number,
+          o.machine_name,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       if (filters.order_number && !String(o.order_number).toLowerCase().includes(filters.order_number.toLowerCase())) return false;
       if (filters.product && !String(o.product_name || "").toLowerCase().includes(filters.product.toLowerCase())) return false;
-      if (filters.customer && !String(o.customer_name || "").toLowerCase().includes(filters.customer.toLowerCase())) return false;
+      if (filters.customer && !String(o.customer_name || o.buyer_company || "").toLowerCase().includes(filters.customer.toLowerCase())) return false;
       if (filters.work_order && !String(o.work_order_number || "").toLowerCase().includes(filters.work_order.toLowerCase())) return false;
       if (filters.machine && !String(o.machine_name || "").toLowerCase().includes(filters.machine.toLowerCase())) return false;
       if (filters.department && o.department !== filters.department) return false;
@@ -353,14 +337,18 @@ export default function ProductionPlanning() {
   const to = Math.min(page * pageSize, total);
 
   const summary = useMemo(() => {
-    // Always compute from the actual merged orders list (local + API)
-    // so status changes (e.g. completed) are reflected immediately
     const computed = computePlanningSummary(filteredOrders);
-    if (apiSummary && !Object.values(filters).some(Boolean)) {
-      // Use API values only for fields not derivable from local orders (e.g. todays_target from backend)
+    const filtersActive = Object.entries(filters).some(([key, val]) => Boolean(val));
+    if (apiSummary && !filtersActive) {
       return {
-        ...computed,
+        total_orders: apiSummary.total_orders ?? computed.total_orders,
+        planned_orders: apiSummary.planned_orders ?? computed.planned_orders,
+        in_progress_orders: apiSummary.in_progress_orders ?? computed.in_progress_orders,
+        completed_orders: apiSummary.completed_orders ?? computed.completed_orders,
+        delayed_orders: apiSummary.delayed_orders ?? computed.delayed_orders,
+        cancelled_orders: apiSummary.cancelled_orders ?? computed.cancelled_orders,
         todays_target: apiSummary.todays_target ?? computed.todays_target,
+        todays_production: apiSummary.todays_production ?? computed.todays_production,
       };
     }
     return computed;
@@ -412,31 +400,6 @@ export default function ProductionPlanning() {
         return o;
       })
     );
-
-    // Save to local storage for POs and WOs
-    try {
-      const storedPOs = localStorage.getItem("smrt_local_production_orders");
-      if (storedPOs) {
-        const localPOs = JSON.parse(storedPOs);
-        const updatedPOs = localPOs.map((po) =>
-          po.id === orderId || po.order_number === orderId
-            ? { ...po, machine_id: numId, machine_name: mName }
-            : po
-        );
-        localStorage.setItem("smrt_local_production_orders", JSON.stringify(updatedPOs));
-      }
-
-      const storedWOs = localStorage.getItem("smrt_local_work_orders");
-      if (storedWOs) {
-        const localWOs = JSON.parse(storedWOs);
-        const updatedWOs = localWOs.map((wo) =>
-          wo.production_order_id === orderId || wo.production_order_number === orderId
-            ? { ...wo, machine_id: numId, machine_name: mName }
-            : wo
-        );
-        localStorage.setItem("smrt_local_work_orders", JSON.stringify(updatedWOs));
-      }
-    } catch {}
 
     addToast(numId ? `Machine (${mName}) assigned` : "Machine unassigned", "success");
 
@@ -495,35 +458,7 @@ export default function ProductionPlanning() {
       return;
     }
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: "in_progress" } : o)));
-    try {
-      const storedPOs = localStorage.getItem("smrt_local_production_orders");
-      if (storedPOs) {
-        const list = JSON.parse(storedPOs);
-        const updated = list.map((o) =>
-          o.id === order.id || o.plan_code === order.plan_code || o.order_number === order.order_number
-            ? { ...o, status: "in_progress" }
-            : o
-        );
-        localStorage.setItem("smrt_local_production_orders", JSON.stringify(updated));
-      }
-      const storedTasks = localStorage.getItem("smrt_local_tasks");
-      if (storedTasks) {
-        const taskList = JSON.parse(storedTasks);
-        const updatedTasks = taskList.map((t) => {
-          if (
-            t.status === "open" ||
-            t.reference_id === order.plan_code ||
-            t.reference_id === order.order_number ||
-            t.work_order_id === order.id
-          ) {
-            return { ...t, status: "in_progress" };
-          }
-          return t;
-        });
-        localStorage.setItem("smrt_local_tasks", JSON.stringify(updatedTasks));
-      }
-    } catch {}
-    addToast("Production started — Tasks set to In Progress");
+    addToast("Production started");
     setStartModal(null);
     setStartLoading(false);
   };
@@ -568,19 +503,6 @@ export default function ProductionPlanning() {
       "Order marked completed",
     ]);
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: "completed", produced_quantity: o.planned_quantity, progress_pct: 100 } : o)));
-    // Persist the completed status to localStorage so summary counts update correctly
-    try {
-      const stored = localStorage.getItem("smrt_local_production_orders");
-      if (stored) {
-        const localOrders = JSON.parse(stored);
-        const updated = localOrders.map((o) =>
-          (o.id === order.id || o.order_number === order.order_number)
-            ? { ...o, status: "completed", produced_quantity: o.planned_quantity, progress_pct: 100 }
-            : o
-        );
-        localStorage.setItem("smrt_local_production_orders", JSON.stringify(updated));
-      }
-    } catch (e) {}
     setCompleteModal(order);
     addToast("Order completed");
   };
@@ -596,52 +518,84 @@ export default function ProductionPlanning() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const content = e.target.result;
-        const lines = content.split("\n").map((line) => line.trim()).filter((line) => line.length > 0);
+        const lines = String(content).split("\n").map((line) => line.trim()).filter((line) => line.length > 0);
         if (lines.length <= 1) {
           addToast("Import failed: CSV file is empty or missing data rows", "error");
           return;
         }
 
         const headers = lines[0].split(",").map((h) => h.trim());
-        const importedRows = lines.slice(1).map((line, idx) => {
+        const rows = lines.slice(1).map((line) => {
           const values = line.split(",").map((v) => v.trim());
           const obj = {};
           headers.forEach((header, index) => {
             const key = header.toLowerCase().replace(/ /g, "_");
             obj[key] = values[index] || "";
           });
-
-          return enrichApiOrder({
-            id: `imported-${Date.now()}-${idx}`,
-            order_number: obj.order_number || obj.po_number || `PO-IMP-${idx + 1}`,
-            product_name: obj.product_name || obj.product || "Imported Product",
-            customer_name: obj.customer_name || obj.customer || "N/A",
-            planned_quantity: Number(obj.planned_quantity || obj.quantity || 0),
-            priority: (obj.priority || "medium").toLowerCase(),
-            department: obj.department || "Production",
-            shift: obj.shift || "Shift A",
-            start_date: obj.start_date || new Date().toISOString().slice(0, 10),
-            due_date: obj.due_date || new Date().toISOString().slice(0, 10),
-            status: obj.status || "planned",
-            produced_quantity: Number(obj.produced_quantity || 0),
-          });
+          return obj;
         });
 
-        setOrders((prev) => {
-          const updated = [...importedRows, ...prev];
+        setImporting(true);
+        const productsRes = await getProducts();
+        const products = Array.isArray(productsRes?.data) ? productsRes.data : [];
+        const matchProduct = (row) => {
+          const id = Number(row.product_id);
+          if (Number.isFinite(id) && id > 0) {
+            return products.find((p) => Number(p.id) === id) || { id };
+          }
+          const q = String(row.product_name || row.product || row.sku || "").toLowerCase().trim();
+          if (!q) return null;
+          return (
+            products.find((p) =>
+              [p.name, p.sku, p.product_code].some((v) => String(v || "").toLowerCase() === q)
+            ) ||
+            products.find((p) => String(p.name || "").toLowerCase().includes(q)) ||
+            null
+          );
+        };
+
+        let created = 0;
+        let skipped = 0;
+        for (const row of rows) {
+          const product = matchProduct(row);
+          const qty = Number(row.planned_quantity || row.quantity || 0);
+          if (!product?.id || !Number.isFinite(qty) || qty <= 0) {
+            skipped += 1;
+            continue;
+          }
           try {
-            const stored = localStorage.getItem("smrt_local_production_orders");
-            const existing = stored ? JSON.parse(stored) : [];
-            localStorage.setItem("smrt_local_production_orders", JSON.stringify([...importedRows, ...existing]));
-          } catch (e) {}
-          return updated;
-        });
-        addToast(`Successfully imported ${importedRows.length} production orders`);
-      } catch (err) {
+            await createProductionOrder({
+              tenant_id: tenantId,
+              product_id: product.id,
+              order_number: row.order_number || row.po_number || "",
+              planned_quantity: qty,
+              customer_name: row.customer_name || row.customer || null,
+              priority: String(row.priority || "medium").toLowerCase(),
+              department: row.department || "Production",
+              shift: row.shift || "Shift A",
+              start_date: row.start_date || null,
+              due_date: row.due_date || null,
+              status: row.status || "planned",
+            });
+            created += 1;
+          } catch {
+            skipped += 1;
+          }
+        }
+
+        if (created) {
+          addToast(`Imported ${created} production order${created === 1 ? "" : "s"}${skipped ? ` · ${skipped} skipped` : ""}`, "success");
+          await load();
+        } else {
+          addToast(skipped ? "Import failed: no matching products or valid quantities." : "No rows to import.", "error");
+        }
+      } catch {
         addToast("Error parsing file. Please check CSV format.", "error");
+      } finally {
+        setImporting(false);
       }
     };
 
@@ -789,10 +743,16 @@ export default function ProductionPlanning() {
 
   return (
     <>
-      <div className={`min-h-full pb-8 ${printDetailOrder ? "hidden print:hidden" : "print:p-0 print:space-y-4 print:block"}`} style={{ background: PAGE_BG }}>
-        <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
+      <div
+        className={`relative -m-4 min-h-[calc(100%+2rem)] overflow-hidden pb-10 sm:-m-5 lg:-m-6 ${printDetailOrder ? "hidden print:hidden" : "print:m-0 print:p-0 print:space-y-4 print:block"}`}
+        style={{ background: PAGE_BG }}
+      >
+        <div className="pointer-events-none absolute -right-24 -top-16 h-72 w-72 rounded-full" style={{ background: DECO_BG }} aria-hidden />
+        <div className="pointer-events-none absolute -bottom-28 -left-20 h-80 w-80 rounded-full" style={{ background: DECO_BG }} aria-hidden />
+
+        <div className="relative mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
           {/* Global Print-only Header */}
-          <div className="hidden print:block mb-4 border-b pb-4">
+          <div className="mb-4 hidden border-b pb-4 print:block">
             <h1 className="text-xl font-bold text-black">Production Planning Report</h1>
             <p className="text-xs text-slate-600">
               Generated on: {new Date().toLocaleDateString()} | Total Orders: {filteredOrders.length}
@@ -808,104 +768,101 @@ export default function ProductionPlanning() {
           />
 
           <div>
-            <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">Production Planning</h1>
-            <p className="mt-0.5 text-xs text-slate-500 print:hidden">
+            <nav className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-slate-500 print:hidden" aria-label="Breadcrumb">
+              <Link to="/" className="hover:text-[#002C66]">Home</Link>
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+              <Link to="/production" className="hover:text-[#002C66]">Production</Link>
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+              <span className="font-medium text-[#002C66]">Production Planning</span>
+            </nav>
+            <p className="mt-1.5 text-sm text-slate-500 print:hidden">
               Plan, schedule, and monitor production orders across machines, materials, and operators.
             </p>
           </div>
 
           <div className="print:hidden">
-            <ManufacturingWorkflowBar currentStepId="production_planning" />
+            <ManufacturingWorkflowBar
+              currentStepId="production_planning"
+              filterByRole={false}
+              stepIds={PLANNING_SPINE_STEP_IDS}
+            />
           </div>
 
-          <div className="my-3 flex flex-wrap gap-2 print:hidden">
-            <Link to="/production/mrp" className="ui-btn-secondary text-sm">Run MRP</Link>
-            <Link to="/production/work-orders" className="ui-btn-secondary text-sm">Work Orders</Link>
+          <div className="flex flex-wrap gap-2 print:hidden">
+            <Link
+              to="/production/mrp"
+              className="inline-flex items-center rounded-full border-2 px-4 py-1.5 text-sm font-semibold"
+              style={{ borderColor: PRIMARY_BLUE, color: PRIMARY_BLUE, background: "#FFFFFF" }}
+            >
+              Run MRP
+            </Link>
+            <Link
+              to="/production/work-orders"
+              className="inline-flex items-center rounded-full border border-transparent px-4 py-1.5 text-sm font-semibold text-slate-500 hover:bg-white hover:text-[#002C66]"
+            >
+              Work Orders
+            </Link>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-8 print:hidden">
-            <SummaryCard label="Total Orders" value={summary.total_orders} icon={ClipboardList} color="bg-[#2563EB]" />
-            <SummaryCard label="Planned" value={summary.planned_orders} icon={FileText} color="bg-blue-500" />
-            <SummaryCard label="In Progress" value={summary.in_progress_orders} icon={Play} color="bg-amber-500" />
-            <SummaryCard label="Completed" value={summary.completed_orders} icon={CheckCircle2} color="bg-green-500" />
-            <SummaryCard label="Delayed" value={summary.delayed_orders} icon={AlertTriangle} color="bg-red-500" />
-            <SummaryCard label="Cancelled" value={summary.cancelled_orders} icon={Pause} color="bg-slate-500" />
-            <SummaryCard label="Today's Target" value={summary.todays_target?.toLocaleString?.() ?? summary.todays_target} icon={ClipboardList} color="bg-indigo-500" />
+            <SummaryCard label="Total Orders" value={summary.total_orders} icon={ClipboardList} iconWrap="bg-blue-100 text-blue-600" />
+            <SummaryCard label="Planned" value={summary.planned_orders} icon={FileText} iconWrap="bg-sky-100 text-sky-600" />
+            <SummaryCard label="In Progress" value={summary.in_progress_orders} icon={Play} iconWrap="bg-orange-100 text-orange-500" />
+            <SummaryCard label="Completed" value={summary.completed_orders} icon={CheckCircle2} iconWrap="bg-emerald-100 text-emerald-600" />
+            <SummaryCard label="Delayed" value={summary.delayed_orders} icon={AlertTriangle} iconWrap="bg-red-100 text-red-500" />
+            <SummaryCard label="Cancelled" value={summary.cancelled_orders} icon={Ban} iconWrap="bg-slate-200 text-[#002C66]" />
+            <SummaryCard
+              label="Today's Target"
+              value={summary.todays_target?.toLocaleString?.() ?? summary.todays_target}
+              icon={Target}
+              iconWrap="bg-violet-100 text-violet-600"
+            />
             <SummaryCard
               label="Today's Production"
               value={summary.todays_production?.toLocaleString?.() ?? summary.todays_production}
               icon={CheckCircle2}
-              color="bg-teal-500"
+              iconWrap="bg-teal-100 text-teal-600"
               onClick={showTodayStartOrders}
             />
           </div>
 
-          {/* Main Card Container styled like Customers page */}
-          <div className="rounded-xl border border-[#e4e4ea] bg-white p-4 shadow-sm sm:p-5 print:p-0 print:border-none print:shadow-none">
-            {/* Top Action Bar: Search on left, Action Buttons & Yellow + New Production Order on right */}
+          <div className="rounded-xl bg-[#EFF4FD] p-4 sm:p-5 print:bg-white print:p-0 print:shadow-none">
             <div className="mb-4 flex flex-wrap items-center gap-2.5 print:hidden">
               <div className="relative min-w-[220px] flex-1">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
                 <input
                   type="search"
                   placeholder="Search production orders..."
-                  value={filters.order_number || filters.product || ""}
-                  onChange={(e) => setFilters((f) => ({ ...f, order_number: e.target.value, product: e.target.value }))}
-                  className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] py-2.5 pl-10 pr-4 text-[13px] outline-none placeholder:text-[#a0a0ab] focus:border-[#d0d0d8] focus:bg-white"
+                  value={filters.q}
+                  onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
+                  className="w-full rounded-full border border-[#d7e6f8] bg-white py-2.5 pl-10 pr-4 text-[13px] text-[#002C66] outline-none placeholder:text-[#a0a0ab] focus:border-[#789DF8]"
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]"
-              >
+              <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} className={TOOLBAR_BTN}>
+                <Filter className="h-4 w-4" />
                 {showAdvanced ? "Hide Filters" : "Advanced Filters"}
               </button>
-              <button
-                type="button"
-                onClick={handleImportFileClick}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]"
-              >
+              <button type="button" onClick={handleImportFileClick} disabled={importing} className={TOOLBAR_BTN}>
                 <Upload className="h-4 w-4" />
-                Import
+                {importing ? "Importing…" : "Import"}
               </button>
-              <button
-                type="button"
-                onClick={handleExportExcel}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]"
-              >
+              <button type="button" onClick={handleExportExcel} className={TOOLBAR_BTN}>
                 <FileSpreadsheet className="h-4 w-4" />
                 Export Excel
               </button>
-              <button
-                type="button"
-                onClick={handleExportPdf}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]"
-              >
+              <button type="button" onClick={handleExportPdf} className={TOOLBAR_BTN}>
                 <FileText className="h-4 w-4" />
                 Export PDF
               </button>
-              <button
-                type="button"
-                onClick={handleGlobalPrint}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]"
-              >
+              <button type="button" onClick={handleGlobalPrint} className={TOOLBAR_BTN}>
                 <Printer className="h-4 w-4" />
                 Print
-              </button>
-              <button
-                type="button"
-                onClick={load}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Refresh
               </button>
               {!isOperator(user) && (
                 <Link
                   to="/production/create"
-                  className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f]"
-                  style={{ background: YELLOW }}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold text-white"
+                  style={{ background: PRIMARY_BLUE }}
                 >
                   <Plus className="h-4 w-4" />
                   New Production Order
@@ -915,16 +872,16 @@ export default function ProductionPlanning() {
 
             {showAdvanced && (
               <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 print:hidden">
-                <input placeholder="Order No." value={filters.order_number} onChange={(e) => setFilters((f) => ({ ...f, order_number: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm" />
-                <input placeholder="Product" value={filters.product} onChange={(e) => setFilters((f) => ({ ...f, product: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm" />
-                <input placeholder="Customer" value={filters.customer} onChange={(e) => setFilters((f) => ({ ...f, customer: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm" />
-                <input placeholder="Work Order" value={filters.work_order} onChange={(e) => setFilters((f) => ({ ...f, work_order: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm" />
-                <input placeholder="Machine" value={filters.machine} onChange={(e) => setFilters((f) => ({ ...f, machine: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm" />
-                <select value={filters.department} onChange={(e) => setFilters((f) => ({ ...f, department: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm">
+                <input placeholder="Order No." value={filters.order_number} onChange={(e) => setFilters((f) => ({ ...f, order_number: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
+                <input placeholder="Product" value={filters.product} onChange={(e) => setFilters((f) => ({ ...f, product: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
+                <input placeholder="Customer" value={filters.customer} onChange={(e) => setFilters((f) => ({ ...f, customer: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
+                <input placeholder="Work Order" value={filters.work_order} onChange={(e) => setFilters((f) => ({ ...f, work_order: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
+                <input placeholder="Machine" value={filters.machine} onChange={(e) => setFilters((f) => ({ ...f, machine: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
+                <select value={filters.department} onChange={(e) => setFilters((f) => ({ ...f, department: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm">
                   <option value="">Department</option>
                   {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
-                <select value={filters.shift} onChange={(e) => setFilters((f) => ({ ...f, shift: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm">
+                <select value={filters.shift} onChange={(e) => setFilters((f) => ({ ...f, shift: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm">
                   <option value="">Shift</option>
                   {SHIFTS.map((s) => {
                     const id = typeof s === "object" ? s.id : s;
@@ -932,44 +889,43 @@ export default function ProductionPlanning() {
                     return <option key={id} value={id}>{label}</option>;
                   })}
                 </select>
-                <select value={filters.priority} onChange={(e) => setFilters((f) => ({ ...f, priority: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm">
+                <select value={filters.priority} onChange={(e) => setFilters((f) => ({ ...f, priority: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm">
                   <option value="">Priority</option>
                   {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
-                <select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm">
+                <select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm">
                   <option value="">Status</option>
                   {ORDER_STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
                 </select>
-                <input type="date" value={filters.date_from} onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm" />
-                <input type="date" value={filters.date_to} onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value }))} className="rounded-lg border px-3 py-2 text-sm" />
-                <button type="button" onClick={() => setFilters(defaultFilters)} className="rounded-lg border px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">Clear</button>
+                <input type="date" value={filters.date_from} onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
+                <input type="date" value={filters.date_to} onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
+                <button type="button" onClick={() => setFilters(defaultFilters)} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm font-semibold text-[#002C66] hover:bg-white/80">Clear</button>
               </div>
             )}
 
-            <div className="overflow-hidden rounded-lg border border-[#ececf0] print:w-full print:border-none">
+            <div className="overflow-hidden rounded-lg border border-[#d7e6f8] bg-white print:w-full print:border-none">
               <DataTable
                 columns={columns}
                 data={paginatedOrders}
                 showSearch={false}
-                pagination={false}
+                showPagination={false}
                 emptyState={
-                  <div className="py-12 text-center">
-                    <ClipboardList className="mx-auto h-12 w-12 text-slate-300" />
-                    <p className="mt-4 text-sm font-medium text-slate-600">No production orders found.</p>
-                    <Link to="/production/create" className="ui-btn-primary mt-4 inline-flex print:hidden">Create Production Order</Link>
+                  <div className="py-16 text-center">
+                    <ClipboardList className="mx-auto h-16 w-16 text-slate-300" strokeWidth={1.25} />
+                    <p className="mt-4 text-sm font-semibold text-slate-600">No production orders found.</p>
+                    <p className="mt-1 text-sm text-slate-400">Create a new production order to get started.</p>
                   </div>
                 }
               />
             </div>
 
-            {/* Pagination Controls like Customers Page */}
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[12px] text-[#6b6b76] print:hidden">
-              <div className="flex items-center gap-2">
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-3 text-[12px] text-[#6b6b76] print:hidden">
+              <div className="mr-auto flex items-center gap-2">
                 <span>Rows per page:</span>
                 <select
                   value={pageSize}
                   onChange={(e) => setPageSize(Number(e.target.value))}
-                  className="rounded border border-[#e2e2e8] bg-white px-2 py-1 outline-none"
+                  className="rounded border border-[#d7e6f8] bg-white px-2 py-1 outline-none"
                 >
                   {PAGE_SIZES.map((n) => (
                     <option key={n} value={n}>
@@ -984,15 +940,15 @@ export default function ProductionPlanning() {
                   type="button"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="grid h-8 w-8 place-items-center rounded border border-[#e2e2e8] bg-white disabled:opacity-40"
+                  className="grid h-8 w-8 place-items-center rounded border border-[#d7e6f8] bg-white disabled:opacity-40"
                   aria-label="Previous page"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
                 <button
                   type="button"
-                  className="grid h-8 min-w-8 place-items-center rounded border border-[#e0b400] px-2 text-[13px] font-semibold"
-                  style={{ background: "#fff2b8" }}
+                  className="grid h-8 min-w-8 place-items-center rounded border px-2 text-[13px] font-semibold text-[#002C66]"
+                  style={{ borderColor: "#789DF8", background: "#FFFFFF" }}
                 >
                   {page}
                 </button>
@@ -1000,7 +956,7 @@ export default function ProductionPlanning() {
                   type="button"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="grid h-8 w-8 place-items-center rounded border border-[#e2e2e8] bg-white disabled:opacity-40"
+                  className="grid h-8 w-8 place-items-center rounded border border-[#d7e6f8] bg-white disabled:opacity-40"
                   aria-label="Next page"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -1010,16 +966,21 @@ export default function ProductionPlanning() {
           </div>
 
           <div className="print:hidden">
-            <ManufacturingWorkflowBar currentStepId="production_planning" compact />
+            <ManufacturingWorkflowBar
+              currentStepId="production_planning"
+              compact
+              filterByRole={false}
+              stepIds={PLANNING_SPINE_STEP_IDS}
+            />
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 print:hidden">
-            <p className="mb-2 text-xs font-semibold text-slate-500">Status Flow</p>
-            <div className="flex flex-wrap gap-2">
+          <div className="rounded-xl border border-[#d7e6f8] bg-white px-4 py-3 print:hidden">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Status Flow</p>
+            <div className="flex flex-wrap items-center gap-2">
               {STATUS_FLOW.map((s, i) => (
-                <span key={s} className="flex items-center gap-2 text-xs text-slate-600">
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium">{s}</span>
-                  {i < STATUS_FLOW.length - 1 && <span className="text-slate-300">↓</span>}
+                <span key={s} className="flex items-center gap-2 text-xs text-[#002C66]">
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">{s}</span>
+                  {i < STATUS_FLOW.length - 1 && <span className="text-slate-300">→</span>}
                 </span>
               ))}
             </div>

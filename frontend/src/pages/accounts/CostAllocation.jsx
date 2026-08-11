@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, RefreshCw, Layers, Award, ShieldAlert, X } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { Plus, Layers, Award, ShieldAlert, X } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import FinanceFilters from "../../components/finance/FinanceFilters";
 import Loader from "../../components/common/Loader";
@@ -45,6 +46,9 @@ export default function CostAllocation() {
     } catch (error) {
       console.error("CostAllocation load failed", error);
       setAllocations(Array.isArray(localEntries) ? localEntries : []);
+
+  usePageRefresh(load);
+
       addToast("Failed to load Cost Center Allocation data", "error");
     } finally {
       setLoading(false);
@@ -118,7 +122,6 @@ export default function CostAllocation() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 border-b-0 pb-0">Cost Center Allocation</h1>
           <p className="mt-1 text-sm text-slate-500 font-medium">Allocate indirect overhead and general expense vouchers across organizational departments.</p>
         </div>
         <div className="flex gap-2">
@@ -128,9 +131,6 @@ export default function CostAllocation() {
           >
             <Plus className="h-4 w-4" />
             New Allocation
-          </button>
-          <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            <RefreshCw className="h-4 w-4" /> Refresh
           </button>
         </div>
       </header>

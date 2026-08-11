@@ -1,26 +1,199 @@
+import {
+  Box,
+  CalendarClock,
+  ClipboardCheck,
+  FileText,
+  GitBranch,
+  ListChecks,
+  Package,
+  ShoppingCart,
+  Star,
+  Target,
+  UserRound,
+  Users,
+} from "lucide-react";
+
 /** End-to-end manufacturing workflow steps for GNS Insights. */
 
 export const MANUFACTURING_WORKFLOW_STEPS = [
-  { id: "sales_order", label: "Sales Order", path: "/sales/orders" },
-  { id: "production_planning", label: "Production Planning", path: "/production/planning" },
-  { id: "bom", label: "Bill of Materials (BOM)", path: "/masters/bom" },
-  { id: "mrp", label: "Material Requirements Planning (MRP)", path: "/production/mrp" },
-  { id: "purchase_request", label: "Purchase Request", path: "/procurement/material-requests" },
-  { id: "purchase_order", label: "Purchase Order", path: "/procurement/purchase-orders" },
-  { id: "grn", label: "Goods Receipt Note (GRN)", path: "/procurement/goods-receipt" },
-  { id: "raw_material", label: "Raw Material", path: "/inventory/raw-materials" },
-  { id: "schedule", label: "Schedule", path: "/production/schedule" },
-  { id: "work_order", label: "Work Order", path: "/production/work-orders" },
-  { id: "machine_assign", label: "Machine Assign", path: "/production/tasks" },
-  { id: "material_issue", label: "Material Issue", path: "/production/work-orders" },
-  { id: "production", label: "Production", path: "/factory-monitor/live-production" },
-  { id: "quality", label: "Quality", path: "/quality/final" },
-  { id: "finished_goods", label: "Finished Goods", path: "/inventory/finished-goods" },
-  { id: "dispatch", label: "Dispatch", path: "/sales/dispatch" },
-  { id: "invoice", label: "Invoice", path: "/sales/invoices" },
-  { id: "payment", label: "Payment", path: "/sales/payments" },
-  { id: "dashboard", label: "Dashboard", path: "/" },
+  { id: "sales_order", label: "Sales Order", shortLabel: "Sales Order", path: "/sales/orders" },
+  { id: "production_planning", label: "Production Planning", shortLabel: "Production Planning", path: "/production/planning" },
+  { id: "bom", label: "Bill of Materials (BOM)", shortLabel: "Bill of Materials", path: "/masters/bom" },
+  { id: "mrp", label: "Material Requirements Planning (MRP)", shortLabel: "Material Requirement", path: "/production/mrp" },
+  { id: "purchase_request", label: "Purchase Request", shortLabel: "Purchase Request", path: "/procurement/material-requests" },
+  { id: "purchase_order", label: "Purchase Order", shortLabel: "Purchase Order", path: "/procurement/purchase-orders" },
+  { id: "grn", label: "Goods Receipt Note (GRN)", shortLabel: "Goods Receipt", path: "/procurement/goods-receipt" },
+  { id: "raw_material", label: "Raw Material", shortLabel: "Raw Material", path: "/inventory/raw-materials" },
+  { id: "schedule", label: "Schedule", shortLabel: "Schedule", path: "/production/schedule" },
+  { id: "work_order", label: "Work Order", shortLabel: "Work Order", path: "/production/work-orders" },
+  { id: "machine_assign", label: "Machine Assign", shortLabel: "Machine Assign", path: "/production/tasks" },
+  { id: "material_issue", label: "Material Issue", shortLabel: "Material Issue", path: "/production/work-orders" },
+  { id: "production", label: "Production", shortLabel: "Production", path: "/factory-monitor/live-production" },
+  { id: "quality", label: "Quality", shortLabel: "Quality", path: "/quality/final" },
+  { id: "finished_goods", label: "Finished Goods", shortLabel: "Finished Goods", path: "/inventory/finished-goods" },
+  { id: "dispatch", label: "Dispatch", shortLabel: "Dispatch", path: "/sales/dispatch" },
+  { id: "invoice", label: "Invoice", shortLabel: "Invoice", path: "/sales/invoices" },
+  { id: "payment", label: "Payment", shortLabel: "Payment", path: "/sales/payments" },
+  { id: "dashboard", label: "Dashboard", shortLabel: "Dashboard", path: "/" },
 ];
+
+/** 13-step manufacturing spine shown on Production Planning (screenshot). */
+export const PLANNING_SPINE_STEP_IDS = [
+  "sales_order",
+  "production_planning",
+  "bom",
+  "mrp",
+  "purchase_request",
+  "purchase_order",
+  "grn",
+  "raw_material",
+  "schedule",
+  "machine_assign",
+  "material_issue",
+  "production",
+  "quality",
+];
+
+/** Card accent cycle matching the Role Workflow mockup: blue → green → purple → orange. */
+export const RESPONSIBILITY_ACCENTS = [
+  {
+    iconWrap: "bg-sky-100 text-sky-600",
+    role: "text-sky-600",
+    hover: "hover:border-sky-300",
+    active: "border-sky-400 ring-1 ring-sky-200",
+  },
+  {
+    iconWrap: "bg-emerald-100 text-emerald-600",
+    role: "text-emerald-600",
+    hover: "hover:border-emerald-300",
+    active: "border-emerald-500 ring-1 ring-emerald-200",
+  },
+  {
+    iconWrap: "bg-violet-100 text-violet-600",
+    role: "text-violet-600",
+    hover: "hover:border-violet-300",
+    active: "border-violet-400 ring-1 ring-violet-200",
+  },
+  {
+    iconWrap: "bg-orange-100 text-orange-500",
+    role: "text-orange-500",
+    hover: "hover:border-orange-300",
+    active: "border-orange-400 ring-1 ring-orange-200",
+  },
+];
+
+const DEFAULT_ICON = FileText;
+
+/** Icons for the first 12 Role Workflow / My Responsibilities cards. */
+export const RESPONSIBILITY_ICONS = {
+  enquiry: UserRound,
+  quotation: FileText,
+  quotation_approval: Target,
+  quotation_sent: GitBranch,
+  sales_order: ClipboardCheck,
+  production_planning: Users,
+  bom: ListChecks,
+  mrp: Box,
+  capacity: CalendarClock,
+  purchase_request: ShoppingCart,
+  purchase_order: Package,
+  grn: Star,
+};
+
+export const DEFAULT_RESPONSIBILITY_STAGES = [
+  {
+    id: "enquiry",
+    label: "Customer Enquiry",
+    responsible_role: "Sales Manager",
+    path: "/sales/leads",
+    tasks: ["Resolve customer enquiry", "Capture requirements"],
+  },
+  {
+    id: "quotation",
+    label: "Quotation Prep",
+    responsible_role: "Sales Manager",
+    path: "/sales/quotations",
+    tasks: ["Prepare quotation", "Price, GST, validity"],
+  },
+  {
+    id: "quotation_approval",
+    label: "Quote Internal Approval",
+    responsible_role: "Sales Manager",
+    path: "/sales/quotations",
+    tasks: ["Submit for approval", "Manage approve / reject"],
+  },
+  {
+    id: "quotation_sent",
+    label: "Quote Sent / Confirm",
+    responsible_role: "Sales Manager",
+    path: "/sales/quotations",
+    tasks: ["Send to customer", "Customer confirmation"],
+  },
+  {
+    id: "sales_order",
+    label: "Sales Order",
+    responsible_role: "Sales Manager",
+    path: "/sales/orders",
+    tasks: ["Create SO", "Approve / Confirm → Planning"],
+  },
+  {
+    id: "production_planning",
+    label: "Production Planning",
+    responsible_role: "Production Manager",
+    path: "/production/planning",
+    tasks: ["Review SO", "Create production plan"],
+  },
+  {
+    id: "bom",
+    label: "BOM",
+    responsible_role: "Production Manager",
+    path: "/masters/bom",
+    tasks: ["Load active BOM", "Verify components"],
+  },
+  {
+    id: "mrp",
+    label: "MRP & Shortage",
+    responsible_role: "Production Manager",
+    path: "/production/mrp",
+    tasks: ["Run MRP", "Inventory check", "Shortage analysis"],
+  },
+  {
+    id: "capacity",
+    label: "Capacity / Schedule",
+    responsible_role: "Production Manager",
+    path: "/production/schedule",
+    tasks: ["Machine capacity check", "Production schedule"],
+  },
+  {
+    id: "purchase_request",
+    label: "Purchase Requisition",
+    responsible_role: "Production Manager",
+    path: "/procurement/material-requests",
+    tasks: ["Review shortages", "PM approve PR"],
+  },
+  {
+    id: "purchase_order",
+    label: "Purchase Order",
+    responsible_role: "Production Manager",
+    path: "/procurement/purchase-orders",
+    tasks: ["Create PO", "Supplier confirmation"],
+  },
+  {
+    id: "grn",
+    label: "GRN",
+    responsible_role: "Store Manager",
+    path: "/procurement/goods-receipt",
+    tasks: ["Material receipt", "Create GRN"],
+  },
+];
+
+export function getResponsibilityAccent(index) {
+  return RESPONSIBILITY_ACCENTS[index % RESPONSIBILITY_ACCENTS.length];
+}
+
+export function getResponsibilityIcon(stageId) {
+  return RESPONSIBILITY_ICONS[stageId] || DEFAULT_ICON;
+}
 
 /** Nine high-level phases (Enquiry → Closure) displayed in the workflow legend. */
 export const WORKFLOW_PHASES = [
@@ -80,22 +253,33 @@ export function getWorkflowStepIndex(currentStepId) {
 /**
  * Build step statuses relative to the current step.
  * @param {string} currentStepId
- * @param {{ roleName?: string, filterByRole?: boolean }} [options]
- * @returns {{ id: string, label: string, path: string, state: 'completed'|'current'|'pending' }[]}
+ * @param {{ roleName?: string, filterByRole?: boolean, stepIds?: string[] }} [options]
+ * @returns {{ id: string, label: string, shortLabel?: string, path: string, state: 'completed'|'current'|'pending' }[]}
  */
 export function buildWorkflowProgress(currentStepId, options = {}) {
-  const { filterByRole = false } = options;
-  const current = getWorkflowStepIndex(currentStepId);
-  const steps = MANUFACTURING_WORKFLOW_STEPS.map((step, i) => ({
-    ...step,
-    state: i < current ? "completed" : i === current ? "current" : "pending",
-  }));
+  const { filterByRole = false, stepIds = null } = options;
+  const fullCurrent = getWorkflowStepIndex(currentStepId);
+  const catalog =
+    Array.isArray(stepIds) && stepIds.length
+      ? stepIds
+          .map((id) => MANUFACTURING_WORKFLOW_STEPS.find((s) => s.id === id))
+          .filter(Boolean)
+      : MANUFACTURING_WORKFLOW_STEPS;
+
+  const steps = catalog.map((step) => {
+    const fullIdx = getWorkflowStepIndex(step.id);
+    const state =
+      fullIdx < fullCurrent ? "completed" : fullIdx === fullCurrent ? "current" : "pending";
+    return { ...step, state };
+  });
 
   // When filterByRole is true, show a focused window around the current step.
   // Full role-based filtering is handled by the backend via getManufacturingWorkflowBoard.
   if (filterByRole) {
+    const current = steps.findIndex((s) => s.state === "current");
+    const focus = current >= 0 ? current : 0;
     return steps.filter(
-      (_, i) => i >= Math.max(0, current - 2) && i <= Math.min(steps.length - 1, current + 2)
+      (_, i) => i >= Math.max(0, focus - 2) && i <= Math.min(steps.length - 1, focus + 2)
     );
   }
 

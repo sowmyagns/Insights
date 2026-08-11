@@ -16,6 +16,10 @@ export default function SettingsSectionPage() {
     return <Navigate to="/settings" replace />;
   }
 
+  if (category.href) {
+    return <Navigate to={category.href} replace />;
+  }
+
   if (LEGACY_SETTINGS_REDIRECTS[sectionId] && sectionId !== mapped) {
     return <Navigate to={`/settings/${mapped}`} replace />;
   }

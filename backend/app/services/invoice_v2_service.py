@@ -399,7 +399,7 @@ def create_invoice_v2(db: Session, payload: InvoiceV2Create) -> Invoice:
         discount=_money(payload.discount),
         other_charge=_money(payload.other_charge),
         round_off=_money(payload.round_off),
-        cgst_pct=float(payload.csgst_pct or 0),
+        cgst_pct=float(payload.cgst_pct or 0),
         sgst_pct=float(payload.sgst_pct or 0),
         igst_pct=float(payload.igst_pct or 0),
         status=payload.status or "issued",

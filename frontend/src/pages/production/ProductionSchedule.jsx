@@ -1,20 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  Calendar,
-  CheckCircle2,
-  ClipboardList,
-  Download,
-  Factory,
-  GanttChart,
-  LayoutGrid,
-  Plus,
-  RefreshCw,
-  Table2,
-  Users,
-  X,
-  Zap,
-} from "lucide-react";
+import { AlertTriangle, Calendar, CheckCircle2, ClipboardList, Clock, Download, Factory, Gauge, GanttChart, LayoutGrid, Plus, Table2, Target, Users, X, Zap } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -33,6 +18,7 @@ import {
 } from "../../api/schedulingApi";
 import { getMachines, createWorkOrder, getProductionOrders } from "../../api/productionApi";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import useAuth from "../../hooks/useAuth";
 import { isOperator } from "../../config/permissions";
 import {
@@ -60,20 +46,20 @@ const VIEWS = [
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function SummaryCard({ label, value, sub, icon: Icon, color }) {
+function SummaryCard({ label, value, sub, icon: Icon, iconWrap = "bg-sky-50 text-sky-700" }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="text-xs font-medium text-slate-500">{label}</div>
           <div className="mt-1 truncate text-xl font-bold tabular-nums text-slate-900 sm:text-2xl">{value}</div>
           {sub && <div className="mt-0.5 text-[10px] text-slate-400">{sub}</div>}
         </div>
-        {Icon && (
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
+        {Icon ? (
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconWrap}`}>
+            <Icon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -526,6 +512,8 @@ export default function ProductionSchedule() {
         getScheduleCalendar(),
       ]);
 
+  usePageRefresh(load);
+
       if (dashRes.status === "fulfilled" && dashRes.value?.data) {
         setDashboard({ ...DEMO_DASHBOARD, ...dashRes.value.data });
       }
@@ -680,7 +668,6 @@ const YELLOW = "#F5C518";
         {/* Header */}
         <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">Production Schedule</h1>
             <p className="mt-0.5 text-xs text-slate-500">
               Calendar, Gantt timeline, Kanban, and machine-wise scheduling control center.
             </p>
@@ -703,13 +690,6 @@ const YELLOW = "#F5C518";
           >
             <Download className="h-4 w-4" /> Export
           </button>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </button>
         </div>
       </header>
 
@@ -720,14 +700,14 @@ const YELLOW = "#F5C518";
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
-        <SummaryCard label="Production Target" value={(dashboard.production_target ?? 0).toLocaleString()} icon={Factory} color="bg-[#2563EB]" />
-        <SummaryCard label="Completed" value={(dashboard.completed ?? 0).toLocaleString()} icon={CheckCircle2} color="bg-green-500" />
-        <SummaryCard label="Pending" value={(dashboard.pending ?? 0).toLocaleString()} icon={ClipboardList} color="bg-amber-500" />
-        <SummaryCard label="Overall Progress" value={<ProgressBar pct={dashboard.overall_progress_pct} />} color="bg-indigo-500" />
-        <SummaryCard label="Machine Utilization" value={`${dashboard.machine_utilization_pct ?? 0}%`} icon={Zap} color="bg-teal-500" />
-        <SummaryCard label="Operators Present" value={dashboard.operators_present ?? 0} icon={Users} color="bg-blue-500" />
-        <SummaryCard label="Delayed Orders" value={dashboard.delayed_orders ?? 0} icon={AlertTriangle} color="bg-red-500" />
-        <SummaryCard label="Material Shortage" value={dashboard.material_shortage ?? 0} icon={AlertTriangle} color="bg-orange-500" />
+        <SummaryCard label="Production Target" value={(dashboard.production_target ?? 0).toLocaleString()} icon={Target} iconWrap="bg-sky-50 text-sky-700" />
+        <SummaryCard label="Completed" value={(dashboard.completed ?? 0).toLocaleString()} icon={CheckCircle2} iconWrap="bg-emerald-50 text-emerald-700" />
+        <SummaryCard label="Pending" value={(dashboard.pending ?? 0).toLocaleString()} icon={ClipboardList} iconWrap="bg-amber-50 text-amber-700" />
+        <SummaryCard label="Overall Progress" value={<ProgressBar pct={dashboard.overall_progress_pct} />} icon={Gauge} iconWrap="bg-indigo-50 text-indigo-700" />
+        <SummaryCard label="Machine Utilization" value={`${dashboard.machine_utilization_pct ?? 0}%`} icon={Zap} iconWrap="bg-teal-50 text-teal-700" />
+        <SummaryCard label="Operators Present" value={dashboard.operators_present ?? 0} icon={Users} iconWrap="bg-blue-50 text-blue-700" />
+        <SummaryCard label="Delayed Orders" value={dashboard.delayed_orders ?? 0} icon={AlertTriangle} iconWrap="bg-rose-50 text-rose-700" />
+        <SummaryCard label="Material Shortage" value={dashboard.material_shortage ?? 0} icon={AlertTriangle} iconWrap="bg-orange-50 text-orange-700" />
       </div>
 
       {/* View tabs */}
@@ -889,14 +869,14 @@ const YELLOW = "#F5C518";
 
       {/* Bottom KPI row */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
-        <SummaryCard label="Today's Production" value={(bottomKpis.todays_production ?? 0).toLocaleString()} />
-        <SummaryCard label="Pending Orders" value={(bottomKpis.pending_orders ?? 0).toLocaleString()} />
-        <SummaryCard label="Machine Efficiency" value={`${bottomKpis.machine_efficiency_pct ?? 0}%`} />
-        <SummaryCard label="Shift Efficiency" value={`${bottomKpis.shift_efficiency_pct ?? 0}%`} />
-        <SummaryCard label="Downtime" value={`${bottomKpis.downtime_minutes ?? 0} min`} />
-        <SummaryCard label="Power Consumption" value={`${bottomKpis.power_kwh ?? 0} kWh`} />
-        <SummaryCard label="OEE" value={`${bottomKpis.oee_pct ?? 0}%`} />
-        <SummaryCard label="Quality Rate" value={`${bottomKpis.quality_rate_pct ?? 0}%`} />
+        <SummaryCard label="Today's Production" value={(bottomKpis.todays_production ?? 0).toLocaleString()} icon={Factory} iconWrap="bg-emerald-50 text-emerald-700" />
+        <SummaryCard label="Pending Orders" value={(bottomKpis.pending_orders ?? 0).toLocaleString()} icon={Clock} iconWrap="bg-amber-50 text-amber-700" />
+        <SummaryCard label="Machine Efficiency" value={`${bottomKpis.machine_efficiency_pct ?? 0}%`} icon={Zap} iconWrap="bg-violet-50 text-violet-700" />
+        <SummaryCard label="Shift Efficiency" value={`${bottomKpis.shift_efficiency_pct ?? 0}%`} icon={Gauge} iconWrap="bg-sky-50 text-sky-700" />
+        <SummaryCard label="Downtime" value={`${bottomKpis.downtime_minutes ?? 0} min`} icon={AlertTriangle} iconWrap="bg-rose-50 text-rose-700" />
+        <SummaryCard label="Power Consumption" value={`${bottomKpis.power_kwh ?? 0} kWh`} icon={Zap} iconWrap="bg-orange-50 text-orange-700" />
+        <SummaryCard label="OEE" value={`${bottomKpis.oee_pct ?? 0}%`} icon={Target} iconWrap="bg-teal-50 text-teal-700" />
+        <SummaryCard label="Quality Rate" value={`${bottomKpis.quality_rate_pct ?? 0}%`} icon={CheckCircle2} iconWrap="bg-emerald-50 text-emerald-700" />
       </div>
 
       {/* Workflow bar */}

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+
 import Loader from "../../components/common/Loader";
 import Table from "../../components/common/Table";
 import { listExpenses } from "../../api/accountsApi";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import RecordExpense from "./RecordExpense";
 
 export default function ExpenseTracking() {
@@ -22,6 +23,8 @@ export default function ExpenseTracking() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [tenantId, year]);
+
+  usePageRefresh(load);
 
   useEffect(() => { load(); }, [load]);
 
@@ -57,7 +60,6 @@ export default function ExpenseTracking() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Expense Tracking</h1>
           <p className="mt-1 text-sm text-slate-500">All operational expenses posted to the ledger.</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
@@ -75,7 +77,6 @@ export default function ExpenseTracking() {
           >
             + Record Expense
           </button>
-          <button onClick={load} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
           <button onClick={exportExcel} className="rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Export Excel</button>
           <button onClick={exportPdf} className="rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Export PDF</button>
         </div>

@@ -43,7 +43,6 @@ export default function Settings() {
     <div className="mx-auto max-w-3xl space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t("settings.title")}</h1>
           <p className="mt-1 text-slate-500 dark:text-slate-400">
             {t("settings.subtitle")}
           </p>

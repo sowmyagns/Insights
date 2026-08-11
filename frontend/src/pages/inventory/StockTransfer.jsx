@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRight, CheckCircle2, Clock, Plus, RefreshCw, Truck, XCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, Plus, Truck, XCircle } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -13,6 +13,7 @@ import {
 } from "../../api/inventoryApi";
 import { TRANSFER_STATUSES } from "../../data/inventoryMasterData";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 
 const STATUS_COLORS = {
   draft: "bg-slate-100 text-slate-700",
@@ -54,6 +55,9 @@ export default function StockTransfer() {
         getWarehouses(),
         getInventoryDashboard(),
       ]);
+
+  usePageRefresh(load);
+
       if (trRes.status === "fulfilled" && trRes.value?.data) {
         setTransfers(trRes.value.data);
       } else {
@@ -375,13 +379,6 @@ export default function StockTransfer() {
           <h2 className="flex items-center gap-2 text-sm font-bold text-slate-800">
             <Truck className="h-4 w-4 text-teal-700" /> Transfer History
           </h2>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-          >
-            <RefreshCw className="h-3 w-3" /> Refresh
-          </button>
         </div>
         <DataTable columns={historyColumns} data={transfers} showSearch={false} />
       </section>

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+
 
 import PageHeader from "../../components/common/PageHeader";
 import DataTable from "../../components/common/DataTable";
 import AccessDenied from "../../components/admin/AccessDenied";
 import usePermissions from "../../hooks/usePermissions";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { useToast } from "../../context/ToastContext";
 import { getAccessLogs } from "../../api/adminApi";
 
@@ -56,6 +57,8 @@ export default function AccessLogs() {
       .finally(() => setLoading(false));
   }, [addToast]);
 
+  usePageRefresh(load);
+
   useEffect(() => {
     if (isAdmin) load();
   }, [isAdmin, load]);
@@ -92,14 +95,6 @@ export default function AccessLogs() {
         title="Audit Logs"
         subtitle="Audit trail of administrative actions across users, roles, and permissions."
         action={
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </button>
         }
       />
 

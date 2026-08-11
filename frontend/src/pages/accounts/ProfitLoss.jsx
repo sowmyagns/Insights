@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import * as XLSX from "xlsx";
-import { RefreshCw } from "lucide-react";
+
 
 import ExportButtons from "../../components/finance/ExportButtons";
 import Loader from "../../components/common/Loader";
@@ -42,6 +43,8 @@ export default function ProfitLoss() {
       setLoading(false);
     }
   }, [year, startDate, endDate]);
+
+  usePageRefresh(fetchData);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -157,7 +160,6 @@ export default function ProfitLoss() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Profit & Loss Statement</p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">Profit & Loss A/c</h1>
             <p className="mt-2 text-sm text-slate-500">{startDate} to {endDate}</p>
             {/* Download buttons right under title */}
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -200,14 +202,6 @@ export default function ProfitLoss() {
                 {[2026, 2025, 2024, 2023].map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
-            <button
-              type="button"
-              onClick={fetchData}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </button>
           </div>
         </div>
       </section>

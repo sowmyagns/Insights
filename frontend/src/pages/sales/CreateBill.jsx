@@ -147,7 +147,6 @@ export default function CreateBill() {
         <Link to="/sales/bills" className="mb-2 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
           <ArrowLeft className="h-4 w-4" /> Back to Bills
         </Link>
-        <h1 className="text-2xl font-bold text-slate-900">Create Bill</h1>
         <p className="mt-1 text-sm text-slate-500">Fill in the details below to create a new bill.</p>
       </div>
 

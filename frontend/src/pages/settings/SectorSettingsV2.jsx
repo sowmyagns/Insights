@@ -155,12 +155,6 @@ export default function SectorSettingsV2() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1100px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mb-5 flex items-center gap-3">
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">
-              Sector Settings
-            </h1>
-        </div>
-
         <div className="rounded-2xl border border-[#d8d8de] bg-white px-4 py-6 shadow-sm sm:px-8 sm:py-8">
           <div className="mb-6 flex items-start gap-3">
             <span className="mt-0.5 grid h-9 w-9 place-items-center rounded-lg bg-teal-50 text-[#6b4eff]">

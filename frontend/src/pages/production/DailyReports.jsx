@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, FileDown, FileSpreadsheet, RefreshCw, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown, FileSpreadsheet, Search } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
@@ -195,7 +195,6 @@ export default function DailyReports() {
     <div className="min-h-full pb-8" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">{t("production.dailyReports")}</h1>
           <p className="mt-0.5 text-xs text-slate-500">{t("production.dailyReportsSubtitle")}</p>
         </div>
 
@@ -226,14 +225,6 @@ export default function DailyReports() {
                 className="rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3 py-2 text-xs"
               />
             </div>
-            <button
-              type="button"
-              onClick={loadReports}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </button>
             <button
               type="button"
               onClick={() => exportToExcel(reports, columns, "daily-reports")}

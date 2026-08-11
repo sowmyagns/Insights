@@ -26,7 +26,6 @@ import {
   ListTodo,
   Package,
   Plus,
-  RefreshCw,
   ShoppingCart,
   Target,
   Users,
@@ -41,7 +40,7 @@ import { getErpDashboard } from "../../../api/dashboardApi";
 import useAuth from "../../../hooks/useAuth";
 import useManufacturingRefresh from "../../../hooks/useManufacturingRefresh";
 import { userCanAccess, isOperator } from "../../../config/permissions";
-import { CardShell, KpiIcon, StatusBadge, TrendBadge, getKpiAccent } from "./ReferenceParts";
+import { CardShell, KpiIconWell, StatusBadge, TrendBadge, getKpiAccent } from "./ReferenceParts";
 
 const tooltipStyle = {
   borderRadius: 8,
@@ -55,6 +54,7 @@ const KPI_TITLE_KEYS = {
   "today-production": "todaysProduction",
   "machines-running": "machinesRunning",
   "pending-orders": "pendingOrders",
+  "pending-approvals": "pendingApprovals",
   "good-qty": "goodQtyToday",
   "reject-qty": "rejectQtyToday",
   "inventory-value": "inventoryValue",
@@ -63,7 +63,56 @@ const KPI_TITLE_KEYS = {
   "finished-goods": "finishedGoods",
   warehouses: "warehouses",
   "stock-movements": "stockMovements",
+  "total-users": "totalUsers",
+  "active-users": "activeUsers",
+  "total-employees": "totalEmployees",
+  "active-alerts": "activeAlerts",
+  "total-sales-orders": "totalSalesOrders",
+  "pending-sales-orders": "pendingSalesOrders",
+  "todays-sales": "todaysSales",
+  "outstanding-receivables": "outstandingReceivables",
+  "monthly-revenue": "monthlyRevenue",
+  quotations: "quotations",
+  "conversion-rate": "conversionRate",
+  "overdue-invoices": "overdueInvoices",
+  "total-production-orders": "totalProductionOrders",
+  "planned-orders": "plannedOrders",
+  "in-progress-orders": "inProgressOrders",
+  "completed-orders": "completedOrders",
+  "delayed-orders": "delayedOrders",
+  "production-target": "productionTarget",
+  "production-efficiency": "productionEfficiency",
+  "machine-utilization": "machineUtilization",
+  "total-inventory-items": "totalInventoryItems",
+  "out-of-stock": "outOfStockItems",
+  "pending-material-issues": "pendingMaterialIssues",
+  "pending-goods-receipts": "pendingGoodsReceipts",
+  "present-today": "presentToday",
+  "absent-today": "absentToday",
+  "on-leave": "onLeave",
+  "pending-leave-requests": "pendingLeaveRequests",
+  "new-employees": "newEmployees",
+  "attendance-rate": "attendanceRate",
+  "pending-hr-requests": "pendingHrRequests",
+  "total-receivables": "totalReceivables",
+  "total-payables": "totalPayables",
+  "todays-revenue": "todaysRevenue",
+  "pending-invoices": "pendingInvoices",
+  "overdue-payments": "overduePayments",
+  expenses: "expenses",
+  "gst-payable": "gstPayable",
+  "cash-bank-balance": "cashBankBalance",
+  "my-work-orders": "myWorkOrders",
+  "todays-target": "todaysTarget",
+  "completed-today": "completedToday",
+  "operator-in-progress": "inProgressOrders",
+  "pending-tasks": "pendingTasksKpi",
+  "assigned-machine": "assignedMachine",
+  "machine-status": "machineStatus",
+  "material-availability": "materialAvailability",
+  "quality-checks-pending": "qualityChecksPending",
 };
+
 
 const TREND_LABEL_KEYS = {
   "vs last 7 days": "vsLast7Days",
@@ -72,6 +121,7 @@ const TREND_LABEL_KEYS = {
   "units on hand": "unitsOnHand",
   "active locations": "activeLocations",
   "GRNs today": "grnsToday",
+  "awaiting action": "awaitingAction",
 };
 
 const SHOP_FLOOR_KEYS = {
@@ -136,39 +186,6 @@ function DashboardSkeleton() {
   );
 }
 
-function DashboardHero({ profile, dateLabel, onRefresh, refreshing }) {
-  const { t } = useTranslation();
-  const isStore = profile === "store";
-  return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">
-          {isStore ? t("refDashboard.storeOperations", "Store Operations") : t("refDashboard.executiveOverview", "Executive Overview")}
-        </p>
-        <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-          {isStore
-            ? t("refDashboard.storeDashboardTitle", "Store Operations")
-            : t("refDashboard.manufacturingDashboardTitle", "Manufacturing Dashboard")}
-        </h2>
-        {dateLabel ? (
-          <p className="mt-1 text-xs text-slate-500">
-            {t("refDashboard.asOf", "As of")} {dateLabel}
-          </p>
-        ) : null}
-      </div>
-      <button
-        type="button"
-        onClick={onRefresh}
-        disabled={refreshing}
-        className="inline-flex items-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
-      >
-        <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} aria-hidden />
-        {t("common.refresh", "Refresh")}
-      </button>
-    </div>
-  );
-}
-
 function KpiStrip({ cards = [] }) {
   const { t } = useTranslation();
   if (!cards.length) {
@@ -179,34 +196,44 @@ function KpiStrip({ cards = [] }) {
     );
   }
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {cards.map((card) => {
         const titleKey = KPI_TITLE_KEYS[card.id];
         const trendKey = TREND_LABEL_KEYS[card.trendLabel];
         const accent = getKpiAccent(card.id);
+        const isMachines = card.id === "machines-running" || card.id === "machine-utilization";
+        const trendIsPct = String(card.trend ?? "").includes("%");
+        const trendLabel = isMachines
+          ? t("refDashboard.utilization", "utilization")
+          : trendKey
+            ? t(`refDashboard.${trendKey}`)
+            : card.trendLabel;
         const cls =
-          "group relative block overflow-hidden rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-md";
+          "group relative flex h-full min-h-[7.5rem] flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:shadow-md";
         const inner = (
           <>
             <span className={`absolute inset-x-0 top-0 h-0.5 ${accent.bar}`} aria-hidden />
-            <div className="flex items-start gap-3">
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${accent.iconBg}`}>
-                <KpiIcon id={card.id} className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-medium leading-tight text-slate-500">
+            <div className="flex h-full items-start gap-3">
+              <KpiIconWell id={card.id} />
+              <div className="flex min-w-0 flex-1 flex-col self-stretch">
+                <p className="line-clamp-2 text-[11px] font-medium leading-snug text-slate-500">
                   {titleKey ? t(`refDashboard.${titleKey}`) : card.title}
                 </p>
-                <p className="mt-1 text-2xl font-bold tabular-nums leading-none text-slate-900">
+                <p className="mt-2 text-2xl font-bold tabular-nums leading-none tracking-tight text-slate-900">
                   {card.value}
                   {card.unit ? <span className="ml-1 text-sm font-semibold text-slate-500">{card.unit}</span> : null}
-                  {card.suffix ? <span className="text-lg font-semibold text-slate-400">{card.suffix}</span> : null}
+                  {card.suffix ? (
+                    <span className="ml-1 text-lg font-semibold text-slate-400">{card.suffix}</span>
+                  ) : null}
                 </p>
-                <TrendBadge
-                  up={card.trendUp}
-                  value={card.trend}
-                  label={trendKey ? t(`refDashboard.${trendKey}`) : card.trendLabel}
-                />
+                <div className="mt-auto pt-3">
+                  <TrendBadge
+                    up={card.trendUp}
+                    value={card.trend}
+                    label={trendLabel}
+                    mode={isMachines ? "utilization" : trendIsPct ? "change" : "info"}
+                  />
+                </div>
               </div>
             </div>
           </>
@@ -802,12 +829,10 @@ export default function ReferenceDashboard() {
   const isOp = isOperator(user);
   const [apiData, setApiData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
   const load = useCallback((isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    if (!isRefresh) setLoading(true);
     setError(null);
     getErpDashboard()
       .then((res) => setApiData(res.data))
@@ -817,7 +842,6 @@ export default function ReferenceDashboard() {
       })
       .finally(() => {
         setLoading(false);
-        setRefreshing(false);
       });
   }, []);
 
@@ -826,48 +850,15 @@ export default function ReferenceDashboard() {
   }, [load]);
   useManufacturingRefresh(() => load(true));
 
-  const profile = apiData?.dashboard_profile || "full";
+  const profile = apiData?.dashboard_profile || "admin";
   const sections = apiData?.visible_sections || [];
   const isStoreProfile = profile === "store";
+  // Prefer backend profile so Operator KPIs/sections stay server-enforced.
+  const isOpProfile = profile === "operator" || isOp;
 
   const kpiCardsLive = useMemo(() => {
     if (!apiData?.kpi_cards?.length) return [];
-    let localGood = 0;
-    let localReject = 0;
-    let hasLocalOrders = false;
-    try {
-      const stored = localStorage.getItem("smrt_local_production_orders");
-      if (stored) {
-        const orders = JSON.parse(stored);
-        if (orders.length > 0) hasLocalOrders = true;
-        orders.forEach((o) => {
-          const g = Number(o.good_qty ?? o.good_quantity ?? o.accepted_quantity ?? 0);
-          const r = Number(o.reject_qty ?? o.rejected_quantity ?? o.scrap_quantity ?? o.scrap ?? 0);
-          const p = Number(o.produced_quantity ?? o.actual_quantity ?? 0);
-          const effectiveGood = g > 0 ? g : p > 0 ? Math.max(p - r, p) : 0;
-          localGood += effectiveGood;
-          localReject += r;
-        });
-      }
-    } catch {
-      /* ignore local storage parse errors */
-    }
-
-    return apiData.kpi_cards.map((k) => {
-      let val = k.value ?? "0";
-      if (k.id === "good-qty" || k.title?.toLowerCase().includes("good")) {
-        if (hasLocalOrders) val = String(localGood);
-        else if (val === "0" || !val) val = String(localGood);
-      }
-      if (
-        (k.id === "reject-qty" || k.title?.toLowerCase().includes("reject") || k.title?.toLowerCase().includes("scrap")) &&
-        (val === "0" || !val) &&
-        localReject > 0
-      ) {
-        val = String(localReject);
-      }
-      return { ...k, value: val };
-    });
+    return apiData.kpi_cards.map((k) => ({ ...k, value: k.value ?? "0" }));
   }, [apiData]);
 
   const chartSets = useMemo(() => {
@@ -896,27 +887,14 @@ export default function ReferenceDashboard() {
     }));
   }, [apiData]);
 
-  const dateLabel = useMemo(() => {
-    if (!apiData?.date) return "";
-    try {
-      return new Date(apiData.date).toLocaleDateString(undefined, {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-    } catch {
-      return apiData.date;
-    }
-  }, [apiData]);
-
-  const showProduction = !isOp && !isStoreProfile && sectionVisible(sections, "production_overview");
-  const showShopFloor = !isOp && !isStoreProfile && sectionVisible(sections, "shop_floor");
-  const showTopMachines = !isOp && !isStoreProfile && sectionVisible(sections, "top_machines");
-  const showInventory = !isOp && sectionVisible(sections, "inventory");
-  const showQuickActions = !isOp && sectionVisible(sections, "quick_actions");
+  const showProduction = !isOpProfile && !isStoreProfile && sectionVisible(sections, "production_overview");
+  const showShopFloor = !isOpProfile && !isStoreProfile && sectionVisible(sections, "shop_floor");
+  const showTopMachines = !isOpProfile && !isStoreProfile && sectionVisible(sections, "top_machines");
+  const showInventory = !isOpProfile && sectionVisible(sections, "inventory");
+  const showQuickActions = !isOpProfile && sectionVisible(sections, "quick_actions");
   const showRecentWo = !isStoreProfile && sectionVisible(sections, "recent_work_orders");
-  const showFinance = !isOp && showInventory;
+  const showFinance = !isOpProfile && showInventory && ["admin", "full"].includes(profile);
+
 
   if (loading) return <DashboardSkeleton />;
 
@@ -937,17 +915,10 @@ export default function ReferenceDashboard() {
 
   return (
     <div className="space-y-5 pb-4">
-      <DashboardHero
-        profile={profile}
-        dateLabel={dateLabel}
-        onRefresh={() => load(true)}
-        refreshing={refreshing}
-      />
-
       {sectionVisible(sections, "kpi") ? <KpiStrip cards={kpiCardsLive} /> : null}
 
-      <div className={`grid grid-cols-1 gap-5 ${isOp ? "lg:grid-cols-1" : "lg:grid-cols-3"}`}>
-        {!isOp ? (
+      <div className={`grid grid-cols-1 gap-5 ${isOpProfile ? "lg:grid-cols-1" : "lg:grid-cols-3"}`}>
+        {!isOpProfile && sectionVisible(sections, "orders_overview") ? (
           <PendingTasks
             overview={ordersOverview}
             inventoryBlocks={apiData?.inventory_blocks || []}
@@ -961,10 +932,10 @@ export default function ReferenceDashboard() {
         ) : null}
       </div>
 
-      {(showProduction || showShopFloor || showTopMachines || (isOp && sectionVisible(sections, "production_overview"))) && (
+      {(showProduction || showShopFloor || showTopMachines || (isOpProfile && sectionVisible(sections, "production_overview"))) && (
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-          {(showProduction || (isOp && sectionVisible(sections, "production_overview"))) && (
-            <div className={isOp || (!showShopFloor && !showTopMachines) ? "xl:col-span-12" : "xl:col-span-5"}>
+          {(showProduction || (isOpProfile && sectionVisible(sections, "production_overview"))) && (
+            <div className={isOpProfile || (!showShopFloor && !showTopMachines) ? "xl:col-span-12" : "xl:col-span-5"}>
               <ProductionOverview chartSets={chartSets} />
             </div>
           )}
@@ -981,7 +952,7 @@ export default function ReferenceDashboard() {
         </div>
       )}
 
-      <div className={`grid grid-cols-1 gap-5 ${isOp ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
+      <div className={`grid grid-cols-1 gap-5 ${isOpProfile ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
         {sectionVisible(sections, "orders_overview") ? <OrdersOverview overview={ordersOverview} /> : null}
         {showInventory ? (
           <InventorySummary blocks={apiData?.inventory_blocks || []} warehouses={apiData?.warehouse_locations || []} />

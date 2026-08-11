@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link } from "react-router-dom";
-import {
-  AlertTriangle, Cog, IndianRupee, Pause, Play, RefreshCw, Timer, TrendingUp, Wrench, Zap,
-} from "lucide-react";
+import { AlertTriangle, Cog, IndianRupee, Pause, Play, Timer, TrendingUp, Wrench, Zap } from "lucide-react";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell,
 } from "recharts";
@@ -55,6 +54,8 @@ export default function MaintenanceDashboard() {
     }
   }, [addToast]);
 
+  usePageRefresh(load);
+
   useEffect(() => { load(); }, [load]);
 
   if (loading) return <Loader label="Loading maintenance dashboard..." />;
@@ -66,10 +67,8 @@ export default function MaintenanceDashboard() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Maintenance Dashboard</h1>
           <p className="mt-1 text-sm text-slate-500">Machine health, downtime, MTTR/MTBF, costs, calendar, and spare parts.</p>
         </div>
-        <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

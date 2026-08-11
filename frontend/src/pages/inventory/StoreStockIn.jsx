@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { PackagePlus, RefreshCw } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { PackagePlus } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import StoreManagerNav from "../../components/inventory/StoreManagerNav";
@@ -48,6 +49,9 @@ export default function StoreStockIn() {
         getWarehouses(),
         getSuppliers(),
       ]);
+
+  usePageRefresh(load);
+
       setItems(itemsRes.status === "fulfilled" ? itemsRes.value?.data || [] : []);
       setWarehouses(whRes.status === "fulfilled" ? whRes.value?.data || [] : []);
       setSuppliers(supRes.status === "fulfilled" ? supRes.value?.data || [] : []);
@@ -101,14 +105,10 @@ export default function StoreStockIn() {
 
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Stock In</h1>
           <p className="mt-1 text-sm text-slate-500">
             Receive materials into a warehouse. Stock updates immediately.
           </p>
         </div>
-        <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </button>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-2">

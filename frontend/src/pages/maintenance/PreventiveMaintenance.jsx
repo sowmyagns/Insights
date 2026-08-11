@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Calendar, CheckCircle, Clock, Cog, RefreshCw, Wrench } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { AlertTriangle, Calendar, CheckCircle, Clock, Cog, Wrench } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import MaintenanceErrorState from "../../components/maintenance/MaintenanceErrorState";
@@ -42,6 +43,9 @@ export default function PreventiveMaintenance() {
     setError(null);
     try {
       const [sumRes, listRes] = await Promise.allSettled([getPreventiveSummary(), getPreventiveEnriched()]);
+
+  usePageRefresh(load);
+
       if (sumRes.status === "rejected" && listRes.status === "rejected") throw new Error("Network error");
       if (sumRes.status === "fulfilled" && sumRes.value?.data) setSummary({ ...DEMO_PREVENTIVE_SUMMARY, ...sumRes.value.data });
       if (listRes.status === "fulfilled" && listRes.value?.data?.length) setRows(listRes.value.data);
@@ -94,14 +98,12 @@ export default function PreventiveMaintenance() {
     <div className="min-h-full pb-8 print:p-0" style={{ background: "#F5F5F5" }}>
       <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">Preventive Maintenance</h1>
           <p className="mt-0.5 text-xs text-slate-500 print:hidden">Schedule and track recurring maintenance tasks across all machines.</p>
         </div>
 
 
         <div className="mb-0 flex flex-wrap items-center justify-between gap-2 print:hidden">
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]"><RefreshCw className="h-4 w-4" /> Refresh</button>
           </div>
         </div>
 

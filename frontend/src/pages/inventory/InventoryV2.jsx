@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link, useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
@@ -284,6 +285,9 @@ export default function InventoryV2() {
         listInventoryV2Items(),
         listInventoryV2Categories(),
       ]);
+
+  usePageRefresh(load);
+
       const rows = Array.isArray(itemsRes.data) ? itemsRes.data : [];
       setProducts(rows);
       const cats = Array.isArray(catsRes.data) ? catsRes.data : [];
@@ -436,10 +440,6 @@ export default function InventoryV2() {
 
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
-      <div className="px-4 pt-4 sm:px-6 sm:pt-6">
-        <h1 className="text-[22px] font-bold text-[#1a1a1f]">Inventory</h1>
-      </div>
-
       <div className="mx-4 mb-6 mt-4 overflow-hidden rounded-2xl border border-[#e4e4ea] bg-white sm:mx-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#e4e4ea] px-2 pt-2 sm:px-3">
           <div className="relative flex min-w-0 flex-1 gap-1">

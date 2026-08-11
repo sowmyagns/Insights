@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Package, Cpu, Layers, Warehouse, CheckCircle, RefreshCw } from "lucide-react";
+import { X, Package, Cpu, Layers, Warehouse, CheckCircle } from "lucide-react";
 import { getMachines, issueWorkOrderMaterials, updateProductionOrderMachine } from "../../api/productionApi";
 import { fetchProductsWithFallback } from "../../utils/productOptions";
 import { notifyManufacturingSpine, MANUFACTURING_EVENTS } from "../../utils/manufacturingEvents";

@@ -136,10 +136,6 @@ export default function BulkExportReportV2() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">Bulk Export</h1>
-        </div>
-
         <h2 className="mb-4 text-center text-[20px] font-semibold text-[#1a1a1f]">
           Bulk Export Documents
         </h2>

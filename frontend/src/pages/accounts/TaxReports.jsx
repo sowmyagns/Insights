@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
-import { FileText, IndianRupee, RefreshCw } from "lucide-react";
+import { FileText, IndianRupee } from "lucide-react";
 
 import ExportButtons from "../../components/finance/ExportButtons";
 import FinanceFilters from "../../components/finance/FinanceFilters";
@@ -49,6 +50,9 @@ export default function TaxReports() {
     }
   }, [year, addToast]);
 
+  usePageRefresh(load);
+
+
   useEffect(() => { load(); }, [load]);
 
   const exportExcel = () => {
@@ -83,12 +87,10 @@ export default function TaxReports() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">GST Reports</h1>
           <p className="mt-1 text-sm text-slate-500">GSTR-1, GSTR-2B, GSTR-3B, GSTR-9, HSN & SAC summaries with trend analysis.</p>
         </div>
         <div className="flex gap-2">
           <ExportButtons onExcel={exportExcel} onPdf={exportPdf} />
-          <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
         </div>
       </header>
 

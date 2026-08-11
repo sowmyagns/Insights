@@ -1415,7 +1415,7 @@ WORKFLOW_STAGE_CATALOG: list[dict[str, Any]] = [
         "responsible_role": "Sales Manager",
         "path": "/sales/leads",
         "module": "sales",
-        "tasks": ["Receive customer enquiry", "Capture requirements"],
+        "tasks": ["Resolve customer enquiry", "Capture requirements"],
     },
     {
         "id": "quotation",
@@ -1431,7 +1431,7 @@ WORKFLOW_STAGE_CATALOG: list[dict[str, Any]] = [
         "responsible_role": "Sales Manager",
         "path": "/sales/quotations",
         "module": "sales",
-        "tasks": ["Submit for approval", "Manager approve / reject"],
+        "tasks": ["Submit for approval", "Manage approve / reject"],
     },
     {
         "id": "quotation_sent",
@@ -1455,7 +1455,7 @@ WORKFLOW_STAGE_CATALOG: list[dict[str, Any]] = [
         "responsible_role": "Production Manager",
         "path": "/production/planning",
         "module": "production",
-        "tasks": ["Receive SO", "Create production plan"],
+        "tasks": ["Review SO", "Create production plan"],
     },
     {
         "id": "bom",

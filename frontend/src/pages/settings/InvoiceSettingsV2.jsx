@@ -127,9 +127,6 @@ export default function InvoiceSettingsV2() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
-        <h1 className="mb-5 text-[22px] font-semibold tracking-tight text-[#1a1a1f]">
-          Invoice Settings
-        </h1>
 
         <div className="rounded-2xl border border-[#e4e4ea] bg-white p-5 shadow-sm sm:p-6">
           <div className="space-y-5">

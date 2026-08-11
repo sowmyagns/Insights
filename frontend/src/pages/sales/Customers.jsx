@@ -186,9 +186,6 @@ export default function Customers() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-teal-700">Sales</p>
-        <h2 className="mb-4 text-[22px] font-semibold tracking-tight text-[#1a1a1f]">Customers</h2>
-
         <div className="rounded-xl border border-[#e4e4ea] bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-4 flex flex-wrap items-center gap-2.5">
             <div className="relative min-w-[220px] flex-1">

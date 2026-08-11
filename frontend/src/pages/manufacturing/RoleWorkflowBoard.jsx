@@ -1,13 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, Circle, Lock, RefreshCw } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Check, ChevronRight, Circle, Lock } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { useToast } from "../../context/ToastContext";
 import useAuth from "../../hooks/useAuth";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { getManufacturingWorkflowBoard, getSalesOrderWorkflow } from "../../api/salesApi";
-import { getPrimaryRoleName, WORKFLOW_PHASES } from "../../config/manufacturingWorkflow";
+import {
+  DEFAULT_RESPONSIBILITY_STAGES,
+  getPrimaryRoleName,
+  getResponsibilityAccent,
+  getResponsibilityIcon,
+} from "../../config/manufacturingWorkflow";
 
 const STATUS_STYLES = {
   completed: "border-emerald-200 bg-emerald-50 text-emerald-900",
@@ -17,27 +24,34 @@ const STATUS_STYLES = {
 };
 
 export default function RoleWorkflowBoard() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { addToast } = useToast();
   const roleName = getPrimaryRoleName(user);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [board, setBoard] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async ({ isRefresh = false } = {}) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
     try {
       const res = await getManufacturingWorkflowBoard();
       setBoard(res?.data ?? res);
+      if (isRefresh) addToast("Workflow board updated.", "success");
     } catch (err) {
       addToast(err?.response?.data?.detail || "Could not load workflow board", "error");
-      setBoard(null);
+      if (!isRefresh) setBoard(null);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load({ isRefresh: true }));
 
   useEffect(() => {
     load();
@@ -57,37 +71,76 @@ export default function RoleWorkflowBoard() {
     }
   };
 
+  const roleStages = useMemo(() => {
+    const apiStages = board?.role_stages;
+    if (Array.isArray(apiStages) && apiStages.length) return apiStages;
+    return DEFAULT_RESPONSIBILITY_STAGES;
+  }, [board]);
+
+  const currentStageId = useMemo(() => {
+    if (detail?.current_stage_id) return detail.current_stage_id;
+    const pending = board?.orders?.find((o) => o.my_pending_stages?.length)?.my_pending_stages?.[0];
+    return pending?.id || board?.orders?.[0]?.current_stage_id || "quotation";
+  }, [board, detail]);
+
   if (loading) return <Loader label="Loading role workflow..." />;
 
-  const roleStages = board?.role_stages || [];
   const orders = board?.orders || [];
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Role Workflow Board</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Signed in as <span className="font-semibold text-slate-700 dark:text-slate-200">{roleName || "—"}</span>
-            {board?.full_access ? " · Full chain (Management)" : " · Department stages only"}
-            {" · "}Enquiry → Closure (9 phases)
-          </p>
+    <div className="space-y-6">
+      <section>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="h-5 w-1 rounded-full bg-[#195CCF]" aria-hidden />
+            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+              {t("roleWorkflowPage.section", "My Responsibilities")}
+            </h2>
+          </div>
         </div>
-        <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </button>
-      </header>
 
-      <div className="flex flex-wrap gap-2">
-        {WORKFLOW_PHASES.map((p) => (
-          <span
-            key={p.id}
-            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-          >
-            {p.id}. {p.label}
-          </span>
-        ))}
-      </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {roleStages.map((stage, index) => {
+            const accent = getResponsibilityAccent(index);
+            const Icon = getResponsibilityIcon(stage.id);
+            const isActive = stage.id === currentStageId;
+            return (
+              <Link
+                key={stage.id}
+                to={stage.path || "/"}
+                className={`group rounded-2xl border bg-white px-5 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition ${
+                  isActive ? accent.active : `border-slate-100 ${accent.hover}`
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span
+                      className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${accent.iconWrap}`}
+                    >
+                      <Icon className="h-5 w-5" strokeWidth={1.9} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-semibold text-slate-900">{stage.label}</p>
+                      <p className={`mt-0.5 text-sm font-medium ${accent.role}`}>
+                        {stage.responsible_role}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-slate-500" />
+                </div>
+                <ul className="mt-3 space-y-1 pl-[52px] text-[13px] leading-5 text-slate-500">
+                  {(stage.tasks || []).slice(0, 3).map((task) => (
+                    <li key={task} className="flex gap-2">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-400" />
+                      <span>{task}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
 
       <ManufacturingWorkflowBar
         currentStepId={detail?.current_stage_id || roleStages[0]?.id || "sales_order"}
@@ -95,32 +148,13 @@ export default function RoleWorkflowBoard() {
       />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">My responsibilities</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {roleStages.length === 0 ? (
-            <p className="text-sm text-slate-500">No workflow stages are assigned to your role.</p>
-          ) : (
-            roleStages.map((s) => (
-              <Link
-                key={s.id}
-                to={s.path}
-                className="rounded-xl border border-slate-100 px-4 py-3 hover:border-teal-200 hover:bg-teal-50/40 dark:border-slate-700"
-              >
-                <p className="font-semibold text-slate-800 dark:text-slate-100">{s.label}</p>
-                <p className="mt-1 text-xs text-slate-500">{s.responsible_role}</p>
-                <ul className="mt-2 list-inside list-disc text-xs text-slate-600 dark:text-slate-300">
-                  {(s.tasks || []).slice(0, 3).map((t) => (
-                    <li key={t}>{t}</li>
-                  ))}
-                </ul>
-              </Link>
-            ))
-          )}
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Sales orders · my pending work</h2>
+        <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+          Sales orders · my pending work
+        </h2>
+        <p className="mt-1 text-xs text-slate-400">
+          Signed in as <span className="font-semibold text-slate-600">{roleName || "—"}</span>
+          {board?.full_access ? " · Full chain (Management)" : " · Department stages only"}
+        </p>
         <div className="mt-3 overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b text-xs uppercase text-slate-400">
@@ -170,7 +204,7 @@ export default function RoleWorkflowBoard() {
       {selectedOrderId ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
               Stage detail · {detail?.order_number || `#${selectedOrderId}`}
             </h2>
             <button type="button" className="text-xs text-slate-500 hover:underline" onClick={() => setSelectedOrderId(null)}>

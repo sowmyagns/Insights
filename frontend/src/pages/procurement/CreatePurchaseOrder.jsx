@@ -12,6 +12,7 @@ import {
 import { getInventoryDashboard } from "../../api/inventoryApi";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { INDIAN_STATES } from "../../data/customersMasterData";
 import { apiErrorMessage, asArray } from "../../utils/apiError";
 import SearchableSelect from "../../components/common/SearchableSelect";
@@ -267,6 +268,8 @@ export default function CreatePurchaseOrder() {
       setLoading(false);
     }
   };
+
+  usePageRefresh(load);
   useEffect(() => {
     load();
   }, [editId]); // eslint-disable-line react-hooks/exhaustive-deps

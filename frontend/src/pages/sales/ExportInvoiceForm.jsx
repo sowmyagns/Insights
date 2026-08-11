@@ -669,9 +669,6 @@ export default function ExportInvoiceForm() {
     >
       {/* Sticky header — matches screenshot */}
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#e4e4ea] bg-white px-5 py-3.5">
-          <h1 className="text-[20px] font-bold text-[#1a1a1f]">
-            {isEdit ? "Edit Export Invoice" : "Create Export Invoice"}
-          </h1>
         <div className="flex items-center gap-2">
           <button
             type="button"

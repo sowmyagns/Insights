@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link } from "react-router-dom";
 
 import Loader from "../../components/common/Loader";
@@ -23,6 +24,9 @@ export default function SupplierPayments() {
     setLoading(true);
     try {
       const [p, v] = await Promise.all([getSupplierPayments(), getVendors()]);
+
+  usePageRefresh(load);
+
       setPayments(p.data || []);
       setVendors(v.data || []);
     } catch (err) {

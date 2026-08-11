@@ -182,7 +182,6 @@ export default function TaskManagement() {
     <div className="min-h-full pb-8 print:p-0" style={{ background: "#F5F5F5" }}>
       <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">Assign Tasks</h1>
           <p className="mt-0.5 text-xs text-slate-500 print:hidden">
             Production tasks auto-created from orders, plus manual assignments.
           </p>

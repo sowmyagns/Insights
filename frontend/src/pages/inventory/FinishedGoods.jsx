@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, Box, Download, Package, Plus, QrCode, RefreshCw, Truck } from "lucide-react";
+import { AlertTriangle, Box, Download, Package, Plus, QrCode, Truck } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -12,17 +12,17 @@ import { exportToExcel } from "../../utils/exportUtils";
 
 function KpiCard({ label, value, icon: Icon, color }) {
   return (
-    <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-[11px] font-medium text-slate-500">{label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-slate-900">{value}</p>
-        </div>
+    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
+      <div className="flex items-center justify-between gap-1.5 min-w-0">
+        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
         {Icon && (
-          <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}>
-            <Icon className="h-4 w-4 text-white" />
+          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
+            <Icon className="h-3.5 w-3.5 text-white" />
           </div>
         )}
+      </div>
+      <div className="mt-2">
+        <p className="truncate text-xl font-bold tabular-nums text-slate-900 leading-none sm:text-2xl">{value}</p>
       </div>
     </div>
   );
@@ -131,7 +131,6 @@ export default function FinishedGoods() {
         <div className="flex flex-wrap gap-2">
           <Link to="/inventory/items/create?type=finished_good" className="ui-btn-primary"><Plus className="h-4 w-4" /> New Product</Link>
           <button type="button" onClick={() => exportToExcel(filtered, columns.filter((c) => !c.render), "finished-goods")} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"><Download className="h-4 w-4" /> Export</button>
-          <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
         </div>
       </header>
 

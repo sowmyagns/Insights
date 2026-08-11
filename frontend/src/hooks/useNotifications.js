@@ -9,6 +9,7 @@ import {
   markNotificationRead,
 } from "../api/notificationService";
 import useAuth from "./useAuth";
+import usePageRefresh from "./usePageRefresh";
 
 const POLL_MS = 30_000;
 const PAGE_SIZE = 20;
@@ -188,6 +189,8 @@ export default function useNotifications() {
     }, POLL_MS);
     return () => clearInterval(id);
   }, [refresh, refreshCount, isAuthenticated]);
+
+  usePageRefresh(refreshCount);
 
   return {
     count,

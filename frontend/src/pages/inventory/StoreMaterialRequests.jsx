@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Plus, RefreshCw, XCircle } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { CheckCircle2, Plus, XCircle } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 import DataTable from "../../components/common/DataTable";
@@ -77,6 +78,9 @@ export default function StoreMaterialRequests({ mode = "requests" }) {
         getInventoryDashboard(),
         getWarehouses(),
       ]);
+
+  usePageRefresh(load);
+
       let list = reqRes.status === "fulfilled" ? reqRes.value?.data || [] : [];
       if (issueMode) {
         list = list.filter((r) => ["pending", "approved", "issued", "received"].includes(r.status));
@@ -257,9 +261,6 @@ export default function StoreMaterialRequests({ mode = "requests" }) {
 
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            {issueMode ? "Issue Materials" : "Material Requests"}
-          </h1>
           <p className="mt-1 text-sm text-slate-500">
             {issueMode
               ? "Approve and issue materials to production. Stock reduces automatically."
@@ -279,9 +280,6 @@ export default function StoreMaterialRequests({ mode = "requests" }) {
               <Plus className="h-4 w-4" /> New Request
             </button>
           )}
-          <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </button>
         </div>
       </header>
 

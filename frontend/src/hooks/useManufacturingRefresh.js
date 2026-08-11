@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import {
   MANUFACTURING_EVENTS,
   subscribeManufacturingEvents,
 } from "../utils/manufacturingEvents";
+import { registerPageRefreshHandler } from "../utils/pageRefresh";
 
 /** Default: refresh on any spine mutation that notifyManufacturingSpine fans out. */
 const DEFAULT_EVENTS = [
@@ -25,6 +26,7 @@ const DEFAULT_EVENTS = [
 
 /**
  * Re-run `onRefresh` when manufacturing spine events fire.
+ * Also registers with the global Refresh button (no duplicate page wiring needed).
  * @param {() => void | Promise<void>} onRefresh
  * @param {string[]} [eventTypes]
  */
@@ -32,13 +34,21 @@ export default function useManufacturingRefresh(
   onRefresh,
   eventTypes = DEFAULT_EVENTS
 ) {
+  const refreshRef = useRef(onRefresh);
+  refreshRef.current = onRefresh;
+
   useEffect(() => {
     if (!onRefresh) return undefined;
     const types = new Set(eventTypes);
     return subscribeManufacturingEvents((event) => {
       if (types.has(event.type)) {
-        onRefresh(event);
+        refreshRef.current?.(event);
       }
     });
   }, [onRefresh, eventTypes]);
+
+  useEffect(() => {
+    if (!onRefresh) return undefined;
+    return registerPageRefreshHandler(() => refreshRef.current?.());
+  }, [onRefresh]);
 }

@@ -1,15 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { useTranslation } from "react-i18next";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  Download,
-  Pause,
-  RefreshCw,
-  Search,
-  XCircle,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Download, Pause, Search, XCircle } from "lucide-react";
 
 import BatchDetailModal from "../../components/production/BatchDetailModal";
 import DataTable from "../../components/common/DataTable";
@@ -66,6 +58,9 @@ export default function BatchTracking() {
         getBatchSummary(),
         getBatchesEnriched(),
       ]);
+
+  usePageRefresh(load);
+
       if (sumRes.status === "fulfilled" && sumRes.value?.data) {
         setSummary({ ...DEMO_BATCH_SUMMARY, ...sumRes.value.data });
       }
@@ -141,7 +136,6 @@ export default function BatchTracking() {
     <div className="min-h-full pb-8 print:p-0" style={{ background: "#F5F5F5" }}>
       <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">{t("production.batchTracking")}</h1>
           <p className="mt-0.5 text-xs text-slate-500 print:hidden">
             Full batch traceability from raw material to customer dispatch.
           </p>
@@ -152,9 +146,6 @@ export default function BatchTracking() {
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={handleExport} className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]">
               <Download className="h-4 w-4" /> Export
-            </button>
-            <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]">
-              <RefreshCw className="h-4 w-4" /> Refresh
             </button>
           </div>
         </div>

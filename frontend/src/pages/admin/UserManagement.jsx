@@ -8,6 +8,7 @@ import AdminModal from "../../components/admin/AdminModal";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import AccessDenied from "../../components/admin/AccessDenied";
 import usePermissions from "../../hooks/usePermissions";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { useToast } from "../../context/ToastContext";
 import { ROLES } from "../../config/permissions";
 import {
@@ -72,6 +73,9 @@ export default function UserManagement() {
     Promise.all([getUsers(), getRoles()])
       .then(([u, r]) => {
         setUsers(u.data || []);
+
+  usePageRefresh(load);
+
         setRoles(r.data || []);
       })
       .catch(() => addToast("Failed to load users", "error"))

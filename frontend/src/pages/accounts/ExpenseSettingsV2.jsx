@@ -85,7 +85,6 @@ export default function ExpenseSettingsV2() {
           >
             <ChevronLeft className="h-4 w-4" />
           </Link>
-          <h1 className="text-[20px] font-bold text-[#1a1a1f]">Expense Settings</h1>
         </div>
 
         <div className="mb-4 flex justify-end">

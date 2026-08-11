@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useNetworkStatus } from "../context/NetworkStatusContext";
+import usePageRefresh from "./usePageRefresh";
 
 export default function useAsyncResource(fetcher, deps = []) {
   const { online, markRequestStart, markRequestEnd, registerRetry } = useNetworkStatus();
@@ -31,6 +32,7 @@ export default function useAsyncResource(fetcher, deps = []) {
             ? "You appear to be offline."
             : "Failed to load data. Please try again."
       );
+      throw err;
     } finally {
       markRequestEnd();
       setLoading(false);
@@ -39,10 +41,11 @@ export default function useAsyncResource(fetcher, deps = []) {
   }, deps);
 
   useEffect(() => {
-    reload();
+    reload().catch(() => {});
   }, [reload]);
 
   useEffect(() => registerRetry(reload), [registerRetry, reload]);
+  usePageRefresh(reload);
 
   return {
     loading,

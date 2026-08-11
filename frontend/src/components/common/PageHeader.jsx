@@ -1,7 +1,22 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
-export default function PageHeader({ title, subtitle, action, backTo, backLabel = "Back", eyebrow }) {
+/**
+ * In-page toolbar under the global Navbar title.
+ * Page name lives in Navbar via getPageTitle — avoid repeating it here unless showTitle.
+ */
+export default function PageHeader({
+  title,
+  subtitle,
+  action,
+  backTo,
+  backLabel = "Back",
+  eyebrow,
+  showTitle = false,
+}) {
+  const hasBody = Boolean(backTo || eyebrow || (showTitle && title) || subtitle || action);
+  if (!hasBody) return null;
+
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
@@ -19,11 +34,17 @@ export default function PageHeader({ title, subtitle, action, backTo, backLabel 
             {eyebrow}
           </p>
         ) : null}
-        <h2 className={`${eyebrow ? "mt-0.5" : ""} text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100`}>
-          {title}
-        </h2>
+        {showTitle && title ? (
+          <h2
+            className={`${eyebrow ? "mt-0.5" : ""} text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100`}
+          >
+            {title}
+          </h2>
+        ) : null}
         {subtitle && (
-          <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
+          <p className={`${showTitle && title ? "mt-1" : ""} max-w-2xl text-sm text-slate-500 dark:text-slate-400`}>
+            {subtitle}
+          </p>
         )}
       </div>
       {action && <div className="flex shrink-0 flex-wrap gap-2">{action}</div>}

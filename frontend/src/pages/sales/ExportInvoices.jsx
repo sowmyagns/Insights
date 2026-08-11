@@ -198,7 +198,6 @@ export default function ExportInvoices() {
   return (
     <div className="min-h-full bg-[#F5F5F5] px-5 py-5 sm:px-6">
       {/* Title */}
-      <h1 className="text-[22px] font-bold tracking-tight text-[#1a1a1f]">Export Invoice</h1>
 
       {/* KPI strip */}
       <div className="mb-4 overflow-hidden rounded-xl bg-[#ececf0]">

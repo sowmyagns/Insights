@@ -1,23 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Building2,
-  Cpu,
-  Download,
-  FileText,
-  Layers,
-  Plus,
-  Printer,
-  RefreshCw,
-  Upload,
-  UserCheck,
-  Users,
-} from "lucide-react";
+import { Building2, Cpu, Download, FileText, Layers, Plus, Printer, Upload, UserCheck, Users } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
 import DepartmentDetailModal, { DepartmentFormModal } from "../../components/hr/DepartmentDetailModal";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import {
   createDepartment,
   deactivateDepartment,
@@ -107,6 +96,7 @@ export default function DepartmentManagement() {
     }
   }, []);
 
+  usePageRefresh(loadDepartments);
 
   useEffect(() => {
     loadDepartments();
@@ -303,7 +293,6 @@ export default function DepartmentManagement() {
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold text-slate-400">Masters &gt; Departments</p>
-          <h1 className="text-2xl font-bold text-slate-900">Department Management</h1>
           <p className="mt-1 text-sm text-slate-500">
             Manage all company departments and assign employees, machines, and work centers.
           </p>
@@ -323,9 +312,6 @@ export default function DepartmentManagement() {
           </button>
           <button type="button" onClick={handlePrint} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
             <Printer className="h-4 w-4" /> Print
-          </button>
-          <button type="button" onClick={loadDepartments} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            <RefreshCw className="h-4 w-4" /> Refresh
           </button>
         </div>
       </header>

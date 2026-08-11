@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, FileText, IndianRupee, Plus, RefreshCw, X, XCircle } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { CheckCircle2, FileText, IndianRupee, Plus, X, XCircle } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -251,6 +252,8 @@ export default function VendorBills() {
         getGRNEnriched(),
       ]);
 
+  usePageRefresh(load);
+
       if (sumRes.status === "fulfilled" && sumRes.value?.data) {
         setSummary(sumRes.value.data);
       }
@@ -381,7 +384,6 @@ export default function VendorBills() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Vendor Bills</h1>
           <p className="mt-1 text-sm text-slate-500">
             Invoice module with three-way matching (Purchase Order (PO) ↔ Goods Receipt Note (GRN) ↔ Vendor Invoice) and finance approval.
           </p>
@@ -393,13 +395,6 @@ export default function VendorBills() {
             className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-blue-700"
           >
             <Plus className="h-4 w-4" /> Create Vendor Bill
-          </button>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4" /> Refresh
           </button>
         </div>
       </header>

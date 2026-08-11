@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  AlertTriangle, BarChart3, CheckCircle, ClipboardCheck, RefreshCw, TrendingDown, XCircle,
-} from "lucide-react";
+import { AlertTriangle, BarChart3, CheckCircle, ClipboardCheck, TrendingDown, XCircle } from "lucide-react";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
@@ -63,12 +61,9 @@ export default function QualityDashboard() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Quality Dashboard</h1>
           <p className="mt-1 text-sm text-slate-500">Inspection KPIs, yield trends, defect analysis, and QC performance.</p>
         </div>
-        <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><RefreshCw className="h-4 w-4" /> Refresh</button>
       </header>
-
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <KpiCard label="Total Inspections" value={hub.total_inspections} icon={ClipboardCheck} color="bg-blue-600" />

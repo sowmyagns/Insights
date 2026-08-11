@@ -555,9 +555,6 @@ export default function CreateVendor() {
           <ArrowLeft className="h-4 w-4" />
           Back to vendors
         </Link>
-        <h1 className="text-2xl font-bold text-slate-900">
-          {isEdit ? "Edit Vendor" : "Add Vendor"}
-        </h1>
         <p className="mt-1 max-w-2xl text-sm text-slate-500">
           Vendor code is generated automatically. Complete company, bank, and procurement details.
         </p>

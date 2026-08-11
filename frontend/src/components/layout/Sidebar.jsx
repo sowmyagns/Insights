@@ -333,25 +333,25 @@ export default function Sidebar({ collapsed = false, onToggleCollapse, onClose }
     }
   };
 
-  /* Screenshot-style: yellow right accent when active */
+  /* Selected nav item: #195CCF */
   const topLinkClass = ({ isActive }) =>
-    `relative flex items-center gap-2.5 rounded-l-lg px-3 py-2.5 text-sm transition-all ${
+    `relative flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-all ${
       isActive
-        ? "bg-white/10 font-medium text-white after:absolute after:inset-y-1 after:right-0 after:w-1 after:rounded-l after:bg-[#F5C518]"
+        ? "bg-[#195CCF] font-medium text-white"
         : "text-slate-300 hover:bg-white/10 hover:text-white"
     }`;
 
   const childLinkClass = ({ isActive }) =>
-    `relative block rounded-l-lg py-2 pl-9 pr-3 text-[13px] transition-colors ${
+    `relative block rounded-lg py-2 pl-9 pr-3 text-[13px] transition-colors ${
       isActive
-        ? "bg-white/10 font-medium text-white after:absolute after:inset-y-1 after:right-0 after:w-1 after:rounded-l after:bg-[#F5C518]"
+        ? "bg-[#195CCF] font-medium text-white"
         : "text-slate-400 hover:bg-white/10 hover:text-slate-200"
     }`;
 
   const sectionButtonClass = (_isOpen, hasActive) =>
-    `relative flex w-full items-center justify-between gap-2 rounded-l-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+    `relative flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
       hasActive
-        ? "bg-white/10 text-white after:absolute after:inset-y-1 after:right-0 after:w-1 after:rounded-l after:bg-[#F5C518]"
+        ? "bg-[#195CCF] text-white"
         : "text-slate-300 hover:bg-white/10 hover:text-white"
     }`;
 

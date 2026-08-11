@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  AlertCircle, AlertTriangle, ArrowRight, BadgeCheck, Building2, Calendar,
-  CheckCircle2, ChevronRight, Clock, CreditCard, Edit2, Eye, FileText,
-  IndianRupee, Landmark, LayoutDashboard, Package, Plus, RefreshCw,
-  Receipt, Search, TrendingDown, TrendingUp, X, XCircle,
-} from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowRight, BadgeCheck, Building2, Calendar, CheckCircle2, ChevronRight, Clock, CreditCard, Edit2, Eye, FileText, IndianRupee, Landmark, LayoutDashboard, Package, Plus, Receipt, Search, TrendingDown, TrendingUp, X, XCircle } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import RowActionMenu from "../../components/common/RowActionMenu";
@@ -19,6 +14,7 @@ import {
 } from "../../api/procurementApi";
 import { FINANCE_FLOW, formatInr, statusColor } from "../../data/financeMasterData";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -612,6 +608,8 @@ export default function AccountsPayable() {
         getVendorBills(),
       ]);
 
+  usePageRefresh(load);
+
       if (sumRes.status === "fulfilled" && sumRes.value?.data) setSummary(sumRes.value.data);
 
       if (apRes.status === "fulfilled") {
@@ -815,9 +813,6 @@ export default function AccountsPayable() {
             </button>
             <button type="button" onClick={() => { setPayBill(null); setShowCreatePayment(true); }} className="btn-primary">
               <CreditCard className="h-4 w-4" /> Record Payment
-            </button>
-            <button type="button" onClick={load} className="btn-outline">
-              <RefreshCw className="h-4 w-4" /> Refresh
             </button>
           </div>
         </header>

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Search, Layers, Shield, RefreshCw, X } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { Plus, Search, Layers, Shield, X } from "lucide-react";
 import FinanceFilters from "../../components/finance/FinanceFilters";
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
@@ -47,6 +48,8 @@ export default function ChartOfAccounts() {
       setRefreshing(false);
     }
   }, [financialYear, month, branch, addToast]);
+
+  usePageRefresh(load);
 
   useEffect(() => { load(); }, [load]);
 
@@ -101,26 +104,9 @@ export default function ChartOfAccounts() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 border-b-0 pb-0">Chart of Accounts</h1>
           <p className="mt-1 text-sm text-slate-500">Configure and manage General Ledger account structure codes and classifications.</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all"
-          >
-            <Plus className="h-4 w-4" />
-            Add Account
-          </button>
-          <button
-            type="button"
-            onClick={() => load({ isRefresh: true })}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition-all"
-          >
-            <RefreshCw className={`h-4 w-4 transition-transform duration-700 ${refreshing ? "animate-spin" : ""}`} />
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
         </div>
       </header>
 
@@ -289,7 +275,6 @@ export default function ChartOfAccounts() {
                   </select>
                 </div>
               </div>
-
 
               <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
                 <button

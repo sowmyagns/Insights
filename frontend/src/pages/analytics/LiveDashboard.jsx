@@ -78,6 +78,7 @@ export default function LiveDashboard() {
         autoRefresh={autoRefresh}
         onAutoRefreshChange={setAutoRefresh}
         loading={loading}
+        dark={true}
       />
 
       <Link to="/analytics/executive" className="inline-block text-xs font-semibold text-blue-400 hover:underline">← Back to CEO Dashboard</Link>

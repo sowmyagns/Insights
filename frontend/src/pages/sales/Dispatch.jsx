@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Package, RefreshCw, Truck, X } from "lucide-react";
+import { MapPin, Package, Truck, X } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -291,13 +291,6 @@ export default function Dispatch() {
           <Link to="/sales/orders" className="ui-btn-primary">
             <Truck className="h-4 w-4" /> View Sales Orders
           </Link>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </button>
         </div>
       </header>
 

@@ -190,7 +190,7 @@ def get_maintenance_hub(db: Session, tenant_id: int) -> MaintenanceHubRead:
     maintenance = sum(1 for m in machines if m.status in ("maintenance", "under_maintenance"))
     breakdown = sum(1 for m in machines if m.status == "breakdown")
     idle = sum(1 for m in machines if m.status == "idle")
-    health_scores = [float(m.health_score) for m in machines]
+    health_scores = [float(m.health_score) for m in machines if m.health_score is not None]
     health_pct = sum(health_scores) / len(health_scores) if health_scores else 87.5
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
     calendar = [
@@ -215,7 +215,7 @@ def get_maintenance_hub(db: Session, tenant_id: int) -> MaintenanceHubRead:
         total_cost=322_000,
         calendar_events=calendar,
         machine_health=[
-            {"name": m.name, "health": float(m.health_score), "code": m.code}
+            {"name": m.name, "health": float(m.health_score) if m.health_score is not None else 0.0, "code": m.code}
             for m in machines[:6]
         ] or [
             {"name": "CNC-01", "health": 95, "code": "CNC-01"},

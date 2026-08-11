@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { createPortal } from "react-dom";
-import { Calendar, FileDown, FileText, Info, RefreshCw, X } from "lucide-react";
+import { Calendar, FileDown, FileText, Info, X } from "lucide-react";
 
 import { getProfitLossExtended, getExtendedReports } from "../../api/accountsApi";
 import { REPORT_TYPES, addAccountingReport } from "../../data/accountingReports";
@@ -460,6 +461,8 @@ export default function ProfitLossV2() {
     return v ? fmt(v) : "";
   }
 
+  usePageRefresh(load);
+
   return (
     <div style={{ background: "#fff", fontFamily: FONT, fontSize: 12, color: "#111",
                   padding: "20px 24px 40px", minHeight: "100%", boxSizing: "border-box" }}>
@@ -468,10 +471,6 @@ export default function ProfitLossV2() {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between",
                     flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
         <div>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: "#111", margin: "0 0 2px",
-                       padding: 0, border: "none", background: "none" }}>
-            Profit &amp; Loss A/c
-          </h1>
           <p style={{ fontSize: 12, color: "#555", margin: 0, padding: 0 }}>{fyRange}</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -581,20 +580,7 @@ export default function ProfitLossV2() {
       )}
 
 
-      {/* refresh button */}
-      <button
-        onClick={() => load(year)}
-        title="Refresh"
-        style={{
-          position: "fixed", bottom: 24, right: 24, zIndex: 30,
-          width: 44, height: 44, borderRadius: 12,
-          border: "1px solid #d0d0d8", background: "#fff",
-          display: "grid", placeItems: "center", cursor: "pointer",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-        }}
-      >
-        <RefreshCw size={18} color="#2563eb" />
-      </button>
+      {/* refresh handled by GlobalRefreshButton */}
 
       <GenerateModal
         open={modalOpen}

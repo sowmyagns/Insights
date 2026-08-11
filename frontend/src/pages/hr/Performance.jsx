@@ -1,10 +1,11 @@
 ﻿import { useEffect, useState, useCallback } from "react";
-import { Award, BarChart2, CheckCircle2, Plus, RefreshCw, X, Save } from "lucide-react";
+import { Award, BarChart2, CheckCircle2, Plus, X, Save } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import Table from "../../components/common/Table";
 import { getPerformanceReviews, getEmployees, createPerformanceReview } from "../../api/hrApi";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { useToast } from "../../context/ToastContext";
 
 const inputClass =
@@ -72,6 +73,8 @@ export default function Performance() {
     await loadData();
   };
 
+  usePageRefresh(handleRefresh);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -129,7 +132,6 @@ export default function Performance() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight font-sans">Performance Tracking</h1>
           <p className="mt-1 text-sm text-slate-500">Monitor employee review periods, rating logs, goals achieved, and manager feedback.</p>
         </div>
         <div className="flex gap-2">
@@ -139,13 +141,6 @@ export default function Performance() {
             className="ui-btn-hr"
           >
             <Plus className="h-4 w-4" /> Create Review
-          </button>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4" /> Refresh
           </button>
         </div>
       </header>

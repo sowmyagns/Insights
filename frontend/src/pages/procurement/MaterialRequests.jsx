@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, ClipboardList, Download, Filter, Plus, RefreshCw } from "lucide-react";
+import { AlertCircle, ClipboardList, Download, Filter, Plus } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -470,7 +470,6 @@ export default function MaterialRequests() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Material Requests</h1>
           <p className="mt-1 text-sm text-slate-500">
             MRP shortages become purchase requests, then purchase orders.
           </p>
@@ -491,13 +490,6 @@ export default function MaterialRequests() {
             className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             <Download className="h-4 w-4" /> Export
-          </button>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4" /> Refresh
           </button>
         </div>
       </header>

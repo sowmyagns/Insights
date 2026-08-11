@@ -29,9 +29,6 @@ export default function LiveOperations() {
       <div className="flex items-center gap-2">
         <Activity className="h-7 w-7 text-teal-500" />
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Live Operations
-          </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-0.5">
             Machine status & work orders for AR/computer vision overlay
           </p>

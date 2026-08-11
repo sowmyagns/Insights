@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Info, Check, Eye, Phone, GitCompare, X } from "lucide-react";
 
 import { useToast } from "../../context/ToastContext";
@@ -87,6 +88,9 @@ export default function SettingsMySubscription() {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(load);
+
 
   useEffect(() => {
     load();

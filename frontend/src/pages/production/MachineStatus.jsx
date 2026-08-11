@@ -1,29 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  Activity,
-  ChevronLeft,
-  ChevronRight,
-  Cpu,
-  Download,
-  FileSpreadsheet,
-  FileText,
-  Grid3X3,
-  LayoutList,
-  Plus,
-  Printer,
-  RefreshCw,
-  Search,
-  Thermometer,
-  Upload,
-  Wrench,
-  Zap,
-} from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, Cpu, Download, FileSpreadsheet, FileText, Grid3X3, LayoutList, Plus, Printer, Search, Thermometer, Upload, Wrench, Zap } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
 import MachineDetailModal from "../../components/production/MachineDetailModal";
 import { useToast } from "../../context/ToastContext";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import useTenantId from "../../hooks/useTenantId";
 import useAuth from "../../hooks/useAuth";
 import { isOperator } from "../../config/permissions";
@@ -58,16 +41,18 @@ const PAGE_SIZES = [20, 50, 100];
 
 function SummaryCard({ label, value, icon: Icon, color, sub }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="mt-1 truncate text-xl font-bold tabular-nums text-slate-900 sm:text-2xl">{value}</p>
-          {sub && <p className="mt-0.5 text-[10px] text-slate-400">{sub}</p>}
-        </div>
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${color}`}>
-          <Icon className="h-5 w-5 text-white" />
-        </div>
+    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
+      <div className="flex items-center justify-between gap-1.5 min-w-0">
+        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
+        {Icon && (
+          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
+            <Icon className="h-3.5 w-3.5 text-white" />
+          </div>
+        )}
+      </div>
+      <div className="mt-2">
+        <p className="truncate text-xl font-bold tabular-nums text-slate-900 leading-none sm:text-2xl">{value}</p>
+        {sub && <p className="mt-1 text-[10px] text-slate-400">{sub}</p>}
       </div>
     </div>
   );
@@ -194,6 +179,7 @@ export default function MachineStatus() {
     }
   }, []);
 
+  usePageRefresh(loadMachines);
 
   useEffect(() => {
     loadMachines();
@@ -348,7 +334,6 @@ export default function MachineStatus() {
     <div className="min-h-full pb-8" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">Machine Management</h1>
           <p className="mt-0.5 text-xs text-slate-500">Digital profiles · Live status · OEE · Production integration</p>
         </div>
 
@@ -410,13 +395,6 @@ export default function MachineStatus() {
                 </button>
               </>
             )}
-            <button
-              type="button"
-              onClick={loadMachines}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]"
-            >
-              <RefreshCw className="h-4 w-4" /> Refresh
-            </button>
             {!operatorMode && (
               <Link
                 to="/production/machines/create"

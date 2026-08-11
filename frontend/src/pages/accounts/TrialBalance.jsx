@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, CheckCircle, AlertTriangle, Landmark, TrendingUp, ShieldCheck } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { CheckCircle, AlertTriangle, Landmark, TrendingUp, ShieldCheck } from "lucide-react";
 import FinanceFilters from "../../components/finance/FinanceFilters";
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
@@ -29,6 +30,8 @@ export default function TrialBalance() {
     }
   }, [financialYear, month, branch, addToast]);
 
+  usePageRefresh(load);
+
   useEffect(() => { load(); }, [load]);
 
   const filtered = accounts.filter((a) =>
@@ -46,12 +49,8 @@ export default function TrialBalance() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 border-b-0 pb-0">Trial Balance</h1>
           <p className="mt-1 text-sm text-slate-500">Unadjusted closing balances consolidated across assets, liabilities, equity, and operations.</p>
         </div>
-        <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </button>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-3">

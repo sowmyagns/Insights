@@ -56,7 +56,6 @@ export default function EwaybillLogin() {
             alt="State Emblem of India — सत्यमेव जयते"
             className="mb-4 h-20 w-auto object-contain"
           />
-          <h1 className="text-xl font-bold text-slate-900">E-Waybill System Login</h1>
           {status?.connected && (
             <p className="mt-2 text-sm font-medium text-emerald-600">Connected · {status.gstin}</p>
           )}

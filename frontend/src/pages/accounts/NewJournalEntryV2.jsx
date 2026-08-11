@@ -281,9 +281,6 @@ export default function NewJournalEntryV2() {
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
-            <h1 className="text-[20px] font-semibold text-[#1a1a1f]">
-              {isEdit ? "Edit Journal Entry" : "New Journal Entry"}
-            </h1>
           </div>
           <div className="flex items-center gap-2">
             <button

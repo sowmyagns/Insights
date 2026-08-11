@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
@@ -51,13 +51,6 @@ export default function PaymentTracking() {
           <Link to="/sales/payments/create" className="ui-btn-primary">
             <Plus className="h-4 w-4" /> Record Payment
           </Link>
-          <button
-            type="button"
-            onClick={load}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </button>
         </div>
       </div>
 

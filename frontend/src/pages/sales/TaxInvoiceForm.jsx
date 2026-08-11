@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import QRCode from "qrcode";
-import { Building2, ChevronDown, FileText, Grid2x2, ImagePlus, MapPin, Package, PenLine, Plane, Plus, Ban, Search, Ship, TrainFront, Trash2, Truck, User, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Building2, ChevronDown, FileText, Grid2x2, GripVertical, ImagePlus, MapPin, Package, PenLine, Plane, Plus, Ban, Search, Ship, TrainFront, Trash2, Truck, User, X } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import AddBankAccountModal from "../../components/sales/AddBankAccountModal";
@@ -23,6 +22,7 @@ import TermsAndConditionsPicker, {
   DEFAULT_TERMS_BODY,
 } from "../../components/sales/TermsAndConditionsPicker";
 import { createInvoice, getInvoiceDetail, updateInvoice } from "../../api/salesApi";
+import { getProducts } from "../../api/productsApi";
 import { apiErrorMessage } from "../../utils/apiError";
 import { getCompanySettings, updateCompanySettings } from "../../api/settingsApi";
 import useTenantId from "../../hooks/useTenantId";
@@ -45,6 +45,40 @@ const PREFIX_STORAGE_KEY = "gns_invoice_prefixes";
 const DEFAULT_PREFIXES = ["INV-", "TI-"];
 const ADD_PREFIX_VALUE = "__add_prefix__";
 
+/** GST dropdown options matching the Create Invoice reference UI. */
+const GST_RATE_OPTIONS = [
+  { value: "na", label: "Not Applicable", pct: 0 },
+  { value: "0", label: "GST @ 0%", pct: 0 },
+  { value: "exempted", label: "Exempted", pct: 0 },
+  { value: "non_gst", label: "Non-GST", pct: 0 },
+  { value: "0.1", label: "GST @ 0.1%", pct: 0.1 },
+  { value: "0.25", label: "GST @ 0.25%", pct: 0.25 },
+  { value: "1.5", label: "GST @ 1.5%", pct: 1.5 },
+  { value: "3", label: "GST @ 3%", pct: 3 },
+  { value: "5", label: "GST @ 5%", pct: 5 },
+  { value: "6", label: "GST @ 6%", pct: 6 },
+  { value: "12", label: "GST @ 12%", pct: 12 },
+  { value: "18", label: "GST @ 18%", pct: 18 },
+  { value: "28", label: "GST @ 28%", pct: 28 },
+];
+
+function gstOptionFromPct(pct) {
+  const n = Number(pct);
+  if (!Number.isFinite(n) || n < 0) return "na";
+  const exact = GST_RATE_OPTIONS.find((o) => o.pct === n && ["0", "0.1", "0.25", "1.5", "3", "5", "6", "12", "18", "28"].includes(o.value));
+  if (exact) return exact.value;
+  if (n === 0) return "0";
+  return String(n);
+}
+
+function mapDocumentTypeToUi(doc) {
+  const d = String(doc || "").toLowerCase();
+  if (d === "tax_invoice" || d === "tax" || d === "sale_invoice") return "tax";
+  if (d === "export_invoice" || d === "export") return "export";
+  if (d === "bill_of_supply" || d === "bos") return "bill_of_supply";
+  return d || "tax";
+}
+
 function loadCustomPrefixes() {
   try {
     const raw = localStorage.getItem(PREFIX_STORAGE_KEY);
@@ -64,6 +98,7 @@ function saveCustomPrefixes(list) {
 }
 
 const emptyItem = () => ({
+  product_id: null,
   item_description: "",
   hsn: "",
   qty: "",
@@ -73,9 +108,8 @@ const emptyItem = () => ({
   discount: "",
   discount_type: "₹",
   gst_pct: "",
-  cgst_pct: "",
-  sgst_pct: "",
-  igst_pct: "",
+  gst_option: "18",
+  stock: null,
   amount: 0,
 });
 
@@ -269,13 +303,17 @@ export default function TaxInvoiceForm() {
   const [customFields, setCustomFields] = useState([]);
   const [bankModalOpen, setBankModalOpen] = useState(false);
   const [bankAccount, setBankAccount] = useState(null);
-  const [invoiceType, setInvoiceType] = useState("bill_of_supply");
+  const [invoiceType, setInvoiceType] = useState("tax");
   const [pendingInvoiceType, setPendingInvoiceType] = useState(null);
   const [prefixModalOpen, setPrefixModalOpen] = useState(false);
   const [customPrefixes, setCustomPrefixes] = useState(loadCustomPrefixes);
   const [signatureOn, setSignatureOn] = useState(true);
   const [signatureDataUrl, setSignatureDataUrl] = useState(null);
   const [stampDataUrl, setStampDataUrl] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [itemPickerIdx, setItemPickerIdx] = useState(null);
+  const [itemSearch, setItemSearch] = useState("");
+  const [numberManual, setNumberManual] = useState(false);
   const [form, setForm] = useState({
     tenant_id: tenantId,
     customer_id: "",
@@ -283,7 +321,7 @@ export default function TaxInvoiceForm() {
       ? Number(searchParams.get("sales_order_id"))
       : null,
     invoice_prefix: "",
-    invoice_number: "1",
+    invoice_number: "",
     issue_date: new Date().toISOString().slice(0, 10),
     due_date: "",
     discount: 0,
@@ -295,6 +333,8 @@ export default function TaxInvoiceForm() {
     consignee_state: "",
     consignee_state_code: "",
     consignee_gstin: "",
+    consignee_phone: "",
+    consignee_email: "",
     notes: DEFAULT_TERMS_BODY,
     transport_mode: "Road",
     lr_number: "",
@@ -315,23 +355,33 @@ export default function TaxInvoiceForm() {
   });
   const [items, setItems] = useState([emptyItem(), emptyItem(), emptyItem()]);
   const [saving, setSaving] = useState(false);
-  const qrCanvasRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const [custRes, companyRes] = await Promise.allSettled([
+        const [custRes, companyRes, productsRes] = await Promise.allSettled([
           fetchCustomersWithFallback(),
           getCompanySettings(),
+          getProducts(),
         ]);
         if (cancelled) return;
         setCustomers(custRes.status === "fulfilled" ? custRes.value || [] : []);
         const co = companyRes.status === "fulfilled" ? companyRes.value?.data || null : null;
         setCompany(co);
-        if (co?.invoice_prefix) {
-          setForm((f) => (f.invoice_prefix ? f : { ...f, invoice_prefix: co.invoice_prefix }));
+        const prodRaw =
+          productsRes.status === "fulfilled"
+            ? productsRes.value?.data ?? productsRes.value ?? []
+            : [];
+        setProducts(Array.isArray(prodRaw) ? prodRaw : []);
+        if (co && !editId) {
+          const nextNum = co.invoice_next_number != null ? String(co.invoice_next_number) : "1";
+          setForm((f) => ({
+            ...f,
+            invoice_prefix: f.invoice_prefix || co.invoice_prefix || "",
+            invoice_number: f.invoice_number || nextNum,
+          }));
         }
         if (co?.bank_name) {
           setBankAccount({
@@ -354,7 +404,8 @@ export default function TaxInvoiceForm() {
           const prefix = inv.invoice_prefix || "";
           const numberOnly =
             prefix && num.startsWith(prefix) ? num.slice(prefix.length) : num.replace(/^[A-Za-z-]+/, "") || num;
-          setInvoiceType(inv.document_type || "bill_of_supply");
+          setInvoiceType(mapDocumentTypeToUi(inv.document_type));
+          setNumberManual(true);
           setSignatureOn(Boolean(inv.show_signature));
           if (inv.terms_and_conditions) {
             setTermsAttached(true);
@@ -389,21 +440,22 @@ export default function TaxInvoiceForm() {
           }));
           const lineItems = (inv.items || [])
             .filter((it) => String(it.item_description || "").toLowerCase() !== "other charge")
-            .map((it) => ({
-              ...emptyItem(),
-              item_description: it.item_description || "",
-              hsn: it.hsn || "",
-              qty: it.qty ?? 0,
-              unit: it.unit || "pcs",
-              rate: it.rate ?? 0,
-              tax_type: it.tax_type || "Exclusive",
-              discount: it.discount ?? 0,
-              discount_type: it.discount_type || "₹",
-              gst_pct: it.gst_pct ?? 0,
-              cgst_pct: it.cgst_pct ?? "",
-              sgst_pct: it.sgst_pct ?? "",
-              igst_pct: it.igst_pct ?? "",
-            }));
+            .map((it) => {
+              const gstPct = Number(it.gst_pct ?? 0);
+              return {
+                ...emptyItem(),
+                item_description: it.item_description || "",
+                hsn: it.hsn || "",
+                qty: it.qty ?? 0,
+                unit: it.unit || "pcs",
+                rate: it.rate ?? 0,
+                tax_type: it.tax_type || "Exclusive",
+                discount: it.discount ?? 0,
+                discount_type: it.discount_type || "₹",
+                gst_pct: gstPct,
+                gst_option: gstOptionFromPct(gstPct),
+              };
+            });
           setItems(lineItems.length ? lineItems : [emptyItem(), emptyItem(), emptyItem()]);
         }
       } catch (err) {
@@ -495,6 +547,9 @@ export default function TaxInvoiceForm() {
       ...f,
       customer_id: customerId,
       ...customerToConsigneeFields(customer),
+      consignee_phone: customer?.phone || customer?.mobile || "",
+      consignee_email: customer?.email || "",
+      place_of_supply: f.place_of_supply || customer?.state || "",
     }));
     setShowBuyerPicker(false);
   };
@@ -503,13 +558,58 @@ export default function TaxInvoiceForm() {
     setItems((prev) => {
       const next = [...prev];
       next[idx] = { ...next[idx], [field]: val };
+      if (field === "gst_option") {
+        const opt = GST_RATE_OPTIONS.find((o) => o.value === val);
+        next[idx].gst_pct = opt ? opt.pct : Number(val) || 0;
+      }
       next[idx].amount = lineTotals(next[idx]).total;
       return next;
     });
   };
 
+  const selectProductForRow = (idx, product) => {
+    const gstPct = Number(product.gst_percent ?? product.gst_pct ?? company?.default_gst_pct ?? 18) || 0;
+    setItems((prev) => {
+      const next = [...prev];
+      const row = {
+        ...emptyItem(),
+        product_id: product.id,
+        item_description: product.name || product.sku || "",
+        hsn: product.hsn_code || product.hsn || "",
+        qty: next[idx]?.qty || 1,
+        unit: product.unit || "pcs",
+        rate: product.unit_price ?? product.sale_price ?? product.price_per_unit ?? "",
+        tax_type: "Exclusive",
+        gst_pct: gstPct,
+        gst_option: gstOptionFromPct(gstPct),
+        stock: product.current_stock != null ? Number(product.current_stock) : null,
+      };
+      row.amount = lineTotals(row).total;
+      next[idx] = row;
+      return next;
+    });
+    setItemPickerIdx(null);
+    setItemSearch("");
+  };
+
+  const filteredProducts = useMemo(() => {
+    const q = itemSearch.trim().toLowerCase();
+    if (!q) return products.slice(0, 40);
+    return products
+      .filter((p) =>
+        [p.name, p.sku, p.hsn_code, p.product_code]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(q))
+      )
+      .slice(0, 40);
+  }, [products, itemSearch]);
+
   const removeItem = (idx) => {
     setItems((prev) => (prev.length <= 1 ? [emptyItem()] : prev.filter((_, i) => i !== idx)));
+  };
+
+  const addEmptyItemRow = () => {
+    setItems((prev) => [...prev, emptyItem()]);
   };
 
   const filledItems = items.filter((i) => i.item_description?.trim());
@@ -521,18 +621,21 @@ export default function TaxInvoiceForm() {
   const finalAmount = money(itemsTotal + otherCharge - invoiceDiscount + (Number(form.round_off) || 0));
 
   const useIgst = invoiceType === "export";
-  const fullInvoiceNo = (form.invoice_prefix || "") + (form.invoice_number || "");
 
-  useEffect(() => {
-    if (!qrCanvasRef.current || !fullInvoiceNo) return;
-    QRCode.toCanvas(qrCanvasRef.current, fullInvoiceNo, { width: 80, margin: 1, errorCorrectionLevel: "M" }, () => {});
-  }, [fullInvoiceNo]);
-  const cgstPct = useIgst ? 0 : 9;
-  const sgstPct = useIgst ? 0 : 9;
-  const igstPct = useIgst ? 18 : 0;
+  const avgGstPct =
+    filledItems.length > 0
+      ? filledItems.reduce((s, i) => s + (Number(i.gst_pct) || 0), 0) / filledItems.length
+      : Number(company?.default_gst_pct) || 18;
+  const cgstPct = useIgst ? 0 : money(avgGstPct / 2);
+  const sgstPct = useIgst ? 0 : money(avgGstPct / 2);
+  const igstPct = useIgst ? money(avgGstPct) : 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.issue_date) {
+      addToast("Please select invoice date", "error");
+      return;
+    }
     if (!form.customer_id) {
       addToast("Please select a buyer", "error");
       setShowBuyerPicker(true);
@@ -542,16 +645,28 @@ export default function TaxInvoiceForm() {
       addToast("Add at least one item", "error");
       return;
     }
+    for (const row of filledItems) {
+      if (Number(row.qty) < 0 || Number(row.rate) < 0 || Number(row.discount) < 0) {
+        addToast("Quantity, price, and discount cannot be negative", "error");
+        return;
+      }
+      if (!(Number(row.qty) > 0)) {
+        addToast(`Enter a valid quantity for "${row.item_description}"`, "error");
+        return;
+      }
+    }
     setSaving(true);
     try {
       const customerId = await resolveCustomerId(form.customer_id, customers, tenantId);
+      const invoiceNumberPayload =
+        !isEdit && !numberManual ? "AUTO" : form.invoice_number || "AUTO";
       const payload = {
         tenant_id: form.tenant_id,
         customer_id: customerId,
         sales_order_id: form.sales_order_id || null,
         document_type: invoiceType,
         invoice_prefix: form.invoice_prefix || null,
-        invoice_number: form.invoice_number || String(Date.now()).slice(-6),
+        invoice_number: invoiceNumberPayload,
         issue_date: form.issue_date,
         due_date: form.due_date || null,
         discount: invoiceDiscount,
@@ -578,31 +693,11 @@ export default function TaxInvoiceForm() {
         reverse_charge: Boolean(form.reverse_charge),
         terms_and_conditions: termsAttached ? form.notes || null : null,
         show_signature: Boolean(signatureOn),
-        notes: [
-          ...customFields.map((f) => `${f.label}: ${f.value}`),
-          bankAccount
-            ? [
-                "Bank Details:",
-                bankAccount.bank_name,
-                bankAccount.account_holder,
-                bankAccount.account_number
-                  ? `A/C: ${bankAccount.account_number}`
-                  : null,
-                [bankAccount.ifsc, bankAccount.branch_name].filter(Boolean).join(" · ") ||
-                  null,
-                bankAccount.upi_id
-                  ? `UPI: ${bankAccount.upi_id}${
-                      bankAccount.show_upi_qr ? " (QR on invoice)" : ""
-                    }`
-                  : null,
-                bankAccount.notes,
-              ]
-                .filter(Boolean)
-                .join("\n")
-            : null,
-        ]
-          .filter(Boolean)
-          .join("\n") || null,
+        bank_details: bankAccount || null,
+        custom_fields: customFields.length
+          ? Object.fromEntries(customFields.map((f) => [f.label, f.value]))
+          : null,
+        notes: customFields.map((f) => `${f.label}: ${f.value}`).filter(Boolean).join("\n") || null,
         items: filledItems.map((i) => {
           const t = lineTotals(i);
           return {
@@ -626,11 +721,16 @@ export default function TaxInvoiceForm() {
         addToast("Invoice updated");
       } else {
         const res = await createInvoice(payload);
+        const saved = res?.data;
         notifyManufacturingSpine(MANUFACTURING_EVENTS.INVOICE_CREATED, {
-          invoice_id: res.data?.id,
+          invoice_id: saved?.id,
           sales_order_id: form.sales_order_id,
         });
-        addToast("Invoice created");
+        addToast(
+          saved?.invoice_number
+            ? `Invoice ${saved.invoice_number} created`
+            : "Invoice created"
+        );
       }
       navigate("/sales/invoices");
     } catch (err) {
@@ -650,6 +750,15 @@ export default function TaxInvoiceForm() {
   }
 
   const companyName = company?.company_name || company?.name || "My Company";
+  const companyAddress = [
+    company?.address_line1,
+    company?.address_line2,
+    company?.city,
+    company?.state,
+    company?.pincode,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <form
@@ -658,9 +767,16 @@ export default function TaxInvoiceForm() {
     >
       {/* Sticky header — matches screenshot */}
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#e4e4ea] bg-white px-5 py-3.5">
-          <h1 className="text-[20px] font-bold text-[#1a1a1f]">
-            {isEdit ? "Edit Invoice" : "Create Invoice"}
-          </h1>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => navigate("/sales/invoices")}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#e4e4ea] bg-white text-[#4a4a55] hover:bg-[#f5f5f7]"
+            aria-label="Back to invoices"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+        </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -678,7 +794,7 @@ export default function TaxInvoiceForm() {
             {saving ? "Saving…" : isEdit ? "Update" : "Save"}
           </button>
         </div>
-        </div>
+      </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-[1200px] space-y-4 p-5 pb-10">
@@ -739,16 +855,13 @@ export default function TaxInvoiceForm() {
                 <FieldLabel>Invoice No.</FieldLabel>
                 <SoftInput
                   value={form.invoice_number}
-                  onChange={(e) => setForm((f) => ({ ...f, invoice_number: e.target.value }))}
+                  onChange={(e) => {
+                    setNumberManual(true);
+                    setForm((f) => ({ ...f, invoice_number: e.target.value }));
+                  }}
+                  placeholder="AUTO"
                 />
               </label>
-              <div className="flex flex-col items-center justify-center rounded-md border border-[#d0d0d8] bg-[#f7f7f9] p-1.5">
-                <canvas ref={qrCanvasRef} style={{ display: fullInvoiceNo ? "block" : "none" }} />
-                {!fullInvoiceNo && (
-                  <div className="flex h-[80px] w-[80px] items-center justify-center text-[10px] text-[#a0a0ab]">QR</div>
-                )}
-                <span className="mt-1 text-[9px] text-[#9a9aa5]">Scan = Bill No.</span>
-              </div>
               <label className="block">
                 <FieldLabel>Invoice Date</FieldLabel>
                 <SoftInput
@@ -763,7 +876,7 @@ export default function TaxInvoiceForm() {
           <section className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-white">
             <SectionHeader icon={Building2} title="Supplier Details" />
             <div className="flex items-start justify-between gap-4 p-4">
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-[15px] font-semibold text-[#1a1a1f]">{companyName}</p>
                   <button
@@ -775,7 +888,18 @@ export default function TaxInvoiceForm() {
                     Edit Company Details
                   </button>
                 </div>
-                <DispatchAddressPicker value={dispatchAddress} onChange={setDispatchAddress} />
+                <div className="mt-2 space-y-0.5 text-[12px] leading-relaxed text-[#6b6b76]">
+                  {companyAddress ? <p>{companyAddress}</p> : null}
+                  {company?.gstin ? <p>GSTIN: {company.gstin}</p> : null}
+                  <p>
+                    {[company?.phone ? `Phone: ${company.phone}` : null, company?.email ? `Email: ${company.email}` : null]
+                      .filter(Boolean)
+                      .join(" · ") || null}
+                  </p>
+                </div>
+                <div className="mt-3">
+                  <DispatchAddressPicker value={dispatchAddress} onChange={setDispatchAddress} />
+                </div>
                 {dispatchAddress ? (
                   <p className="mt-2 max-w-sm text-[12px] leading-relaxed text-[#6b6b76]">
                     {[dispatchAddress.address, dispatchAddress.city, dispatchAddress.state, dispatchAddress.pincode]
@@ -874,14 +998,35 @@ export default function TaxInvoiceForm() {
               </div>
             )}
             {selectedBuyer ? (
-              <div className="grid gap-1 text-[13px] sm:grid-cols-2">
-                <p className="font-semibold text-[#1a1a1f]">{selectedBuyer.name}</p>
-                <p className="text-[#6b6b76]">{selectedBuyer.gstin || "—"}</p>
-                <p className="text-[#6b6b76] sm:col-span-2">
-                  {[form.consignee_address1, form.consignee_address2, form.consignee_state]
-                    .filter(Boolean)
-                    .join(", ") || "—"}
-                </p>
+              <div className="grid gap-x-6 gap-y-1.5 text-[13px] sm:grid-cols-2">
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-[#9a9aa5]">Buyer Name</p>
+                  <p className="font-semibold text-[#1a1a1f]">{selectedBuyer.name}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-[#9a9aa5]">GSTIN</p>
+                  <p className="text-[#4a4a55]">{selectedBuyer.gstin || form.consignee_gstin || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-[#9a9aa5]">Billing Address</p>
+                  <p className="text-[#4a4a55]">
+                    {[form.consignee_address1, form.consignee_address2].filter(Boolean).join(", ") || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-[#9a9aa5]">State / Code</p>
+                  <p className="text-[#4a4a55]">
+                    {[form.consignee_state, form.consignee_state_code].filter(Boolean).join(" · ") || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-[#9a9aa5]">Phone</p>
+                  <p className="text-[#4a4a55]">{form.consignee_phone || selectedBuyer.phone || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-[#9a9aa5]">Email</p>
+                  <p className="text-[#4a4a55]">{form.consignee_email || selectedBuyer.email || "—"}</p>
+                </div>
               </div>
             ) : (
               <p className="py-4 text-center text-[13px] text-[#a0a0ab]">Select a buyer to continue</p>
@@ -902,12 +1047,12 @@ export default function TaxInvoiceForm() {
           </SectionHeader>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] border-collapse text-left text-[12px]">
+            <table className="w-full min-w-[1180px] border-collapse text-left text-[12px]">
               <thead>
                 <tr className="bg-[#f3f3f6] text-[#6b6b76]">
-                  {["#", "Item Name", "HSN", "Qty Unit", "Price", "Tax Type", "Discount", "Taxable Value", "GST", "Total Amt", ""].map(
-                    (h) => (
-                      <th key={h || "x"} className="whitespace-nowrap border-b border-r border-[#d0d0d8] px-2 py-2.5 font-semibold last:border-r-0">
+                  {["", "#", "Item Name", "HSN", "Qty", "Unit", "Price", "Tax Type", "Discount", "Taxable Value", "GST", "Total Amt", ""].map(
+                    (h, hi) => (
+                      <th key={`${h}-${hi}`} className="whitespace-nowrap border-b border-r border-[#d0d0d8] px-2 py-2.5 font-semibold last:border-r-0">
                         {h}
                       </th>
                     )
@@ -918,47 +1063,102 @@ export default function TaxInvoiceForm() {
                 {items.map((row, idx) => {
                   const t = lineTotals(row);
                   const hasDesc = Boolean(row.item_description?.trim());
+                  const gstValue = row.gst_option || gstOptionFromPct(row.gst_pct);
                   return (
                     <tr key={idx}>
+                      <td className="border-b border-r border-[#d0d0d8] px-1.5 py-2 text-[#c4c4cc]">
+                        <GripVertical className="mx-auto h-4 w-4" />
+                      </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2 text-[#9a9aa5]">{idx + 1}</td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2">
-                        <div className="relative min-w-[160px]">
+                        <div className="relative min-w-[180px]">
                           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9a9aa5]" />
                           <input
-                            value={row.item_description}
-                            onChange={(e) => updateItem(idx, "item_description", e.target.value)}
+                            value={itemPickerIdx === idx ? itemSearch : row.item_description}
+                            onFocus={() => {
+                              setItemPickerIdx(idx);
+                              setItemSearch(row.item_description || "");
+                            }}
+                            onChange={(e) => {
+                              setItemPickerIdx(idx);
+                              setItemSearch(e.target.value);
+                              updateItem(idx, "item_description", e.target.value);
+                            }}
+                            onBlur={() => {
+                              setTimeout(() => {
+                                setItemPickerIdx((cur) => (cur === idx ? null : cur));
+                              }, 180);
+                            }}
                             placeholder="Select Item"
                             className="w-full rounded-md border border-[#d0d0d8] bg-[#f7f7f9] py-1.5 pl-7 pr-2 text-[12px]"
                           />
+                          {itemPickerIdx === idx ? (
+                            <div className="absolute left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-md border border-[#d0d0d8] bg-white shadow-lg">
+                              {filteredProducts.length === 0 ? (
+                                <p className="px-3 py-2 text-[12px] text-[#8a8a95]">
+                                  No products found.{" "}
+                                  <button
+                                    type="button"
+                                    className="font-semibold"
+                                    style={{ color: PURPLE }}
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => setAddItemOpen(true)}
+                                  >
+                                    Add New Item
+                                  </button>
+                                </p>
+                              ) : (
+                                filteredProducts.map((p) => (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    className="block w-full px-3 py-2 text-left text-[12px] hover:bg-[#f7f7f9]"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => selectProductForRow(idx, p)}
+                                  >
+                                    <span className="font-semibold text-[#1a1a1f]">{p.name}</span>
+                                    <span className="mt-0.5 block text-[11px] text-[#8a8a95]">
+                                      {[p.sku, p.hsn_code ? `HSN ${p.hsn_code}` : null, p.current_stock != null ? `Stock ${p.current_stock}` : null]
+                                        .filter(Boolean)
+                                        .join(" · ")}
+                                    </span>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          ) : null}
                         </div>
                       </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2">
                         <input
                           value={row.hsn}
                           onChange={(e) => updateItem(idx, "hsn", e.target.value)}
+                          placeholder="-"
                           className="w-16 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
                         />
                       </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2">
-                        <div className="flex gap-1">
-                          <input
-                            type="number"
-                            value={row.qty}
-                            onChange={(e) => updateItem(idx, "qty", e.target.value)}
-                            placeholder="0"
-                            className="w-14 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
-                          />
-                          <select
-                            value={row.unit}
-                            onChange={(e) => updateItem(idx, "unit", e.target.value)}
-                            className="rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1 py-1.5"
-                          >
-                            <option value="">Unit</option>
-                            <option value="pcs">pcs</option>
-                            <option value="KGS">KGS</option>
-                            <option value="MT">MT</option>
-                          </select>
-                        </div>
+                        <input
+                          type="number"
+                          value={row.qty}
+                          onChange={(e) => updateItem(idx, "qty", e.target.value)}
+                          placeholder="-"
+                          className="w-16 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
+                        />
+                      </td>
+                      <td className="border-b border-r border-[#d0d0d8] px-2 py-2">
+                        <select
+                          value={row.unit}
+                          onChange={(e) => updateItem(idx, "unit", e.target.value)}
+                          className="w-[72px] rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1 py-1.5"
+                        >
+                          <option value="">-</option>
+                          <option value="pcs">pcs</option>
+                          <option value="KGS">KGS</option>
+                          <option value="MT">MT</option>
+                          <option value="NOS">NOS</option>
+                          <option value="BOX">BOX</option>
+                        </select>
                       </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2">
                         <div className="flex items-center gap-0.5">
@@ -967,6 +1167,7 @@ export default function TaxInvoiceForm() {
                             type="number"
                             value={row.rate}
                             onChange={(e) => updateItem(idx, "rate", e.target.value)}
+                            placeholder="-"
                             className="w-20 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
                           />
                         </div>
@@ -987,6 +1188,7 @@ export default function TaxInvoiceForm() {
                             type="number"
                             value={row.discount}
                             onChange={(e) => updateItem(idx, "discount", e.target.value)}
+                            placeholder="-"
                             className="w-14 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
                           />
                           <select
@@ -1000,46 +1202,25 @@ export default function TaxInvoiceForm() {
                         </div>
                       </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2 tabular-nums text-[#6b6b76]">
-                        {hasDesc ? t.taxable.toFixed(2) : "—"}
+                        {hasDesc ? t.taxable.toFixed(2) : "-"}
                       </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1">
-                            <span className="w-12 text-[11px] font-semibold text-[#6b6b76]">CGST</span>
-                            <input
-                              type="number"
-                              value={row.cgst_pct ?? ""}
-                              onChange={(e) => updateItem(idx, "cgst_pct", e.target.value)}
-                              placeholder="%"
-                              className="w-16 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
-                            />
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="w-12 text-[11px] font-semibold text-[#6b6b76]">SGST</span>
-                            <input
-                              type="number"
-                              value={row.sgst_pct ?? ""}
-                              onChange={(e) => updateItem(idx, "sgst_pct", e.target.value)}
-                              placeholder="%"
-                              className="w-16 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
-                            />
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="w-12 text-[11px] font-semibold text-[#6b6b76]">IGST</span>
-                            <input
-                              type="number"
-                              value={row.igst_pct ?? ""}
-                              onChange={(e) => updateItem(idx, "igst_pct", e.target.value)}
-                              placeholder="%"
-                              className="w-16 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
-                            />
-                          </div>
-                        </div>
+                        <select
+                          value={gstValue}
+                          onChange={(e) => updateItem(idx, "gst_option", e.target.value)}
+                          className="min-w-[120px] rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
+                        >
+                          {GST_RATE_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2 font-semibold tabular-nums">
-                        {hasDesc ? t.total.toFixed(2) : "—"}
+                        {hasDesc ? t.total.toFixed(2) : "-"}
                       </td>
-                      <td className="border-b border-r border-[#d0d0d8] px-2 py-2">
+                      <td className="border-b border-[#d0d0d8] px-2 py-2">
                         <button type="button" onClick={() => removeItem(idx)} className="text-red-500 hover:text-red-700">
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -1054,31 +1235,31 @@ export default function TaxInvoiceForm() {
           <div className="flex flex-col gap-4 border-t border-[#d0d0d8] p-4 sm:flex-row sm:items-start sm:justify-between">
             <button
               type="button"
-              onClick={() => setAddItemOpen(true)}
-              className="inline-flex items-center justify-center rounded-lg border px-4 py-2 text-[13px] font-semibold"
+              onClick={addEmptyItemRow}
+              className="inline-flex items-center justify-center rounded-full border px-5 py-2 text-[13px] font-semibold"
               style={{ borderColor: PURPLE, color: PURPLE, background: "#f8f5ff" }}
             >
               + Add More Item
             </button>
 
-            <div className="min-w-[260px] overflow-hidden rounded-lg border border-[#d0d0d8] text-[13px]">
-              <div className="flex justify-between border-b border-dashed border-[#d0d0d8] px-3 py-2 text-[#6b6b76]">
+            <div className="min-w-[260px] space-y-1 text-[13px]">
+              <div className="flex justify-between border-b border-dashed border-[#d0d0d8] px-1 py-2 text-[#6b6b76]">
                 <span>Taxable Amount</span>
                 <span className="tabular-nums">₹ {taxableAmount.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between border-b border-dashed border-[#d0d0d8] px-3 py-2 text-[#6b6b76]">
+              <div className="flex justify-between border-b border-dashed border-[#d0d0d8] px-1 py-2 text-[#6b6b76]">
                 <span>GST Amount</span>
                 <span className="tabular-nums">₹ {gstAmount.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between border-b border-dashed border-[#d0d0d8] px-3 py-2 font-medium text-[#1a1a1f]">
+              <div className="flex justify-between border-b border-dashed border-[#d0d0d8] px-1 py-2 font-medium text-[#1a1a1f]">
                 <span>Total Amount</span>
                 <span className="tabular-nums">₹ {itemsTotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between border-b border-[#d0d0d8] bg-[#fafafa] px-3 py-2.5 text-[16px] font-bold text-[#1a1a1f]">
+              <div className="flex justify-between px-1 py-2.5 text-[16px] font-bold text-[#1a1a1f]">
                 <span>Final Amount</span>
                 <span className="tabular-nums">₹ {finalAmount.toFixed(2)}</span>
               </div>
-              <div className="flex flex-col gap-2 p-3">
+              <div className="flex flex-col gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setOtherChargeOpen(true)}

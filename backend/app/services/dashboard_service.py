@@ -573,56 +573,15 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
         or 0
     )
 
-    payload = {
-        "kpi_cards": [
-            {
-                "id": "total-orders",
-                "title": "Total Orders",
-                "value": str(total_orders),
-                "trend": "0%",
-                "trendUp": True,
-                "trendLabel": "vs last 7 days",
-                "link": "/production/planning",
-            },
-            {
-                "id": "today-production",
-                "title": "Today's Production",
-                "value": str(today_production),
-                "trend": f"{prod_trend}%",
-                "trendUp": prod_up,
-                "trendLabel": "vs yesterday",
-                "link": f"/production/planning?date_from={today.isoformat()}&date_to={today.isoformat()}",
-            },
-            {
-                "id": "machines-running",
-                "title": "Machines Running",
-                "value": str(running_machines),
-                "suffix": f"/ {total_machines}",
-                "trend": f"{machine_pct}%",
-                "trendUp": True,
-                "trendLabel": "vs total machines",
-                "link": "/production/machines",
-            },
-            {
-                "id": "pending-orders",
-                "title": "Pending Orders",
-                "value": str(pending_orders),
-                "trend": "0%",
-                "trendUp": False,
-                "trendLabel": "vs last 7 days",
-                "link": "/production/work-orders?view=pending",
-            },
+    try:
+        from app.services.approval_service import get_pending_approvals
 
-            {
-                "id": "reject-qty",
-                "title": "Reject Qty (Today)",
-                "value": str(reject_qty),
-                "trend": f"{reject_trend}%",
-                "trendUp": not reject_up,
-                "trendLabel": "vs yesterday",
-                "link": "/production/reports",
-            },
-        ],
+        pending_approvals_total = int(get_pending_approvals(db, tenant_id).get("total") or 0)
+    except Exception:
+        pending_approvals_total = 0
+
+    payload = {
+        "kpi_cards": [],
         "production_overview": overview,
         "production_overview_weekly": _weekly_overview(db, tenant_id),
         "production_overview_monthly": _monthly_overview(db, tenant_id),
@@ -651,7 +610,7 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
         "warehouse_locations": warehouse_locations,
         "todays_summary": todays_summary,
         "date": today.isoformat(),
-        "dashboard_profile": "full",
+        "dashboard_profile": "admin",
         "visible_sections": [
             "kpi",
             "production_overview",
@@ -666,99 +625,36 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
         ],
     }
 
-    if _is_store_manager_only(user):
-        payload["dashboard_profile"] = "store"
-        payload["kpi_cards"] = [
-            {
-                "id": "inventory-value",
-                "title": "Inventory Value",
-                "value": _format_inr(inventory_value),
-                "trend": "0%",
-                "trendUp": True,
-                "trendLabel": "vs last 7 days",
-                "link": "/inventory",
-            },
-            {
-                "id": "low-stock",
-                "title": "Low Stock Items",
-                "value": str(low_stock),
-                "trend": "0%",
-                "trendUp": False,
-                "trendLabel": "vs last 7 days",
-                "link": "/alerts/low-stock",
-            },
-            {
-                "id": "raw-materials",
-                "title": "Raw Materials",
-                "value": str(raw_count),
-                "trend": f"{int(raw_qty)}",
-                "trendUp": True,
-                "trendLabel": "units on hand",
-                "link": "/inventory/raw-materials",
-            },
-            {
-                "id": "finished-goods",
-                "title": "Finished Goods",
-                "value": str(fg_count),
-                "trend": f"{int(fg_qty)}",
-                "trendUp": True,
-                "trendLabel": "units on hand",
-                "link": "/inventory/finished-goods",
-            },
-            {
-                "id": "warehouses",
-                "title": "Warehouses",
-                "value": str(warehouse_count),
-                "trend": "0%",
-                "trendUp": True,
-                "trendLabel": "active locations",
-                "link": "/inventory/warehouses",
-            },
-            {
-                "id": "stock-movements",
-                "title": "Stock Moves (Today)",
-                "value": str(stock_moves_today),
-                "trend": f"{grn_today}",
-                "trendUp": True,
-                "trendLabel": "GRNs today",
-                "link": "/inventory/stock-ledger",
-            },
-        ]
-        payload["production_overview"] = []
-        payload["production_overview_weekly"] = []
-        payload["production_overview_monthly"] = []
-        payload["shop_floor_status"] = []
-        payload["top_machines"] = []
-        payload["orders_overview"] = {
-            "total": pending_dispatch,
-            "inProgress": pending_grn_qc,
-            "completed": grn_today,
-            "onHold": low_stock,
-            "progress": 0,
-            "labels": {
-                "total": "Pending Dispatch",
-                "inProgress": "Pending GRN QC",
-                "completed": "GRNs Today",
-                "onHold": "Low Stock",
-            },
-        }
-        payload["recent_work_orders"] = []
-        payload["recent_production_orders"] = []
-        payload["shop_floor"] = {}
-        payload["todays_summary"] = [
-            {"key": "stockMovements", "label": "Stock Movements", "value": str(stock_moves_today), "icon": "boxes", "unit": "moves"},
-            {"key": "grnToday", "label": "GRNs Today", "value": str(grn_today), "icon": "cart", "unit": "GRN"},
-            {"key": "pendingGrnQc", "label": "Pending GRN QC", "value": str(pending_grn_qc), "icon": "alert", "unit": "open"},
-            {"key": "pendingDispatch", "label": "Pending Dispatch", "value": str(pending_dispatch), "icon": "package", "unit": "orders"},
-            {"key": "warehouses", "label": "Warehouses", "value": str(warehouse_count), "icon": "boxes", "unit": "sites"},
-        ]
-        payload["visible_sections"] = [
-            "kpi",
-            "orders_overview",
-            "inventory",
-            "alerts",
-            "quick_actions",
-            "todays_summary",
-        ]
+    from app.services.dashboard_role_kpis import apply_role_dashboard
 
-    return payload
+    role_ctx = {
+        "today": today,
+        "total_orders": total_orders,
+        "today_production": today_production,
+        "prod_trend": prod_trend,
+        "prod_up": prod_up,
+        "running_machines": running_machines,
+        "total_machines": total_machines,
+        "machine_pct": machine_pct,
+        "low_stock": low_stock,
+        "pending_orders": pending_orders,
+        "reject_qty": reject_qty,
+        "reject_trend": reject_trend,
+        "reject_up": reject_up,
+        "eff_pct": eff_pct,
+        "total_planned_today": total_planned_today,
+        "todays_target": getattr(shop, "todays_target", 0) or 0,
+        "oee_pct": getattr(shop, "oee_pct", 0) or 0,
+        "inventory_value": inventory_value,
+        "raw_count": raw_count,
+        "raw_qty": raw_qty,
+        "fg_count": fg_count,
+        "fg_qty": fg_qty,
+        "stock_moves_today": stock_moves_today,
+        "grn_today": grn_today,
+        "pending_grn_qc": pending_grn_qc,
+        "pending_dispatch": pending_dispatch,
+        "warehouse_count": warehouse_count,
+        "pending_approvals_total": pending_approvals_total,
+    }
+    return apply_role_dashboard(payload, db, tenant_id, user, role_ctx)

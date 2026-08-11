@@ -25,6 +25,7 @@ import { userCanAccessPath } from "../../config/permissions";
 import { flattenNavForSearch } from "../../config/sidebarNav";
 
 const EXTRA_ROUTES = [
+  { path: "/manufacturing/workflow", labelKey: "erpNav.roleWorkflow", module: "dashboard", sectionKey: null },
   { path: "/alerts", labelKey: "nav.allAlerts", module: "alerts", sectionKey: null },
   {
     path: "/production/reports",

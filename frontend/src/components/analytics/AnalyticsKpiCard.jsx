@@ -27,8 +27,8 @@ export default function AnalyticsKpiCard({ kpi, icon: Icon, onClick, active }) {
           )}
         </div>
         {Icon && (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
-            <Icon className="h-5 w-5" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+            <Icon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
           </div>
         )}
       </div>

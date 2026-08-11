@@ -20,6 +20,7 @@ import { useToast } from "../../context/ToastContext";
 import { addBomItem, deleteBomItem, getBillOfMaterials } from "../../api/bomApi";
 import { getProducts } from "../../api/productsApi";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import {
   BOM_STATUSES,
   BOM_VERSIONS,
@@ -83,6 +84,9 @@ export default function BomMaster() {
     setLoading(true);
     try {
       const [bomRes, prodRes] = await Promise.all([getBillOfMaterials(), getProducts()]);
+
+  usePageRefresh(loadBoms);
+
       const apiRows = bomRes.data || [];
       const apiProducts = Array.isArray(prodRes) ? prodRes : (prodRes.data || []);
       const groupedApi = groupApiBomRows(apiRows);
@@ -299,7 +303,6 @@ export default function BomMaster() {
     <div className="space-y-6 pb-8">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Bill of Materials (BOM)</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
             Manage product structures, components, production routing, and manufacturing costs.
           </p>

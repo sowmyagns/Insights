@@ -44,7 +44,7 @@ export function ImportExportActionBar({
   exportExcelVisible = true,
   exportPdfVisible = true,
   printVisible = true,
-  refreshVisible = true,
+  refreshVisible = false,
   children,
 }) {
   return (

@@ -150,12 +150,6 @@ export default function FormatSettingsV2() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mb-5 flex items-center gap-3">
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">
-              Format Settings
-            </h1>
-        </div>
-
         <div className="space-y-5 rounded-2xl border border-[#e4e4ea] bg-white p-5 shadow-sm sm:p-6">
           <Section title="Comma Format">
             <div className="flex flex-wrap gap-x-10 gap-y-3">

@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  Building2, Loader2, LogOut, PauseCircle, PlayCircle,
-  Plus, RefreshCw, Trash2, Users,
-} from "lucide-react";
+import { Building2, Loader2, LogOut, PauseCircle, PlayCircle, Plus, Trash2, Users } from "lucide-react";
 
 import BrandLogo from "../../components/common/BrandLogo";
 import PlatformProtectedRoute from "../../components/layout/PlatformProtectedRoute";
@@ -183,14 +181,6 @@ function SuperAdminDashboardContent() {
               <p>Provision and manage tenant companies</p>
             </div>
             <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button
-                type="button" onClick={load}
-                disabled={loading || actionId != null}
-                className="ap-btn"
-              >
-                <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-                Refresh
-              </button>
               <Link to="/gns-admin/companies/new" className="ap-btn ap-btn--primary">
                 <Plus size={14} /> Create Company
               </Link>
@@ -313,6 +303,8 @@ function SuperAdminDashboardContent() {
 }
 
 export default function SuperAdminDashboard() {
+  usePageRefresh(load);
+
   return (
     <PlatformProtectedRoute>
       <SuperAdminDashboardContent />

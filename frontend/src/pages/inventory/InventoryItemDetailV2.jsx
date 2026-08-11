@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { ArrowLeft, Pencil, Trash2, X } from "lucide-react";
@@ -209,6 +210,9 @@ export default function InventoryItemDetailV2() {
       const data = res.data || {};
       setItem(data);
       setTimeline(Array.isArray(data.timeline) ? data.timeline : []);
+
+  usePageRefresh(load);
+
     } catch (err) {
       addToast(apiErrorMessage(err, "Could not load item."), "error");
       setItem(null);
@@ -306,10 +310,6 @@ export default function InventoryItemDetailV2() {
 
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
-      <div className="px-4 pt-4 sm:px-6 sm:pt-6">
-        <h1 className="text-[22px] font-bold text-[#1a1a1f]">Inventory Item</h1>
-      </div>
-
       <div className="mx-4 mb-6 mt-4 rounded-2xl border border-[#e4e4ea] bg-white p-4 sm:mx-6 sm:p-5">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">

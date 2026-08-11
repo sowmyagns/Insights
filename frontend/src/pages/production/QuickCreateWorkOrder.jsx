@@ -12,6 +12,7 @@ import { fetchProductsWithFallback } from "../../utils/productOptions";
 import { getRawMaterials } from "../../api/inventoryApi";
 import { getShifts } from "../../api/hrApi";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { PRIORITIES, SHIFTS } from "../../data/productionPlanningMasterData";
 
 export default function QuickCreateWorkOrder() {
@@ -250,6 +251,8 @@ export default function QuickCreateWorkOrder() {
   }
 
   const isQuickAssign = Boolean(poId);
+
+  usePageRefresh(load);
 
   return (
     <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-6 shadow-sm">

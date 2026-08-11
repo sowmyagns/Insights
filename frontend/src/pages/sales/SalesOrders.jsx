@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link } from "react-router-dom";
-import { Download, Filter, IndianRupee, Plus, RefreshCw, ShoppingCart, Truck } from "lucide-react";
+import { Download, Filter, IndianRupee, Plus, ShoppingCart, Truck } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import EmptyState from "../../components/common/EmptyState";
@@ -75,6 +76,9 @@ export default function SalesOrders() {
       setLoading(false);
     }
   }, [markRequestStart, markRequestEnd]);
+
+  usePageRefresh(load);
+
 
   useEffect(() => { load(); }, [load]);
 
@@ -210,14 +214,6 @@ export default function SalesOrders() {
             className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
           >
             <Download className="h-4 w-4" /> Export
-          </button>
-          <button
-            type="button"
-            onClick={async () => { setRefreshing(true); await load(); setRefreshing(false); }}
-            disabled={loading || refreshing}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 transition-transform ${refreshing ? "animate-spin" : ""}`} /> Refresh
           </button>
         </div>
       </header>

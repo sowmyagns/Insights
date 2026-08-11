@@ -364,10 +364,6 @@ export default function ReportViewerV2({ reportId }) {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">{shortTitle}</h1>
-        </div>
-
         {tabs ? (
           <div className="mb-3 flex items-end gap-1">
             {tabs.map((tab) => {

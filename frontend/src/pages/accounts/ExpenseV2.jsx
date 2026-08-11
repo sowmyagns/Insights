@@ -11,6 +11,7 @@ import { createExpense, deleteExpense, listExpenses } from "../../api/accountsAp
 import { exportToCsv, exportToExcel, exportToPdf } from "../../utils/exportUtils";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { apiErrorMessage, asArray } from "../../utils/apiError";
 
 const PAGE_BG = "#F4F7FE";
@@ -139,6 +140,9 @@ export default function ExpenseV2() {
         listExpenses(tenantId),
         fetchExpenseCategories(),
       ]);
+
+  usePageRefresh(load);
+
       setExpenses(asArray(expRes.data).map(mapApiExpense));
       setCategories(cats);
     } catch (err) {
@@ -281,7 +285,6 @@ export default function ExpenseV2() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="flex items-center justify-between gap-3 px-4 pt-4 sm:px-6 sm:pt-6">
-        <h1 className="text-[22px] font-bold text-[#1a1a1f]">Expense</h1>
         <Link
           to="/accounts/expenses/settings"
           className="inline-flex items-center gap-1.5 rounded-lg bg-[#0f6d84] px-4 py-2.5 text-[13px] font-bold text-white hover:bg-[#1a1a1f]"

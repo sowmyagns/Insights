@@ -27,10 +27,6 @@ function GenericReportDetail({ reportId }) {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mb-4 flex items-center gap-3">
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">{shortTitle}</h1>
-        </div>
-
         <div className="rounded-2xl border border-[#e4e4ea] bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Link

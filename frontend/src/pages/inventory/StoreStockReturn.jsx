@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, RotateCcw } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
+import { RotateCcw } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import StoreManagerNav from "../../components/inventory/StoreManagerNav";
@@ -44,6 +45,9 @@ export default function StoreStockReturn() {
         getInventoryDashboard(),
         getWarehouses(),
       ]);
+
+  usePageRefresh(load);
+
       setItems(itemsRes.status === "fulfilled" ? itemsRes.value?.data || [] : []);
       setWarehouses(whRes.status === "fulfilled" ? whRes.value?.data || [] : []);
     } finally {
@@ -93,14 +97,10 @@ export default function StoreStockReturn() {
       <StoreManagerNav />
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Stock Return</h1>
           <p className="mt-1 text-sm text-slate-500">
             Return unused material to the warehouse. Stock increases automatically.
           </p>
         </div>
-        <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </button>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-2">

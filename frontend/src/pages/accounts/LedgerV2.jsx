@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Download, Eye, Mail, MoreVertical, Pencil, Search, Trash2, UserPlus } from "lucide-react";
 
@@ -223,6 +224,9 @@ export default function LedgerV2() {
         fetchLedgerCashAccounts(),
         fetchLedgerOtherAccounts(),
       ]);
+
+  usePageRefresh(load);
+
       const cData = cRes.status === "fulfilled" ? cRes.value?.data : [];
       const vData = vRes.status === "fulfilled" ? vRes.value?.data : [];
       setCustomers(asArray(cData));
@@ -457,7 +461,6 @@ export default function LedgerV2() {
 
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
-      <h1 className="text-[22px] font-bold text-[#1a1a1f]">Ledger</h1>
 
       <div className="mx-4 mt-4 overflow-hidden rounded-t-2xl border border-b-0 border-[#e4e4ea] bg-[#f3f3f6] sm:mx-6">
         <div className="relative flex overflow-x-auto">

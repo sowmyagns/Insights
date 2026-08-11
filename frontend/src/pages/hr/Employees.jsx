@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, RefreshCw, Briefcase, UserCheck, UserMinus, UserPlus, Users, Filter, X, Save, Clock, Building2, FileText } from "lucide-react";
+import { Plus, Briefcase, UserCheck, UserMinus, UserPlus, Users, Filter, X, Save, Clock, Building2, FileText } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -9,6 +9,7 @@ import { DepartmentFormModal } from "../../components/hr/DepartmentDetailModal";
 import { useToast } from "../../context/ToastContext";
 import { getEmployeeSummary, getEmployeesEnriched, createEmployee, getShifts, getDepartments, createDepartment } from "../../api/hrApi";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { deptColor, formatInr, statusColor } from "../../data/hrMasterData";
 
 const inputClass =
@@ -16,19 +17,19 @@ const inputClass =
 
 function KpiCard({ label, value, icon: Icon, color, suffix }) {
   return (
-    <div className="group rounded-2xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[11px] font-bold uppercase tracking-wider text-slate-400 font-sans">{label}</p>
-          <p className="mt-1 text-lg sm:text-xl font-black tracking-tight text-slate-900 tabular-nums truncate" title={`${value}${suffix || ""}`}>
-            {value}{suffix || ""}
-          </p>
-        </div>
+    <div className="group rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md" title={typeof label === "string" ? label : undefined}>
+      <div className="flex items-center justify-between gap-1.5 min-w-0">
+        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
         {Icon && (
-          <div className={`flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl shadow-xs transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white shrink-0" />
+          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-105 ${color}`}>
+            <Icon className="h-3.5 w-3.5 text-white shrink-0" />
           </div>
         )}
+      </div>
+      <div className="mt-2">
+        <p className="truncate text-xl font-bold tabular-nums text-slate-900 leading-none sm:text-2xl" title={`${value}${suffix || ""}`}>
+          {value}{suffix || ""}
+        </p>
       </div>
     </div>
   );
@@ -113,11 +114,7 @@ export default function Employees() {
     []
   );
 
-  const handleRefresh = async () => {
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 350));
-    await load();
-  };
+  usePageRefresh(load);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadDepts(); }, [loadDepts]);
@@ -213,24 +210,13 @@ export default function Employees() {
   return (
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight font-sans">Employees</h1>
-          <p className="mt-1 text-sm text-slate-500">Enterprise employee management with 360° profile, shift, and payroll integration.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 lg:ml-auto">
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
             className="ui-btn-hr"
           >
             <Plus className="h-4 w-4" /> Create Employee
-          </button>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4" /> Refresh
           </button>
         </div>
       </header>

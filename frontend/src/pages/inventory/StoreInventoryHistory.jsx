@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Download, RefreshCw } from "lucide-react";
+import { Download } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -93,7 +93,6 @@ export default function StoreInventoryHistory() {
       <StoreManagerNav />
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Inventory History</h1>
           <p className="mt-1 text-sm text-slate-500">
             Complete movement trail for every stock in, issue, return, transfer, and adjustment.
           </p>
@@ -108,9 +107,6 @@ export default function StoreInventoryHistory() {
             className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"
           >
             <Download className="h-4 w-4" /> Export
-          </button>
-          <button type="button" onClick={load} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700">
-            <RefreshCw className="h-4 w-4" /> Refresh
           </button>
         </div>
       </header>

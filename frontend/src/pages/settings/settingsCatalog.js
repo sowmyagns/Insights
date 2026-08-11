@@ -107,6 +107,23 @@ export const SETTINGS_CATEGORIES = [
     keywords: ["production", "shift", "work order", "machine", "calendar", "scheduling"],
   },
   {
+    id: "role-workflow",
+    title: "Role Workflow",
+    description: "View role responsibilities and manufacturing workflow stages.",
+    icon: "Workflow",
+    accent: "bg-blue-600",
+    soft: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+    href: "/manufacturing/workflow",
+    keywords: [
+      "role workflow",
+      "workflow",
+      "responsibilities",
+      "manufacturing",
+      "stages",
+      "my responsibilities",
+    ],
+  },
+  {
     id: "finance",
     title: "Finance Settings",
     description: "GST, tax rules, invoice prefix, FY, and currency.",

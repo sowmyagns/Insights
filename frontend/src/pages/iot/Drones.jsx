@@ -39,9 +39,6 @@ export default function Drones() {
             <Plane className="h-8 w-8 text-teal-600 dark:text-teal-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-              {t("nav.drones")}
-            </h1>
             <p className="text-slate-600 dark:text-slate-400">
               Monitor live operational working (UAV)
             </p>

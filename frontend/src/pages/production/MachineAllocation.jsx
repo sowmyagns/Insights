@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link } from "react-router-dom";
-import {
-  Cpu,
-  Download,
-  GripVertical,
-  RefreshCw,
-  Settings,
-  Users,
-  Wrench,
-} from "lucide-react";
+import { Cpu, Download, GripVertical, Settings, Users, Wrench } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -85,6 +78,9 @@ export default function MachineAllocation() {
         getAllocations(),
         getAllocationMachines(),
       ]);
+
+  usePageRefresh(load);
+
       if (sumRes.status === "fulfilled" && sumRes.value?.data) {
         setSummary({ ...DEMO_ALLOC_SUMMARY, ...sumRes.value.data });
       }
@@ -210,12 +206,10 @@ export default function MachineAllocation() {
     <div className="min-h-full pb-8 print:p-0" style={{ background: "#F5F5F5" }}>
       <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">Machine Allocation</h1>
           <p className="mt-0.5 text-xs text-slate-500 print:hidden">
             Assign work orders to machines, operators, shifts, and supervisors.
           </p>
         </div>
-
 
         <div className="mb-0 flex flex-wrap items-center justify-between gap-2 print:hidden">
           <div className="flex flex-wrap gap-2">
@@ -224,9 +218,6 @@ export default function MachineAllocation() {
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={handleExport} className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]">
               <Download className="h-4 w-4" /> Export
-            </button>
-            <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]">
-              <RefreshCw className="h-4 w-4" /> Refresh
             </button>
           </div>
         </div>

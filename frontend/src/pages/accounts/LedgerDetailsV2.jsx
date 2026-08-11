@@ -270,7 +270,6 @@ export default function LedgerDetailsV2() {
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-[22px] font-bold text-[#1a1a1f]">Ledger Details</h1>
       </div>
 
       <div className="mx-4 mb-6 mt-4 rounded-2xl border border-[#e4e4ea] bg-white p-4 sm:mx-6 sm:p-5">

@@ -8,6 +8,7 @@ import AdminModal from "../../components/admin/AdminModal";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import AccessDenied from "../../components/admin/AccessDenied";
 import usePermissions from "../../hooks/usePermissions";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { countModulePermissions, permissionLabel } from "../../config/permissions";
 import { useToast } from "../../context/ToastContext";
 import {
@@ -42,6 +43,9 @@ export default function RolesPermissions() {
     Promise.all([getRoles(), getModules()])
       .then(([r, m]) => {
         setRoles(r.data || []);
+
+  usePageRefresh(load);
+
         setModules(m.data || []);
       })
       .catch(() => addToast("Failed to load roles", "error"))

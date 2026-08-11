@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { useNavigate } from "react-router-dom";
 import { ArrowUpDown, ChevronLeft, ChevronRight, Download, MoreVertical, Pencil, Plus, Search, User } from "lucide-react";
 
@@ -247,6 +248,9 @@ export default function ChartOfAccountsV2() {
       setAccounts(rows);
     } catch (err) {
       setAccounts([]);
+
+  usePageRefresh(load);
+
       addToast(apiErrorMessage(err, "Failed to load chart of accounts"), "error");
     } finally {
       setLoading(false);
@@ -348,12 +352,6 @@ export default function ChartOfAccountsV2() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">
-            Chart of Accounts
-          </h1>
-        </div>
-
         <div className="overflow-hidden rounded-xl border border-[#cfcfd6] bg-white shadow-sm">
           {/* Tabs */}
           <div className="flex gap-0 overflow-x-auto border-b border-[#cfcfd6] bg-[#fafafa]">

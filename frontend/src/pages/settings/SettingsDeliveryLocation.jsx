@@ -13,6 +13,7 @@ import {
 import { createWarehouse, getWarehouses } from "../../api/inventoryApi";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
+import usePageRefresh from "../../hooks/usePageRefresh";
 
 const inputClass =
   "mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100";
@@ -39,6 +40,9 @@ export default function SettingsDeliveryLocation() {
     try {
       const res = await getWarehouses();
       setLocations(Array.isArray(res.data) ? res.data : []);
+
+  usePageRefresh(load);
+
     } catch (err) {
       addToast(err.response?.data?.detail || "Failed to load delivery locations", "error");
       setLocations([]);

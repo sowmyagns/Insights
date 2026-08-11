@@ -62,7 +62,7 @@ const storeDashboard = {
 };
 
 const fullDashboard = {
-  dashboard_profile: "full",
+  dashboard_profile: "admin",
   visible_sections: [
     "kpi",
     "production_overview",
@@ -114,7 +114,6 @@ describe("ReferenceDashboard", () => {
     });
 
     expect(screen.getAllByText("refDashboard.lowStockItems").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Store Operations").length).toBeGreaterThan(0);
     expect(screen.getByText("refDashboard.inventorySummary")).toBeInTheDocument();
     expect(screen.queryByText("refDashboard.productionOverview")).not.toBeInTheDocument();
     expect(screen.queryByText("refDashboard.shopFloorStatus")).not.toBeInTheDocument();

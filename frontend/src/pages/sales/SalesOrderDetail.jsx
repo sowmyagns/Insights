@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Factory,
-  Package,
-  RefreshCw,
-} from "lucide-react";
+import { ArrowLeft, CheckCircle2, Factory, Package } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
@@ -71,6 +66,8 @@ export default function SalesOrderDetail() {
       setLoading(false);
     }
   }, [id, addToast, loadWorkflow]);
+
+  usePageRefresh(load);
 
   useEffect(() => {
     load();
@@ -142,9 +139,6 @@ export default function SalesOrderDetail() {
         action={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={order.status} />
-            <button type="button" onClick={load} className="ui-btn-secondary inline-flex items-center gap-2 text-sm">
-              <RefreshCw className="h-4 w-4" /> Refresh
-            </button>
           </div>
         }
       />

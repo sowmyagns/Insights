@@ -253,6 +253,7 @@ export default function AddNewPartyModal({
   customer = null,
   vendor = null,
   variant = "customer",
+  title = null,
 }) {
   const tenantId = useTenantId();
   const { addToast } = useToast();
@@ -416,8 +417,8 @@ export default function AddNewPartyModal({
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-[#ececf0] px-6 py-4">
-          <h2 className="text-[38px] font-bold text-[#1a1a1f]">
-            {isEdit ? "Edit Party" : "Add New Party"}
+          <h2 className="text-xl font-bold text-[#1a1a1f] sm:text-2xl">
+            {title || (isEdit ? (isVendor ? "Edit Vendor" : "Edit Customer") : (isVendor ? "Add Vendor" : "Add Customer"))}
           </h2>
           <button
             type="button"

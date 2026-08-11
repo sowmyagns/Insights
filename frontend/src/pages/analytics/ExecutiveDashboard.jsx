@@ -111,6 +111,7 @@ export default function ExecutiveDashboard() {
         autoRefresh={autoRefresh}
         onAutoRefreshChange={setAutoRefresh}
         loading={loading}
+        dark={true}
       />
 
       <div className="flex flex-wrap gap-2">

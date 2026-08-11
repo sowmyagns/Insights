@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { Check, Info, ScrollText } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
@@ -43,10 +44,11 @@ export default function DigitalSignatureSetup() {
 
   if (loading) return <Loader label="Loading…" />;
 
+  usePageRefresh(load);
+
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-[#fff8e1] via-white to-white px-4 py-6">
       <header className="mb-8 flex items-center gap-2">
-        <h1 className="text-xl font-bold text-slate-900">Digital Signature</h1>
       </header>
 
       <div className="mx-auto max-w-lg rounded-2xl border border-slate-100 bg-white p-8 shadow-lg">

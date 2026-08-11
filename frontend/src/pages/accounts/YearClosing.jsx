@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { RefreshCw, CheckCircle2, ChevronRight, Lock, CheckCircle, ShieldAlert } from "lucide-react";
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
@@ -40,6 +41,8 @@ export default function YearClosing() {
     }
   }, [financialYear, addToast]);
 
+  usePageRefresh(() => load({ isRefresh: true }));
+
   useEffect(() => { load(); }, [load]);
 
   const handleToggleCheck = (id) => {
@@ -75,18 +78,8 @@ export default function YearClosing() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 border-b-0 pb-0">Financial Year Closing</h1>
           <p className="mt-1 text-sm text-slate-500 font-medium">Perform fiscal period closure, transfer net earnings, and seal books for audit.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => load({ isRefresh: true })}
-          disabled={refreshing}
-          className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition-all"
-        >
-          <RefreshCw className={`h-4 w-4 transition-transform duration-700 ${refreshing ? "animate-spin" : ""}`} />
-          {refreshing ? "Refreshing..." : "Refresh"}
-        </button>
       </header>
 
       {/* Stepper Wizard Progress */}
