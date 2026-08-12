@@ -113,10 +113,17 @@ export default function ResetPassword() {
       if (/expired/i.test(msg)) {
         setTokenError("Reset link has expired.\nRequest a new password reset.");
         setFormError("");
+      } else if (/database error|internal server error/i.test(msg)) {
+        setFormError("We could not complete the password reset right now.\nPlease try again later.");
       } else {
         setFormError(msg);
       }
-      addToast(msg.replace("\n", " "), "error");
+      addToast(
+        /database error|internal server error/i.test(msg)
+          ? "We could not complete the password reset right now. Please try again later."
+          : msg.replace("\n", " "),
+        "error"
+      );
     } finally {
       setLoading(false);
     }

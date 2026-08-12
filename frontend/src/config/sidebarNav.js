@@ -238,7 +238,7 @@ export const SIDEBAR_NAV = [
     icon: Settings,
     children: [
 
-      { label: "Workflow", to: "/manufacturing/workflow", module: "dashboard", icon: GitMerge },
+      { label: "Workflow", to: "/manufacturing/workflow", module: "dashboard"},
 
       { label: "All Settings", to: "/settings", module: "settings", end: true },
       { label: "Appearance", to: "/settings/appearance", module: "settings" },

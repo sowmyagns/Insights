@@ -77,20 +77,30 @@ export async function resendVerification(email) {
 /** Extract human-readable error from FastAPI or API envelope responses. */
 export function getApiErrorMessage(err, fallback = "Something went wrong.") {
   const data = err?.response?.data;
+  const genericServerMessages = [
+    "A database error occurred.",
+    "Internal server error.",
+    "Validation error",
+    "Validation failed",
+  ];
+
   if (!data) return fallback;
   if (Array.isArray(data.errors) && data.errors.length) {
     const first = data.errors[0];
     if (typeof first === "string" && first.trim()) return first;
     if (typeof first?.msg === "string" && first.msg.trim()) return first.msg;
   }
-  if (typeof data.detail === "string" && data.detail.trim() && data.detail !== "Validation error") {
-    return data.detail;
+
+  const detail = typeof data.detail === "string" ? data.detail.trim() : "";
+  if (detail && !genericServerMessages.includes(detail)) {
+    return detail;
   }
-  if (typeof data.message === "string" && data.message.trim() && data.message !== "Validation failed") {
-    return data.message;
+
+  const message = typeof data.message === "string" ? data.message.trim() : "";
+  if (message && !genericServerMessages.includes(message)) {
+    return message;
   }
-  if (typeof data.detail === "string" && data.detail.trim()) return data.detail;
-  if (typeof data.message === "string" && data.message.trim()) return data.message;
+
   return fallback;
 }
 

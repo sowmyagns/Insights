@@ -69,7 +69,7 @@ export default function ForgotPassword() {
       addToast("Password reset link sent successfully.", "success");
     } catch (err) {
       const raw = getApiErrorMessage(err, "Failed to send password reset email.");
-      const msg = /smtp_|email server is not configured|failed to send/i.test(raw)
+      const msg = /smtp_|email server is not configured|failed to send|database error|internal server error/i.test(raw)
         ? `${raw}\nPlease try again later.`
         : raw;
       setFormError(msg);
