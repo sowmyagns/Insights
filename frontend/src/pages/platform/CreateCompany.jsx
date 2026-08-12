@@ -51,6 +51,14 @@ const EMPTY = {
   billing_cycle: "forever",
 };
 
+const BG = {
+  backgroundImage: "url('/images/super-admin-bg.jpg')",
+  backgroundSize: "cover",
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "center center",
+  backgroundAttachment: "fixed",
+};
+
 const inputClass =
   "w-full rounded-xl border border-slate-300/80 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 disabled:bg-slate-50 disabled:text-slate-500";
 
@@ -71,7 +79,11 @@ function formatApiError(detail) {
 }
 
 function clientValidate(form, isTrial) {
-  if (!form.company_name.trim()) return { _form: "Company Name is required." };
+  const companyName = form.company_name.trim();
+  if (!companyName) return { _form: "Company Name is required." };
+  if (!/[\p{L}]/u.test(companyName)) {
+    return { company_name: "Company Name must contain alphabetic characters." };
+  }
   if (!form.company_email.trim()) return { _form: "Company Email is required." };
   if (!form.admin_name.trim()) return { _form: "Admin Name is required." };
   if (!form.admin_email.trim()) return { _form: "Admin Email is required." };
@@ -198,7 +210,7 @@ function CreateCompanyForm() {
 
   if (result) {
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen" style={BG}>
         <PageHeader />
         <main className="mx-auto max-w-xl px-4 py-10 sm:px-6">
           <div className="rounded-2xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
@@ -265,7 +277,7 @@ function CreateCompanyForm() {
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f1f5f9_0%,#f8fafc_40%,#ffffff_100%)] pb-28">
+    <div className="min-h-screen pb-28" style={BG}>
       <PageHeader />
 
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
@@ -411,9 +423,7 @@ function CreateCompanyForm() {
                   disabled={loading}
                 >
                   {PLANS.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label}
-                    </option>
+                    <option key={p.id} value={p.id}>{p.label}</option>
                   ))}
                 </select>
               </div>
@@ -444,9 +454,7 @@ function CreateCompanyForm() {
                     disabled={loading}
                   >
                     {BILLING_CYCLES.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
+                      <option key={c.id} value={c.id}>{c.label}</option>
                     ))}
                   </select>
                 </div>
@@ -537,9 +545,12 @@ function Field({ label, required, className = "", error, hint, ...props }) {
 
 function Row({ label, value, mono }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
-      <span className="text-slate-500">{label}</span>
-      <span className={`font-medium text-slate-900 ${mono ? "font-mono text-xs" : ""}`}>
+    <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+      <span className="shrink-0 text-slate-500">{label}</span>
+      <span
+        className={`max-w-[60%] break-words overflow-wrap-anywhere font-medium text-slate-900 ${mono ? "font-mono text-xs" : ""}`}
+        style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
+      >
         {value ?? "—"}
       </span>
     </div>

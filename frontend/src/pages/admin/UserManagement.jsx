@@ -10,6 +10,7 @@ import AccessDenied from "../../components/admin/AccessDenied";
 import usePermissions from "../../hooks/usePermissions";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { useToast } from "../../context/ToastContext";
+import { ROLES } from "../../config/permissions";
 import {
   getUsers,
   getRoles,
@@ -64,21 +65,22 @@ export default function UserManagement() {
   const [deleting, setDeleting] = useState(false);
   const [resettingId, setResettingId] = useState(null);
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (!isRefresh) setLoading(true);
-    try {
-      const [u, r] = await Promise.all([getUsers(), getRoles()]);
-      setUsers(u.data || []);
-      setRoles(r.data || []);
-    } catch (err) {
-      if (!isRefresh) addToast("Failed to load users", "error");
-      if (isRefresh) throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [addToast]);
+  const supportedRoleNames = new Set(ROLES.map((role) => role.name));
+  const availableRoles = roles.filter((role) => supportedRoleNames.has(role.name));
 
-  usePageRefresh(() => load(true));
+  const load = useCallback(() => {
+    setLoading(true);
+    Promise.all([getUsers(), getRoles()])
+      .then(([u, r]) => {
+        setUsers(u.data || []);
+
+  usePageRefresh(load);
+
+        setRoles(r.data || []);
+      })
+      .catch(() => addToast("Failed to load users", "error"))
+      .finally(() => setLoading(false));
+  }, [addToast]);
 
   useEffect(() => {
     if (isAdmin) load();
@@ -123,9 +125,17 @@ export default function UserManagement() {
 
   const validate = () => {
     const e = {};
-    if (!form.full_name.trim()) e.full_name = "Name is required";
+    const fullName = form.full_name.trim();
+    if (!fullName) e.full_name = "Name is required";
+    else if (!/[A-Za-z]/.test(fullName)) e.full_name = "Full Name must contain at least one letter";
+    else if (/\d/.test(fullName)) e.full_name = "Full Name must not contain numeric values";
+    else if (!/^[A-Za-z][A-Za-z\s.'-]*$/.test(fullName))
+      e.full_name = "Full Name contains invalid characters";
     if (!form.email.trim()) e.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Enter a valid email";
+    if (form.phone.trim() && !/^\d{10}$/.test(form.phone.trim())) {
+      e.phone = "Phone must be exactly 10 digits";
+    }
     if (!editing && form.password.length < 6) e.password = "Password must be at least 6 characters";
     if (editing && form.password && form.password.length < 6)
       e.password = "Password must be at least 6 characters";
@@ -323,7 +333,7 @@ export default function UserManagement() {
         />
       </div>
 
-      <div className="ui-card p-4 sm:p-6">
+      <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800 sm:p-6">
         {loading ? (
           <p className="py-10 text-center text-sm text-slate-500">Loading users…</p>
         ) : (
@@ -351,6 +361,7 @@ export default function UserManagement() {
             error={errors.full_name}
             onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
             placeholder="Jane Doe"
+            maxLength={100}
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
@@ -364,9 +375,12 @@ export default function UserManagement() {
             />
             <Input
               label="Phone"
+              type="tel"
               value={form.phone}
+              error={errors.phone}
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              placeholder="Optional"
+              placeholder="10-digit phone number"
+              maxLength={10}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -419,11 +433,11 @@ export default function UserManagement() {
             <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
               Roles
             </label>
-            {roles.length === 0 ? (
-              <p className="text-xs text-slate-400">No roles available. Create roles first.</p>
+            {availableRoles.length === 0 ? (
+              <p className="text-xs text-slate-400">No supported roles available. Create supported roles first.</p>
             ) : (
               <div className="grid max-h-44 grid-cols-1 gap-1.5 overflow-y-auto rounded-xl border border-slate-200 p-2 dark:border-slate-600 sm:grid-cols-2">
-                {roles.map((r) => (
+                {availableRoles.map((r) => (
                   <label
                     key={r.id}
                     className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50"
@@ -485,13 +499,13 @@ export default function UserManagement() {
 
 function StatCard({ label, value, icon: Icon }) {
   return (
-    <div className="flex items-center gap-3 ui-card p-4">
+    <div className="flex items-center gap-3 rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800">
       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-700 text-white">
         <Icon className="h-4 w-4" />
       </div>
       <div>
         <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{value}</div>
-        <div className="text-[11px] font-medium text-[var(--color-text-muted)] dark:text-slate-400">{label}</div>
+        <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{label}</div>
       </div>
     </div>
   );

@@ -25,6 +25,10 @@ def _normalize_email(value: str) -> str:
     return email
 
 
+def _has_alpha(value: str) -> bool:
+    return any(ch.isalpha() for ch in value)
+
+
 class SuperAdminLoginRequest(BaseModel):
     email: str = Field(..., min_length=3, max_length=255)
     password: str = Field(..., min_length=1, max_length=128)
@@ -89,7 +93,17 @@ class CreateCompanyRequest(BaseModel):
     password: str | None = Field(default=None, min_length=12, max_length=128)
     confirm_password: str | None = Field(default=None, min_length=12, max_length=128)
 
-    @field_validator("company_name", "admin_name", "address", "city", "state", "country")
+    @field_validator("company_name")
+    @classmethod
+    def validate_company_name(cls, value: str) -> str:
+        cleaned = sanitize_text(value, max_length=255)
+        if not cleaned:
+            raise ValueError("Required field")
+        if not _has_alpha(cleaned):
+            raise ValueError("Company Name must contain alphabetic characters.")
+        return cleaned
+
+    @field_validator("admin_name", "address", "city", "state", "country")
     @classmethod
     def sanitize_text_fields(cls, value: str) -> str:
         cleaned = sanitize_text(value, max_length=512)
@@ -192,6 +206,18 @@ class UpdateCompanyRequest(BaseModel):
     subscription_plan: str | None = Field(None, max_length=64)
     trial_days: int | None = Field(None, ge=0, le=365)
     status: str | None = Field(None, max_length=32)
+
+    @field_validator("company_name")
+    @classmethod
+    def validate_company_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = sanitize_text(value, max_length=255)
+        if not cleaned:
+            raise ValueError("Required field")
+        if not _has_alpha(cleaned):
+            raise ValueError("Company Name must contain alphabetic characters.")
+        return cleaned
 
     @field_validator("gst_number")
     @classmethod

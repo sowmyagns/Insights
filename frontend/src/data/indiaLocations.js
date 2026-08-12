@@ -181,8 +181,14 @@ export const PIN_PREFIX_LOOKUP = {
 };
 
 export function validateIndianPin(value) {
-  const digits = String(value || "").replace(/\D/g, "");
+  const rawValue = String(value || "");
+  const digits = rawValue.replace(/\D/g, "");
+  
   if (!digits) return "PIN Code is required.";
+  
+  // Check for non-numeric characters
+  if (rawValue !== digits) return "PIN Code must contain only numeric digits.";
+  
   if (digits.length !== 6) return "PIN Code must be exactly 6 digits.";
   if (digits[0] === "0") return "PIN Code cannot start with 0.";
   return "";

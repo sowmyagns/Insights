@@ -237,6 +237,9 @@ export const SIDEBAR_NAV = [
     labelKey: "erpNav.settings",
     icon: Settings,
     children: [
+
+      { label: "Workflow", to: "/manufacturing/workflow", module: "dashboard"},
+
       { label: "All Settings", to: "/settings", module: "settings", end: true },
       { label: "Appearance", to: "/settings/appearance", module: "settings" },
       { label: "Change Format", to: "/settings/change-format", module: "settings" },

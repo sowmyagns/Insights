@@ -57,6 +57,55 @@ def test_admin_users_crud(client, register_admin):
     assert update.json()["full_name"] == "Settings Updated"
 
 
+def test_admin_user_validation_errors(client, register_admin):
+    admin = register_admin()
+    headers = admin["headers"]
+    roles = client.get("/admin/roles", headers=headers).json()
+    domain = admin["email"].split("@", 1)[1]
+
+    invalid_name = client.post(
+        "/admin/users",
+        headers=headers,
+        json={
+            "full_name": "@@@@",
+            "email": f"invalid-name-{uuid.uuid4().hex[:8]}@{domain}",
+            "phone": "6302828004",
+            "password": "Passw0rd!123",
+            "is_active": True,
+            "role_ids": [roles[0]["id"]],
+        },
+    )
+    assert invalid_name.status_code == 422
+
+    invalid_phone = client.post(
+        "/admin/users",
+        headers=headers,
+        json={
+            "full_name": "Valid Name",
+            "email": f"invalid-phone-{uuid.uuid4().hex[:8]}@{domain}",
+            "phone": "12345",
+            "password": "Passw0rd!123",
+            "is_active": True,
+            "role_ids": [roles[0]["id"]],
+        },
+    )
+    assert invalid_phone.status_code == 422
+
+    too_long_name = client.post(
+        "/admin/users",
+        headers=headers,
+        json={
+            "full_name": "A" * 101,
+            "email": f"invalid-long-{uuid.uuid4().hex[:8]}@{domain}",
+            "phone": "6302828004",
+            "password": "Passw0rd!123",
+            "is_active": True,
+            "role_ids": [roles[0]["id"]],
+        },
+    )
+    assert too_long_name.status_code == 422
+
+
 def test_admin_roles_and_permissions(client, register_admin):
     headers = _login_admin(client, register_admin)
 
