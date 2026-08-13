@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 
 /**
  * Add / Edit Terms and Conditions modal (screenshot match).
@@ -83,7 +83,7 @@ export default function AddTermsAndConditionsModal({
           </button>
           <button
             type="submit"
-            className="rounded-xl py-3 text-[14px] font-semibold text-[#1a1a1f]"
+            className="rounded-xl py-3 text-[14px] font-semibold text-white"
             style={{ background: YELLOW }}
           >
             Save

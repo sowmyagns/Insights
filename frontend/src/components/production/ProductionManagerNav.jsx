@@ -42,7 +42,7 @@ export default function ProductionManagerNav() {
   const linkClass = ({ isActive }) =>
     `inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
       isActive
-        ? "bg-teal-700 text-white shadow-sm"
+        ? "bg-[var(--color-success)] text-white shadow-sm"
         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
     }`;
 

@@ -458,7 +458,7 @@ def invoices_summary(
 def list_invoices_v2_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=500),
     search: str | None = Query(None),
     date_from: date | None = Query(None),
     date_to: date | None = Query(None),
@@ -526,7 +526,7 @@ def invoices_enriched(
 def list_invoices_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=500),
     search: str | None = Query(None),
     status: str | None = Query(None, description="Legacy; prefer payment_filter"),
     payment_filter: str | None = Query(None),
@@ -837,6 +837,41 @@ def delete_quotation_endpoint(
     if not delete_quotation(db, tenant_id, quote_id):
         raise HTTPException(404, "Quotation not found")
     return {"ok": True, "id": quote_id}
+
+
+@router.get("/quotations/{quote_id}/document")
+def get_quotation_document_endpoint(
+    quote_id: int,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    from app.services.document_builder_service import build_quotation_document
+
+    doc = build_quotation_document(db, tenant_id, quote_id)
+    if not doc:
+        raise HTTPException(404, "Quotation not found")
+    return doc
+
+
+@router.get("/quotations/{quote_id}/pdf")
+def download_quotation_pdf_endpoint(
+    quote_id: int,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    from app.services.document_builder_service import build_quotation_document
+    from app.services.invoice_pdf_service import generate_invoice_pdf
+
+    doc = build_quotation_document(db, tenant_id, quote_id)
+    if not doc:
+        raise HTTPException(404, "Quotation not found")
+    pdf_bytes = generate_invoice_pdf(doc)
+    doc_no = doc.get("meta", {}).get("document_no", str(quote_id))
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="Quotation-{doc_no}.pdf"'},
+    )
 
 
 @router.get("/sales-orders/summary", response_model=SOSummaryRead)

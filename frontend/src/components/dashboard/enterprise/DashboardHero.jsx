@@ -1,4 +1,4 @@
-﻿import useAuth from "../../../hooks/useAuth";
+import useAuth from "../../../hooks/useAuth";
 
 export default function DashboardHero({ now }) {
   const { user } = useAuth();
@@ -23,7 +23,7 @@ export default function DashboardHero({ now }) {
 
   return (
     <header className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0F172A] via-[#1e293b] to-[#0f3460] p-6 text-white shadow-[0_8px_32px_rgba(15,23,42,0.25)] sm:p-8">
-      <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-[#2563EB]/20 blur-3xl" />
+      <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-[var(--color-primary)]/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-20 -left-10 h-48 w-48 rounded-full bg-[#22C55E]/15 blur-3xl" />
 
       <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">

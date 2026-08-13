@@ -6,6 +6,7 @@ import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
 import { getExtendedReports, createJournalEntry } from "../../api/accountsApi";
 import { formatInr } from "../../data/financeMasterData";
+import PageHeader from "../../components/common/PageHeader";
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all";
@@ -129,14 +130,15 @@ export default function JournalEntries() {
   if (loading) return <Loader label="Loading Journal Entries..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Record manual adjustments, accrued expenses, and general ledger corrections.</p>
-        </div>
-        <div className="flex gap-2">
-        </div>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="Record manual adjustments, accrued expenses, and general ledger corrections."
+        action={
+          <>
+            
+          </>
+        }
+      />
 
       <FinanceFilters
         search={search}
@@ -168,7 +170,7 @@ export default function JournalEntries() {
             <tbody className="divide-y">
               {filtered.map((e) => (
                 <tr key={e.id} className="hover:bg-slate-50/50">
-                  <td className="p-3 font-semibold text-[#2563EB]">{e.id}</td>
+                  <td className="p-3 font-semibold text-[var(--color-primary)]">{e.id}</td>
                   <td className="p-3 text-slate-700">{e.date}</td>
                   <td className="p-3 text-slate-600 font-medium">{e.ref || "—"}</td>
                   <td className="p-3 text-slate-700">
@@ -290,7 +292,7 @@ export default function JournalEntries() {
                   <button
                     type="button"
                     onClick={handleAddLeg}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#2563EB] hover:underline"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-primary)] hover:underline"
                   >
                     + Add Account Line
                   </button>
@@ -360,7 +362,7 @@ export default function JournalEntries() {
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] shadow-sm transition-all"
                 >
                   Create Voucher
                 </button>

@@ -44,8 +44,7 @@ export default function CreateMachine() {
     setError("");
     setSaving(true);
     try {
-      const newMachine = {
-        id: Date.now(),
+      const payload = {
         tenant_id: tenantId,
         code: form.code.trim(),
         name: form.name.trim(),
@@ -63,18 +62,7 @@ export default function CreateMachine() {
         is_active: form.is_active,
       };
 
-      try {
-        await createMachine(newMachine);
-      } catch (err) {
-        // If API fails, still allow local save
-      }
-
-      try {
-        const stored = localStorage.getItem("smrt_local_machines");
-        const existing = stored ? JSON.parse(stored) : [];
-        localStorage.setItem("smrt_local_machines", JSON.stringify([newMachine, ...existing]));
-      } catch {}
-
+      await createMachine(payload);
       navigate("/production/machines");
     } catch (err) {
       const detail = err.response?.data?.detail || err.response?.data?.message;
@@ -85,7 +73,7 @@ export default function CreateMachine() {
       } else if (status === 409) {
         setError("A machine with this code already exists.");
       } else if (detail) {
-        setError(detail);
+        setError(typeof detail === "string" ? detail : JSON.stringify(detail));
       } else {
         setError("Save failed. Please try again.");
       }
@@ -98,7 +86,7 @@ export default function CreateMachine() {
     <div className="mx-auto max-w-2xl space-y-6">
       <Link
         to="/production/machines"
-        className="inline-flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400"
+        className="inline-flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-[var(--color-success)] dark:text-teal-400"
       >
         <ArrowLeft className="h-4 w-4" />
         {t("production.backToMachineStatus", { defaultValue: "Back to machine status" })}

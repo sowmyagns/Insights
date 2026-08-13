@@ -5,6 +5,8 @@ import { AlertTriangle, Cog, IndianRupee, Pause, Play, Timer, TrendingUp, Wrench
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell,
 } from "recharts";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import Loader from "../../components/common/Loader";
 import MaintenanceErrorState from "../../components/maintenance/MaintenanceErrorState";
@@ -14,23 +16,6 @@ import { DEMO_MAINTENANCE_HUB, MAINTENANCE_FLOW, formatInr, healthColor, healthT
 
 const PIE_COLORS = ["#2563EB", "#ef4444"];
 
-function KpiCard({ label, value, icon: Icon, color, suffix }) {
-  return (
-    <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none">{value}{suffix || ""}</p>
-      </div>
-    </div>
-  );
-}
 
 const alertIcons = { due: Timer, breakdown: AlertTriangle, spare: Wrench, completed: TrendingUp };
 
@@ -65,15 +50,11 @@ export default function MaintenanceDashboard() {
   const calendarDays = Array.from({ length: 14 }, (_, i) => i + 1);
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Machine health, downtime, MTTR/MTBF, costs, calendar, and spare parts.</p>
-        </div>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader subtitle="Machine health, downtime, MTTR/MTBF, costs, calendar, and spare parts." />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Total Machines" value={hub.total_machines} icon={Cog} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Machines" value={hub.total_machines} icon={Cog} color="bg-[var(--color-primary)]" />
         <KpiCard label="Running" value={hub.running} icon={Play} color="bg-green-600" />
         <KpiCard label="Under Maintenance" value={hub.under_maintenance} icon={Wrench} color="bg-amber-500" />
         <KpiCard label="Breakdown" value={hub.breakdown} icon={Zap} color="bg-red-500" />
@@ -81,7 +62,7 @@ export default function MaintenanceDashboard() {
         <KpiCard label="Machine Health" value={hub.machine_health_pct} suffix="%" icon={TrendingUp} color="bg-teal-600" />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="ui-grid-kpi">
         <KpiCard label="MTTR (Mean Time To Repair)" value={hub.mttr_hours} suffix=" h" icon={Timer} color="bg-indigo-600" />
         <KpiCard label="MTBF (Mean Time Between Failures)" value={hub.mtbf_hours} suffix=" h" icon={Timer} color="bg-purple-600" />
       </div>
@@ -96,8 +77,8 @@ export default function MaintenanceDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-1">
-          <h2 className="mb-4 font-semibold text-slate-900">Maintenance Calendar — July</h2>
+        <div className="ui-card p-5 lg:col-span-1">
+          <h2 className="ui-section-title mb-4">Maintenance Calendar — July</h2>
           <div className="grid grid-cols-7 gap-1 text-center text-xs">
             {calendarDays.map((d) => {
               const events = (hub.calendar_events || []).filter((e) => e.day === d);
@@ -118,8 +99,8 @@ export default function MaintenanceDashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
-          <h2 className="mb-4 font-semibold text-slate-900">Machine Health</h2>
+        <div className="ui-card p-5 lg:col-span-2">
+          <h2 className="ui-section-title mb-4">Machine Health</h2>
           <div className="space-y-3">
             {(hub.machine_health || []).map((m) => (
               <div key={m.code}>
@@ -136,8 +117,8 @@ export default function MaintenanceDashboard() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 font-semibold text-slate-900">Maintenance Cost Dashboard</h2>
+      <div className="ui-card p-5">
+        <h2 className="ui-section-title mb-4">Maintenance Cost Dashboard</h2>
         <div className="grid gap-4 sm:grid-cols-4">
           <div className="rounded-xl bg-slate-50 p-4 text-center"><p className="text-xs text-slate-500">Labour Cost</p><p className="mt-1 text-lg font-bold">{formatInr(hub.labour_cost)}</p></div>
           <div className="rounded-xl bg-slate-50 p-4 text-center"><p className="text-xs text-slate-500">Spare Cost</p><p className="mt-1 text-lg font-bold">{formatInr(hub.spare_cost)}</p></div>
@@ -194,8 +175,8 @@ export default function MaintenanceDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-900">Spare Parts Inventory</h2>
+        <div className="ui-card p-5">
+          <h2 className="ui-section-title mb-4">Spare Parts Inventory</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b text-left text-xs text-slate-500"><th className="pb-2">Part No</th><th className="pb-2">Name</th><th className="pb-2">Stock</th><th className="pb-2">Min</th><th className="pb-2">Vendor</th><th className="pb-2">Cost</th></tr></thead>
@@ -214,8 +195,8 @@ export default function MaintenanceDashboard() {
             </table>
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-900">Work Orders</h2>
+        <div className="ui-card p-5">
+          <h2 className="ui-section-title mb-4">Work Orders</h2>
           <div className="space-y-3">
             {(hub.work_orders || []).map((wo) => (
               <div key={wo.work_order_number} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
@@ -233,8 +214,8 @@ export default function MaintenanceDashboard() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 font-semibold text-slate-900">Alerts & Notifications</h2>
+      <div className="ui-card p-5">
+        <h2 className="ui-section-title mb-4">Alerts & Notifications</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {(hub.alerts || []).map((a, i) => {
             const Icon = alertIcons[a.type] || AlertTriangle;
@@ -260,13 +241,13 @@ export default function MaintenanceDashboard() {
 
 function ChartCard({ title, children }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-4 text-sm font-semibold text-slate-900">{title}</h2>
+    <div className="ui-card p-5">
+      <h2 className="ui-section-title mb-4">{title}</h2>
       <div className="h-44"><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>
     </div>
   );
 }
 
 function QuickLink({ to, label }) {
-  return <Link to={to} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#2563EB] shadow-sm hover:bg-blue-50">{label} →</Link>;
+  return <Link to={to} className="ui-card px-4 py-3 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-soft)]">{label} →</Link>;
 }

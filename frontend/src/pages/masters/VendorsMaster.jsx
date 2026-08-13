@@ -26,7 +26,7 @@ import { exportToExcel } from "../../utils/exportUtils";
 import { apiErrorMessage } from "../../utils/apiError";
 
 const PAGE_BG = "#F5F5F5";
-const YELLOW = "#F5C518";
+const VENDOR_BTN = "var(--color-primary-soft)"; /* #BBDEFC */
 const PAGE_SIZES = [20, 50, 100];
 
 function blankOr(value) {
@@ -220,8 +220,8 @@ export default function VendorsMaster() {
                 setEditing(null);
                 setPartyOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f]"
-              style={{ background: YELLOW }}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2.5 text-[13px] font-semibold text-[#012F46] shadow-sm transition-opacity hover:opacity-90"
+              style={{ background: VENDOR_BTN }}
             >
               <Plus className="h-4 w-4" />
               Create Vendor
@@ -265,7 +265,7 @@ export default function VendorsMaster() {
                               setEditing(v);
                               setPartyOpen(true);
                             }}
-                            className="grid h-8 w-8 place-items-center rounded-full bg-[#eef0ff] text-[#5b5bd6] hover:bg-[#e4e6fc]"
+                            className="grid h-8 w-8 place-items-center rounded-full bg-[var(--color-primary-soft)] text-[var(--color-primary)] hover:bg-[#e4e6fc]"
                             title="Edit"
                             aria-label="Edit vendor"
                           >
@@ -325,10 +325,10 @@ export default function VendorsMaster() {
                   onClick={() => setPage(n)}
                   className={`grid h-8 min-w-[2rem] place-items-center rounded border px-2 text-[13px] font-semibold ${
                     page === n
-                      ? "border-[#f4c116] text-[#1a1a1f]"
+                      ? "border-[var(--color-primary-light)] text-[#012F46]"
                       : "border-[#e2e2e8] bg-white text-[#4a4a55]"
                   }`}
-                  style={page === n ? { background: YELLOW } : undefined}
+                  style={page === n ? { background: VENDOR_BTN } : undefined}
                 >
                   {n}
                 </button>

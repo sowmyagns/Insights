@@ -26,8 +26,8 @@ export default function ConfirmationDialog({
 
   const confirmClass =
     confirmVariant === "danger"
-      ? "bg-red-600 text-white hover:bg-red-700"
-      : "bg-[#2563EB] text-white hover:bg-[#1D4ED8]";
+      ? "ui-btn-danger"
+      : "ui-btn-primary";
 
   return (
     <div
@@ -47,14 +47,14 @@ export default function ConfirmationDialog({
         <h2 id="confirmation-dialog-title" className="text-base font-semibold text-slate-900">
           {title}
         </h2>
-        <p id="confirmation-dialog-message" className="mt-2 text-sm text-slate-600">
+        <p id="confirmation-dialog-message" className="mt-2 whitespace-pre-line text-sm text-slate-600">
           {message}
         </p>
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="ui-btn-secondary"
           >
             {cancelLabel}
           </button>
@@ -62,7 +62,7 @@ export default function ConfirmationDialog({
             ref={confirmRef}
             type="button"
             onClick={onConfirm}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold ${confirmClass}`}
+            className={confirmClass}
           >
             {confirmLabel}
           </button>

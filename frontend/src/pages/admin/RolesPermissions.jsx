@@ -201,7 +201,7 @@ export default function RolesPermissions() {
 
               <div className={`flex flex-wrap gap-1.5 ${permissionsOnly ? "mt-3" : "mt-3"}`}>
                 {role.is_system ? (
-                  <span className="inline-flex rounded-md bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700 dark:bg-teal-900/30 dark:text-teal-300">
+                  <span className="inline-flex rounded-md bg-[var(--color-success-soft)] px-2 py-0.5 text-xs font-medium text-[var(--color-success)] dark:bg-teal-900/30 dark:text-teal-300">
                     Full access (all modules)
                   </span>
                 ) : permissionsOnly ? (
@@ -232,7 +232,7 @@ export default function RolesPermissions() {
                 <button
                   type="button"
                   onClick={() => openEdit(role)}
-                  className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm text-slate-600 hover:bg-teal-50 hover:text-teal-600 dark:text-slate-300 dark:hover:bg-teal-900/20"
+                  className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm text-slate-600 hover:bg-[var(--color-success-soft)] hover:text-teal-600 dark:text-slate-300 dark:hover:bg-teal-900/20"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                   {permissionsOnly ? "Edit Permissions" : "Edit"}
@@ -320,7 +320,7 @@ export default function RolesPermissions() {
             </div>
 
             {isAdminRole ? (
-              <div className="rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-800 dark:border-teal-900/40 dark:bg-teal-900/20 dark:text-teal-300">
+              <div className="rounded-xl border border-teal-200 bg-[var(--color-success-soft)] p-4 text-sm text-[var(--color-success)] dark:border-teal-900/40 dark:bg-teal-900/20 dark:text-teal-300">
                 The Admin role always has full access to every module and cannot be restricted.
               </div>
             ) : (
@@ -354,7 +354,7 @@ export default function RolesPermissions() {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-xl bg-teal-600 px-5 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+              className="rounded-xl bg-teal-600 px-5 py-2 text-sm font-semibold text-white hover:bg-[var(--color-success)] disabled:opacity-50"
             >
               {saving ? "Saving…" : permissionsOnly ? "Save Permissions" : editing ? "Save Changes" : "Create Role"}
             </button>

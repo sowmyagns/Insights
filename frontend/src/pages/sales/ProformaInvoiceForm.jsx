@@ -39,7 +39,7 @@ import {
 
 const LAVENDER = "#efeaf8";
 const PURPLE = "#6b4eff";
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const PREFIX_STORAGE_KEY = "gns_invoice_prefixes";
 const DEFAULT_PREFIXES = ["INV-", "TI-"];
 const ADD_PREFIX_VALUE = "__add_prefix__";
@@ -656,7 +656,7 @@ export default function ProformaInvoiceForm() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-[#1a1a1f] shadow-sm disabled:opacity-60"
+            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-white shadow-sm disabled:opacity-60"
             style={{ background: YELLOW }}
           >
             {saving ? "Saving…" : "Save"}
@@ -677,11 +677,11 @@ export default function ProformaInvoiceForm() {
                 <label key={opt.id} className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-[#1a1a1f]">
                   <span
                     className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-                      invoiceType === opt.id ? "border-[#F5C518]" : "border-[#c4c4cc]"
+                      invoiceType === opt.id ? "border-[var(--color-primary)]" : "border-[#c4c4cc]"
                     }`}
                   >
                     {invoiceType === opt.id ? (
-                      <span className="h-2 w-2 rounded-full bg-[#F5C518]" />
+                      <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" />
                     ) : null}
                   </span>
                   <input
@@ -1428,7 +1428,7 @@ export default function ProformaInvoiceForm() {
                 aria-checked={signatureOn}
                 onClick={() => setSignatureOn((v) => !v)}
                 className={`relative h-6 w-11 rounded-full transition ${
-                  signatureOn ? "bg-[#F5C518]" : "bg-[#d4d4d8]"
+                  signatureOn ? "bg-[var(--color-primary)]" : "bg-[#d4d4d8]"
                 }`}
               >
                 <span

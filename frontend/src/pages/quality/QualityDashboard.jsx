@@ -4,33 +4,17 @@ import { AlertTriangle, BarChart3, CheckCircle, ClipboardCheck, TrendingDown, XC
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
 import { getQualityHub } from "../../api/qualityApi";
 import { DEMO_QUALITY_HUB, QUALITY_FLOW, formatPct, qcStatusColor } from "../../data/qualityMasterData";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 
 const PIE_COLORS = ["#22c55e", "#ef4444", "#f59e0b"];
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none">{value}</p>
-      </div>
-    </div>
-  );
-}
 
 const alertIcons = { pending: ClipboardCheck, defect: AlertTriangle, yield: TrendingDown, calibration: BarChart3 };
 
@@ -59,15 +43,11 @@ export default function QualityDashboard() {
   if (loading) return <Loader label="Loading quality dashboard..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Inspection KPIs, yield trends, defect analysis, and QC performance.</p>
-        </div>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader subtitle="Inspection KPIs, yield trends, defect analysis, and QC performance." />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Total Inspections" value={hub.total_inspections} icon={ClipboardCheck} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Inspections" value={hub.total_inspections} icon={ClipboardCheck} color="bg-[var(--color-primary)]" />
         <KpiCard label="Passed" value={hub.passed} icon={CheckCircle} color="bg-green-600" />
         <KpiCard label="Failed" value={hub.failed} icon={XCircle} color="bg-red-500" />
         <KpiCard label="Rejected" value={hub.rejected} icon={XCircle} color="bg-red-600" />
@@ -142,8 +122,8 @@ export default function QualityDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-900">Root Cause Analysis</h2>
+        <div className="ui-card p-5">
+          <h2 className="ui-section-title mb-4">Root Cause Analysis</h2>
           <ul className="space-y-2">
             {(hub.root_cause_analysis || []).map((r) => (
               <li key={r.cause} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
@@ -153,8 +133,8 @@ export default function QualityDashboard() {
             ))}
           </ul>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-900">QC Performance</h2>
+        <div className="ui-card p-5">
+          <h2 className="ui-section-title mb-4">QC Performance</h2>
           <ul className="space-y-3">
             {(hub.qc_performance || []).map((q) => (
               <li key={q.inspector}>
@@ -166,8 +146,8 @@ export default function QualityDashboard() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 font-semibold text-slate-900">Recent Inspections</h2>
+      <div className="ui-card p-5">
+        <h2 className="ui-section-title mb-4">Recent Inspections</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -192,8 +172,8 @@ export default function QualityDashboard() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 font-semibold text-slate-900">Alerts</h2>
+      <div className="ui-card p-5">
+        <h2 className="ui-section-title mb-4">Alerts</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {(hub.alerts || []).map((a, i) => {
             const Icon = alertIcons[a.type] || AlertTriangle;
@@ -220,8 +200,8 @@ export default function QualityDashboard() {
 
 function ChartCard({ title, children }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-4 text-sm font-semibold text-slate-900">{title}</h2>
+    <div className="ui-card p-5">
+      <h2 className="ui-section-title mb-4">{title}</h2>
       <div className="h-44">
         <ResponsiveContainer width="100%" height="100%">
           {children}
@@ -233,7 +213,7 @@ function ChartCard({ title, children }) {
 
 function QuickLink({ to, label }) {
   return (
-    <Link to={to} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#2563EB] shadow-sm hover:bg-blue-50">
+    <Link to={to} className="ui-card px-4 py-3 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-soft)]">
       {label} →
     </Link>
   );

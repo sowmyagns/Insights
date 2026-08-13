@@ -64,6 +64,20 @@ class UserCreate(BaseModel):
         validate_password_strength(value)
         return value
 
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        val_str = str(value).strip()
+        if not val_str:
+            return None
+        if not val_str.isdigit():
+            raise ValueError("Phone number must contain only numeric digits")
+        if len(val_str) != 10:
+            raise ValueError("Phone number must be exactly 10 digits")
+        return val_str
+
 
 class UserUpdate(BaseModel):
     email: str | None = Field(None, min_length=3, max_length=255)
@@ -116,6 +130,20 @@ class UserUpdate(BaseModel):
             return value
         validate_password_strength(value)
         return value
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        val_str = str(value).strip()
+        if not val_str:
+            return None
+        if not val_str.isdigit():
+            raise ValueError("Phone number must contain only numeric digits")
+        if len(val_str) != 10:
+            raise ValueError("Phone number must be exactly 10 digits")
+        return val_str
 
 
 class RoleCreate(BaseModel):

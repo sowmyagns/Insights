@@ -29,7 +29,7 @@ export default function AccessDenied({ message, requiredRole }) {
       ) : null}
       <Link
         to="/"
-        className="mt-6 rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+        className="mt-6 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]"
       >
         Back to Dashboard
       </Link>

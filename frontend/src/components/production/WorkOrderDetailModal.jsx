@@ -1,10 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Cpu, FileText, Printer, Users, Wrench, X } from "lucide-react";
+import { ClipboardList, Cpu, FileText, Pause, Play, Printer, Square, Users, Wrench, X } from "lucide-react";
 
 import {
   PRIORITY_COLORS,
   WO_STATUS_COLORS,
+  canWoIssueMaterials,
+  canWoPause,
+  canWoStart,
+  canWoStop,
+  canWoComplete,
   woStatusLabel,
 } from "../../data/workOrdersMasterData";
 import useAuth from "../../hooks/useAuth";
@@ -39,7 +44,7 @@ function ProgressBar({ produced, planned, pct }) {
         <span className="font-bold">{p}%</span>
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-slate-200">
-        <div className="h-full rounded-full bg-[#2563EB]" style={{ width: `${Math.min(p, 100)}%` }} />
+        <div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${Math.min(p, 100)}%` }} />
       </div>
     </div>
   );
@@ -125,7 +130,11 @@ export default function WorkOrderDetailModal({
               <p className="text-xs font-semibold text-[#2563EB]">{w.work_order_number}</p>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${statusCls}`}>{woStatusLabel(w.status)}</span>
               <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${p.bg} ${p.text}`}>{p.dot} {p.label}</span>
-              {w.is_delayed && <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">🔴 Delayed</span>}
+              {w.is_delayed && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                  Delayed
+                </span>
+              )}
             </div>
             <h2 className="text-xl font-bold text-slate-900">{w.product_name}</h2>
             <p className="text-sm text-slate-500">
@@ -150,7 +159,7 @@ export default function WorkOrderDetailModal({
 
         <div className="flex flex-wrap gap-1 border-b px-5 py-2">
           {TABS.map((t) => (
-            <button key={t.id} type="button" onClick={() => setTab(t.id)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === t.id ? "bg-[#2563EB] text-white" : "text-slate-600 hover:bg-slate-100"}`}>{t.label}</button>
+            <button key={t.id} type="button" onClick={() => setTab(t.id)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === t.id ? "bg-[var(--color-primary)] text-white" : "text-slate-600 hover:bg-slate-100"}`}>{t.label}</button>
           ))}
         </div>
 
@@ -295,26 +304,49 @@ export default function WorkOrderDetailModal({
         </div>
 
         <div className="flex flex-wrap gap-2 border-t px-5 py-3">
-          {onIssueMaterials && !w.materials_issued && (
+          {onIssueMaterials && canWoIssueMaterials(w.status, w.materials_issued) ? (
             <button
               type="button"
               disabled={issuing}
               onClick={() => onIssueMaterials(w)}
-              className="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+              className="ui-btn-secondary !px-3 !py-1.5 text-xs"
             >
-              {issuing ? "Issuing…" : "📦 Issue Materials"}
+              {issuing ? "Issuing…" : "Issue Materials"}
             </button>
-          )}
-          {w.materials_issued && (
+          ) : null}
+          {w.materials_issued ? (
             <span className="inline-flex items-center rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-              Materials issued ✔
+              Materials issued
             </span>
-          )}
-          {onStart && <button type="button" onClick={() => onStart(w)} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white">▶ Start</button>}
-          {onPause && <button type="button" onClick={() => onPause(w)} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">⏸ Pause</button>}
-          {onStop && <button type="button" onClick={() => onStop(w)} className="rounded-lg border px-3 py-1.5 text-xs font-semibold">⏹ Stop</button>}
-          <button type="button" onClick={() => printWorkOrder(w, user)} className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold"><Printer className="h-3 w-3" /> Job Card</button>
-          <Link to="/production/batches" className="rounded-lg border px-3 py-1.5 text-xs font-semibold text-slate-700">Batch Tracking</Link>
+          ) : null}
+          {onStart && canWoStart(w.status) ? (
+            <button type="button" onClick={() => onStart(w)} className="ui-btn-primary !px-3 !py-1.5 text-xs">
+              <Play className="h-3.5 w-3.5" /> Start
+            </button>
+          ) : null}
+          {onPause && canWoPause(w.status) ? (
+            <button type="button" onClick={() => onPause(w)} className="ui-btn-secondary !px-3 !py-1.5 text-xs">
+              <Pause className="h-3.5 w-3.5" /> Pause
+            </button>
+          ) : null}
+          {onStop && canWoStop(w.status) ? (
+            <button type="button" onClick={() => onStop(w)} className="ui-btn-secondary !px-3 !py-1.5 text-xs">
+              <Square className="h-3.5 w-3.5" /> Stop
+            </button>
+          ) : null}
+          {onComplete && canWoComplete(w.status) ? (
+            <button type="button" onClick={() => onComplete(w)} className="ui-btn-secondary !px-3 !py-1.5 text-xs">
+              Complete
+            </button>
+          ) : null}
+          {typeof w.id === "number" || (typeof w.id === "string" && /^\d+$/.test(w.id)) ? (
+            <Link to={`/production/job-card?id=${w.id}`} className="ui-btn-secondary !px-3 !py-1.5 text-xs">
+              <ClipboardList className="h-3.5 w-3.5" /> Open Job Card
+            </Link>
+          ) : null}
+          <button type="button" onClick={() => printWorkOrder(w, user)} className="ui-btn-ghost !px-3 !py-1.5 text-xs">
+            <Printer className="h-3.5 w-3.5" /> Print
+          </button>
         </div>
       </div>
     </div>

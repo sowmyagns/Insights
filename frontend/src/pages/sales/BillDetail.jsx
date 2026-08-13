@@ -147,7 +147,7 @@ export default function BillDetail() {
         </div>
         <div className="flex flex-wrap gap-3">
           <button onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+            className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]">
             <Download className="h-4 w-4" /> Print / Download
           </button>
         </div>
@@ -156,7 +156,7 @@ export default function BillDetail() {
       {/* Main Card */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {/* Colour bar */}
-        <div className={`h-1.5 w-full ${isPaid ? "bg-emerald-500" : "bg-[#2563EB]"}`} />
+        <div className={`h-1.5 w-full ${isPaid ? "bg-emerald-500" : "bg-[var(--color-primary)]"}`} />
 
         <div className="space-y-6 p-6">
 

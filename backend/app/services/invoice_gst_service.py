@@ -78,14 +78,17 @@ def apply_header_gst(
 
 
 def allocate_next_invoice_number(db: Session, tenant_id: int) -> tuple[str, str]:
-    """Return (prefix, full_invoice_number) and increment counter."""
-    settings = get_or_create_settings(db, tenant_id)
-    prefix = (settings.invoice_prefix or "INV-").strip()
-    seq = int(settings.invoice_next_number or 1)
-    full = f"{prefix}{seq}"
-    settings.invoice_next_number = seq + 1
-    db.flush()
-    return prefix, full
+    """Return (prefix, full_invoice_number) and increment counter (row-locked)."""
+    from app.services.document_number_service import allocate_counter_number
+
+    return allocate_counter_number(
+        db,
+        tenant_id,
+        prefix_attr="invoice_prefix",
+        counter_attr="invoice_next_number",
+        default_prefix="INV-",
+        width=6,
+    )
 
 
 def _format_date(d: date | None) -> str:
@@ -183,6 +186,7 @@ def build_invoice_document(db: Session, tenant_id: int, invoice_id: int) -> dict
     udyam = _custom_field(custom, "udyam")
 
     return {
+        "doc_type": "invoice",
         "title": "TAX INVOICE",
         "tax_mode": tax_mode,
         "e_invoice_enabled": (getattr(inv, "e_invoice_status", "") or "").lower() == "active",

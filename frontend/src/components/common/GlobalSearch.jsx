@@ -18,6 +18,7 @@ import {
   Users,
   Wallet,
   Wrench,
+  X,
 } from "lucide-react";
 
 import useAuth from "../../hooks/useAuth";
@@ -116,7 +117,7 @@ function HighlightText({ text, query }) {
     <span className="truncate">
       {parts.map((part, i) =>
         part.toLowerCase() === q.toLowerCase() ? (
-          <mark key={`${part}-${i}`} className="rounded bg-teal-100 px-0.5 text-inherit dark:bg-teal-900/50">
+          <mark key={`${part}-${i}`} className="rounded bg-[var(--color-primary-soft)] px-0.5 text-inherit dark:bg-[var(--color-primary)]/30">
             {part}
           </mark>
         ) : (
@@ -137,6 +138,7 @@ export default function GlobalSearch({ onSelect, placeholderKey = "common.search
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef(null);
   const listRef = useRef(null);
+  const wrapRef = useRef(null);
 
   const routes = useMemo(() => {
     const all = [...flattenNavForSearch(), ...EXTRA_ROUTES];
@@ -186,6 +188,13 @@ export default function GlobalSearch({ onSelect, placeholderKey = "common.search
     el?.scrollIntoView({ block: "nearest" });
   }, [highlight, showDropdown]);
 
+  const clearQuery = useCallback(() => {
+    setQuery("");
+    setOpen(true);
+    setFocus(true);
+    inputRef.current?.focus();
+  }, []);
+
   const handleSelect = useCallback(
     (path) => {
       navigate(path);
@@ -198,6 +207,17 @@ export default function GlobalSearch({ onSelect, placeholderKey = "common.search
   );
 
   useEffect(() => {
+    const onPointerDown = (e) => {
+      if (!wrapRef.current?.contains(e.target)) {
+        setOpen(false);
+        setFocus(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (e) => {
       const isModK = (e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K");
       if (isModK) {
@@ -208,8 +228,14 @@ export default function GlobalSearch({ onSelect, placeholderKey = "common.search
         return;
       }
       if (e.key === "Escape") {
+        if (query) {
+          setQuery("");
+          return;
+        }
         setOpen(false);
+        setFocus(false);
         inputRef.current?.blur();
+        return;
       }
       if (!showDropdown || matches.length === 0) return;
       if (e.key === "ArrowDown") {
@@ -227,52 +253,70 @@ export default function GlobalSearch({ onSelect, placeholderKey = "common.search
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [showDropdown, matches, highlight, handleSelect]);
+  }, [showDropdown, matches, highlight, handleSelect, query]);
 
   return (
-    <div className="relative w-full">
-      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
-      <input
-        ref={inputRef}
-        type="search"
-        placeholder={t(placeholderKey)}
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => {
-          setOpen(true);
-          setFocus(true);
-        }}
-        onBlur={() => setTimeout(() => setFocus(false), 150)}
-        className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-10 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500 dark:focus:border-teal-500 dark:focus:bg-slate-900"
-        aria-label={t("common.search")}
-        aria-expanded={showDropdown}
-        aria-controls="global-search-results"
-        aria-activedescendant={
-          showDropdown && matches[highlight] ? `global-search-option-${highlight}` : undefined
-        }
-        role="combobox"
-        autoComplete="off"
-      />
-      {showDropdown && (
+    <div ref={wrapRef} className="relative w-full">
+      {/* Input wrapper keeps the icon centered on the field only (not the dropdown). */}
+      <div className="relative">
+        <Search
+          className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--color-text-icon)]"
+          aria-hidden
+        />
+        <input
+          ref={inputRef}
+          type="search"
+          placeholder={t(placeholderKey)}
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => {
+            setOpen(true);
+            setFocus(true);
+          }}
+          className="global-search-input w-full rounded-full border border-[var(--color-border)] bg-[var(--color-surface-muted)] py-2 pl-10 pr-10 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-placeholder)] focus:border-[var(--color-primary)] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:placeholder:text-slate-500 dark:focus:border-[var(--color-primary)] dark:focus:bg-slate-900"
+          aria-label={t("common.search")}
+          aria-expanded={showDropdown}
+          aria-controls="global-search-results"
+          aria-activedescendant={
+            showDropdown && matches[highlight] ? `global-search-option-${highlight}` : undefined
+          }
+          role="combobox"
+          autoComplete="off"
+        />
+        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+          {hasQuery ? (
+            <button
+              type="button"
+              onClick={clearQuery}
+              className="rounded-full p-1 text-[var(--color-text-icon)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {showDropdown ? (
         <div
           id="global-search-results"
           ref={listRef}
           role="listbox"
-          className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900 sm:min-w-[22rem]"
+          className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-80 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl dark:border-slate-700 dark:bg-slate-900 sm:min-w-[22rem]"
         >
           {!hasQuery ? (
-            <p className="border-b border-slate-100 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            <p className="border-b border-[var(--color-border-soft)] px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
               Suggested pages
             </p>
           ) : null}
 
           {matches.length === 0 ? (
             <div className="flex flex-col items-center px-4 py-8 text-center" role="status">
-              <SearchX className="mb-2 h-8 w-8 text-slate-300" aria-hidden />
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-200">No matching pages found.</p>
+              <SearchX className="mb-2 h-8 w-8 text-[var(--color-text-icon)]" aria-hidden />
+              <p className="text-sm font-medium text-[var(--color-text)]">No matching pages found.</p>
             </div>
           ) : (
             matches.map((r, i) => {
@@ -291,20 +335,20 @@ export default function GlobalSearch({ onSelect, placeholderKey = "common.search
                   onMouseEnter={() => setHighlight(i)}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleSelect(r.path)}
-                  className={`flex h-14 w-full items-center gap-3 border-b border-slate-100 px-4 text-left transition-colors last:border-b-0 ${
+                  className={`flex h-14 w-full items-center gap-3 border-b border-[var(--color-border-soft)] px-4 text-left transition-colors last:border-b-0 ${
                     selected
-                      ? "bg-teal-50 text-teal-900 dark:bg-teal-950/40 dark:text-teal-100"
-                      : "text-slate-800 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                      ? "bg-[var(--color-primary-soft)] text-[var(--color-primary-dark)] dark:bg-[var(--color-primary)]/20 dark:text-slate-100"
+                      : "text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] dark:text-slate-200 dark:hover:bg-slate-800"
                   }`}
                 >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--color-surface-muted)] text-[var(--color-text-muted)] dark:bg-slate-800 dark:text-slate-300">
                     <Icon className="h-4 w-4" aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">
                       <HighlightText text={r.label} query={query} />
                     </span>
-                    <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                    <span className="block truncate text-xs text-[var(--color-text-muted)]">
                       <HighlightText
                         text={section ? `${r.moduleLabel}  ·  ${section}` : r.moduleLabel}
                         query={query}
@@ -316,7 +360,7 @@ export default function GlobalSearch({ onSelect, placeholderKey = "common.search
             })
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

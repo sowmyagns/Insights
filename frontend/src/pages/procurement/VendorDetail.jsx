@@ -125,7 +125,7 @@ export default function VendorDetail() {
   const v = vendor;
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-5 pb-4">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <Link
@@ -164,7 +164,7 @@ export default function VendorDetail() {
             <>
               <Link
                 to="/procurement/vendors/create"
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="ui-btn-secondary"
               >
                 <Plus className="h-4 w-4" /> Add Vendor
               </Link>
@@ -199,7 +199,7 @@ export default function VendorDetail() {
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         {tab === "overview" && (
-          <div className="space-y-6">
+          <div className="space-y-5 pb-4">
             <div>
               <h3 className="mb-3 text-sm font-bold text-slate-800">General</h3>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { IndianRupee, TrendingDown, Users, Wallet } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import FinanceFilters from "../../components/finance/FinanceFilters";
@@ -10,23 +12,6 @@ import { useToast } from "../../context/ToastContext";
 import { getAREnriched, getARSummary } from "../../api/accountsApi";
 import { formatInr, statusColor, agingColor } from "../../data/financeMasterData";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 const INITIAL_AR_SUMMARY = {
   total_receivables: 0,
@@ -148,25 +133,19 @@ export default function AccountsReceivable() {
   if (loading) return <Loader label="Loading accounts receivable..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">
-            Customer invoices, collections, and aging analysis for finance team.
-          </p>
-        </div>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader subtitle="Customer invoices, collections, and aging analysis for finance team." />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <KpiCard label="Total Receivables" value={formatInr(summary.total_receivables)} icon={IndianRupee} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Receivables" value={formatInr(summary.total_receivables)} icon={IndianRupee} color="bg-[var(--color-primary)]" />
         <KpiCard label="Received Today" value={formatInr(summary.received_today)} icon={Wallet} color="bg-green-600" />
         <KpiCard label="Overdue" value={formatInr(summary.overdue)} icon={TrendingDown} color="bg-red-500" />
         <KpiCard label="Pending Collection" value={formatInr(summary.pending_collection)} icon={IndianRupee} color="bg-amber-500" />
         <KpiCard label="Credit Customers" value={summary.credit_customers} icon={Users} color="bg-indigo-600" />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 font-semibold text-slate-900">Customer Aging Report</h2>
+      <div className="ui-card p-5">
+        <h2 className="ui-section-title mb-4">Customer Aging Report</h2>
         <div className="grid gap-4 sm:grid-cols-4">
           {agingData.map((a) => (
             <div key={a.bucket} className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-center">
@@ -201,7 +180,7 @@ export default function AccountsReceivable() {
         searchPlaceholder="Search invoice, customer..."
       />
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="ui-card p-4">
         <DataTable columns={columns} data={filtered} searchPlaceholder="" searchKeys={[]} />
       </div>
     </div>

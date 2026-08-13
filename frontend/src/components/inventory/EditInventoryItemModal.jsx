@@ -118,7 +118,7 @@ export default function EditInventoryItemModal({ item, onClose, onSaved, addToas
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save"}
           </button>

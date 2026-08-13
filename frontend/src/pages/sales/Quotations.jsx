@@ -426,14 +426,13 @@ export default function Quotations() {
                     </td>
                     <td className="border-t border-[#d0d0d8] px-4 py-3">
                       <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setSelected(r)}
+                        <Link
+                          to={`/sales/quotations/${r.id}`}
                           className="text-[12px] font-semibold hover:underline"
                           style={{ color: ACCENT }}
                         >
-                          View
-                        </button>
+                          View / PDF
+                        </Link>
                         <Link
                           to={`/sales/quotations/${r.id}/edit`}
                           className="text-[12px] font-semibold text-[#4a4a55] hover:underline"

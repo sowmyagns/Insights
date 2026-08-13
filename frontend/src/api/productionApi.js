@@ -78,6 +78,11 @@ export const getWorkOrderSummary = (productionOrderId) =>
 export const getWorkOrderDetail = (workOrderId) =>
   apiGet(`/api/production/work-orders/${workOrderId}`);
 
+export const getJobCards = () => apiGet("/api/production/job-cards");
+
+export const getJobCard = (workOrderId) =>
+  apiGet(`/api/production/job-cards/${workOrderId}`);
+
 export const getWorkOrderStartChecks = (workOrderId) =>
   apiGet(`/api/production/work-orders/${workOrderId}/start-checks`);
 

@@ -1,32 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, Box, Download, Package, Plus, QrCode, Truck } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
+import PageHeader from "../../components/common/PageHeader";
 import { useToast } from "../../context/ToastContext";
 import { getFinishedGoods, getFinishedGoodsSummary } from "../../api/inventoryApi";
 import { formatInr, stockStatusColor, stockStatusLabel } from "../../data/inventoryMasterData";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 import { exportToExcel } from "../../utils/exportUtils";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl">{value}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function FinishedGoods() {
   const { addToast } = useToast();
@@ -114,7 +99,7 @@ export default function FinishedGoods() {
     { key: "expiry_date", label: "Expiry" },
     { key: "warranty", label: "Warranty" },
     { key: "serial_number", label: "Serial" },
-    { key: "qr_code", label: "QR", render: (r) => <span className="inline-flex items-center gap-1 text-xs text-teal-800"><QrCode className="h-3 w-3" />{r.qr_code}</span> },
+    { key: "qr_code", label: "QR", render: (r) => <span className="inline-flex items-center gap-1 text-xs text-[var(--color-primary)]"><QrCode className="h-3 w-3" />{r.qr_code}</span> },
     { key: "status", label: "Status", render: (r) => <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${stockStatusColor(r.status)}`}>{stockStatusLabel(r.status)}</span> },
   ];
 
@@ -122,21 +107,19 @@ export default function FinishedGoods() {
 
   return (
     <div className="space-y-5 pb-4">
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-eyebrow">Inventory</p>
-          <h2 className="mt-0.5 ui-title">Finished Goods</h2>
-          <p className="ui-subtitle">Verify produced stock ready for inspection and handover to sales dispatch.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to="/inventory/items/create?type=finished_good" className="ui-btn-primary"><Plus className="h-4 w-4" /> New Product</Link>
-          <button type="button" onClick={() => exportToExcel(filtered, columns.filter((c) => !c.render), "finished-goods")} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"><Download className="h-4 w-4" /> Export</button>
-        </div>
-      </header>
+      <PageHeader
+        subtitle="Verify produced stock ready for inspection and handover to sales dispatch."
+        action={
+          <>
+            <Link to="/inventory/items/create?type=finished_good" className="ui-btn-primary"><Plus className="h-4 w-4" /> New Product</Link>
+            <button type="button" onClick={() => exportToExcel(filtered, columns.filter((c) => !c.render), "finished-goods")} className="ui-btn-secondary"><Download className="h-4 w-4" /> Export</button>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Total Products" value={displaySummary.total_products ?? 0} icon={Package} color="bg-teal-700" />
-        <KpiCard label="Available" value={displaySummary.available ?? 0} icon={Box} color="bg-emerald-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Products" value={displaySummary.total_products ?? 0} icon={Package} color="bg-[var(--color-success)]" />
+        <KpiCard label="Available" value={displaySummary.available ?? 0} icon={Box} color="bg-[var(--color-success)]" />
         <KpiCard label="Reserved" value={displaySummary.reserved ?? 0} icon={Package} color="bg-amber-500" />
         <KpiCard label="Ready to Dispatch" value={displaySummary.ready_to_dispatch ?? 0} icon={Truck} color="bg-cyan-600" />
         <KpiCard label="Damaged" value={displaySummary.damaged ?? 0} icon={AlertTriangle} color="bg-rose-600" />

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle, Package, Plus, X } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import StoreManagerNav from "../../components/inventory/StoreManagerNav";
 import { useToast } from "../../context/ToastContext";
 import {
@@ -22,23 +23,6 @@ import {
 import useAuth from "../../hooks/useAuth";
 import { isStoreManager } from "../../config/permissions";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="mt-1 text-xl font-bold text-slate-900">{value ?? 0}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function GRNDetailModal({ row, onClose, onQC }) {
   if (!row) return null;
@@ -106,7 +90,7 @@ function GRNDetailModal({ row, onClose, onQC }) {
               <button
                 type="button"
                 onClick={() => onQC(row, "pass")}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
+                className="rounded-lg bg-[var(--color-success)] px-4 py-2 text-sm font-semibold text-white"
               >
                 Pass QC (post stock)
               </button>
@@ -257,7 +241,7 @@ export default function GoodsReceipt() {
           <button
             type="button"
             onClick={() => setSelected(r)}
-            className="text-xs font-semibold text-[#2563EB] hover:underline"
+            className="text-xs font-semibold text-[var(--color-primary)] hover:underline"
           >
             View
           </button>
@@ -275,7 +259,7 @@ export default function GoodsReceipt() {
 
   if (loading) {
     return (
-      <div className="space-y-6 p-4 sm:p-6">
+      <div className="space-y-5 pb-4">
         {storeMode ? <StoreManagerNav /> : null}
         <Loader label="Loading goods receipts..." />
       </div>
@@ -283,25 +267,21 @@ export default function GoodsReceipt() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-5 pb-4">
       {storeMode ? <StoreManagerNav /> : null}
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">
-            Receive materials against purchase orders and post accepted quantity to inventory.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link to="/procurement/goods-receipt/create" className="ui-btn-primary">
+      <PageHeader
+        subtitle="Receive materials against purchase orders and post accepted quantity to inventory."
+        action={
+          <>
+            <Link to="/procurement/goods-receipt/create" className="ui-btn-primary">
             <Plus className="h-4 w-4" /> New GRN
           </Link>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      {!storeMode ? <ManufacturingWorkflowBar currentStepId="grn" /> : null}
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <KpiCard label="Today's GRN" value={summary.todays_grn} icon={Package} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Today's GRN" value={summary.todays_grn} icon={Package} color="bg-[var(--color-primary)]" />
         <KpiCard label="Pending QC" value={summary.pending_qc} icon={Package} color="bg-amber-500" />
         <KpiCard label="Received" value={summary.received} icon={CheckCircle} color="bg-green-600" />
         <KpiCard label="Rejected" value={summary.rejected} icon={Package} color="bg-red-500" />
@@ -313,7 +293,7 @@ export default function GoodsReceipt() {
         />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="ui-card p-4">
         <DataTable
           columns={columns}
           data={rows}

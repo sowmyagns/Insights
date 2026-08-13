@@ -6,7 +6,7 @@ import PageHeader from "../../components/common/PageHeader";
 import { FormRow, Input, Select, Textarea } from "../../components/common/FormField";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
-import { createProduct, getProductDetail, updateProduct } from "../../api/productsApi";
+import { createProduct, getProductDetail, getProducts, updateProduct } from "../../api/productsApi";
 import { PRODUCT_UNITS, WAREHOUSES } from "../../data/productsMasterData";
 
 const CATEGORY_OPTIONS = [
@@ -51,6 +51,19 @@ export default function CreateProduct() {
   const [loading, setLoading] = useState(isEdit);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
+  const [existingProducts, setExistingProducts] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getProducts()
+      .then((res) => {
+        if (!cancelled && Array.isArray(res?.data)) setExistingProducts(res.data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isEdit) return undefined;
@@ -91,9 +104,7 @@ export default function CreateProduct() {
   const set = (key, value) => {
     let val = value;
     if (["current_stock", "min_stock", "max_stock"].includes(key) && typeof val === "string") {
-      if (/^0+[1-9]/.test(val)) {
-        val = val.replace(/^0+/, "");
-      }
+      val = val.replace(/^0+(?=[0-9])/, "");
     }
     setForm((prev) => ({ ...prev, [key]: val }));
   };
@@ -114,23 +125,64 @@ export default function CreateProduct() {
     e.preventDefault();
     setError("");
     const errs = {};
-    if (!form.name.trim()) errs.name = "Material name is required";
+    if (!form.name.trim()) {
+      errs.name = "Material name is required";
+    } else if (!/[a-zA-Z0-9]/.test(form.name.trim())) {
+      errs.name = "Product Name must contain at least one letter or number";
+      const msg = "Product Name must contain at least one letter or number and cannot consist only of special characters.";
+      setError(msg);
+      addToast(msg, "error");
+      return;
+    }
     if (!numericOk(form.min_stock)) errs.min_stock = "Enter a valid number";
     if (!numericOk(form.current_stock)) errs.current_stock = "Enter a valid number";
+    if (form.current_stock !== "" && !isNaN(Number(form.current_stock)) && Number(form.current_stock) < 0) {
+      const msg = "Current Stock cannot be negative.";
+      setError(msg);
+      addToast(msg, "error");
+      return;
+    }
+    if (form.min_stock !== "" && !isNaN(Number(form.min_stock)) && Number(form.min_stock) < 0) {
+      const msg = "Min Stock cannot be negative.";
+      setError(msg);
+      addToast(msg, "error");
+      return;
+    }
     setFieldErrors(errs);
     if (Object.keys(errs).length) return;
+
+    const cleanName = form.name.trim().toLowerCase();
+    const dup = existingProducts.find(
+      (p) =>
+        String(p.id) !== String(id) &&
+        p.name &&
+        p.name.trim().toLowerCase() === cleanName
+    );
+    if (dup) {
+      const msg = `Product Name "${form.name.trim()}" already exists.`;
+      setError(msg);
+      addToast(msg, "error");
+      return;
+    }
 
     const minStock = Number(form.min_stock) || 0;
     const currentStock = Number(form.current_stock) || 0;
     const maxStock = Number(form.max_stock) || (minStock ? minStock * 10 : 100);
     const sku = (form._sku || "").trim() || autoSku(form.name, form.product_code);
 
+    const catStr = form.category || "Finished Goods";
+    const descText = [
+      form.description.trim(),
+      `Category: ${catStr}`
+    ].filter(Boolean).join(" | ");
+
     const payload = {
       tenant_id: Number(tenantId) || 1,
       sku,
       name: form.name.trim(),
-      description: form.description.trim() || null,
-      category: form.category || "Finished Goods",
+      description: descText,
+      category: catStr,
+      product_type: catStr,
       unit_cost: null,
       unit_price: null,
       min_stock: minStock,
@@ -174,7 +226,7 @@ export default function CreateProduct() {
     <div className="mx-auto max-w-3xl space-y-5 p-4 sm:p-6">
       <Link
         to="/masters/products"
-        className="inline-flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-teal-700"
+        className="inline-flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-[var(--color-success)]"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to materials

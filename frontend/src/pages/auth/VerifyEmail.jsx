@@ -56,7 +56,7 @@ export default function VerifyEmail() {
         {status === "success" && (
           <>
             <p className="text-green-700 mb-6">{message}</p>
-            <Link to="/login" className="text-teal-600 font-semibold hover:text-teal-700">
+            <Link to="/login" className="text-teal-600 font-semibold hover:text-[var(--color-success)]">
               Sign In
             </Link>
           </>
@@ -81,13 +81,13 @@ export default function VerifyEmail() {
               <button
                 type="submit"
                 disabled={resendLoading}
-                className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg disabled:opacity-50"
+                className="w-full py-3 bg-teal-600 hover:bg-[var(--color-success)] text-white font-bold rounded-lg disabled:opacity-50"
               >
                 {resendLoading ? "Sending..." : "Resend Verification Email"}
               </button>
             </form>
             <p className="mt-6">
-              <Link to="/login" className="text-teal-600 font-semibold hover:text-teal-700">
+              <Link to="/login" className="text-teal-600 font-semibold hover:text-[var(--color-success)]">
                 Back to Sign In
               </Link>
             </p>

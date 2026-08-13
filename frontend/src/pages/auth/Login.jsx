@@ -146,7 +146,7 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold uppercase tracking-wider rounded-lg transition disabled:opacity-50"
+                  className="w-full py-3 bg-teal-600 hover:bg-[var(--color-success)] text-white font-bold uppercase tracking-wider rounded-lg transition disabled:opacity-50"
                 >
                   {loading ? "Signing in..." : "SIGN IN"}
                 </button>

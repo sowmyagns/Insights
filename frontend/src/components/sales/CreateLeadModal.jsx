@@ -28,15 +28,36 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.customer_name || !form.company) {
+    if (!form.customer_name.trim() || !form.company.trim()) {
       setError("Customer Name and Company Name are required.");
       return;
+    }
+    if (form.contact && !form.contact.trim()) {
+      setError("Contact Person cannot contain only spaces. Please enter a valid name or leave it blank.");
+      return;
+    }
+    if (form.contact && !/[a-zA-Z]/.test(form.contact)) {
+      setError("Contact Person name must contain at least one letter.");
+      return;
+    }
+    const trimmedEmail = form.email.trim();
+    if (form.email && !trimmedEmail) {
+      setError("Email cannot contain only spaces. Please enter a valid email address or leave it blank.");
+      return;
+    }
+    if (trimmedEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedEmail) || trimmedEmail.includes("..")) {
+        setError("Please enter a valid email address.");
+        return;
+      }
     }
     setSaving(true);
     setError("");
 
     const payload = {
       ...form,
+      email: trimmedEmail || null,
       estimated_value: form.estimated_value ? Number(form.estimated_value) : 0,
       lead_id: `LD-${Math.floor(1000 + Math.random() * 9000)}`,
       created_at: new Date().toISOString().slice(0, 10),
@@ -233,7 +254,7 @@ export default function CreateLeadModal({ isOpen, onClose, onSuccess }) {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] shadow-sm transition-all disabled:opacity-50"
             >
               <Save className="h-4 w-4" /> Save Lead
             </button>

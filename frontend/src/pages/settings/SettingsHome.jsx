@@ -181,7 +181,7 @@ export default function SettingsHome() {
           <button
             type="button"
             onClick={() => setQuery("")}
-            className="mt-3 text-sm font-semibold text-teal-700 hover:underline"
+            className="mt-3 text-sm font-semibold text-[var(--color-success)] hover:underline"
           >
             Clear search
           </button>

@@ -319,7 +319,7 @@ export default function SettingsMyPermissions() {
         <Info className="h-4 w-4 text-slate-400" />
       </div>
 
-      <div className="mb-6 rounded-xl border border-teal-200 bg-teal-50/50 p-4 dark:border-teal-800 dark:bg-teal-900/20">
+      <div className="mb-6 rounded-xl border border-teal-200 bg-[var(--color-success-soft)]/50 p-4 dark:border-teal-800 dark:bg-teal-900/20">
         <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
           Role: {user?.role || "—"}
           {user?.roles?.length > 1 ? ` (${user.roles.join(", ")})` : ""}
@@ -334,7 +334,7 @@ export default function SettingsMyPermissions() {
             effectiveModules.map((code) => (
               <span
                 key={code}
-                className="rounded-full bg-white px-3 py-1 text-xs font-medium text-teal-700 shadow-sm dark:bg-slate-800 dark:text-teal-400"
+                className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--color-success)] shadow-sm dark:bg-slate-800 dark:text-teal-400"
               >
                 {MODULE_LABELS[code] || code}
               </span>
@@ -399,7 +399,7 @@ export default function SettingsMyPermissions() {
           <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">
             Document Access Scope
           </h2>
-          <span className="inline-flex items-center gap-1 rounded border border-teal-600 bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700 dark:border-teal-500 dark:bg-teal-900/30 dark:text-teal-400">
+          <span className="inline-flex items-center gap-1 rounded border border-teal-600 bg-[var(--color-success-soft)] px-2 py-0.5 text-xs font-medium text-[var(--color-success)] dark:border-teal-500 dark:bg-teal-900/30 dark:text-teal-400">
             <Shield className="h-3.5 w-3.5" />
             PRO
           </span>
@@ -440,7 +440,7 @@ export default function SettingsMyPermissions() {
                   {item.label}
                 </span>
                 <Info className="h-3.5 w-3.5 text-slate-400" />
-                <span className="rounded border border-teal-600 bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700 dark:border-teal-500 dark:bg-teal-900/30 dark:text-teal-400">
+                <span className="rounded border border-teal-600 bg-[var(--color-success-soft)] px-2 py-0.5 text-xs font-medium text-[var(--color-success)] dark:border-teal-500 dark:bg-teal-900/30 dark:text-teal-400">
                   PRO
                 </span>
               </div>
@@ -502,7 +502,7 @@ export default function SettingsMyPermissions() {
               <span className="text-sm text-slate-700 dark:text-slate-300">
                 Enable IP Whitelisting
               </span>
-              <span className="rounded border border-teal-600 bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700 dark:border-teal-500 dark:bg-teal-900/30 dark:text-teal-400">
+              <span className="rounded border border-teal-600 bg-[var(--color-success-soft)] px-2 py-0.5 text-xs font-medium text-[var(--color-success)] dark:border-teal-500 dark:bg-teal-900/30 dark:text-teal-400">
                 PRO
               </span>
             </div>
@@ -538,7 +538,7 @@ export default function SettingsMyPermissions() {
             <span className="text-sm text-slate-700 dark:text-slate-300">
               Enable Store Permissions
             </span>
-            <span className="rounded border border-teal-600 bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700 dark:border-teal-500 dark:bg-teal-900/30 dark:text-teal-400">
+            <span className="rounded border border-teal-600 bg-[var(--color-success-soft)] px-2 py-0.5 text-xs font-medium text-[var(--color-success)] dark:border-teal-500 dark:bg-teal-900/30 dark:text-teal-400">
               PRO
             </span>
           </div>

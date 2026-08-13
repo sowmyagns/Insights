@@ -17,17 +17,14 @@ import {
   updateMachineStatus,
 } from "../../api/productionApi";
 import {
-  DEMO_MACHINES,
   DEPARTMENTS,
   IMPORT_TEMPLATE_HEADERS,
   MACHINE_STATUSES,
   MACHINE_TYPES,
-  OPERATORS,
   PRODUCTION_LINES,
   SHIFTS,
   STATUS_COLORS,
   WORK_CENTERS,
-  WORKFLOW_STEPS,
   computeMachineSummary,
   enrichApiMachine,
   normalizeStatus,
@@ -36,7 +33,7 @@ import {
 import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
 
 const PAGE_BG = "var(--color-bg)";
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-cta)";
 const PAGE_SIZES = [20, 50, 100];
 
 function SummaryCard({ label, value, icon: Icon, color, sub }) {
@@ -90,11 +87,11 @@ function MachineCard({ machine, onClick }) {
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
         <div>
           <p className="text-slate-400">Department</p>
-          <p className="font-medium text-slate-700">{machine.department}</p>
+          <p className="font-medium text-slate-700">{machine.department || "—"}</p>
         </div>
         <div>
           <p className="text-slate-400">Line</p>
-          <p className="font-medium text-slate-700">{machine.production_line}</p>
+          <p className="font-medium text-slate-700">{machine.production_line || "—"}</p>
         </div>
         <div>
           <p className="text-slate-400">Operator</p>
@@ -166,18 +163,20 @@ export default function MachineStatus() {
     setLoading(true);
     try {
       const [mRes, sRes] = await Promise.all([
-        getMachines().catch(() => ({ data: [] })),
+        getMachines(),
         getMachineSummary().catch(() => ({ data: null })),
       ]);
-      const apiRows = mRes.data || [];
+      const apiRows = Array.isArray(mRes?.data) ? mRes.data : [];
       setMachines(apiRows.map((row, i) => enrichApiMachine(row, i)));
-      setApiSummary(sRes.data);
+      setApiSummary(sRes?.data ?? null);
     } catch {
       setMachines([]);
+      setApiSummary(null);
+      addToast("Failed to load machines", "error");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [addToast]);
 
   usePageRefresh(loadMachines);
 
@@ -206,8 +205,8 @@ export default function MachineStatus() {
       if (filters.department && m.department !== filters.department) return false;
       if (filters.production_line && m.production_line !== filters.production_line) return false;
       if (filters.machine_type && m.machine_type !== filters.machine_type) return false;
-      if (filters.operator && !String(m.operator_name || "").toLowerCase().includes(filters.operator.toLowerCase())) return false;
-      if (filters.shift && m.shift !== filters.shift) return false;
+      if (filters.operator && !String(m.assigned_operator || m.operator_name || "").toLowerCase().includes(filters.operator.toLowerCase())) return false;
+      if (filters.shift && (m.current_shift || m.shift) !== filters.shift) return false;
       if (filters.work_center && m.work_center !== filters.work_center) return false;
       return true;
     });
@@ -269,28 +268,21 @@ export default function MachineStatus() {
   };
 
   const handleStatusChange = async (machine, newStatus, idleReason) => {
-    if (typeof machine.id === "number") {
-      try {
-        await updateMachineStatus(machine.id, tenantId, newStatus, idleReason);
-        addToast(`Machine ${newStatus}`);
-        loadMachines();
-        setSelected(null);
-        return;
-      } catch {
-        addToast("Status update failed", "error");
-        return;
-      }
+    if (typeof machine.id !== "number") {
+      addToast("Invalid machine record", "error");
+      return;
     }
-    setMachines((prev) =>
-      prev.map((m) =>
-        m.id === machine.id
-          ? { ...m, status: newStatus, display_status: newStatus }
-          : m
-      )
-    );
-    addToast(`Machine ${newStatus}`);
-    setSelected(null);
+    try {
+      await updateMachineStatus(machine.id, tenantId, newStatus, idleReason);
+      addToast(`Machine ${newStatus}`);
+      loadMachines();
+      setSelected(null);
+    } catch {
+      addToast("Status update failed", "error");
+    }
   };
+
+  const hasActiveFilters = Object.values(filters).some(Boolean);
 
   const columns = [
     { key: "code", label: "Code" },
@@ -341,7 +333,7 @@ export default function MachineStatus() {
           <SummaryCard label="Total Machines" value={summary.total_machines} icon={Cpu} color="bg-slate-600" />
           <SummaryCard label="Running" value={summary.running} icon={Zap} color="bg-green-600" />
           <SummaryCard label="Idle" value={summary.idle} icon={Activity} color="bg-yellow-500" />
-          <SummaryCard label="Maintenance" value={summary.maintenance} icon={Wrench} color="bg-blue-600" />
+          <SummaryCard label="Maintenance" value={summary.maintenance} icon={Wrench} color="bg-[var(--color-primary)]" />
           <SummaryCard label="Breakdown" value={summary.breakdown} icon={Activity} color="bg-red-600" />
           <SummaryCard label="Offline" value={summary.offline} icon={Cpu} color="bg-slate-800" />
           <SummaryCard label="Utilization" value={`${summary.utilization_pct}%`} icon={Activity} color="bg-indigo-600" />
@@ -408,7 +400,7 @@ export default function MachineStatus() {
               <button
                 type="button"
                 onClick={() => setViewMode("grid")}
-                className={`rounded-md p-2 ${viewMode === "grid" ? "bg-[#2563EB] text-white" : "text-slate-500"}`}
+                className={`rounded-md p-2 ${viewMode === "grid" ? "bg-[var(--color-primary)] text-white" : "text-slate-500"}`}
                 title="Grid view"
               >
                 <Grid3X3 className="h-4 w-4" />
@@ -416,7 +408,7 @@ export default function MachineStatus() {
               <button
                 type="button"
                 onClick={() => setViewMode("list")}
-                className={`rounded-md p-2 ${viewMode === "list" ? "bg-[#2563EB] text-white" : "text-slate-500"}`}
+                className={`rounded-md p-2 ${viewMode === "list" ? "bg-[var(--color-primary)] text-white" : "text-slate-500"}`}
                 title="List view"
               >
                 <LayoutList className="h-4 w-4" />
@@ -458,7 +450,41 @@ export default function MachineStatus() {
             </div>
           )}
 
-          {viewMode === "list" ? (
+          {filteredMachines.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 py-16 text-center">
+              <Cpu className="mx-auto h-12 w-12 text-slate-300" />
+              {machines.length === 0 ? (
+                <>
+                  <p className="mt-4 text-sm font-semibold text-slate-700">No machines found.</p>
+                  <p className="mt-1 text-sm text-slate-500">Add a machine to get started.</p>
+                  {!operatorMode && (
+                    <Link
+                      to="/production/machines/create"
+                      className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f]"
+                      style={{ background: YELLOW }}
+                    >
+                      <Plus className="h-4 w-4" /> New Machine
+                    </Link>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="mt-4 text-sm font-medium text-slate-600">
+                    {hasActiveFilters ? "No machines match your filters." : "No machines found."}
+                  </p>
+                  {hasActiveFilters && (
+                    <button
+                      type="button"
+                      onClick={() => setFilters(defaultFilters)}
+                      className="mt-2 text-sm font-semibold text-[#2563EB] hover:underline"
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          ) : viewMode === "list" ? (
             <>
               <div className="overflow-hidden rounded-lg border border-[#ececf0]">
                 <DataTable columns={columns} data={paginatedMachines} showSearch={false} pagination={false} />
@@ -510,85 +536,21 @@ export default function MachineStatus() {
             </>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {paginatedMachines.map((machine) => {
-                const normStatus = normalizeStatus(machine.status);
-                const statusConfig = STATUS_COLORS[normStatus] || STATUS_COLORS.idle;
-                return (
-                  <div
-                    key={machine.id}
-                    onClick={() => setSelected(machine)}
-                    className="group flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-[#2563EB] hover:shadow-md cursor-pointer"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                            {machine.code || `M-${machine.id}`}
-                          </span>
-                          <h3 className="text-base font-bold text-slate-900 group-hover:text-[#2563EB] line-clamp-1">
-                            {machine.name}
-                          </h3>
-                        </div>
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${statusConfig.badge}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${statusConfig.dot}`} />
-                          {statusLabel(machine.status)}
-                        </span>
-                      </div>
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                        <div className="rounded-lg bg-slate-50 p-2">
-                          <span className="text-[10px] text-slate-400 block">Department</span>
-                          <span className="font-semibold text-slate-700 truncate block">{machine.department || "—"}</span>
-                        </div>
-                        <div className="rounded-lg bg-slate-50 p-2">
-                          <span className="text-[10px] text-slate-400 block">Operator</span>
-                          <span className="font-semibold text-slate-700 truncate block">{machine.operator_name || "—"}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500">
-                      <span>Shift: <strong className="text-slate-700">{typeof machine.shift === "object" ? (machine.shift?.label || machine.shift?.id || "General") : (machine.shift || "General")}</strong></span>
-                      <span className="font-semibold text-[#2563EB]">View Details →</span>
-                    </div>
-                  </div>
-                );
-              })}
+              {paginatedMachines.map((machine) => (
+                <MachineCard key={machine.id} machine={machine} onClick={openMachine} />
+              ))}
             </div>
           )}
         </div>
-
-        <div className="flex flex-wrap gap-2 rounded-xl bg-slate-50 px-4 py-3">
-          {WORKFLOW_STEPS.map((step, i) => (
-            <span key={step} className="flex items-center gap-2 text-xs text-slate-600">
-              <span className="font-semibold text-[#2563EB]">{step}</span>
-              {i < WORKFLOW_STEPS.length - 1 && <span className="text-slate-300">→</span>}
-            </span>
-          ))}
-        </div>
       </div>
 
-      {filteredMachines.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
-          <Cpu className="mx-auto h-12 w-12 text-slate-300" />
-          <p className="mt-4 text-sm font-medium text-slate-600">No machines match your filters.</p>
-          <button type="button" onClick={() => setFilters(defaultFilters)} className="mt-2 text-sm font-semibold text-[#2563EB] hover:underline">
-            Clear filters
+      {filteredMachines.length > 0 && (
+        <div className="flex flex-wrap gap-2 text-xs text-slate-500 px-4 sm:px-6 lg:px-8">
+          <button type="button" onClick={handleExportPdf} className="inline-flex items-center gap-1 font-semibold text-slate-600 hover:text-[#2563EB]">
+            <Printer className="h-3 w-3" /> Print Report
           </button>
         </div>
-      ) : viewMode === "grid" ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredMachines.map((machine) => (
-            <MachineCard key={machine.id} machine={machine} onClick={openMachine} />
-          ))}
-        </div>
-      ) : (
-        <DataTable columns={columns} data={filteredMachines} onRowClick={openMachine} />
       )}
-
-      <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-        <button type="button" onClick={handleExportPdf} className="inline-flex items-center gap-1 font-semibold text-slate-600 hover:text-[#2563EB]">
-          <Printer className="h-3 w-3" /> Print Report
-        </button>
-      </div>
 
       {selected && (
         <MachineDetailModal

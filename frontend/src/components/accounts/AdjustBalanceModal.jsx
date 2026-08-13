@@ -202,7 +202,7 @@ export default function AdjustBalanceModal({
           </button>
           <button
             type="submit"
-            className="rounded-lg bg-[#F5C518] py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
+            className="rounded-lg bg-[var(--color-cta)] py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
           >
             Confirm
           </button>

@@ -19,7 +19,7 @@ export default function MaterialDetailModal({ material, onClose }) {
         </div>
         <div className="flex gap-1 overflow-x-auto border-b px-4 py-2">
           {TABS.map((t) => (
-            <button key={t} type="button" onClick={() => setTab(t)} className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === t ? "bg-[#2563EB] text-white" : "text-slate-600 hover:bg-slate-100"}`}>{t}</button>
+            <button key={t} type="button" onClick={() => setTab(t)} className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === t ? "bg-[var(--color-primary)] text-white" : "text-slate-600 hover:bg-slate-100"}`}>{t}</button>
           ))}
         </div>
         <div className="overflow-y-auto p-6">

@@ -39,7 +39,7 @@ export default function ConfirmDialog({
           onClick={onConfirm}
           disabled={loading}
           className={`rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${
-            destructive ? "bg-red-600 hover:bg-red-700" : "bg-teal-600 hover:bg-teal-700"
+            destructive ? "bg-red-600 hover:bg-red-700" : "bg-teal-600 hover:bg-[var(--color-success)]"
           }`}
         >
           {loading ? "Working…" : confirmLabel}

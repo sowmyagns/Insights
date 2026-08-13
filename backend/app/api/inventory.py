@@ -319,11 +319,13 @@ def update_stock_endpoint(
 def list_stock_movements_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     item_id: int | None = Query(None),
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ) -> list[StockMovementRead]:
     from app.services.inventory_service import list_stock_movements
 
-    return list_stock_movements(db, tenant_id, item_id)
+    return list_stock_movements(db, tenant_id, item_id, limit=limit, offset=offset)
 
 
 @router.post("/stock-movements", response_model=StockMovementRead)

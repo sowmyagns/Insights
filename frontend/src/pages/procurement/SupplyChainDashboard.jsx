@@ -1,24 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, IndianRupee, ShoppingCart, Truck, Users } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import Loader from "../../components/common/Loader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { useToast } from "../../context/ToastContext";
 import { getProcurementHub } from "../../api/procurementApi";
 import { formatInr, PROCUREMENT_FLOW } from "../../data/procurementMasterData";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div><p className="text-xs font-medium text-slate-500">{label}</p><p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value ?? 0}</p></div>
-        {Icon && <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}><Icon className="h-5 w-5 text-white" /></div>}
-      </div>
-    </div>
-  );
-}
 
 const alertIcons = { low_stock: AlertTriangle, delayed_po: Truck, pending_rfq: ShoppingCart, overdue_bill: IndianRupee, late_vendor: Users, rejected_qc: AlertTriangle };
 const emptyHub = {
@@ -51,17 +42,11 @@ export default function SupplyChainDashboard() {
   if (loading) return <Loader label="Loading procurement dashboard..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Purchase spend, vendor performance, pending orders, and procurement alerts.</p>
-        </div>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader subtitle="Purchase spend, vendor performance, pending orders, and procurement alerts." />
 
-      <ManufacturingWorkflowBar currentStepId="purchase_order" />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Purchase Spend" value={formatInr(hub.purchase_spend)} icon={IndianRupee} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Purchase Spend" value={formatInr(hub.purchase_spend)} icon={IndianRupee} color="bg-[var(--color-primary)]" />
         <KpiCard label="Pending Approvals" value={hub.pending_approvals} icon={ShoppingCart} color="bg-amber-500" />
         <KpiCard label="Open Request for Quotation (RFQ)s" value={hub.open_rfqs} icon={ShoppingCart} color="bg-indigo-600" />
         <KpiCard label="Active Vendors" value={hub.active_vendors} icon={Users} color="bg-teal-600" />
@@ -69,18 +54,18 @@ export default function SupplyChainDashboard() {
         <KpiCard label="Today's Deliveries" value={hub.todays_deliveries} icon={Truck} color="bg-green-600" />
       </div>
 
-      <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-medium text-slate-600 sm:text-xs">
+      <div className="ui-toolbar ui-card px-4 py-3 text-[var(--text-xs)] font-medium text-[var(--color-text-secondary)]">
         {PROCUREMENT_FLOW.map((s, i) => (
           <span key={s} className="flex items-center gap-1">
-            <span className="rounded bg-white px-1.5 py-0.5 shadow-sm">{s}</span>
-            {i < PROCUREMENT_FLOW.length - 1 && <span className="text-slate-400">↓</span>}
+            <span className="rounded bg-[var(--color-surface)] px-1.5 py-0.5 ring-1 ring-[var(--color-border)]">{s}</span>
+            {i < PROCUREMENT_FLOW.length - 1 && <span className="text-[var(--color-text-faint)]">↓</span>}
           </span>
         ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-900">Top Vendors</h2>
+        <div className="ui-card p-5">
+          <h2 className="ui-section-title mb-4">Top Vendors</h2>
           <ul className="space-y-2">
             {(hub.top_vendors || []).map((v) => (
               <li key={v.name} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
@@ -89,25 +74,25 @@ export default function SupplyChainDashboard() {
               </li>
             ))}
           </ul>
-          <Link to="/procurement/vendors" className="mt-3 inline-block text-sm font-semibold text-[#2563EB] hover:underline">View all vendors →</Link>
+          <Link to="/procurement/vendors" className="mt-3 inline-block text-sm font-semibold text-[var(--color-primary)] hover:underline">View all vendors →</Link>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-900">Pending Orders</h2>
+        <div className="ui-card p-5">
+          <h2 className="ui-section-title mb-4">Pending Orders</h2>
           <ul className="space-y-2">
             {(hub.pending_orders || []).map((o) => (
               <li key={o.po_number} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
-                <span><span className="font-medium text-[#2563EB]">{o.po_number}</span> · {o.vendor}</span>
+                <span><span className="font-medium text-[var(--color-primary)]">{o.po_number}</span> · {o.vendor}</span>
                 <span className="font-semibold">{formatInr(o.amount)}</span>
               </li>
             ))}
           </ul>
-          <Link to="/procurement/purchase-orders" className="mt-3 inline-block text-sm font-semibold text-[#2563EB] hover:underline">View all POs →</Link>
+          <Link to="/procurement/purchase-orders" className="mt-3 inline-block text-sm font-semibold text-[var(--color-primary)] hover:underline">View all POs →</Link>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 font-semibold text-slate-900">Alerts</h2>
+      <div className="ui-card p-5">
+        <h2 className="ui-section-title mb-4">Alerts</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {(hub.alerts || []).map((a, i) => {
             const Icon = alertIcons[a.type] || AlertTriangle;
@@ -137,7 +122,7 @@ export default function SupplyChainDashboard() {
 
 function QuickLink({ to, label }) {
   return (
-    <Link to={to} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:border-[#2563EB] hover:text-[#2563EB]">
+    <Link to={to} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:border-[#2563EB] hover:text-[var(--color-primary)]">
       {label} →
     </Link>
   );

@@ -4,7 +4,6 @@ import { ArrowLeft } from "lucide-react";
 
 import PageHeader from "../../components/common/PageHeader";
 import InventoryLineItems from "../../components/common/InventoryLineItems";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { createMaterialRequest } from "../../api/procurementApi";
 import { getInventoryDashboard } from "../../api/inventoryApi";
 import useTenantId from "../../hooks/useTenantId";
@@ -123,12 +122,11 @@ export default function CreateMaterialRequest() {
     <div className="mx-auto max-w-2xl space-y-6">
       <Link
         to="/procurement/material-requests"
-        className="inline-flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400"
+        className="inline-flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-[var(--color-success)] dark:text-teal-400"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to material requests
       </Link>
-      <ManufacturingWorkflowBar currentStepId="purchase_request" compact />
       <PageHeader
         title="New material request"
         subtitle="Request raw materials for production. Convert to a purchase order when ready."

@@ -116,7 +116,7 @@ export default function DataTable({
             <button
               type="button"
               onClick={clearFilters}
-              className="text-sm font-medium text-teal-700 hover:text-teal-800 dark:text-teal-400"
+              className="text-sm font-medium text-[var(--color-success)] hover:text-[var(--color-success)] dark:text-teal-400"
             >
               Clear filters
             </button>

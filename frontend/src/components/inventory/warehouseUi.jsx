@@ -39,7 +39,7 @@ export function WhStickyHeader({ breadcrumb, title, subtitle, actions }) {
 export function WhKpiCard({ label, value, icon: Icon, tone = "primary", hint, to }) {
   const tones = {
     primary: "bg-[var(--color-primary)]",
-    emerald: "bg-emerald-600",
+    emerald: "bg-[var(--color-success)]",
     amber: "bg-amber-500",
     red: "bg-red-500",
     slate: "bg-slate-600",

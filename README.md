@@ -4,7 +4,7 @@
 
 **Tagline:** Business Intelligence • Analytics • AI
 
-Security hardening (auth lockout, email verification, refresh tokens, RBAC, tenant isolation, headers) is documented in [SECURITY_REPORT.md](./SECURITY_REPORT.md).
+Security hardening (auth lockout, email verification, refresh tokens, RBAC, tenant isolation, headers) is documented in [SECURITY_REPORT.md](./SECURITY_REPORT.md). Architecture and recent UI/live-data analysis: [PROJECT_ANALYSIS_REPORT.md](./PROJECT_ANALYSIS_REPORT.md).
 
 ## Branding & Assets
 
@@ -55,17 +55,37 @@ To add or replace slides, drop PNG/JPG files into `frontend/public/auth/` using 
 - **Vendor chunking** – `vite.config.js` splits **recharts**, **react-vendor**, **i18n**, **axios**, and **export-libs** (xlsx/jspdf) so the browser can cache them and load them in parallel only when needed.
 - **Dashboard** – Chart code lives in the `recharts` chunk and is fetched only when the user opens the dashboard.
 
+### UI design system (colors & buttons)
+
+Central tokens live in `frontend/src/index.css` (`:root`). Prefer CSS variables and shared button classes over page-specific hex.
+
+| Role | Token / class | Typical use |
+|------|---------------|-------------|
+| Primary | `--color-primary` / `ui-btn-primary` | Standard primary actions |
+| Success | `--color-success` (`#036F71`) / `ui-btn-success` | Complete / produce / planning CTAs |
+| Action teal | `--color-action-teal` (`#0F6D84`) | Selective purchase/payment CTAs |
+| Action blue | `--color-action-blue` (`#7E93CC`) | Selective invoice create |
+| Soft blue | `--color-primary-soft` (`#BBDEFC`) | Light secondary CTAs (e.g. Create Vendor) |
+| Warning / CTA yellow | `--color-cta` / `ui-btn-cta` | Use **selectively** for warnings & attention—not every Create button |
+| Danger | `--color-danger` / `ui-btn-danger` | Delete / destructive |
+
+JS mirrors: `frontend/src/theme/colors.js`, `frontend/src/styles/theme.js`. Shared component: `ActionButton` (`frontend/src/components/common/ActionButton.jsx`).
+
+**Global search** (navbar): `GlobalSearch` — nested input wrapper (icon does not jump when results open), clear control, Escape / click-outside.
+
 ## Features
 
 ### Production Management
 - Production planning (orders, scheduling)
+- MRP (material requirement planning) with links to production planning
 - Work orders
+- **Job Card** (`/production/job-card`) — shop-floor document view over live work orders (list + detail workflow); create via quick work order
 - Batch tracking
 - Machine status monitoring
 - Daily production reports
 
 ### Inventory & Raw Material Management
-- Store dashboard (`/inventory/dashboard`)
+- Store dashboard (`/inventory/dashboard`) with product search (stable icon, clear, empty state)
 - Raw materials & finished goods (`/inventory/raw-materials`, `/inventory/finished-goods`)
 - Stock transfer, adjustment, ledger, warehouses (`/inventory/warehouses`)
 - Inventory settings (`/inventory/settings`)
@@ -78,7 +98,8 @@ To add or replace slides, drop PNG/JPG files into `frontend/public/auth/` using 
 - **Products** (`/masters/products`) — list, create/edit modal; create form at `/masters/products/create`; bulk import at `/masters/products/bulk-import`
 - Deep-link create for customers: `/sales/customers/create` → opens the create modal on the list page
 
-### Procurement & Vendor Master
+### Purchases & Procurement
+- **Purchases** sidebar: Purchase (`/purchases`), Payments Made, Debit Note, Purchase Order
 - Purchase orders, material requests, goods receipt (GRN), supplier payments
 - **Enterprise Vendor Master** (`/procurement/vendors`) on the existing `suppliers` table
   - Company, contact, GST, address (PIN auto-fill), bank & procurement terms
@@ -213,15 +234,16 @@ Insights Iva/
 │   ├── package.json
 │   └── .env
 │
-└── README.md
+├── README.md
+├── SECURITY_REPORT.md
+└── PROJECT_ANALYSIS_REPORT.md
 ```
-
 ### Backend Code Map
 
 | Module | API (`app/api/`) | Service (`app/services/`) | Models |
 |--------|------------------|---------------------------|--------|
-| Auth | auth.py | auth_service.py | user, tenant, role |
-| Production | production.py | production_service.py | production, product, machine |
+| Auth | auth.py | auth_service.py, security_service.py | user, tenant, role; security tokens |
+| Production | production.py / production_api | production_service.py, job_card_service.py | production, product, machine, work orders |
 | Inventory | inventory.py | inventory_service.py | inventory (Warehouse, Supplier/Vendor, Item, StockLevel, StockMovement) |
 | Procurement | procurement.py | procurement_service.py, vendor_service.py, bank_lookup_service.py | procurement (PurchaseOrder, MaterialRequest, GoodsReceipt, SupplierPayment); VendorProduct; Supplier enterprise fields |
 | Sales | sales.py | sales_service.py | sales (Customer, SalesOrder, Invoice, Payment) |
@@ -241,10 +263,10 @@ Insights Iva/
 |------|-------|------------|
 | Auth | Login, Register | authApi, `BrandLogo`, `AuthSlider` |
 | Dashboard | Dashboard (KPIs, charts) | productionApi, inventoryApi, hrApi, analyticsApi, accountsApi |
-| Production | Planning, WorkOrders, BatchTracking, MachineStatus, DailyReports, CreateProduction, CreateMachine | productionApi |
-| Inventory | Dashboard, RawMaterials, FinishedGoods, Warehouses, Stock*, CreateItem | inventoryApi |
+| Production | Planning, MRP, WorkOrders, JobCard, BatchTracking, MachineStatus, DailyReports, CreateProduction, CreateMachine | productionApi |
+| Inventory | Dashboard (product search), RawMaterials, FinishedGoods, Warehouses, Stock*, CreateItem | inventoryApi |
 | Masters | Customers, BulkImportBuyer; VendorManagement, BulkImportSeller, CreateVendor, VendorDetail; ProductsMaster, BulkImportProduct, CreateProduct; BomMaster, DepartmentManagement | salesApi, procurementApi, productsApi |
-| Procurement | PurchaseOrders, MaterialRequests, GoodsReceipt, SupplierPayments (+ create pages) | procurementApi |
+| Procurement / Purchases | PurchaseOrders, MaterialRequests, GoodsReceipt, SupplierPayments; Purchases, PaymentsMade, DebitNotes (+ create pages) | procurementApi, bizDocumentsApi |
 | Sales | Invoices, Quotations, PaymentReceipts, Customers, document forms | salesApi |
 | Accounts | Ledger, Expense, ChartOfAccounts, ManualJournal, BalanceSheet, ProfitLoss, Reports | accountsApi |
 | HR | HRDashboard, Attendance, Shifts, Payroll, Performance, Employees + create pages | hrApi |
@@ -551,12 +573,12 @@ CORS_ORIGINS=http://localhost:5173
 1. **Login:** API login with your registered company email and password.
 2. **Language:** Click the Language button (🌐) in the top bar to switch between English, Hindi, Tamil, or Telugu.
 3. **Notifications:** Click the bell icon (🔔) in the top bar to view in-app notifications. Unread items are highlighted; opening one marks it read and updates the badge without refreshing the page.
-4. **Dashboard:** View production, inventory, HR, and machine status summaries.
-5. **Production:** Create production orders, work orders, machines; track batches and daily reports. Tables support search, sorting, pagination.
-6. **Inventory / Materials:** Store dashboard, raw materials, finished goods, warehouses, stock movements; products also under Masters → Products.
+4. **Dashboard:** View production, inventory, HR, and machine status summaries. Use the top **search** bar to jump to pages.
+5. **Production:** Create production orders, work orders, machines; open **Job Card** for shop-floor workflow views; track batches and daily reports. Tables support search, sorting, pagination.
+6. **Inventory / Materials:** Store dashboard (product search), raw materials, finished goods, warehouses, stock movements; products also under Masters → Products.
 7. **Masters:** Customers, Vendors, Products — create/edit via modals; bulk import pages for each.
-8. **Procurement / Vendors:** Vendor Master, purchase orders, material requests, GRN, supplier payments.
-9. **Sales:** Invoices, quotations, receipts, and related sales documents.
+8. **Purchases / Procurement:** Purchases, payments made, debit notes, Vendor Master, purchase orders, material requests, GRN, supplier payments.
+9. **Sales:** Invoices, quotations, payment receipts, and related sales documents.
 10. **Accounts:** Ledger, expenses, chart of accounts, journals, P&L, balance sheet, reports.
 11. **Settings:** Theme, language, company profile, invoice/format/template/sector/sequence settings where enabled.
 
@@ -565,7 +587,7 @@ CORS_ORIGINS=http://localhost:5173
 | Prefix | Endpoints |
 |--------|-----------|
 | `/auth/` | `POST /login`, `POST /register`, `POST /refresh`, `POST /logout`, verify-email, forgot/reset-password |
-| `/production/` | products, orders, work-orders, batches, machines, machine-status, daily-reports |
+| `/production/` | products, orders, work-orders, **job-cards** (list/detail), batches, machines, machine-status, daily-reports, MRP-related endpoints as exposed |
 | `/inventory/` | warehouses, suppliers, items, items/barcode/{barcode}, dashboard, stock-levels, stock-movements |
 | `/procurement/` | purchase-orders, **vendors** (CRUD, soft-delete, bulk-status, summary, export, purchase-history, products, bank-lookup), material-requests, goods-receipt, supplier-payments |
 | `/hr/` | dashboard, employees, shifts, attendance (clock-in, clock-out), payroll, performance |

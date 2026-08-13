@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { AlertCircle, CheckCircle, Clock, FileSearch, Timer, XCircle } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import QualityFilters from "../../components/quality/QualityFilters";
@@ -9,25 +11,6 @@ import { useToast } from "../../context/ToastContext";
 import { getIncomingEnriched, getIncomingSummary } from "../../api/qualityApi";
 import { DEMO_INCOMING_LIST, DEMO_INCOMING_SUMMARY, QUALITY_FLOW, qcStatusColor } from "../../data/qualityMasterData";
 
-function KpiCard({ label, value, icon: Icon, color, suffix }) {
-  return (
-    <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl">
-          {value}{suffix || ""}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 export default function IncomingInspection() {
   const { addToast } = useToast();
@@ -113,15 +96,11 @@ export default function IncomingInspection() {
   if (loading) return <Loader label="Loading incoming inspections..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">IQC for raw materials — PO, vendor, batch verification before inventory receipt.</p>
-        </div>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader subtitle="IQC for raw materials — PO, vendor, batch verification before inventory receipt." />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Today's Inspections" value={summary.todays_inspections} icon={FileSearch} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Today's Inspections" value={summary.todays_inspections} icon={FileSearch} color="bg-[var(--color-primary)]" />
         <KpiCard label="Pending Inspection" value={summary.pending_inspection} icon={Clock} color="bg-orange-500" />
         <KpiCard label="Passed" value={summary.passed} icon={CheckCircle} color="bg-green-600" />
         <KpiCard label="Failed" value={summary.failed} icon={XCircle} color="bg-red-500" />
@@ -129,18 +108,18 @@ export default function IncomingInspection() {
         <KpiCard label="Avg Inspection Time" value={summary.avg_inspection_time} suffix=" min" icon={Timer} color="bg-indigo-600" />
       </div>
 
-      <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-medium text-slate-600 sm:text-xs">
+      <div className="ui-toolbar ui-card px-4 py-3 text-[var(--text-xs)] font-medium text-[var(--color-text-secondary)]">
         {QUALITY_FLOW.map((s, i) => (
           <span key={s} className="flex items-center gap-1">
-            <span className="rounded bg-white px-1.5 py-0.5 shadow-sm">{s}</span>
-            {i < QUALITY_FLOW.length - 1 && <span className="text-slate-400">↓</span>}
+            <span className="rounded bg-[var(--color-surface)] px-1.5 py-0.5 ring-1 ring-[var(--color-border)]">{s}</span>
+            {i < QUALITY_FLOW.length - 1 && <span className="text-[var(--color-text-faint)]">↓</span>}
           </span>
         ))}
       </div>
 
       <QualityFilters search={search} onSearchChange={setSearch} resultFilter={resultFilter} onResultFilterChange={setResultFilter} searchPlaceholder="Search inspection, vendor, material, PO..." />
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="ui-card p-4">
         <DataTable columns={columns} data={filtered} searchPlaceholder="" searchKeys={[]} />
       </div>
     </div>

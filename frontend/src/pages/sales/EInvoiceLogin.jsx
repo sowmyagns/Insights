@@ -158,7 +158,7 @@ export default function EInvoiceLogin() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full rounded-lg bg-[#2563eb] py-3 text-[15px] font-bold text-white shadow-sm hover:bg-[#1d4ed8] disabled:opacity-60"
+            className="w-full rounded-lg bg-[var(--color-primary)] py-3 text-[15px] font-bold text-white shadow-sm hover:bg-[var(--color-primary-hover)] disabled:opacity-60"
           >
             {saving ? "Logging in…" : "Login"}
           </button>

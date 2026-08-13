@@ -57,7 +57,7 @@ export default function AlertsView({
               addToast(err.response?.data?.detail || "Failed to acknowledge", "error");
             }
           }}
-          className="rounded-lg border border-teal-200 px-3 py-1 text-xs font-medium text-teal-700 hover:bg-teal-50 dark:border-teal-800 dark:text-teal-300"
+          className="rounded-lg border border-teal-200 px-3 py-1 text-xs font-medium text-[var(--color-success)] hover:bg-[var(--color-success-soft)] dark:border-teal-800 dark:text-teal-300"
         >
           Acknowledge
         </button>

@@ -213,7 +213,7 @@ function CompanySection() {
     >
       <SectionCard title="Brand">
         <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-2xl font-bold text-teal-700 dark:border-slate-600 dark:bg-slate-900">
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-2xl font-bold text-[var(--color-success)] dark:border-slate-600 dark:bg-slate-900">
             {(form.company_name || "G").slice(0, 1).toUpperCase()}
           </div>
           <div>

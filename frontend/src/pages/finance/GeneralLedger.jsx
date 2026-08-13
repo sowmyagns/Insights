@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { BookOpen, Building2, IndianRupee, Landmark, Scale, TrendingUp } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import FinanceFilters from "../../components/finance/FinanceFilters";
@@ -9,23 +11,6 @@ import { useToast } from "../../context/ToastContext";
 import { getGLEnriched, getGLSummary } from "../../api/accountsApi";
 import { COST_CENTERS, GL_PLANNED_FEATURES, formatInr } from "../../data/financeMasterData";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="ui-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}>
-            <Icon className="h-4 w-4 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default function GeneralLedger() {
   const { addToast } = useToast();
@@ -121,19 +106,13 @@ export default function GeneralLedger() {
 
   return (
     <div className="space-y-5 pb-4">
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-eyebrow">Finance</p>
-          <h2 className="mt-0.5 ui-title">General Ledger</h2>
-          <p className="ui-subtitle">Central accounting ledger — vouchers, journal entries, and cost center allocation.</p>
-        </div>
-      </header>
+      <PageHeader subtitle="Central accounting ledger — vouchers, journal entries, and cost center allocation." />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Total Assets" value={formatInr(summary.total_assets)} icon={Building2} color="bg-teal-700" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Assets" value={formatInr(summary.total_assets)} icon={Building2} color="bg-[var(--color-success)]" />
         <KpiCard label="Total Liabilities" value={formatInr(summary.total_liabilities)} icon={Scale} color="bg-amber-500" />
         <KpiCard label="Equity" value={formatInr(summary.equity)} icon={Landmark} color="bg-indigo-600" />
-        <KpiCard label="Revenue" value={formatInr(summary.revenue)} icon={TrendingUp} color="bg-emerald-600" />
+        <KpiCard label="Revenue" value={formatInr(summary.revenue)} icon={TrendingUp} color="bg-[var(--color-success)]" />
         <KpiCard label="Expenses" value={formatInr(summary.expenses)} icon={IndianRupee} color="bg-rose-600" />
         <KpiCard label="Cash Balance" value={formatInr(summary.cash_balance)} icon={BookOpen} color="bg-cyan-600" />
       </div>
@@ -145,7 +124,7 @@ export default function GeneralLedger() {
           <p className="mt-2 text-sm text-slate-500">Journal entries will auto-post from AP, AR, and payment workflows.</p>
           <ul className="mx-auto mt-6 grid max-w-lg gap-2 text-left text-sm text-slate-600 sm:grid-cols-2">
             {GL_PLANNED_FEATURES.map((f) => (
-              <li key={f} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-teal-700" />{f}</li>
+              <li key={f} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" />{f}</li>
             ))}
           </ul>
         </div>

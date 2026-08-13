@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { Banknote, CheckCircle, CreditCard, IndianRupee, Plus, Users, XCircle } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import FinanceFilters from "../../components/finance/FinanceFilters";
@@ -10,23 +12,6 @@ import { useToast } from "../../context/ToastContext";
 import { getPaymentSummary, getPaymentsEnriched } from "../../api/accountsApi";
 import { formatInr, statusColor } from "../../data/financeMasterData";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="ui-card p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 const INITIAL_PAY_SUMMARY = {
   cash_received_today: 0,
@@ -168,7 +153,7 @@ export default function PaymentTracking() {
     {
       key: "attachment",
       label: "Attachment",
-      render: (r) => r.attachment ? <span className="text-xs text-teal-800">{r.attachment}</span> : "—",
+      render: (r) => r.attachment ? <span className="text-xs text-[var(--color-primary)]">{r.attachment}</span> : "—",
     },
     { key: "created_by", label: "Created By", render: (r) => r.created_by || "—" },
   ];
@@ -177,31 +162,27 @@ export default function PaymentTracking() {
 
   return (
     <div className="space-y-5 pb-4">
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-eyebrow">Finance</p>
-          <h2 className="mt-0.5 ui-title">Payment Tracking</h2>
-          <p className="ui-subtitle">
-            Customer receipts and vendor payments — UPI, NEFT, RTGS, cash, and bank transfers.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
+      <PageHeader
+        subtitle="Customer receipts and vendor payments — UPI, NEFT, RTGS, cash, and bank transfers."
+        action={
+          <>
+            <button
             type="button"
             onClick={() => setShowPaymentModal(true)}
             className="ui-btn-primary"
           >
             <Plus className="h-4 w-4" /> Record Payment
           </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Total Amount" value={formatInr(computedSummary.total_amount)} icon={IndianRupee} color="bg-teal-700" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Amount" value={formatInr(computedSummary.total_amount)} icon={IndianRupee} color="bg-[var(--color-success)]" />
         <KpiCard label="Customer Receipts" value={formatInr(computedSummary.customer_receipts)} icon={Users} color="bg-indigo-600" />
         <KpiCard label="Vendor Payments" value={formatInr(computedSummary.vendor_payments)} icon={Banknote} color="bg-slate-600" />
         <KpiCard label="Bank Transfers" value={formatInr(computedSummary.bank_transfers)} icon={CreditCard} color="bg-cyan-600" />
-        <KpiCard label="Completed" value={computedSummary.completed_payments} icon={CheckCircle} color="bg-emerald-600" />
+        <KpiCard label="Completed" value={computedSummary.completed_payments} icon={CheckCircle} color="bg-[var(--color-success)]" />
         <KpiCard label="Failed / Pending" value={`${computedSummary.failed_payments} / ${computedSummary.pending_payments}`} icon={XCircle} color="bg-rose-600" />
       </div>
 

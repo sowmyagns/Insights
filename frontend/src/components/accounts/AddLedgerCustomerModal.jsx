@@ -146,13 +146,48 @@ export default function AddLedgerCustomerModal({ open, onClose, onSaved, custome
       addToast("Company Name is required", "error");
       return;
     }
+    const gstinVal = form.gstin ? form.gstin.trim() : "";
+    if (gstinVal) {
+      if (/[a-z]/.test(gstinVal)) {
+        addToast("GSTIN must contain only uppercase letters and numeric values", "error");
+        return;
+      }
+      if (gstinVal.length !== 15) {
+        addToast("GSTIN must be exactly 15 characters (e.g. 27AAAAA0000A1Z5)", "error");
+        return;
+      }
+      const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Zz0-9A-Z]{1}[0-9A-Z]{1}$/;
+      if (!gstinRegex.test(gstinVal)) {
+        addToast("Invalid GSTIN format. Standard GSTIN format is required (e.g. 27AAAAA0000A1Z5)", "error");
+        return;
+      }
+    }
+    const phoneVal = form.phone.trim();
+    if (phoneVal) {
+      if (/\D/.test(phoneVal)) {
+        addToast("Mobile No. must contain only numeric digits (0-9)", "error");
+        return;
+      }
+      if (phoneVal.length !== 10) {
+        addToast("Mobile No. must be exactly 10 digits", "error");
+        return;
+      }
+    }
+    const emailVal = form.email.trim();
+    if (emailVal) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailVal) || emailVal.includes("..")) {
+        addToast("Please enter a valid email address", "error");
+        return;
+      }
+    }
     setSaving(true);
     try {
       const opening = form.opening_balance ? Number(form.opening_balance) : 0;
       const payload = {
         name: form.name.trim(),
         contact_name: form.contact_name.trim() || form.display_name.trim() || null,
-        gstin: form.gstin.trim().toUpperCase() || null,
+        gstin: form.gstin.trim() || null,
         phone: form.phone.trim() || null,
         email: form.email.trim() || null,
         address_line1: form.address.trim() || null,
@@ -220,7 +255,7 @@ export default function AddLedgerCustomerModal({ open, onClose, onSaved, custome
                 className={field}
                 placeholder="GSTIN No."
                 value={form.gstin}
-                onChange={(e) => set("gstin", e.target.value.toUpperCase())}
+                onChange={(e) => set("gstin", e.target.value)}
                 maxLength={15}
               />
             </OutlinedField>
@@ -268,7 +303,7 @@ export default function AddLedgerCustomerModal({ open, onClose, onSaved, custome
                 className={field}
                 placeholder="Enter Contact Phone No."
                 value={form.phone}
-                onChange={(e) => set("phone", e.target.value)}
+                onChange={(e) => set("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
               />
             </OutlinedField>
             <OutlinedField label="Contact Email Id" className="sm:col-span-2">
@@ -282,7 +317,7 @@ export default function AddLedgerCustomerModal({ open, onClose, onSaved, custome
             </OutlinedField>
           </div>
 
-          <div className="my-5 rounded bg-[#F5C518] py-2 text-center text-[14px] font-bold text-[#1a1a1f]">
+          <div className="my-5 rounded bg-[var(--color-cta)] py-2 text-center text-[14px] font-bold text-[#1a1a1f]">
             Billing Address
           </div>
 

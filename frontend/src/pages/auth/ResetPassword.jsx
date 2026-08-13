@@ -224,7 +224,7 @@ export default function ResetPassword() {
           <button
             type="submit"
             disabled={loading || success || !tokenValid}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-teal-600 py-3 font-bold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-teal-600 py-3 font-bold text-white transition hover:bg-[var(--color-success)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (
               <>
@@ -238,7 +238,7 @@ export default function ResetPassword() {
         </form>
 
         <p className="mt-6 text-center text-sm text-gray-600">
-          <Link to="/login" className="font-semibold text-teal-600 hover:text-teal-700">
+          <Link to="/login" className="font-semibold text-teal-600 hover:text-[var(--color-success)]">
             Back to Sign In
           </Link>
         </p>

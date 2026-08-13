@@ -303,11 +303,26 @@ class PlatformCompanyService:
         except HTTPException:
             self.db.rollback()
             raise
-        except IntegrityError:
+        except IntegrityError as exc:
             self.db.rollback()
+            err_msg = str(exc.orig).lower()
+            if "users.email" in err_msg or "user_email" in err_msg or "uq_users_tenant_email" in err_msg:
+                detail_msg = "Admin email is already registered."
+            elif "tenants.email" in err_msg or "tenant_email" in err_msg:
+                detail_msg = "Company email is already registered to another company."
+            elif "tenants.phone" in err_msg or "tenant_phone" in err_msg:
+                detail_msg = "Mobile number is already registered to another company."
+            elif "tenants.gst_number" in err_msg or "tenant_gst_number" in err_msg:
+                detail_msg = "GST Number is already registered to another company."
+            elif "tenants.company_code" in err_msg or "company_code" in err_msg:
+                detail_msg = "Company code is already registered."
+            elif "tenants.name" in err_msg:
+                detail_msg = "Company name is already registered."
+            else:
+                detail_msg = "Could not create company due to a database conflict."
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Could not create company due to a conflict. Please check email, GST, or mobile.",
+                detail=detail_msg,
             )
         except Exception as exc:
             self.db.rollback()

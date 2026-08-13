@@ -8,7 +8,7 @@ export default function AnalyticsEmptyChart({ title, description, sourceLink, so
       <p className="mt-1 max-w-sm text-xs text-slate-500 dark:text-slate-400">{description || "Record data in the source module to see charts."}</p>
       <div className="mt-4 flex gap-2">
         {sourceLink && (
-          <Link to={sourceLink} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">
+          <Link to={sourceLink} className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">
             <ExternalLink className="h-3.5 w-3.5" /> Go to {sourceLabel || "Source Module"}
           </Link>
         )}

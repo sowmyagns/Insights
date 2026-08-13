@@ -457,7 +457,7 @@ export default function CreatePurchaseOrder() {
         )}
       </Section>
       <div className="border-b border-[#d0d0d8] px-5 py-3">
-        <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold"><input type="checkbox" className="h-4 w-4 accent-[#F5C518]" checked={consignee} onChange={(e) => setConsignee(e.target.checked)} />Add Consignee (if different from above)</label>
+        <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold"><input type="checkbox" className="h-4 w-4 accent-[var(--color-cta)]" checked={consignee} onChange={(e) => setConsignee(e.target.checked)} />Add Consignee (if different from above)</label>
       </div>
       {consignee && (
         <Section
@@ -654,7 +654,7 @@ export default function CreatePurchaseOrder() {
             type="button"
             aria-label="Toggle signature"
             onClick={() => setSignature(!signature)}
-            className={`relative h-6 w-11 rounded-full ${signature ? "bg-[#F5C518]" : "bg-slate-300"}`}
+            className={`relative h-6 w-11 rounded-full ${signature ? "bg-[var(--color-cta)]" : "bg-slate-300"}`}
           >
             <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${signature ? "left-[22px]" : "left-0.5"}`} />
           </button>
@@ -800,7 +800,7 @@ export default function CreatePurchaseOrder() {
         </div>
       </Modal>
     )}
-    {modal === "addVendor" && <Modal title="Add Vendor" onClose={() => setModal(null)}><div className="grid gap-4 md:grid-cols-2">{[["GSTIN", "gstin"], ["Pancard", "pan"], ["Company Name *", "name"], ["Address", "address"], ["Company City", "city"], ["Pincode", "pincode"], ["Mobile *", "phone"], ["Email *", "email"]].map(([label, key]) => <Field key={key} label={label}><input className={`${field} mt-1`} value={addVendor[key]} onChange={(e) => setAddVendor({ ...addVendor, [key]: e.target.value })} /></Field>)}<Field label="GST Treatment Type"><select className={`${field} mt-1`} value={addVendor.gst_registration_type} onChange={(e) => setAddVendor({ ...addVendor, gst_registration_type: e.target.value })}>{GST_TYPES.map((value) => <option key={value}>{value}</option>)}</select></Field><Field label="Select State"><select className={`${field} mt-1`} value={addVendor.state} onChange={(e) => setAddVendor({ ...addVendor, state: e.target.value })}><option value="">Select state</option>{INDIAN_STATES.map((state) => <option key={state}>{state}</option>)}</select></Field></div><label className="mt-5 flex gap-2 text-sm"><input type="checkbox" className="accent-[#F5C518]" checked={addVendor.sells} onChange={(e) => setAddVendor({ ...addVendor, sells: e.target.checked })} />Do you also Sell items to this seller?</label><div className="mt-6 flex justify-end gap-3"><button type="button" className={outlineButton} onClick={() => setModal(null)}>Cancel</button><button type="button" className={darkButton} onClick={saveVendor}>Save</button></div></Modal>}
+    {modal === "addVendor" && <Modal title="Add Vendor" onClose={() => setModal(null)}><div className="grid gap-4 md:grid-cols-2">{[["GSTIN", "gstin"], ["Pancard", "pan"], ["Company Name *", "name"], ["Address", "address"], ["Company City", "city"], ["Pincode", "pincode"], ["Mobile *", "phone"], ["Email *", "email"]].map(([label, key]) => <Field key={key} label={label}><input className={`${field} mt-1`} value={addVendor[key]} onChange={(e) => setAddVendor({ ...addVendor, [key]: e.target.value })} /></Field>)}<Field label="GST Treatment Type"><select className={`${field} mt-1`} value={addVendor.gst_registration_type} onChange={(e) => setAddVendor({ ...addVendor, gst_registration_type: e.target.value })}>{GST_TYPES.map((value) => <option key={value}>{value}</option>)}</select></Field><Field label="Select State"><select className={`${field} mt-1`} value={addVendor.state} onChange={(e) => setAddVendor({ ...addVendor, state: e.target.value })}><option value="">Select state</option>{INDIAN_STATES.map((state) => <option key={state}>{state}</option>)}</select></Field></div><label className="mt-5 flex gap-2 text-sm"><input type="checkbox" className="accent-[var(--color-cta)]" checked={addVendor.sells} onChange={(e) => setAddVendor({ ...addVendor, sells: e.target.checked })} />Do you also Sell items to this seller?</label><div className="mt-6 flex justify-end gap-3"><button type="button" className={outlineButton} onClick={() => setModal(null)}>Cancel</button><button type="button" className={darkButton} onClick={saveVendor}>Save</button></div></Modal>}
     {modal === "selectProduct" && (
       <Modal title="Select Product" onClose={() => setModal(null)}>
         <div className="mb-4 flex items-center gap-2 border-b border-slate-400">
@@ -855,7 +855,7 @@ export default function CreatePurchaseOrder() {
             })}
             <span
               aria-hidden
-              className="pointer-events-none absolute bottom-0 left-0 h-[3px] w-1/2 rounded-full bg-[#F5C518] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+              className="pointer-events-none absolute bottom-0 left-0 h-[3px] w-1/2 rounded-full bg-[var(--color-cta)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
               style={{ transform: productTab === "optional" ? "translateX(100%)" : "translateX(0)" }}
             />
           </div>
@@ -932,7 +932,7 @@ export default function CreatePurchaseOrder() {
                         <input
                           type="radio"
                           name="productTaxType"
-                          className="mt-1 accent-[#F5C518]"
+                          className="mt-1 accent-[var(--color-cta)]"
                           checked={newProduct.taxType === opt.value}
                           onChange={() => setNewProduct({ ...newProduct, taxType: opt.value })}
                         />
@@ -1057,7 +1057,7 @@ export default function CreatePurchaseOrder() {
                     aria-label="Toggle maintain stock"
                     onClick={() => setNewProduct({ ...newProduct, maintainStock: !newProduct.maintainStock })}
                     className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-300 ${
-                      newProduct.maintainStock ? "bg-[#F5C518]" : "bg-slate-300"
+                      newProduct.maintainStock ? "bg-[var(--color-cta)]" : "bg-slate-300"
                     }`}
                   >
                     <span

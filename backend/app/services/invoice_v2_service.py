@@ -264,18 +264,7 @@ def list_invoices_v2(
     document_type: str | None = None,
     amount_band: str | None = None,
 ) -> InvoiceV2ListResponse:
-    stmt = (
-        select(Invoice)
-        .options(joinedload(Invoice.customer))
-        .where(Invoice.tenant_id == tenant_id)
-    )
-    if date_from:
-        stmt = stmt.where(Invoice.issue_date >= date_from)
-    if date_to:
-        stmt = stmt.where(Invoice.issue_date <= date_to)
-
-    invs = list(db.scalars(stmt).unique().all())
-    summary = compute_summary(invs)
+    from sqlalchemy import func, or_
 
     amount_min = amount_max = None
     if amount_band == "under2k":
@@ -289,32 +278,118 @@ def list_invoices_v2(
     elif amount_band == "20plus":
         amount_min, amount_max = 20000, None
 
-    filtered = _apply_filters(
-        invs,
-        search=search,
-        payment_filter=payment_filter,
-        due=due,
-        custom_due_date=custom_due_date,
-        invoice_status=invoice_status,
-        e_invoice_status=e_invoice_status,
-        e_waybill_status=e_waybill_status,
-        export_status=export_status,
-        document_type=document_type,
-        amount_min=amount_min,
-        amount_max=amount_max,
-    )
+    base_filters = [Invoice.tenant_id == tenant_id]
+    if date_from:
+        base_filters.append(Invoice.issue_date >= date_from)
+    if date_to:
+        base_filters.append(Invoice.issue_date <= date_to)
 
-    reverse = sort_by in ("date_desc", "amount_desc")
-    if sort_by in ("amount_desc", "amount_asc"):
-        filtered.sort(key=lambda i: float(i.grand_total or 0), reverse=reverse)
-    else:
-        filtered.sort(key=lambda i: i.issue_date or date.min, reverse=reverse)
+    # Summary without customer join (cheaper than hydrated list path).
+    summary = compute_summary(list(db.scalars(select(Invoice).where(*base_filters)).all()))
 
-    total = len(filtered)
+    filters = list(base_filters)
+    if amount_min is not None:
+        filters.append(Invoice.grand_total >= amount_min)
+    if amount_max is not None:
+        filters.append(Invoice.grand_total < amount_max)
+    if invoice_status == "cancelled":
+        filters.append(Invoice.invoice_status == "cancelled")
+    elif invoice_status == "active":
+        filters.append(Invoice.invoice_status != "cancelled")
+    if e_invoice_status and e_invoice_status != "all":
+        filters.append(Invoice.e_invoice_status == e_invoice_status)
+    if e_waybill_status and e_waybill_status != "all":
+        filters.append(Invoice.e_waybill_status == e_waybill_status)
+    if export_status == "active":
+        filters.append(Invoice.export_invoice_status == "active")
+    if payment_filter and payment_filter != "all":
+        pay_key = payment_filter.replace("partially_paid", "partial")
+        if pay_key in ("paid", "unpaid", "partial"):
+            filters.append(Invoice.payment_status == pay_key)
+
+    doc_map = {
+        "sale": ("tax_invoice", "sale_invoice"),
+        "sale_invoice": ("tax_invoice", "sale_invoice"),
+        "bos": ("bill_of_supply",),
+        "bill_of_supply": ("bill_of_supply",),
+        "export": ("export_invoice",),
+        "delivery_challan": ("delivery_challan",),
+        "challan": ("delivery_challan",),
+        "dc": ("delivery_challan",),
+        "credit_note": ("credit_note", "sales_return"),
+        "cn": ("credit_note", "sales_return"),
+        "sales_return": ("sales_return",),
+        "debit_note": ("debit_note",),
+        "dn": ("debit_note",),
+        "sales_debit_note": ("debit_note",),
+        "proforma": ("proforma", "export_proforma"),
+        "proforma_invoice": ("proforma", "export_proforma"),
+        "export_proforma": ("export_proforma",),
+    }
+    if document_type and document_type in doc_map:
+        filters.append(Invoice.document_type.in_(doc_map[document_type]))
+
+    stmt = select(Invoice).options(joinedload(Invoice.customer)).where(*filters)
+    q = (search or "").strip()
+    search_clause = None
+    if q:
+        search_clause = or_(
+            Invoice.invoice_number.ilike(f"%{q}%"),
+            Customer.name.ilike(f"%{q}%"),
+            Invoice.status.ilike(f"%{q}%"),
+        )
+        stmt = stmt.outerjoin(Customer, Invoice.customer_id == Customer.id).where(search_clause)
+
     page = max(1, page)
-    page_size = max(1, min(page_size, 100))
-    start = (page - 1) * page_size
-    page_rows = filtered[start : start + page_size]
+    page_size = max(1, min(page_size, 500))
+    reverse = sort_by in ("date_desc", "amount_desc")
+    needs_python_due = bool(due)
+
+    if needs_python_due:
+        invs = list(db.scalars(stmt).unique().all())
+        filtered = _apply_filters(
+            invs,
+            search=None,
+            payment_filter=None,
+            due=due,
+            custom_due_date=custom_due_date,
+            invoice_status=None,
+            e_invoice_status=None,
+            e_waybill_status=None,
+            export_status=None,
+            document_type=None,
+            amount_min=None,
+            amount_max=None,
+        )
+        if sort_by in ("amount_desc", "amount_asc"):
+            filtered.sort(key=lambda i: float(i.grand_total or 0), reverse=reverse)
+        else:
+            filtered.sort(key=lambda i: i.issue_date or date.min, reverse=reverse)
+        total = len(filtered)
+        start = (page - 1) * page_size
+        page_rows = filtered[start : start + page_size]
+    else:
+        if search_clause is not None:
+            count_stmt = (
+                select(func.count(Invoice.id))
+                .select_from(Invoice)
+                .outerjoin(Customer, Invoice.customer_id == Customer.id)
+                .where(*filters, search_clause)
+            )
+        else:
+            count_stmt = select(func.count(Invoice.id)).where(*filters)
+        total = int(db.scalar(count_stmt) or 0)
+        if sort_by in ("amount_desc", "amount_asc"):
+            order_col = Invoice.grand_total.desc() if reverse else Invoice.grand_total.asc()
+        else:
+            order_col = Invoice.issue_date.desc() if reverse else Invoice.issue_date.asc()
+        page_rows = list(
+            db.scalars(
+                stmt.order_by(order_col).offset((page - 1) * page_size).limit(page_size)
+            )
+            .unique()
+            .all()
+        )
 
     items = [
         InvoiceV2ListItem(

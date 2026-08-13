@@ -679,6 +679,11 @@ def on_startup():
         "ALTER TABLE company_settings ADD COLUMN mfa_authenticator BOOLEAN DEFAULT 0",
         "ALTER TABLE company_settings ADD COLUMN logo_url TEXT",
         "ALTER TABLE company_settings ADD COLUMN custom_fields_json TEXT",
+        "ALTER TABLE company_settings ADD COLUMN quotation_prefix VARCHAR(16)",
+        "ALTER TABLE company_settings ADD COLUMN quotation_next_number INTEGER DEFAULT 1",
+        "ALTER TABLE company_settings ADD COLUMN purchase_prefix VARCHAR(16)",
+        "ALTER TABLE company_settings ADD COLUMN purchase_next_number INTEGER DEFAULT 1",
+        "ALTER TABLE quotations ADD COLUMN meta_json TEXT",
     ]
     for ddl in _company_settings_columns:
         try:
@@ -686,6 +691,48 @@ def on_startup():
                 conn.execute(text(ddl))
         except Exception:
             pass
+
+    # Phase 3 integrity: unique indexes + stock FK indexes (idempotent)
+    _integrity_ddl = [
+        # Merge duplicate stock_levels onto highest id, then drop extras
+        """
+        UPDATE stock_levels
+        SET quantity = (
+            SELECT SUM(s2.quantity) FROM stock_levels s2
+            WHERE s2.warehouse_id = stock_levels.warehouse_id
+              AND s2.item_id = stock_levels.item_id
+        )
+        WHERE id IN (
+            SELECT mid FROM (
+                SELECT MAX(id) AS mid FROM stock_levels
+                GROUP BY warehouse_id, item_id HAVING COUNT(*) > 1
+            )
+        )
+        """,
+        """
+        DELETE FROM stock_levels
+        WHERE id NOT IN (
+            SELECT mid FROM (
+                SELECT MAX(id) AS mid FROM stock_levels GROUP BY warehouse_id, item_id
+            )
+        )
+        """,
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_stock_levels_warehouse_item ON stock_levels (warehouse_id, item_id)",
+        "CREATE INDEX IF NOT EXISTS ix_stock_levels_warehouse_id ON stock_levels (warehouse_id)",
+        "CREATE INDEX IF NOT EXISTS ix_stock_levels_item_id ON stock_levels (item_id)",
+        "CREATE INDEX IF NOT EXISTS ix_stock_movements_warehouse_id ON stock_movements (warehouse_id)",
+        "CREATE INDEX IF NOT EXISTS ix_stock_movements_item_id ON stock_movements (item_id)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_invoices_tenant_invoice_number ON invoices (tenant_id, invoice_number)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_quotations_tenant_quote_number ON quotations (tenant_id, quote_number)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_business_documents_tenant_type_number ON business_documents (tenant_id, doc_type, document_number)",
+    ]
+    for ddl in _integrity_ddl:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(ddl))
+        except Exception:
+            pass
+
     try:
         with engine.begin() as conn:
             conn.execute(text("UPDATE users SET email_verified = 1 WHERE email_verified = 0"))

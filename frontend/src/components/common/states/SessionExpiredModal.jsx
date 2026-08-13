@@ -45,7 +45,7 @@ export default function SessionExpiredModal({ open, onLogin }) {
         <button
           type="button"
           onClick={handleLogin}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-success)]"
         >
           <LogIn className="h-4 w-4" aria-hidden />
           Login Again

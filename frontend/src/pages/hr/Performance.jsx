@@ -1,3 +1,5 @@
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 ﻿import { useEffect, useState, useCallback } from "react";
 import { Award, BarChart2, CheckCircle2, Plus, X, Save } from "lucide-react";
 
@@ -11,23 +13,6 @@ import { useToast } from "../../context/ToastContext";
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 font-sans">{label}</p>
-          <p className="mt-1.5 text-2xl font-black tracking-tight text-slate-900 tabular-nums">{value}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-5.5 w-5.5 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default function Performance() {
   const tenantId = useTenantId();
@@ -129,29 +114,29 @@ export default function Performance() {
   if (loading && reviews.length === 0) return <Loader label="Loading performance reviews..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Monitor employee review periods, rating logs, goals achieved, and manager feedback.</p>
-        </div>
-        <div className="flex gap-2">
-          <button
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="Monitor employee review periods, rating logs, goals achieved, and manager feedback."
+        action={
+          <>
+            <button
             type="button"
             onClick={() => setShowCreateModal(true)}
             className="ui-btn-hr"
           >
             <Plus className="h-4 w-4" /> Create Review
           </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard label="Total Reviews" value={totalReviews} icon={Award} color="bg-blue-600" />
-        <KpiCard label="Avg Rating" value={avgRating} icon={CheckCircle2} color="bg-[#2563EB]" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Reviews" value={totalReviews} icon={Award} color="bg-[var(--color-primary)]" />
+        <KpiCard label="Avg Rating" value={avgRating} icon={CheckCircle2} color="bg-[var(--color-primary)]" />
         <KpiCard label="Avg Productivity" value={avgProd} icon={BarChart2} color="bg-indigo-600" />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="ui-card p-4">
         <Table
           columns={[
             {

@@ -151,7 +151,7 @@ export default function SettingsTeams() {
         <button
           type="button"
           onClick={() => navigate("/admin/roles")}
-          className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-teal-700"
+          className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-success)]"
         >
           <Plus className="h-4 w-4" />
           Add Team
@@ -215,7 +215,7 @@ export default function SettingsTeams() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        className="rounded p-1.5 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20"
+                        className="rounded p-1.5 text-teal-600 hover:bg-[var(--color-success-soft)] dark:hover:bg-teal-900/20"
                         title="Edit"
                         onClick={() => navigate("/admin/roles")}
                       >
@@ -223,7 +223,7 @@ export default function SettingsTeams() {
                       </button>
                       <button
                         type="button"
-                        className="flex items-center gap-1 rounded border border-teal-600 bg-teal-50 px-2 py-1 text-xs font-medium text-teal-700 hover:bg-teal-100 dark:border-teal-500 dark:bg-teal-900/30 dark:text-teal-400"
+                        className="flex items-center gap-1 rounded border border-teal-600 bg-[var(--color-success-soft)] px-2 py-1 text-xs font-medium text-[var(--color-success)] hover:bg-teal-100 dark:border-teal-500 dark:bg-teal-900/30 dark:text-teal-400"
                         title="Permissions"
                         onClick={() => navigate("/admin/roles")}
                       >

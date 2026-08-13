@@ -50,7 +50,7 @@ export function statusColor(s) {
     draft: "bg-slate-100 text-slate-700", sent: "bg-blue-100 text-blue-800", accepted: "bg-green-100 text-green-800",
     rejected: "bg-red-100 text-red-800", expired: "bg-orange-100 text-orange-800",
     pending: "bg-amber-100 text-amber-800", confirmed: "bg-blue-100 text-blue-800", packed: "bg-indigo-100 text-indigo-800",
-    shipped: "bg-teal-100 text-teal-800", delivered: "bg-green-100 text-green-800", cancelled: "bg-red-100 text-red-800",
+    shipped: "bg-teal-100 text-[var(--color-success)]", delivered: "bg-green-100 text-green-800", cancelled: "bg-red-100 text-red-800",
     in_transit: "bg-cyan-100 text-cyan-800", paid: "bg-green-100 text-green-800", overdue: "bg-red-100 text-red-800",
     partial: "bg-orange-100 text-orange-800",
   };

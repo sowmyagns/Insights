@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Plus, FileText, Upload, Calendar, User, X, Save, Download, CheckCircle, Trash2, ShieldCheck, FolderCheck } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -11,25 +13,6 @@ import usePageRefresh from "../../hooks/usePageRefresh";
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="group ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white shrink-0" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl" title={String(value)}>
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function formatBytes(bytes, decimals = 1) {
   if (!bytes || bytes === 0) return "0 Bytes";
@@ -181,7 +164,7 @@ Description : ${doc.description || 'N/A'}
       label: "Document Title",
       render: (r) => (
         <span className="flex items-center gap-2 font-semibold text-slate-900">
-          <FileText className="h-4 w-4 text-[#2563EB] shrink-0" />
+          <FileText className="h-4 w-4 text-[var(--color-primary)] shrink-0" />
           {r.title}
         </span>
       ),
@@ -215,7 +198,7 @@ Description : ${doc.description || 'N/A'}
         <button
           type="button"
           onClick={() => handleDownload(r)}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-[#2563EB] hover:underline"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-primary)] hover:underline"
         >
           <Download className="h-3.5 w-3.5" /> Download
         </button>
@@ -226,29 +209,29 @@ Description : ${doc.description || 'N/A'}
   if (loading && documents.length === 0) return <Loader label="Loading HR documents..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Access and organize policy manuals, employee handbooks, and personnel files.</p>
-        </div>
-        <div className="flex gap-2">
-          <button
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="Access and organize policy manuals, employee handbooks, and personnel files."
+        action={
+          <>
+            <button
             type="button"
             onClick={() => setShowUploadModal(true)}
             className="ui-btn-hr"
           >
             <Plus className="h-4 w-4" /> Add Document
           </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard label="Total Policy Docs" value={documents.length} icon={FileText} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Policy Docs" value={documents.length} icon={FileText} color="bg-[var(--color-primary)]" />
         <KpiCard label="Secure Storage" value="Encrypted (AES-256)" icon={ShieldCheck} color="bg-green-600" />
         <KpiCard label="Access Control" value="HR Admin & Execs" icon={FolderCheck} color="bg-purple-600" />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="ui-card p-4">
         <DataTable
           columns={columns}
           data={documents}
@@ -298,7 +281,7 @@ Description : ${doc.description || 'N/A'}
                     onClick={() => fileInputRef.current?.click()}
                     className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/80 p-6 text-center hover:border-blue-400 hover:bg-blue-50/30 cursor-pointer transition-all group"
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100/80 text-[#2563EB] group-hover:scale-110 transition-transform mb-2">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100/80 text-[var(--color-primary)] group-hover:scale-110 transition-transform mb-2">
                       <Upload className="h-6 w-6" />
                     </div>
                     <p className="text-sm font-semibold text-slate-800">Click to browse file</p>
@@ -307,7 +290,7 @@ Description : ${doc.description || 'N/A'}
                 ) : (
                   <div className="flex items-center justify-between rounded-2xl border border-blue-200 bg-blue-50/60 p-3.5">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-xs">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] text-white shadow-xs">
                         <CheckCircle className="h-5 w-5" />
                       </div>
                       <div className="min-w-0">

@@ -33,9 +33,27 @@ from app.services.inventory_service import get_total_stock, record_stock_movemen
 
 
 def _next_number(db: Session, tenant_id: int, prefix: str, model, field) -> str:
+    """Year-scoped sequential label. Prefer max(request_number) when available."""
     year = date.today().year
+    pattern = f"{prefix}-{year}-%"
+    if hasattr(model, "request_number"):
+        col = model.request_number
+        values = list(
+            db.scalars(
+                select(col).where(model.tenant_id == tenant_id, col.like(pattern))
+            ).all()
+        )
+        next_n = 1
+        for val in values:
+            try:
+                next_n = max(next_n, int(str(val).rsplit("-", 1)[-1]) + 1)
+            except ValueError:
+                continue
+        return f"{prefix}-{year}-{next_n:04d}"
+    # StockMovement and similar: count-based within tenant (legacy; still flush-safe in one txn)
     count = int(
-        db.scalar(select(func.count()).select_from(model).where(model.tenant_id == tenant_id)) or 0
+        db.scalar(select(func.count()).select_from(model).where(model.tenant_id == tenant_id))
+        or 0
     )
     return f"{prefix}-{year}-{count + 1:04d}"
 

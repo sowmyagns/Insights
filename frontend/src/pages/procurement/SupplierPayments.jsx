@@ -95,7 +95,7 @@ export default function SupplierPayments() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-4">
       <PageHeader
         title="Supplier Payments"
         subtitle={`Total paid: ₹${total.toLocaleString()}`}

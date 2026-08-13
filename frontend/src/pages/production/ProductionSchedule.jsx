@@ -73,7 +73,7 @@ function ProgressBar({ pct }) {
     <div className="flex items-center gap-2">
       <div className="flex gap-0.5">
         {Array.from({ length: blocks }).map((_, i) => (
-          <span key={i} className={`inline-block h-3 w-3 rounded-sm ${i < active ? "bg-[#2563EB]" : "bg-slate-200"}`} />
+          <span key={i} className={`inline-block h-3 w-3 rounded-sm ${i < active ? "bg-[var(--color-primary)]" : "bg-slate-200"}`} />
         ))}
       </div>
       <span className="text-sm font-semibold text-slate-700">{filled}%</span>
@@ -140,7 +140,7 @@ function TimelineView({ rows, onDrop }) {
                     row.status === "maintenance"
                       ? "bg-slate-500 cursor-default"
                       : row.status === "running"
-                        ? "bg-[#2563EB] cursor-grab active:cursor-grabbing"
+                        ? "bg-[var(--color-primary)] cursor-grab active:cursor-grabbing"
                         : "bg-amber-500 cursor-grab active:cursor-grabbing"
                   }`}
                   style={{
@@ -460,7 +460,7 @@ function NewScheduleModal({ onClose, onSuccess }) {
               <button
                 type="submit"
                 disabled={saving || productionOrders.length === 0}
-                className="flex items-center gap-2 rounded-xl bg-[#F5C518] px-5 py-2.5 text-xs font-extrabold text-gray-900 shadow-md hover:bg-yellow-400 active:scale-95 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-[var(--color-cta)] px-5 py-2.5 text-xs font-extrabold text-gray-900 shadow-md hover:bg-yellow-400 active:scale-95 transition-all disabled:opacity-50"
               >
                 <CheckCircle2 className="h-4 w-4 text-gray-900" />
                 {saving ? "Creating…" : "Create Schedule"}
@@ -659,7 +659,6 @@ export default function ProductionSchedule() {
   };
 
 const PAGE_BG = "var(--color-bg)";
-const YELLOW = "#F5C518";
 
   if (loading) return <Loader />;
 
@@ -668,18 +667,12 @@ const YELLOW = "#F5C518";
       <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
         {/* Header */}
         <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Calendar, Gantt timeline, Kanban, and machine-wise scheduling control center.
-            </p>
-          </div>
           <div className="flex flex-wrap gap-2">
             {!operatorMode && (
               <button
                 type="button"
                 onClick={() => setShowNewModal(true)}
-                className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-[#1a1a1f]"
-                style={{ background: YELLOW }}
+                className="ui-btn-primary"
               >
                 <Plus className="h-4 w-4" /> New Schedule
               </button>
@@ -705,7 +698,7 @@ const YELLOW = "#F5C518";
         <SummaryCard label="Completed" value={(dashboard.completed ?? 0).toLocaleString()} icon={CheckCircle2} iconWrap="bg-emerald-50 text-emerald-700" />
         <SummaryCard label="Pending" value={(dashboard.pending ?? 0).toLocaleString()} icon={ClipboardList} iconWrap="bg-amber-50 text-amber-700" />
         <SummaryCard label="Overall Progress" value={<ProgressBar pct={dashboard.overall_progress_pct} />} icon={Gauge} iconWrap="bg-indigo-50 text-indigo-700" />
-        <SummaryCard label="Machine Utilization" value={`${dashboard.machine_utilization_pct ?? 0}%`} icon={Zap} iconWrap="bg-teal-50 text-teal-700" />
+        <SummaryCard label="Machine Utilization" value={`${dashboard.machine_utilization_pct ?? 0}%`} icon={Zap} iconWrap="bg-[var(--color-success-soft)] text-[var(--color-success)]" />
         <SummaryCard label="Operators Present" value={dashboard.operators_present ?? 0} icon={Users} iconWrap="bg-blue-50 text-blue-700" />
         <SummaryCard label="Delayed Orders" value={dashboard.delayed_orders ?? 0} icon={AlertTriangle} iconWrap="bg-rose-50 text-rose-700" />
         <SummaryCard label="Material Shortage" value={dashboard.material_shortage ?? 0} icon={AlertTriangle} iconWrap="bg-orange-50 text-orange-700" />
@@ -722,7 +715,7 @@ const YELLOW = "#F5C518";
               type="button"
               onClick={() => setView(v.id)}
               className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                active ? "bg-[#2563EB] text-white" : "text-slate-600 hover:bg-slate-50"
+                active ? "bg-[var(--color-primary)] text-white" : "text-slate-600 hover:bg-slate-50"
               }`}
             >
               <Icon className="h-4 w-4" /> {v.label}
@@ -876,7 +869,7 @@ const YELLOW = "#F5C518";
         <SummaryCard label="Shift Efficiency" value={`${bottomKpis.shift_efficiency_pct ?? 0}%`} icon={Gauge} iconWrap="bg-sky-50 text-sky-700" />
         <SummaryCard label="Downtime" value={`${bottomKpis.downtime_minutes ?? 0} min`} icon={AlertTriangle} iconWrap="bg-rose-50 text-rose-700" />
         <SummaryCard label="Power Consumption" value={`${bottomKpis.power_kwh ?? 0} kWh`} icon={Zap} iconWrap="bg-orange-50 text-orange-700" />
-        <SummaryCard label="OEE" value={`${bottomKpis.oee_pct ?? 0}%`} icon={Target} iconWrap="bg-teal-50 text-teal-700" />
+        <SummaryCard label="OEE" value={`${bottomKpis.oee_pct ?? 0}%`} icon={Target} iconWrap="bg-[var(--color-success-soft)] text-[var(--color-success)]" />
         <SummaryCard label="Quality Rate" value={`${bottomKpis.quality_rate_pct ?? 0}%`} icon={CheckCircle2} iconWrap="bg-emerald-50 text-emerald-700" />
       </div>
 

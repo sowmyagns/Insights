@@ -23,7 +23,7 @@ export const confirmSalesOrderDelivery = (orderId) =>
 
 export const getInvoices = (_tenantId, status = null, params = {}) =>
   api
-    .get("/sales/invoices", { params: { payment_filter: status || undefined, page_size: 500, ...params } })
+    .get("/sales/invoices", { params: { payment_filter: status || undefined, page_size: 100, ...params } })
     .then((res) => {
       const data = res.data;
       if (Array.isArray(data)) return res;
@@ -77,6 +77,9 @@ export const getQuotations = (status = null) =>
 export const getQuotationSummary = () => api.get("/sales/quotations/summary");
 export const getQuotationsEnriched = () => api.get("/sales/quotations/enriched");
 export const getQuotation = (quoteId) => api.get(`/sales/quotations/${quoteId}`);
+export const getQuotationDocument = (quoteId) => api.get(`/sales/quotations/${quoteId}/document`);
+export const downloadQuotationPdf = (quoteId) =>
+  api.get(`/sales/quotations/${quoteId}/pdf`, { responseType: "blob" });
 export const createQuotation = (payload) => api.post("/sales/quotations", payload);
 export const updateQuotation = (quoteId, payload) =>
   api.put(`/sales/quotations/${quoteId}`, payload);

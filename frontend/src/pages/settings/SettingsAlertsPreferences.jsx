@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { Info, RefreshCw, Shield } from "lucide-react";
 
 const DATA_SCOPE_OPTIONS = ["All data", "My data", "Team data"];
@@ -195,7 +195,7 @@ export default function SettingsAlertsPreferences() {
         >
           Save Settings
         </button>
-        <span className="inline-flex items-center gap-1 rounded border border-teal-600 bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700 dark:border-teal-500 dark:bg-teal-900/30 dark:text-teal-400">
+        <span className="inline-flex items-center gap-1 rounded border border-teal-600 bg-[var(--color-success-soft)] px-2 py-0.5 text-xs font-medium text-[var(--color-success)] dark:border-teal-500 dark:bg-teal-900/30 dark:text-teal-400">
           <Shield className="h-3.5 w-3.5" />
           PRO
         </span>

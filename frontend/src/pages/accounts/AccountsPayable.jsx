@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, AlertTriangle, ArrowRight, BadgeCheck, Building2, Calendar, CheckCircle2, ChevronRight, Clock, CreditCard, Edit2, Eye, FileText, IndianRupee, Landmark, LayoutDashboard, Package, Plus, Receipt, Search, TrendingDown, TrendingUp, X, XCircle } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import RowActionMenu from "../../components/common/RowActionMenu";
@@ -44,30 +46,6 @@ function daysDiff(dueDateStr) {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function KpiCard({ label, value, sub, icon: Icon, color, trend }) {
-  return (
-    <div className="ui-card p-5 transition-shadow hover:shadow-md">
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
-          <p className="mt-1.5 text-xl font-bold tabular-nums text-[var(--color-text)] truncate">{value}</p>
-          {sub && <p className="mt-0.5 text-xs text-slate-400">{sub}</p>}
-        </div>
-        {Icon && (
-          <div className={`ml-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-        )}
-      </div>
-      {trend != null && (
-        <div className={`mt-3 flex items-center gap-1 text-xs font-medium ${trend >= 0 ? "text-red-600" : "text-emerald-600"}`}>
-          {trend >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-          <span>{Math.abs(trend)}% vs last month</span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function SectionTab({ id, label, icon: Icon, active, onClick, badge }) {
   return (
@@ -76,7 +54,7 @@ function SectionTab({ id, label, icon: Icon, active, onClick, badge }) {
       onClick={() => onClick(id)}
       className={`flex items-center gap-2 border-b-2 px-5 py-3.5 text-sm font-semibold transition-all whitespace-nowrap ${
         active
-          ? "border-teal-700 text-teal-800"
+          ? "border-teal-700 text-[var(--color-primary)]"
           : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
       }`}
     >
@@ -84,7 +62,7 @@ function SectionTab({ id, label, icon: Icon, active, onClick, badge }) {
       {label}
       {badge != null && (
         <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-          active ? "bg-teal-50 text-teal-800" : "bg-slate-100 text-slate-600"
+          active ? "bg-[var(--color-success-soft)] text-[var(--color-primary)]" : "bg-slate-100 text-slate-600"
         }`}>{badge}</span>
       )}
     </button>
@@ -800,23 +778,19 @@ export default function AccountsPayable() {
 
       <div className="space-y-5 pb-4">
         {/* ── Page Header ── */}
-        <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="ui-eyebrow">Finance</p>
-            <h2 className="mt-0.5 ui-title">Accounts Payable</h2>
-            <p className="ui-subtitle">
-              Manage vendor bills, supplier payments, and outstanding payables.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setShowCreateBill(true)} className="btn-outline">
+        <PageHeader
+        subtitle="Manage vendor bills, supplier payments, and outstanding payables."
+        action={
+          <>
+            <button type="button" onClick={() => setShowCreateBill(true)} className="ui-btn-secondary">
               <FileText className="h-4 w-4" /> New Vendor Bill
             </button>
-            <button type="button" onClick={() => { setPayBill(null); setShowCreatePayment(true); }} className="btn-primary">
+            <button type="button" onClick={() => { setPayBill(null); setShowCreatePayment(true); }} className="ui-btn-primary">
               <CreditCard className="h-4 w-4" /> Record Payment
             </button>
-          </div>
-        </header>
+          </>
+        }
+      />
 
         {/* ── Finance Workflow Bar ── */}
         <div className="flex flex-wrap items-center gap-1 ui-card px-4 py-3 text-[10px] font-medium text-slate-600 sm:text-xs">
@@ -824,7 +798,7 @@ export default function AccountsPayable() {
             <span key={s} className="flex items-center gap-1">
               <span className={`rounded-lg px-2.5 py-1 ${
                 ["Vendor Bill","Accounts Payable","Payment"].includes(s)
-                  ? "bg-teal-700 text-white font-semibold"
+                  ? "bg-[var(--color-success)] text-white font-semibold"
                   : "bg-slate-50 text-slate-600 ring-1 ring-slate-200/80"
               }`}>{s}</span>
               {i < FINANCE_FLOW.length - 1 && <ChevronRight className="h-3 w-3 text-slate-400" />}
@@ -833,13 +807,13 @@ export default function AccountsPayable() {
         </div>
 
         {/* ── KPI Summary Cards ── */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="ui-grid-kpi">
           <KpiCard label="Outstanding Payables" value={formatInr(summary.outstanding_payables)} icon={IndianRupee} color="bg-rose-600" />
           <KpiCard label="Due This Week" value={summary.due_this_week} sub="bills" icon={Clock} color="bg-amber-500" />
           <KpiCard label="Overdue Bills" value={summary.overdue_bills} icon={AlertCircle} color="bg-orange-500" />
-          <KpiCard label="Paid This Month" value={formatInr(summary.paid_this_month)} icon={CheckCircle2} color="bg-emerald-600" />
+          <KpiCard label="Paid This Month" value={formatInr(summary.paid_this_month)} icon={CheckCircle2} color="bg-[var(--color-success)]" />
           <KpiCard label="Pending Approvals" value={summary.pending_approvals} icon={FileText} color="bg-indigo-600" />
-          <KpiCard label="Active Vendors" value={summary.vendor_count} icon={Building2} color="bg-teal-700" />
+          <KpiCard label="Active Vendors" value={summary.vendor_count} icon={Building2} color="bg-[var(--color-success)]" />
         </div>
 
         {/* ── Section Navigation ── */}
@@ -854,7 +828,7 @@ export default function AccountsPayable() {
             SECTION: OVERVIEW
         ════════════════════════════════════════════ */}
         {activeSection === "overview" && (
-          <div className="space-y-6">
+          <div className="space-y-5 pb-4">
             {/* Quick Stats */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {/* Aging Summary Card */}
@@ -882,7 +856,7 @@ export default function AccountsPayable() {
               </div>
 
               {/* Quick Actions */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="ui-card p-5">
                 <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
                   <FileText className="h-4 w-4 text-blue-600" /> Quick Actions
                 </h3>
@@ -961,7 +935,7 @@ export default function AccountsPayable() {
                     billsTab === id
                       ? id === "overdue"
                         ? "bg-red-600 border-red-600 text-white"
-                        : "bg-blue-600 border-blue-600 text-white"
+                        : "bg-[var(--color-primary)] border-blue-600 text-white"
                       : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >

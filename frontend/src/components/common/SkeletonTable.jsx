@@ -1,23 +1,23 @@
 export default function SkeletonTable({ rows = 5, cols = 6 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 animate-pulse">
+    <div className="ui-table-wrap animate-pulse" aria-hidden>
       <table className="w-full">
         <thead>
-          <tr className="bg-slate-50 dark:bg-slate-800/50">
+          <tr className="bg-[var(--color-surface-thead)]">
             {Array.from({ length: cols }).map((_, i) => (
-              <th key={i} className="py-3 px-4">
-                <div className="h-4 rounded bg-slate-200 dark:bg-slate-700 w-20" />
+              <th key={i} className="px-4 py-3">
+                <div className="h-3 w-20 rounded bg-[var(--color-surface-hover)]" />
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+        <tbody>
           {Array.from({ length: rows }).map((_, r) => (
-            <tr key={r}>
+            <tr key={r} className="border-t border-[var(--color-border-muted)]">
               {Array.from({ length: cols }).map((_, c) => (
-                <td key={c} className="py-3 px-4">
+                <td key={c} className="px-4 py-3.5">
                   <div
-                    className="h-4 rounded bg-slate-100 dark:bg-slate-700/50"
+                    className="h-3 rounded bg-[var(--color-border-muted)]"
                     style={{ width: c === 0 ? 80 : c === cols - 1 ? 60 : 100 }}
                   />
                 </td>

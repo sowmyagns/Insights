@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const PURPLE = "#6b4eff";
 
 /**
@@ -69,7 +69,7 @@ export default function AddPrefixModal({ open, onClose, onSubmit }) {
         <div className="px-5 pb-5">
           <button
             type="submit"
-            className="w-full rounded-xl py-3 text-[15px] font-semibold text-[#1a1a1f]"
+            className="w-full rounded-xl py-3 text-[15px] font-semibold text-white"
             style={{ background: YELLOW }}
           >
             Submit

@@ -181,7 +181,7 @@ function GenerateModal({ open, onClose, onGenerate, defaultFrom, defaultTo }) {
           </button>
           <button type="button"
             onClick={() => onGenerate({ reportName: reportName.trim(), from, to })}
-            style={{ background: "#F5C518" }}
+            style={{ background: "var(--color-cta)" }}
             className="rounded-lg px-4 py-2.5 text-[14px] font-bold text-[#1a1a1f]">
             Generate Report
           </button>
@@ -354,7 +354,7 @@ export default function BalanceSheetV2() {
           </button>
           <button onClick={() => setModalOpen(true)}
             style={{ display: "inline-flex", alignItems: "center", gap: 6,
-                     background: "#F5C518", border: "none", borderRadius: 6,
+                     background: "var(--color-cta)", border: "none", borderRadius: 6,
                      padding: "7px 14px", fontSize: 12, fontWeight: 700,
                      color: "#111", cursor: "pointer", fontFamily: FONT }}>
             <Calendar size={13} />

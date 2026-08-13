@@ -1,6 +1,6 @@
 /**
- * Insights Iva design tokens — Masters → Products is the visual source of truth.
- * Prefer CSS variables from index.css; these JS exports mirror them for inline styles.
+ * Insights Iva design tokens — mirror CSS :root in index.css.
+ * Prefer CSS variables in classNames; use this for charts / inline style fallbacks.
  */
 export const theme = {
   bg: "#F5F5F5",
@@ -16,18 +16,31 @@ export const theme = {
   textPlaceholder: "#a0a0ab",
   textFaint: "#8a8a96",
   textIcon: "#9a9aa5",
-  cta: "#F5C518",
-  ctaHover: "#e6b800",
-  accent: "#5b5bd6",
-  accentSoft: "#eef0ff",
-  danger: "#ef4444",
-  dangerSoft: "#fde8e8",
-  success: "#15803d",
-  successSoft: "#e8f8ef",
+  primary: "#0751B2",
+  primaryHover: "#0E71F0",
+  primaryActive: "#0A4AA2",
+  primaryDark: "#020E56",
+  primarySoft: "#BBDEFC",
+  secondary: "#5293BD",
+  cta: "#F9C80A",
+  ctaHover: "#E0B400",
+  accent: "#0751B2",
+  accentSoft: "#BBDEFC",
+  danger: "#DC2626",
+  dangerSoft: "#FDE8E8",
+  success: "#036F71",
+  successSoft: "#E6F4F4",
+  actionTeal: "#0F6D84",
+  actionBlue: "#7E93CC",
+  warning: "#F9C80A",
+  warningSoft: "#FFF795",
+  info: "#0589DC",
+  neutral: "#919191",
+  navBg: "#012F46",
   radius: {
     sm: "0.5rem",
     md: "0.75rem",
-    lg: "0.75rem", // Products cards use rounded-xl (~0.75rem in this scale)
+    lg: "0.75rem",
     xl: "1rem",
     full: "9999px",
   },

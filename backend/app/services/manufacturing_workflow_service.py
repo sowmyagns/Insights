@@ -419,6 +419,7 @@ def issue_materials_for_work_order(
     *,
     warehouse_id: int | None = None,
     force: bool = False,
+    commit: bool = True,
 ) -> dict[str, Any]:
     """Consume BOM materials for a work order (inventory OUT + stock ledger)."""
     wo = db.scalars(
@@ -459,8 +460,11 @@ def issue_materials_for_work_order(
     )
     if not requirements:
         wo.materials_issued = True
-        db.commit()
-        db.refresh(wo)
+        if commit:
+            db.commit()
+            db.refresh(wo)
+        else:
+            db.flush()
         return {
             "success": True,
             "already_issued": False,
@@ -507,8 +511,11 @@ def issue_materials_for_work_order(
     wo.materials_issued = True
     if wo.status in {"draft", "planned", "pending", "released"}:
         wo.status = "material_ready"
-    db.commit()
-    db.refresh(wo)
+    if commit:
+        db.commit()
+        db.refresh(wo)
+    else:
+        db.flush()
     return {
         "success": True,
         "already_issued": False,
@@ -665,7 +672,9 @@ def complete_work_order_integrated(
     steps: list[str] = []
     try:
         if auto_issue_materials and not getattr(wo, "materials_issued", False):
-            issue_result = issue_materials_for_work_order(db, tenant_id, wo.id)
+            issue_result = issue_materials_for_work_order(
+                db, tenant_id, wo.id, commit=False
+            )
             steps.append(issue_result.get("message") or "Materials issued")
             db.refresh(wo)
 

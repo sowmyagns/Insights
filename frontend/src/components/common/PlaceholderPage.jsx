@@ -8,7 +8,7 @@ export default function PlaceholderPage({ title, description }) {
   return (
     <div className="mx-auto max-w-lg">
       <div className="ui-card overflow-hidden p-8 text-center">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 dark:bg-teal-900/30">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-success-soft)] dark:bg-teal-900/30">
           <Construction className="h-7 w-7 text-teal-600 dark:text-teal-400" aria-hidden />
         </div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>

@@ -40,7 +40,7 @@ import {
 
 const LAVENDER = "#efeaf8";
 const PURPLE = "#6b4eff";
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const PREFIX_STORAGE_KEY = "gns_debit_note_prefixes";
 const DEFAULT_PREFIXES = ["SDN", "SDN-"];
 const ADD_PREFIX_VALUE = "__add_prefix__";
@@ -151,8 +151,8 @@ function PrefixDropdown({ value, options, onChange, onAddNew }) {
                 }}
                 className={`block w-full rounded-lg border-2 py-2.5 text-center text-[13px] font-bold ${
                   !value
-                    ? "border-[#F5C518] bg-[#fffbeb]"
-                    : "border-[#F5C518]/70 bg-[#fffdf5] hover:bg-[#fffbeb]"
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)]"
+                    : "border-[var(--color-primary)]/70 bg-[var(--color-primary-soft)] hover:bg-[var(--color-primary-soft)]"
                 }`}
               >
                 No Prefix
@@ -167,8 +167,8 @@ function PrefixDropdown({ value, options, onChange, onAddNew }) {
                   }}
                   className={`block w-full rounded-lg border-2 py-2.5 text-center text-[13px] font-bold ${
                     value === p
-                      ? "border-[#F5C518] bg-[#fffbeb]"
-                      : "border-[#F5C518]/70 bg-[#fffdf5] hover:bg-[#fffbeb]"
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)]"
+                      : "border-[var(--color-primary)]/70 bg-[var(--color-primary-soft)] hover:bg-[var(--color-primary-soft)]"
                   }`}
                 >
                   {p}
@@ -766,7 +766,7 @@ export default function DebitNoteForm() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-[#1a1a1f] shadow-sm disabled:opacity-60"
+            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-white shadow-sm disabled:opacity-60"
             style={{ background: YELLOW }}
           >
             {saving ? "Saving…" : "Save"}
@@ -781,8 +781,8 @@ export default function DebitNoteForm() {
           <section className="border-b border-[#d0d0d8] p-4 lg:border-b-0 lg:border-r">
             <div className="mb-4 flex flex-wrap gap-5 border-b border-[#d0d0d8] pb-4">
               <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-[#1a1a1f]">
-                <span className="flex h-4 w-4 items-center justify-center rounded-full border-2 border-[#F5C518]">
-                  <span className="h-2 w-2 rounded-full bg-[#F5C518]" />
+                <span className="flex h-4 w-4 items-center justify-center rounded-full border-2 border-[var(--color-primary)]">
+                  <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" />
                 </span>
                 <input
                   type="radio"
@@ -1528,7 +1528,7 @@ export default function DebitNoteForm() {
                 aria-checked={signatureOn}
                 onClick={() => setSignatureOn((v) => !v)}
                 className={`relative h-6 w-11 rounded-full transition ${
-                  signatureOn ? "bg-[#F5C518]" : "bg-[#d4d4d8]"
+                  signatureOn ? "bg-[var(--color-primary)]" : "bg-[#d4d4d8]"
                 }`}
               >
                 <span

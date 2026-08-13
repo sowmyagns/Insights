@@ -4,7 +4,6 @@ import { ArrowLeft } from "lucide-react";
 
 import PageHeader from "../../components/common/PageHeader";
 import InventoryLineItems from "../../components/common/InventoryLineItems";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import useTenantId from "../../hooks/useTenantId";
 import { createGoodsReceipt, getPurchaseOrders } from "../../api/procurementApi";
 import { getWarehouses, getInventoryDashboard } from "../../api/inventoryApi";
@@ -107,12 +106,11 @@ export default function CreateGoodsReceipt() {
     <div className="mx-auto max-w-2xl space-y-6">
       <Link
         to="/procurement/goods-receipt"
-        className="inline-flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400"
+        className="inline-flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-[var(--color-success)] dark:text-teal-400"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to goods receipts
       </Link>
-      <ManufacturingWorkflowBar currentStepId="grn" compact />
       <PageHeader
         title="New goods receipt (GRN)"
         subtitle="Default: pending QC (no stock). Pass QC later, or mark Pass now to post inventory immediately."

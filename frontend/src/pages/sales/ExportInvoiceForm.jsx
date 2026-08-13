@@ -39,7 +39,7 @@ import {
 
 const LAVENDER = "#efeaf8";
 const PURPLE = "#6b4eff";
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const PREFIX_STORAGE_KEY = "gns_invoice_prefixes";
 const DEFAULT_PREFIXES = ["INV-", "TI-"];
 const ADD_PREFIX_VALUE = "__add_prefix__";
@@ -99,7 +99,7 @@ function FieldLabel({ children, accent }) {
   return (
     <span
       className={`mb-1.5 block text-[12px] font-medium ${
-        accent ? "text-[#F5C518]" : "text-[#6b6b76]"
+        accent ? "text-[var(--color-primary)]" : "text-[#6b6b76]"
       }`}
     >
       {children}
@@ -680,7 +680,7 @@ export default function ExportInvoiceForm() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-[#1a1a1f] shadow-sm disabled:opacity-60"
+            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-white shadow-sm disabled:opacity-60"
             style={{ background: YELLOW }}
           >
             {saving ? "Saving…" : "Save"}
@@ -695,8 +695,8 @@ export default function ExportInvoiceForm() {
           <section className="rounded-xl border border-[#d0d0d8] bg-white p-4">
             <div className="mb-4 flex flex-wrap gap-5">
               <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-[#1a1a1f]">
-                <span className="flex h-4 w-4 items-center justify-center rounded-full border-2 border-[#F5C518]">
-                  <span className="h-2 w-2 rounded-full bg-[#F5C518]" />
+                <span className="flex h-4 w-4 items-center justify-center rounded-full border-2 border-[var(--color-primary)]">
+                  <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" />
                 </span>
                 <input type="radio" name="invoiceType" className="sr-only" checked onChange={() => {}} />
                 Export Invoice
@@ -1504,7 +1504,7 @@ export default function ExportInvoiceForm() {
                 aria-checked={signatureOn}
                 onClick={() => setSignatureOn((v) => !v)}
                 className={`relative h-6 w-11 rounded-full transition ${
-                  signatureOn ? "bg-[#F5C518]" : "bg-[#d4d4d8]"
+                  signatureOn ? "bg-[var(--color-primary)]" : "bg-[#d4d4d8]"
                 }`}
               >
                 <span

@@ -436,7 +436,7 @@ export default function EmployeeDetailModal({ employee, onClose }) {
           <Link
             to="/hr/payroll"
             onClick={onClose}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+            className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] transition-colors"
           >
             View Payroll
           </Link>

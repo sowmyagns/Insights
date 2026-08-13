@@ -12,12 +12,14 @@ export const DEMO_CUSTOMERS = [];
 
 export function enrichApiCustomer(row, index = 0) {
   const code = row.customer_code || `CUS${String(row.id).padStart(3, "0")}`;
-  const city = row.city ?? undefined;
-  const state = row.state ?? undefined;  return {
+  const city = row.city || row.district || (row.address_line2 ? row.address_line2.split(",")[0]?.trim() : "") || undefined;
+  const state = row.state || (row.address_line2 ? row.address_line2.split(",")[1]?.trim() : "") || undefined;
+  return {
     id: row.id || code,
     customer_code: code,
     company: row.name || row.company || "",
-    name: row.name || row.company || "",    contact_person: row.contact_person || row.contact_name || "—",
+    name: row.name || row.company || "",
+    contact_person: row.contact_person || row.contact_name || "—",
     phone: row.phone || "—",
     email: row.email || "—",
     gstin: row.gstin || "—",

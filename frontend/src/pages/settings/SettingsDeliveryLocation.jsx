@@ -114,7 +114,7 @@ export default function SettingsDeliveryLocation() {
         <button
           type="button"
           onClick={openForm}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-700"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[var(--color-success)]"
         >
           <Plus className="h-4 w-4" />
           Add Warehouse
@@ -203,7 +203,7 @@ export default function SettingsDeliveryLocation() {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-success)] disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {saving ? "Saving…" : "Create location"}
@@ -221,7 +221,7 @@ export default function SettingsDeliveryLocation() {
 
       {locations.length === 0 && !showForm ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-gradient-to-b from-slate-50 to-white px-6 py-14 text-center dark:border-slate-600 dark:from-slate-800/40 dark:to-slate-800/20">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-success-soft)] text-teal-600 dark:bg-teal-900/30 dark:text-teal-400">
             <Warehouse className="h-7 w-7" />
           </div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -235,7 +235,7 @@ export default function SettingsDeliveryLocation() {
             <button
               type="button"
               onClick={openForm}
-              className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
+              className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-success)]"
             >
               <Plus className="h-4 w-4" />
               Add first warehouse
@@ -253,10 +253,10 @@ export default function SettingsDeliveryLocation() {
           {locations.map((loc) => (
             <article
               key={loc.id}
-              className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-teal-200 hover:shadow-md dark:border-slate-700 dark:bg-slate-800/50"
+              className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[var(--color-primary-light)] hover:shadow-md dark:border-slate-700 dark:bg-slate-800/50"
             >
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-success-soft)] text-teal-600 dark:bg-teal-900/30 dark:text-teal-400">
                   <MapPin className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">

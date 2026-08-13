@@ -177,12 +177,12 @@ export default function CompanyAddressFields({
     errors[pinKey] ||
     errors.pincode ||
     errors.pin_code ||
-    (formatPinError ? formatPinError : "") ||
-    (pinLookupError === "Invalid PIN Code." ? pinLookupError : "") ||
+    formatPinError ||
+    pinLookupError ||
     "";
 
   const serviceError =
-    pinLookupError && pinLookupError !== "Invalid PIN Code." ? pinLookupError : "";
+    pinLookupError && pinLookupError !== "Invalid PIN Code." && pinLookupError !== formatPinError ? pinLookupError : "";
 
   const locationLocked = isIndia && autoFilled && !manualLocation && Boolean(state && city);
 

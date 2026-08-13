@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Download, Mail, Printer, X } from "lucide-react";
 
@@ -209,7 +209,7 @@ export default function QuoteDetailModal({ quote, onClose, onStatusChange, onCon
             type="button"
             disabled={converting}
             onClick={handleConvert}
-            className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             {converting ? "Converting…" : "Convert to Sales Order"}
           </button>

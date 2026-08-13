@@ -6,6 +6,8 @@ import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
 import { getExtendedReports } from "../../api/accountsApi";
 import { formatInr } from "../../data/financeMasterData";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 export default function TrialBalance() {
   const { addToast } = useToast();
@@ -46,15 +48,11 @@ export default function TrialBalance() {
   if (loading) return <Loader label="Loading Trial Balance..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Unadjusted closing balances consolidated across assets, liabilities, equity, and operations.</p>
-        </div>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader subtitle="Unadjusted closing balances consolidated across assets, liabilities, equity, and operations." />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard label="Total Debits" value={formatInr(totalDebit)} icon={TrendingUp} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Debits" value={formatInr(totalDebit)} icon={TrendingUp} color="bg-[var(--color-primary)]" />
         <KpiCard label="Total Credits" value={formatInr(totalCredit)} icon={ShieldCheck} color="bg-indigo-600" />
         <div className={`rounded-2xl border p-4 shadow-sm ${difference < 1.0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
           <div className="flex items-center justify-between">
@@ -134,20 +132,3 @@ export default function TrialBalance() {
   );
 }
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{value}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}

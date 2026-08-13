@@ -28,7 +28,32 @@ from app.schemas.sales_extended import DeliveryChallanRead, DispatchShipmentCrea
 
 
 
+def _assert_no_customer_duplicates(
+    db: Session,
+    tenant_id: int,
+    *,
+    gstin: str | None,
+    exclude_id: int | None = None,
+) -> None:
+    if gstin and gstin.strip():
+        clean_gst = gstin.strip().upper()
+        from sqlalchemy import func, or_
+        q = select(Customer).where(
+            Customer.tenant_id == tenant_id,
+            func.upper(Customer.gstin) == clean_gst,
+            or_(Customer.status.is_(None), Customer.status != "inactive"),
+        )
+        if exclude_id:
+            q = q.where(Customer.id != exclude_id)
+        if db.scalars(q).first():
+            raise HTTPException(
+                status_code=400,
+                detail=f"A customer with GSTIN '{clean_gst}' already exists.",
+            )
+
+
 def create_customer(db: Session, payload: CustomerCreate) -> Customer:
+    _assert_no_customer_duplicates(db, payload.tenant_id, gstin=payload.gstin)
     c = Customer(**payload.model_dump())
     db.add(c)
     db.commit()
@@ -59,7 +84,10 @@ def update_customer(
     c = get_customer(db, tenant_id, customer_id)
     if not c:
         return None
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    if "gstin" in data and data["gstin"]:
+        _assert_no_customer_duplicates(db, tenant_id, gstin=data["gstin"], exclude_id=customer_id)
+    for key, value in data.items():
         setattr(c, key, value)
     db.commit()
     db.refresh(c)
@@ -762,24 +790,9 @@ def update_lead_status(
 
 
 def _next_quotation_number(db: Session, tenant_id: int) -> str:
-    today = date.today()
-    prefix = f"QT-{today.strftime('%Y%m%d')}-"
-    existing = list(
-        db.scalars(
-            select(Quotation.quote_number).where(
-                Quotation.tenant_id == tenant_id,
-                Quotation.quote_number.like(f"{prefix}%"),
-            )
-        ).all()
-    )
-    seq = 1
-    for num in existing:
-        try:
-            tail = str(num).rsplit("-", 1)[-1]
-            seq = max(seq, int(tail) + 1)
-        except (TypeError, ValueError):
-            continue
-    return f"{prefix}{seq:03d}"
+    from app.services.document_builder_service import allocate_next_quotation_number
+
+    return allocate_next_quotation_number(db, tenant_id)
 
 
 def create_quotation(db: Session, payload: QuotationCreate) -> Quotation:
@@ -808,6 +821,11 @@ def create_quotation(db: Session, payload: QuotationCreate) -> Quotation:
         db, tenant_id
     )
 
+    meta_json = data.get("meta_json")
+    if meta_json is not None and not isinstance(meta_json, str):
+        import json as _json
+        meta_json = _json.dumps(meta_json)
+
     quote = Quotation(
         tenant_id=tenant_id,
         quote_number=quote_number,
@@ -821,6 +839,7 @@ def create_quotation(db: Session, payload: QuotationCreate) -> Quotation:
         notes=data.get("notes"),
         sales_person=data.get("sales_person"),
         discount=float(data.get("discount") or 0),
+        meta_json=meta_json,
     )
     db.add(quote)
     db.commit()
@@ -866,9 +885,14 @@ def update_quotation(
         "notes",
         "sales_person",
         "discount",
+        "meta_json",
     ):
         if key in data and data[key] is not None:
-            setattr(quote, key, data[key])
+            if key == "meta_json" and not isinstance(data[key], str):
+                import json as _json
+                setattr(quote, key, _json.dumps(data[key]))
+            else:
+                setattr(quote, key, data[key])
     db.commit()
     db.refresh(quote)
     return quote

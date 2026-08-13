@@ -60,3 +60,73 @@ def test_delete_missing_product_returns_404(client, register_admin):
     admin = register_admin()
     resp = client.delete("/api/masters/products/999999", headers=admin["headers"])
     assert resp.status_code == 404
+
+
+def test_create_product_negative_purchase_price_rejected(client, register_admin):
+    admin = register_admin()
+    resp = client.post(
+        "/api/masters/products",
+        headers=admin["headers"],
+        json={
+            "tenant_id": 0,
+            "sku": "NEG-PRICE-1",
+            "name": "Negative Price Item",
+            "unit_cost": -10.0,
+            "unit_price": 50.0,
+        },
+    )
+    assert resp.status_code in (400, 422)
+    assert "Purchase Price cannot be negative" in resp.text
+
+
+def test_create_product_negative_current_stock_rejected(client, register_admin):
+    admin = register_admin()
+    resp = client.post(
+        "/api/masters/products",
+        headers=admin["headers"],
+        json={
+            "tenant_id": 0,
+            "sku": "NEG-STOCK-1",
+            "name": "Negative Stock Item",
+            "unit_cost": 10.0,
+            "unit_price": 50.0,
+            "current_stock": -5.0,
+        },
+    )
+    assert resp.status_code in (400, 422)
+    assert "Current Stock cannot be negative" in resp.text
+
+
+def test_create_product_negative_min_stock_rejected(client, register_admin):
+    admin = register_admin()
+    resp = client.post(
+        "/api/masters/products",
+        headers=admin["headers"],
+        json={
+            "tenant_id": 0,
+            "sku": "NEG-MINSTOCK-1",
+            "name": "Negative Min Stock Item",
+            "unit_cost": 10.0,
+            "unit_price": 50.0,
+            "min_stock": -10,
+        },
+    )
+    assert resp.status_code in (400, 422)
+    assert "Min Stock cannot be negative" in resp.text
+
+
+def test_create_product_selling_price_below_purchase_price_rejected(client, register_admin):
+    admin = register_admin()
+    resp = client.post(
+        "/api/masters/products",
+        headers=admin["headers"],
+        json={
+            "tenant_id": 0,
+            "sku": "LOW-SELL-1",
+            "name": "Low Selling Price Item",
+            "unit_cost": 100.0,
+            "unit_price": 20.0,
+        },
+    )
+    assert resp.status_code == 400
+    assert "Selling Price cannot be lower than Purchase Price" in resp.text

@@ -182,7 +182,7 @@ export default function AddExpenseModal({ open, onClose, onSave, categories = []
           >
             Cancel
           </button>
-          <button type="submit" className="rounded-lg bg-[#F5C518] px-5 py-2.5 text-[14px] font-semibold text-[#1a1a1f]">
+          <button type="submit" className="rounded-lg bg-[var(--color-cta)] px-5 py-2.5 text-[14px] font-semibold text-[#1a1a1f]">
             Add Expense
           </button>
         </div>

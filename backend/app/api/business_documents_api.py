@@ -52,17 +52,22 @@ DOC_PREFIX = {
 
 
 def _next_number(db: Session, tenant_id: int, doc_type: str) -> str:
+    if doc_type == "purchase":
+        from app.services.document_builder_service import allocate_next_purchase_number
+
+        return allocate_next_purchase_number(db, tenant_id)
+    from app.services.document_number_service import next_document_number_from_max
+
     prefix = DOC_PREFIX.get(doc_type, "DOC")
-    count = int(
-        db.scalar(
-            select(func.count(BusinessDocument.id)).where(
-                BusinessDocument.tenant_id == tenant_id,
-                BusinessDocument.doc_type == doc_type,
-            )
-        )
-        or 0
+    return next_document_number_from_max(
+        db,
+        model=BusinessDocument,
+        tenant_id=tenant_id,
+        number_attr="document_number",
+        prefix=prefix,
+        width=5,
+        extra_filters=(BusinessDocument.doc_type == doc_type,),
     )
-    return f"{prefix}-{count + 1:05d}"
 
 
 @router.get("/documents", response_model=BusinessDocumentListResponse)
@@ -141,6 +146,49 @@ def get_document(
     if not row or row.tenant_id != user.tenant_id:
         raise HTTPException(404, "Document not found")
     return BusinessDocumentRead.model_validate(row)
+
+
+@router.get("/documents/{doc_id}/document")
+def get_purchase_document_endpoint(
+    doc_id: int,
+    user: User = Depends(require_any_permission("sales", "procurement", "accounts")),
+    db: Session = Depends(get_db),
+):
+    from app.services.document_builder_service import build_purchase_document
+
+    row = db.get(BusinessDocument, doc_id)
+    if not row or row.tenant_id != user.tenant_id or row.doc_type != "purchase":
+        raise HTTPException(404, "Purchase document not found")
+    doc = build_purchase_document(db, user.tenant_id, doc_id)
+    if not doc:
+        raise HTTPException(404, "Purchase document not found")
+    return doc
+
+
+@router.get("/documents/{doc_id}/pdf")
+def download_purchase_pdf_endpoint(
+    doc_id: int,
+    user: User = Depends(require_any_permission("sales", "procurement", "accounts")),
+    db: Session = Depends(get_db),
+):
+    from fastapi.responses import Response
+
+    from app.services.document_builder_service import build_purchase_document
+    from app.services.invoice_pdf_service import generate_invoice_pdf
+
+    row = db.get(BusinessDocument, doc_id)
+    if not row or row.tenant_id != user.tenant_id or row.doc_type != "purchase":
+        raise HTTPException(404, "Purchase document not found")
+    doc = build_purchase_document(db, user.tenant_id, doc_id)
+    if not doc:
+        raise HTTPException(404, "Purchase document not found")
+    pdf_bytes = generate_invoice_pdf(doc)
+    doc_no = doc.get("meta", {}).get("document_no", str(doc_id))
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="Purchase-{doc_no}.pdf"'},
+    )
 
 
 @router.put("/documents/{doc_id}", response_model=BusinessDocumentRead)

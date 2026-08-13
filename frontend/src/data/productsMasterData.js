@@ -59,18 +59,31 @@ export function guessCategory(sku = "", name = "") {
 }
 
 export function enrichApiProduct(apiRow) {
-  let category = apiRow.category;
-  if (!category || category === "Finished Goods" || category === "No Category") {
-    const descMatch = apiRow.description?.match(/Category:\s*([^|]+)/i);
-    if (descMatch && descMatch[1]?.trim()) {
-      category = descMatch[1].trim();
+  let category = apiRow.category || apiRow.product_type;
+  
+  // Try extracting explicit Category from description tag if category is default or missing
+  const descMatch = apiRow.description?.match(/Category:\s*([^|]+)/i);
+  if (descMatch && descMatch[1]?.trim()) {
+    category = descMatch[1].trim();
+  }
+
+  if (category) {
+    const cLower = String(category).trim().toLowerCase();
+    if (cLower === "raw material" || cLower === "raw_material" || cLower === "rm") {
+      category = "Raw Material";
+    } else if (cLower.includes("wip") || cLower.includes("work in progress") || cLower === "semi-finished") {
+      category = "WIP";
+    } else if (cLower.includes("spare") || cLower.includes("parts")) {
+      category = "Spare Parts";
+    } else if (cLower.includes("consumable")) {
+      category = "Consumables";
+    } else if (cLower.includes("finished")) {
+      category = "Finished Goods";
     }
   }
+
   if (!category || category === "No Category") {
     category = "Finished Goods";
-  }
-  if (category === "Work in Progress (WIP)" || category === "Work In Progress") {
-    category = "WIP";
   }
   const stock = apiRow.current_stock != null ? Number(apiRow.current_stock) : 0;
   const minStock = apiRow.min_stock != null ? Number(apiRow.min_stock) : 0;
@@ -169,13 +182,31 @@ export function computeQuickStats(products) {
   };
 }
 
-export const categoryChartData = [
-  { name: "Raw Material", value: 35, color: "#3B82F6" },
-  { name: "Finished Goods", value: 28, color: "#22C55E" },
-  { name: "Work in Progress (WIP)", value: 12, color: "#F97316" },
-  { name: "Consumables", value: 15, color: "#A855F7" },
-  { name: "Spare Parts", value: 10, color: "#64748B" },
-];
+export function getCategoryChartData(products = []) {
+  if (!Array.isArray(products) || !products.length) return [];
+  const counts = {};
+  for (const p of products) {
+    const cat = p.category || "Finished Goods";
+    counts[cat] = (counts[cat] || 0) + 1;
+  }
+  const CATEGORY_COLORS = {
+    "Finished Goods": "#22C55E",
+    "Raw Material": "#3B82F6",
+    "Work in Progress (WIP)": "#F97316",
+    "Consumables": "#A855F7",
+    "Spare Parts": "#64748B",
+    "Semi-Finished": "#EAB308",
+    "Assembly": "#06B6D4",
+    "Sub-Assembly": "#8B5CF6",
+  };
+  return Object.entries(counts).map(([name, value], index) => ({
+    name,
+    value,
+    color: CATEGORY_COLORS[name] || ["#22C55E", "#3B82F6", "#F97316", "#A855F7", "#64748B", "#EC4899", "#14B8A6"][index % 7],
+  }));
+}
+
+export const categoryChartData = (products) => getCategoryChartData(products);
 export const IMPORT_TEMPLATE_HEADERS = [
   "product_code",
   "name",

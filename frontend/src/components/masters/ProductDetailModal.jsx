@@ -79,7 +79,7 @@ export default function ProductDetailModal({
               onClick={() => setTab(t.id)}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                 tab === t.id
-                  ? "bg-[#2563EB] text-white"
+                  ? "bg-[var(--color-primary)] text-white"
                   : "text-slate-600 hover:bg-slate-100"
               }`}
             >
@@ -233,8 +233,12 @@ export function ProductFormModal({ product, onClose, onSave }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!form.name.trim() || !/[a-zA-Z0-9]/.test(form.name.trim())) {
+      window.alert("Product Name must contain at least one letter or number and cannot consist only of special characters.");
+      return;
+    }
     if (!form.price_per_unit || isNaN(ppu) || ppu <= 0) {
-      window.alert("Please enter a valid Price per Unit (must be a positive number).");
+      window.alert(ppu < 0 ? "Purchase Price cannot be negative." : "Please enter a valid Price per Unit (must be a positive number).");
       return;
     }
     if (!form.quantity || isNaN(qty) || qty <= 0) {

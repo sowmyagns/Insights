@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { Plus, Briefcase, Tag, MapPin, User, ShieldCheck, X, Save } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -12,25 +14,6 @@ import { apiErrorMessage } from "../../utils/apiError";
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="group ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white shrink-0" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl" title={String(value)}>
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 const statusBadgeColor = (status) => {
   switch (String(status).toLowerCase()) {
@@ -183,30 +166,30 @@ export default function AssetManagement({ autoOpenCreate }) {
   if (loading && assets.length === 0) return <Loader label="Loading assets registry..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Track company assets, IT gear, and tooling assigned to employees and operational locations.</p>
-        </div>
-        <div className="flex gap-2">
-          <button
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="Track company assets, IT gear, and tooling assigned to employees and operational locations."
+        action={
+          <>
+            <button
             type="button"
             onClick={() => setShowCreateModal(true)}
             className="ui-btn-hr"
           >
             <Plus className="h-4 w-4" /> Register Asset
           </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Total Registered Assets" value={kpis.total} icon={Briefcase} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Registered Assets" value={kpis.total} icon={Briefcase} color="bg-[var(--color-primary)]" />
         <KpiCard label="Active / Assigned" value={kpis.active} icon={ShieldCheck} color="bg-green-600" />
         <KpiCard label="Under Repair" value={kpis.repair} icon={Tag} color="bg-amber-500" />
         <KpiCard label="Retired / Disposed" value={kpis.retired} icon={MapPin} color="bg-slate-400" />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="ui-card p-4">
         <DataTable
           columns={columns}
           data={assets}

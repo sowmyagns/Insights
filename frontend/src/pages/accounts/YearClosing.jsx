@@ -75,7 +75,7 @@ export default function YearClosing() {
   if (loading) return <Loader label="Loading Closing Parameters..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-5 pb-4">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="ui-subtitle font-medium">Perform fiscal period closure, transfer net earnings, and seal books for audit.</p>
@@ -120,7 +120,7 @@ export default function YearClosing() {
               onClick={() => setCurrentStep(2)}
               disabled={!allChecksPassed}
               className={`rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all flex items-center gap-2 ${
-                allChecksPassed ? "bg-[#2563EB] hover:bg-blue-700 cursor-pointer" : "bg-slate-300 cursor-not-allowed"
+                allChecksPassed ? "bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] cursor-pointer" : "bg-slate-300 cursor-not-allowed"
               }`}
             >
               Next Step
@@ -236,7 +236,7 @@ function StepIndicator({ step, current, label }) {
     <div className="flex items-center gap-2">
       <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold border ${
         isDone ? "bg-green-600 border-green-600 text-white" :
-        isActive ? "bg-blue-600 border-blue-600 text-white shadow" : "bg-white border-slate-300 text-slate-500"
+        isActive ? "bg-[var(--color-primary)] border-blue-600 text-white shadow" : "bg-white border-slate-300 text-slate-500"
       }`}>
         {isDone ? <CheckCircle2 className="h-4 w-4" /> : step}
       </div>

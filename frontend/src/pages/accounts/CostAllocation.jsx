@@ -7,6 +7,7 @@ import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
 import { getExtendedReports } from "../../api/accountsApi";
 import { formatInr } from "../../data/financeMasterData";
+import KpiCard from "../../components/common/KpiCard";
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all";
@@ -119,7 +120,7 @@ export default function CostAllocation() {
   if (loading) return <Loader label="Loading Cost Allocations..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-5 pb-4">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="ui-subtitle font-medium">Allocate indirect overhead and general expense vouchers across organizational departments.</p>
@@ -127,7 +128,7 @@ export default function CostAllocation() {
         <div className="flex gap-2">
           <button
             onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all"
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all"
           >
             <Plus className="h-4 w-4" />
             New Allocation
@@ -135,8 +136,8 @@ export default function CostAllocation() {
         </div>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard label="Total Allocated Overhead" value={formatInr(totalAllocated)} icon={Layers} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Allocated Overhead" value={formatInr(totalAllocated)} icon={Layers} color="bg-[var(--color-primary)]" />
         <KpiCard label="Production cost Center Share" value={formatInr(filtered.filter((a) => a.dept === "Production").reduce((s, a) => s + a.amount, 0))} icon={Award} color="bg-green-600" />
         <KpiCard label="General overhead Cost Center" value={formatInr(filtered.filter((a) => a.dept !== "Production").reduce((s, a) => s + a.amount, 0))} icon={ShieldAlert} color="bg-amber-50" />
       </div>
@@ -193,8 +194,8 @@ export default function CostAllocation() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-900">Cost Center Distribution</h2>
+        <div className="ui-card p-5">
+          <h2 className="ui-section-title mb-4">Cost Center Distribution</h2>
           <div className="h-64">
             {deptSummary.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -308,7 +309,7 @@ export default function CostAllocation() {
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] shadow-sm transition-all"
                 >
                   Allocate Cost
                 </button>
@@ -321,20 +322,3 @@ export default function CostAllocation() {
   );
 }
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{value}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}

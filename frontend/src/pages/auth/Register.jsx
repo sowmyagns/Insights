@@ -268,7 +268,7 @@ export default function Register() {
                 <button
                   type="submit"
                   disabled={loading || Boolean(success)}
-                  className="w-full rounded-lg bg-teal-600 py-3 font-bold uppercase tracking-wider text-white transition hover:bg-teal-700 disabled:opacity-50"
+                  className="w-full rounded-lg bg-teal-600 py-3 font-bold uppercase tracking-wider text-white transition hover:bg-[var(--color-success)] disabled:opacity-50"
                 >
                   {loading ? "Creating Account..." : "SIGN UP"}
                 </button>
@@ -276,7 +276,7 @@ export default function Register() {
 
               <p className="mt-4 text-xs text-gray-600">
                 Already have an account?{" "}
-                <Link to="/login" className="font-semibold text-teal-600 hover:text-teal-700">
+                <Link to="/login" className="font-semibold text-teal-600 hover:text-[var(--color-success)]">
                   Login
                 </Link>
               </p>

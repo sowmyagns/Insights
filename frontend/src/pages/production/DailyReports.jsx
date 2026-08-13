@@ -13,7 +13,7 @@ import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 import useTenantId from "../../hooks/useTenantId";
 
 const PAGE_BG = "var(--color-bg)";
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-cta)";
 const PAGE_SIZES = [20, 50, 100];
 
 function formatDate(val) {

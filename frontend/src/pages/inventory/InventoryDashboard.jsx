@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, ArrowLeftRight, Building2, ClipboardList, History, Package, PackageMinus, PackagePlus, PackageX, RotateCcw, Search, Warehouse } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Building2, ClipboardList, History, Package, PackageMinus, PackagePlus, PackageX, RotateCcw, Search, Warehouse, X } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
+import PageHeader from "../../components/common/PageHeader";
 import StoreManagerNav from "../../components/inventory/StoreManagerNav";
 import useAuth from "../../hooks/useAuth";
 import { isProductionManager } from "../../config/permissions";
@@ -24,14 +25,14 @@ import {
 
 function Kpi({ label, value, icon: Icon, tone = "slate", to }) {
   const tones = {
-    primary: "bg-teal-700",
-    emerald: "bg-emerald-600",
-    amber: "bg-amber-500",
-    red: "bg-rose-600",
-    sky: "bg-sky-600",
-    teal: "bg-teal-600",
-    slate: "bg-slate-600",
-    orange: "bg-orange-500",
+    primary: "bg-[var(--color-primary)]",
+    emerald: "bg-[var(--color-success)]",
+    amber: "bg-[var(--color-warning)]",
+    red: "bg-[var(--color-danger)]",
+    sky: "bg-[var(--color-info)]",
+    teal: "bg-[var(--color-secondary)]",
+    slate: "bg-[var(--color-neutral)]",
+    orange: "bg-[var(--color-warning)]",
   };
   const card = (
     <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition hover:-translate-y-0.5" title={typeof label === "string" ? label : undefined}>
@@ -55,9 +56,9 @@ function QuickAction({ to, icon: Icon, label, hint }) {
   return (
     <Link
       to={to}
-      className="flex items-center gap-3 ui-card p-4 transition hover:border-teal-200 hover:bg-teal-50/40"
+      className="flex items-center gap-3 ui-card p-4 transition hover:border-[var(--color-primary-light)] hover:bg-[var(--color-primary-soft)]/50"
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-800">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-[var(--color-primary)]">
         <Icon className="h-5 w-5" />
       </div>
       <div>
@@ -90,7 +91,9 @@ export default function InventoryDashboard() {
   const [invItems, setInvItems] = useState([]);
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [prBusy, setPrBusy] = useState(null);
+  const searchWrapRef = useRef(null);
 
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -140,9 +143,33 @@ export default function InventoryDashboard() {
     const q = search.trim().toLowerCase();
     if (!q) return [];
     return products
-      .filter((p) => `${p.product_code} ${p.name} ${p.category} ${p.warehouse}`.toLowerCase().includes(q))
+      .filter((p) =>
+        `${p.product_code || ""} ${p.name || ""} ${p.category || ""} ${p.warehouse || ""} ${p.sku || ""}`
+          .toLowerCase()
+          .includes(q)
+      )
       .slice(0, 8);
   }, [products, search]);
+
+  useEffect(() => {
+    const onPointerDown = (e) => {
+      if (!searchWrapRef.current?.contains(e.target)) setSearchOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setSearchOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  const clearSearch = () => {
+    setSearch("");
+    setSearchOpen(false);
+  };
 
   const createPr = async (item) => {
     setPrBusy(item.id);
@@ -171,43 +198,72 @@ export default function InventoryDashboard() {
     <div className="space-y-5 pb-4">
       <StoreManagerNav />
 
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-eyebrow">Inventory</p>
-          <h2 className="mt-0.5 ui-title">Store Dashboard</h2>
-          <p className="ui-subtitle">
-            Stock health, warehouses, and daily store operations at a glance.
-          </p>
-        </div>
-      </header>
+      <PageHeader subtitle="Stock health, warehouses, and daily store operations at a glance." />
 
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 z-10" />
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search products by name, code, category, or warehouse…"
-          className="ui-input w-full !pl-10"
-        />
-        {searchResults.length > 0 && (
-          <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-            {searchResults.map((p) => (
-              <li key={p.id}>
-                <Link
-                  to="/masters/products"
-                  className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50"
-                  onClick={() => setSearch("")}
-                >
-                  <span className="font-medium text-slate-800">{p.name}</span>
-                  <span className="text-xs text-slate-500">
-                    {p.product_code} · {p.current_stock} {p.unit}
-                  </span>
-                </Link>
-              </li>
-            ))}
+      <div ref={searchWrapRef} className="ui-card relative p-3 sm:p-4">
+        <div className="relative max-w-xl">
+          <Search
+            className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--color-text-icon)]"
+            aria-hidden
+          />
+          <input
+            type="text"
+            role="searchbox"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setSearchOpen(true);
+            }}
+            onFocus={() => setSearchOpen(true)}
+            placeholder="Search products…"
+            className="ui-input w-full !rounded-full !pl-10 !pr-10"
+            aria-expanded={searchOpen && Boolean(search.trim())}
+            aria-controls="store-dashboard-search-results"
+            autoComplete="off"
+          />
+          {search ? (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-[var(--color-text-icon)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
+
+        {searchOpen && search.trim() ? (
+          <ul
+            id="store-dashboard-search-results"
+            className="absolute left-3 right-3 z-20 mt-2 max-h-72 max-w-xl overflow-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-lg sm:left-4"
+            role="listbox"
+          >
+            {searchResults.length === 0 ? (
+              <li className="px-4 py-3 text-sm text-[var(--color-text-muted)]">No products found</li>
+            ) : (
+              searchResults.map((p) => (
+                <li key={p.id} role="option">
+                  <Link
+                    to={p.id ? `/masters/products/${p.id}/edit` : "/masters/products"}
+                    className="flex items-center justify-between gap-3 px-4 py-2.5 text-[var(--text-sm)] hover:bg-[var(--color-surface-muted)]"
+                    onClick={clearSearch}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-[var(--color-text)]">{p.name}</span>
+                      <span className="block truncate text-[var(--text-xs)] text-[var(--color-text-muted)]">
+                        {[p.product_code || p.sku, p.category, p.warehouse].filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
+                    <span className="shrink-0 tabular-nums text-[var(--text-xs)] font-semibold text-[var(--color-text-muted)]">
+                      {p.current_stock ?? "—"} {p.unit || ""}
+                    </span>
+                  </Link>
+                </li>
+              ))
+            )}
           </ul>
-        )}
+        ) : null}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -264,7 +320,7 @@ export default function InventoryDashboard() {
                     type="button"
                     disabled={prBusy === item.id}
                     onClick={() => createPr(item)}
-                    className="rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+                    className="rounded-lg bg-[var(--color-success)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-success-hover)] disabled:opacity-50"
                   >
                     Create Purchase Requisition
                   </button>
@@ -280,7 +336,7 @@ export default function InventoryDashboard() {
             {WORKFLOW.map((step, i) => (
               <li key={step} className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-teal-700 text-[10px] text-white">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-success)] text-[10px] text-white">
                     {i + 1}
                   </span>
                   {step}

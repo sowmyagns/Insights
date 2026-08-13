@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 
 const GST_TREATMENTS = [
   "Registered Business - Regular",
@@ -144,7 +144,7 @@ export default function AddOtherDetailsModal({ open, onClose, initial, onSave })
                 type="checkbox"
                 checked={form.tds}
                 onChange={(e) => setForm((f) => ({ ...f, tds: e.target.checked }))}
-                className="h-4 w-4 rounded border-[#c4c4cc] accent-[#F5C518]"
+                className="h-4 w-4 rounded border-[#c4c4cc] accent-[var(--color-primary)]"
               />
               TDS
             </label>
@@ -156,7 +156,7 @@ export default function AddOtherDetailsModal({ open, onClose, initial, onSave })
                 type="checkbox"
                 checked={form.tcs}
                 onChange={(e) => setForm((f) => ({ ...f, tcs: e.target.checked }))}
-                className="h-4 w-4 rounded border-[#c4c4cc] accent-[#F5C518]"
+                className="h-4 w-4 rounded border-[#c4c4cc] accent-[var(--color-primary)]"
               />
               TCS
             </label>
@@ -173,7 +173,7 @@ export default function AddOtherDetailsModal({ open, onClose, initial, onSave })
           </button>
           <button
             type="submit"
-            className="rounded-xl py-3 text-[14px] font-semibold text-[#1a1a1f]"
+            className="rounded-xl py-3 text-[14px] font-semibold text-white"
             style={{ background: YELLOW }}
           >
             Save

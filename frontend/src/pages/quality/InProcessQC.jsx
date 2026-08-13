@@ -1,32 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { AlertTriangle, CheckCircle, Clock, Cog, RotateCcw, Trash2, XCircle } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import QualityFilters from "../../components/quality/QualityFilters";
 import Loader from "../../components/common/Loader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { useToast } from "../../context/ToastContext";
 import { getProcessEnriched, getProcessSummary } from "../../api/qualityApi";
 import { DEMO_PROCESS_LIST, DEMO_PROCESS_SUMMARY, qcStatusColor } from "../../data/qualityMasterData";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl">{value}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function InProcessQC() {
   const { addToast } = useToast();
@@ -50,7 +34,6 @@ export default function InProcessQC() {
         setRows(listRes.value.data);
       } else {
         setRows([]);
-
 
       }
     } catch {
@@ -89,19 +72,11 @@ export default function InProcessQC() {
   if (loading) return <Loader label="Loading in-process Quality Control (QC)..." />;
 
   return (
-    <div className="min-h-full pb-8 print:p-0" style={{ background: "#F5F5F5" }}>
-      <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
-        <div>
-          <p className="ui-subtitle print:hidden">Real-time quality checks during manufacturing — work order, machine, shift, operator.</p>
-        </div>
+    <div className="space-y-5 pb-4">
+      <PageHeader subtitle="Real-time quality checks during manufacturing — work order, machine, shift, operator." />
 
-        <div className="mb-0 flex flex-wrap items-center justify-between gap-2 print:hidden">
-          <div className="flex flex-wrap gap-2">
-          </div>
-        </div>
-
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Production Running" value={summary.production_running} icon={Cog} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Production Running" value={summary.production_running} icon={Cog} color="bg-[var(--color-primary)]" />
         <KpiCard label="Quality Control (QC) Pending" value={summary.qc_pending} icon={Clock} color="bg-orange-500" />
         <KpiCard label="Passed" value={summary.passed} icon={CheckCircle} color="bg-green-600" />
         <KpiCard label="Failed" value={summary.failed} icon={XCircle} color="bg-red-500" />
@@ -113,7 +88,6 @@ export default function InProcessQC() {
 
       <div className="ui-card p-4 sm:p-5">
         <DataTable columns={columns} data={filtered} searchPlaceholder="" searchKeys={[]} />
-      </div>
       </div>
     </div>
   );

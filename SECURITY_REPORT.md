@@ -3,11 +3,15 @@
 
 Generated after production-ready security hardening across the React + FastAPI Insights Iva application.
 
+**Last reviewed:** 13 August 2026
+
 ## Executive Summary
 
 Security features were implemented across authentication, session management, input validation, multi-tenant isolation, API protection, logging, and frontend auth flows. Backend suites covering auth, RBAC, tenant isolation, and CRUD smoke tests are in `backend/tests/`. Development mode preserves auto-verified registration for local testing. Production mode (`ENVIRONMENT=production`) enforces email verification before login.
 
-For product setup and module overview, see [README.md](./README.md).
+Recent product UI work (design tokens, selective button colors, Job Card read views, global/store search UX) does **not** change the security model documented here. Auth, JWT, RBAC, tenant scope, and CORS remain as implemented below.
+
+For product setup and module overview, see [README.md](./README.md). For architecture and recent UI/live-data analysis, see [PROJECT_ANALYSIS_REPORT.md](./PROJECT_ANALYSIS_REPORT.md).
 
 ## Completed Security Features
 
@@ -265,3 +269,18 @@ SMTP_USER=...
 SMTP_PASSWORD=...
 SMTP_FROM_EMAIL=noreply@your-domain.com
 ```
+
+---
+
+## Related Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [README.md](./README.md) | Features, setup, API overview, design system notes |
+| [PROJECT_ANALYSIS_REPORT.md](./PROJECT_ANALYSIS_REPORT.md) | Structure review, live-data findings, recent UI fixes |
+
+## Change Log (Documentation)
+
+| Date | Note |
+|------|------|
+| 2026-08-13 | Confirmed UI/design-system and Job Card read-path work do not alter auth, RBAC, tenant isolation, or CORS. Cross-linked README and Project Analysis Report. |

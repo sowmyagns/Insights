@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -30,6 +30,9 @@ class Lead(Base, TimestampMixin):
 
 class Quotation(Base, TimestampMixin):
     __tablename__ = "quotations"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "quote_number", name="uq_quotations_tenant_quote_number"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     tenant_id: Mapped[int] = mapped_column(
@@ -48,6 +51,7 @@ class Quotation(Base, TimestampMixin):
     discount: Mapped[float] = mapped_column(Numeric(12, 2), default=0, nullable=False)
     gst_amount: Mapped[float | None] = mapped_column(Numeric(12, 2))
     freight: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    meta_json: Mapped[str | None] = mapped_column(Text)
 
     customer = relationship("Customer")
     lead = relationship("Lead")
@@ -131,6 +135,9 @@ class SalesOrderLine(Base, TimestampMixin):
 
 class Invoice(Base, TimestampMixin):
     __tablename__ = "invoices"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "invoice_number", name="uq_invoices_tenant_invoice_number"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     tenant_id: Mapped[int] = mapped_column(

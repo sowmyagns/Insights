@@ -56,7 +56,7 @@ export default function ExpenseTracking() {
   if (loading) return <Loader label="Loading expenses..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-5 pb-4">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -77,22 +77,22 @@ export default function ExpenseTracking() {
           >
             + Record Expense
           </button>
-          <button onClick={exportExcel} className="rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Export Excel</button>
-          <button onClick={exportPdf} className="rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Export PDF</button>
+          <button onClick={exportExcel} className="ui-btn-secondary">Export Excel</button>
+          <button onClick={exportPdf} className="ui-btn-secondary">Export PDF</button>
         </div>
       </div>
 
       {/* Stat card */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="ui-card p-4">
           <p className="text-xs font-medium text-slate-500">Total Expenses ({year})</p>
           <p className="mt-1 text-2xl font-bold text-rose-600">₹{total.toLocaleString("en-IN")}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="ui-card p-4">
           <p className="text-xs font-medium text-slate-500">Total Records</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{expenses.length}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="ui-card p-4">
           <p className="text-xs font-medium text-slate-500">Avg per Record</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">
             ₹{expenses.length ? Math.round(total / expenses.length).toLocaleString("en-IN") : 0}
@@ -101,7 +101,7 @@ export default function ExpenseTracking() {
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="ui-card p-4">
         <Table
           columns={[
             { key: "category", label: "Category" },

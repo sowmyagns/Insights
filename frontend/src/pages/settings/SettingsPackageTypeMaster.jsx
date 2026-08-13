@@ -180,7 +180,7 @@ export default function SettingsPackageTypeMaster() {
                         type="button"
                         title="Edit"
                         onClick={() => editItem(row)}
-                        className="rounded p-1.5 text-teal-600 hover:bg-teal-50"
+                        className="rounded p-1.5 text-teal-600 hover:bg-[var(--color-success-soft)]"
                       >
                         <Pencil className="h-4 w-4" />
                       </button>

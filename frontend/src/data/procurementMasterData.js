@@ -49,6 +49,6 @@ export function priorityColor(p) {
 }
 
 export function statusColor(s) {
-  const m = { pending: "bg-amber-100 text-amber-800", approved: "bg-green-100 text-green-800", rejected: "bg-red-100 text-red-800", open: "bg-blue-100 text-blue-800", awarded: "bg-emerald-100 text-emerald-800", expired: "bg-slate-200 text-slate-700", draft: "bg-slate-100 text-slate-700", delivered: "bg-teal-100 text-teal-800", paid: "bg-green-100 text-green-800", due: "bg-orange-100 text-orange-800" };
+  const m = { pending: "bg-amber-100 text-amber-800", approved: "bg-green-100 text-green-800", rejected: "bg-red-100 text-red-800", open: "bg-blue-100 text-blue-800", awarded: "bg-emerald-100 text-emerald-800", expired: "bg-slate-200 text-slate-700", draft: "bg-slate-100 text-slate-700", delivered: "bg-teal-100 text-[var(--color-success)]", paid: "bg-green-100 text-green-800", due: "bg-orange-100 text-orange-800" };
   return m[s] || "bg-slate-100 text-slate-700";
 }

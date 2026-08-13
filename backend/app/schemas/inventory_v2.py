@@ -1,6 +1,6 @@
 """Schemas for Inventory V2 (product-centric items list, stock adjust, categories)."""
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class InventoryItemV2Base(BaseModel):
@@ -18,6 +18,26 @@ class InventoryItemV2Base(BaseModel):
     min_stock: float | None = Field(0, ge=0)
     max_stock: float | None = Field(None, ge=0)
     current_stock: float | None = Field(0, ge=0)
+
+    @field_validator("purchase_price", mode="before")
+    @classmethod
+    def validate_purchase_price_not_negative(cls, v: float | int | str | None) -> float | None:
+        if v is not None and v != "":
+            val = float(v)
+            if val < 0:
+                raise ValueError("Purchase Price cannot be negative.")
+            return val
+        return None
+
+    @field_validator("current_stock", "min_stock", "max_stock", mode="before")
+    @classmethod
+    def validate_stock_not_negative(cls, v: float | int | str | None) -> float | int | None:
+        if v is not None and v != "":
+            val = float(v)
+            if val < 0:
+                raise ValueError("Current Stock cannot be negative.")
+            return val
+        return None
 
 
 class InventoryItemV2Create(InventoryItemV2Base):
@@ -39,6 +59,26 @@ class InventoryItemV2Update(BaseModel):
     min_stock: float | None = Field(None, ge=0)
     max_stock: float | None = Field(None, ge=0)
     current_stock: float | None = Field(None, ge=0)
+
+    @field_validator("purchase_price", mode="before")
+    @classmethod
+    def validate_purchase_price_not_negative(cls, v: float | int | str | None) -> float | None:
+        if v is not None and v != "":
+            val = float(v)
+            if val < 0:
+                raise ValueError("Purchase Price cannot be negative.")
+            return val
+        return None
+
+    @field_validator("current_stock", "min_stock", "max_stock", mode="before")
+    @classmethod
+    def validate_stock_not_negative(cls, v: float | int | str | None) -> float | int | None:
+        if v is not None and v != "":
+            val = float(v)
+            if val < 0:
+                raise ValueError("Current Stock cannot be negative.")
+            return val
+        return None
 
 
 class InventoryItemV2Read(BaseModel):

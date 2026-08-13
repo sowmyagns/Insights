@@ -79,14 +79,14 @@ export default function MachineStatus() {
         <div className="flex items-center gap-3">
           <Link
             to="/production"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 hover:border-teal-300 dark:hover:border-teal-600 transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-[var(--color-success-soft)] dark:hover:bg-teal-900/20 hover:border-teal-300 dark:hover:border-teal-600 transition-colors"
           >
             Live Production
             <ArrowRight className="h-4 w-4" />
           </Link>
           <Link
             to="/production/machines/create"
-            className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-teal-700 transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-[var(--color-success)] transition-colors"
           >
             <Plus className="h-4 w-4" />
             Add Machine
@@ -134,15 +134,18 @@ export default function MachineStatus() {
           </span>
         </div>
         <div className="p-4">
-          {machines.length === 0 ? (
+              {machines.length === 0 ? (
             <div className="rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 py-16 text-center">
               <Cpu className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600" />
-              <p className="mt-2 text-slate-600 dark:text-slate-400">
-                No machines configured
+              <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                No machines found.
+              </p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Add a machine to get started.
               </p>
               <Link
                 to="/production/machines/create"
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-teal-700"
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-success)]"
               >
                 <Plus className="h-4 w-4" />
                 Add Machine
@@ -178,7 +181,7 @@ export default function MachineStatus() {
                         <button
                           onClick={() => handleAction(m, "running")}
                           disabled={loading}
-                          className="rounded-lg bg-emerald-600 p-2 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                          className="rounded-lg bg-[var(--color-success)] p-2 text-white hover:bg-[var(--color-success-hover)] disabled:opacity-50 transition-colors"
                           title="Start"
                         >
                           <Play className="h-5 w-5" />

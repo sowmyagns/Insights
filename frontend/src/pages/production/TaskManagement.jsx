@@ -4,7 +4,6 @@ import { ClipboardList, CheckCircle, Clock, XCircle, Loader2 } from "lucide-reac
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
 import { getTasks, createTask, updateTask } from "../../api/tasksApi";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 
 const STATUSES = [
   { value: "open", label: "Open" },
@@ -187,7 +186,6 @@ export default function TaskManagement() {
           </p>
         </div>
 
-
         <div className="mb-0 flex flex-wrap items-center justify-between gap-2 print:hidden">
           <div className="flex flex-wrap gap-2">
             <button
@@ -343,7 +341,7 @@ export default function TaskManagement() {
                             <button
                               disabled={updatingId === task.id}
                               onClick={() => setTaskStatusDirect(task, "completed")}
-                              className="flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-50 transition-colors"
+                              className="flex items-center gap-1 rounded-full border border-teal-200 bg-[var(--color-success-soft)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-success)] hover:bg-teal-100 disabled:opacity-50 transition-colors"
                             >
                               {updatingId === task.id ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />

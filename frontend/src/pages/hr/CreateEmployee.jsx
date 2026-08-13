@@ -64,7 +64,7 @@ export default function CreateEmployee() {
     <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6">
       <Link
         to="/hr/employees"
-        className="inline-flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-teal-700"
+        className="inline-flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-[var(--color-success)]"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to employees
@@ -160,7 +160,7 @@ export default function CreateEmployee() {
               <button
                 type="button"
                 onClick={() => setAddressOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg border border-[#2563EB] bg-white px-3 py-2 text-sm font-semibold text-[#2563EB] hover:bg-blue-50"
+                className="inline-flex items-center gap-2 rounded-lg border border-[#2563EB] bg-white px-3 py-2 text-sm font-semibold text-[var(--color-primary)] hover:bg-blue-50"
               >
                 <MapPin className="h-4 w-4" />
                 {form.address ? "Edit Address" : "Add Address"}

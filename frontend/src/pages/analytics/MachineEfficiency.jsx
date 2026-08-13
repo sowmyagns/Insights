@@ -15,6 +15,7 @@ import {
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
 import EmptyState from "../../components/common/EmptyState";
+import KpiCard from "../../components/common/KpiCard";
 import { useToast } from "../../context/ToastContext";
 import { getMachineEfficiency } from "../../api/analyticsApi";
 
@@ -64,18 +65,16 @@ export default function MachineEfficiency() {
         subtitle="Availability and output efficiency across your machines."
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <StatCard label="Overall Efficiency" value={`${data.overall_percent}%`} accent />
-        <StatCard label="Total Machines" value={data.total_machines} />
-        <StatCard label="Running" value={data.running} />
-        <StatCard label="Down" value={data.down} />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Overall Efficiency" value={`${data.overall_percent}%`} tone="primary" />
+        <KpiCard label="Total Machines" value={data.total_machines} tone="neutral" />
+        <KpiCard label="Running" value={data.running} tone="success" />
+        <KpiCard label="Down" value={data.down} tone="danger" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Status Breakdown
-          </h3>
+        <div className="ui-card p-6">
+          <h3 className="ui-section-title mb-4">Status Breakdown</h3>
           {statusData.length ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -92,10 +91,8 @@ export default function MachineEfficiency() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Efficiency by Machine (30d)
-          </h3>
+        <div className="ui-card p-6">
+          <h3 className="ui-section-title mb-4">Efficiency by Machine (30d)</h3>
           {byMachine.length ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={byMachine}>
@@ -111,20 +108,6 @@ export default function MachineEfficiency() {
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value, accent }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-      <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
-      <p
-        className="mt-1 text-2xl font-bold"
-        style={{ color: accent ? "var(--color-primary)" : undefined }}
-      >
-        {value}
-      </p>
     </div>
   );
 }

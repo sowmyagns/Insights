@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { CheckCircle, Layers, RotateCcw, Trash2, XCircle } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import QualityFilters from "../../components/quality/QualityFilters";
@@ -10,23 +12,6 @@ import { useToast } from "../../context/ToastContext";
 import { getBatchEnriched, getBatchSummary } from "../../api/qualityApi";
 import { DEMO_BATCH_LIST, DEMO_BATCH_SUMMARY, formatPct } from "../../data/qualityMasterData";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl">{value}</p>
-      </div>
-    </div>
-  );
-}
 
 const monthlyYield = [];
 
@@ -92,15 +77,11 @@ export default function BatchQualityReports() {
   if (loading) return <Loader label="Loading batch reports..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Batch-wise yield, rejection, and quality trend analysis.</p>
-        </div>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader subtitle="Batch-wise yield, rejection, and quality trend analysis." />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Total Batches" value={summary.total_batches} icon={Layers} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Batches" value={summary.total_batches} icon={Layers} color="bg-[var(--color-primary)]" />
         <KpiCard label="Passed" value={summary.passed} icon={CheckCircle} color="bg-green-600" />
         <KpiCard label="Failed" value={summary.failed} icon={XCircle} color="bg-red-500" />
         <KpiCard label="Yield %" value={formatPct(summary.yield_pct)} icon={CheckCircle} color="bg-teal-600" />
@@ -109,8 +90,8 @@ export default function BatchQualityReports() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-1">
-          <h2 className="mb-4 text-sm font-semibold text-slate-900">Monthly Yield</h2>
+        <div className="ui-card p-5 lg:col-span-1">
+          <h2 className="ui-section-title mb-4">Monthly Yield</h2>
           <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyYield}>
@@ -123,8 +104,8 @@ export default function BatchQualityReports() {
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-1">
-          <h2 className="mb-4 text-sm font-semibold text-slate-900">Batch Quality Trend</h2>
+        <div className="ui-card p-5 lg:col-span-1">
+          <h2 className="ui-section-title mb-4">Batch Quality Trend</h2>
           <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthlyYield}>
@@ -137,8 +118,8 @@ export default function BatchQualityReports() {
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-1">
-          <h2 className="mb-4 text-sm font-semibold text-slate-900">Failure / Rejection Trend</h2>
+        <div className="ui-card p-5 lg:col-span-1">
+          <h2 className="ui-section-title mb-4">Failure / Rejection Trend</h2>
           <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyYield}>
@@ -156,7 +137,7 @@ export default function BatchQualityReports() {
 
       <QualityFilters search={search} onSearchChange={setSearch} resultFilter={resultFilter} onResultFilterChange={setResultFilter} searchPlaceholder="Search batch, product, inspector..." />
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="ui-card p-4">
         <DataTable columns={columns} data={filtered} searchPlaceholder="" searchKeys={[]} />
       </div>
     </div>

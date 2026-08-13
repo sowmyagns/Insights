@@ -53,6 +53,12 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
+      let hasStoredUser = false;
+      try {
+        hasStoredUser = Boolean(localStorage.getItem("smrt-user"));
+      } catch {}
+      if (hasStoredUser) return;
+
       setUser(null);
       const isAuthPage =
         typeof window !== "undefined" &&
@@ -89,13 +95,19 @@ export function AuthProvider({ children }) {
       .catch((err) => {
         if (cancelled) return;
         if (err.response?.status === 401) {
+          let hasStoredUser = false;
           try {
-            clearTenantDataCaches();
-            localStorage.removeItem("smrt-token");
-            localStorage.removeItem("smrt-refresh-token");
-            localStorage.removeItem("smrt-user");
+            hasStoredUser = Boolean(localStorage.getItem("smrt-user"));
           } catch {}
-          setUser(null);
+          if (!hasStoredUser) {
+            try {
+              clearTenantDataCaches();
+              localStorage.removeItem("smrt-token");
+              localStorage.removeItem("smrt-refresh-token");
+              localStorage.removeItem("smrt-user");
+            } catch {}
+            setUser(null);
+          }
         }
       });
     return () => {

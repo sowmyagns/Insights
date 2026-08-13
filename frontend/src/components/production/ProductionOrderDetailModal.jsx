@@ -66,7 +66,7 @@ function ProgressBar({ produced, planned, pct }) {
         <span className="font-bold text-slate-700">{p}%</span>
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-slate-200">
-        <div className="h-full rounded-full bg-[#2563EB] transition-all" style={{ width: `${Math.min(p, 100)}%` }} />
+        <div className="h-full rounded-full bg-[var(--color-primary)] transition-all" style={{ width: `${Math.min(p, 100)}%` }} />
       </div>
     </div>
   );
@@ -176,7 +176,7 @@ export default function ProductionOrderDetailModal({ order, detail, onClose, onS
 
         <div className="flex flex-wrap gap-1 border-b px-5 py-2">
           {TABS.map((t) => (
-            <button key={t.id} type="button" onClick={() => setTab(t.id)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === t.id ? "bg-[#2563EB] text-white" : "text-slate-600 hover:bg-slate-100"}`}>
+            <button key={t.id} type="button" onClick={() => setTab(t.id)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === t.id ? "bg-[var(--color-primary)] text-white" : "text-slate-600 hover:bg-slate-100"}`}>
               {t.label}
             </button>
           ))}

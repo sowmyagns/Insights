@@ -85,7 +85,7 @@ function PlanBadge({ plan }) {
 function InfoCell({ icon: Icon, label, children }) {
   return (
     <div className="flex gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3.5 py-3 dark:border-slate-700 dark:bg-slate-900/40">
-      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-teal-700 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-teal-300 dark:ring-slate-600">
+      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[var(--color-success)] shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-teal-300 dark:ring-slate-600">
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0">

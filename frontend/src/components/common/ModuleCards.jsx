@@ -17,7 +17,7 @@ import useAuth from "../../hooks/useAuth";
 import { userCanAccess } from "../../config/permissions";
 
 const modules = [
-  { labelKey: "nav.productionManagement", to: "/production/planning", icon: Factory, module: "production", color: "text-teal-600 bg-teal-50 dark:bg-teal-900/30" },
+  { labelKey: "nav.productionManagement", to: "/production/planning", icon: Factory, module: "production", color: "text-teal-600 bg-[var(--color-success-soft)] dark:bg-teal-900/30" },
   { labelKey: "nav.inventoryManagement", to: "/inventory", icon: Package, module: "inventory", color: "text-blue-600 bg-blue-50 dark:bg-blue-900/30" },
   { labelKey: "nav.procurementManagement", to: "/procurement/purchase-orders", icon: ShoppingCart, module: "procurement", color: "text-violet-600 bg-violet-50 dark:bg-violet-900/30" },
   { labelKey: "nav.hrManagement", to: "/hr", icon: Users, module: "hr", color: "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30" },

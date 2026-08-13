@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, Bell, CheckCircle2, Eye, Filter, Printer, Search, ShieldAlert, Trash2, X, Plus, Info, Clock, User, Calendar, Save, Tag } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import SkeletonTable from "../../components/common/SkeletonTable";
 import EmptyState from "../../components/common/EmptyState";
@@ -35,8 +37,7 @@ import {
 
 const PAGE_SIZE = 10;
 
-const inputClass =
-  "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all";
+const inputClass = "ui-input mt-1.5 w-full";
 
 const EXPORT_COLUMNS = [
   { key: "id", label: "Alert ID" },
@@ -52,32 +53,6 @@ const EXPORT_COLUMNS = [
   { key: "acknowledged_date", label: "Acknowledged Date" },
 ];
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  const displayVal =
-    value === null || value === undefined
-      ? "0"
-      : typeof value === "object"
-      ? (value?.value ?? value?.count ?? value?.total ?? JSON.stringify(value))
-      : String(value);
-
-  return (
-    <div className="group ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white shrink-0" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl" title={displayVal}>
-          {displayVal}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function Badge({ value, styles }) {
   const key = String(value || "").toLowerCase();
@@ -382,7 +357,7 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
 
   if (loading) {
     return (
-      <div className="space-y-6 p-4 sm:p-6">
+      <div className="space-y-5 pb-4">
         <div className="h-8 w-48 animate-pulse rounded bg-slate-200" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
@@ -395,54 +370,51 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
   }
 
   return (
-    <div className="min-h-full pb-8 print:p-0" style={{ background: "#F5F5F5" }}>
-      <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between print:hidden">
-          <div>
-            <p className="mt-0.5 text-xs text-slate-500 print:hidden">
-              {subtitle || "Monitor, acknowledge, and resolve system alerts across modules."}
-            </p>
-          </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {canWrite && (
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle={subtitle || "Monitor, acknowledge, and resolve system alerts across modules."}
+        action={
+          <>
+            {canWrite && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await markAllAlertsRead();
+                    addToast("All alerts marked as read");
+                    load();
+                  } catch (e) {
+                    addToast(e.response?.data?.detail || "Failed to mark all read", "error");
+                  }
+                }}
+                className="ui-btn-secondary"
+              >
+                Mark all read
+              </button>
+            )}
+            <ExportButtons
+              onExcel={() => exportToExcel(exportRows, EXPORT_COLUMNS, "alerts")}
+              onPdf={() => exportToPdf(exportRows, EXPORT_COLUMNS, "Alerts Report", "alerts")}
+            />
             <button
               type="button"
-              onClick={async () => {
-                try {
-                  await markAllAlertsRead();
-                  addToast("All alerts marked as read");
-                  load();
-                } catch (e) {
-                  addToast(e.response?.data?.detail || "Failed to mark all read", "error");
-                }
-              }}
-              className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              onClick={() => window.print()}
+              className="ui-btn-secondary"
             >
-              Mark all read
+              <Printer className="h-4 w-4" /> Print
             </button>
-          )}
-          <ExportButtons
-            onExcel={() => exportToExcel(exportRows, EXPORT_COLUMNS, "alerts")}
-            onPdf={() => exportToPdf(exportRows, EXPORT_COLUMNS, "Alerts Report", "alerts")}
-          />
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-xs transition-all"
-          >
-            <Printer className="h-4 w-4 text-slate-500" /> Print
-          </button>
-          {canCreate && (
-            <button
-              type="button"
-              onClick={() => setShowCreate(true)}
-              className="ui-btn-hr"
-            >
-              <Plus className="h-4 w-4" /> New Alert
-            </button>
-          )}
-        </div>
-      </header>
+            {canCreate && (
+              <button
+                type="button"
+                onClick={() => setShowCreate(true)}
+                className="ui-btn-primary"
+              >
+                <Plus className="h-4 w-4" /> New Alert
+              </button>
+            )}
+          </>
+        }
+      />
 
       {error && !online ? (
         <OfflineState onRetry={load} />
@@ -458,8 +430,8 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
       ) : null}
 
       {/* KPI Cards Grid */}
-      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-        <KpiCard label="Total Alerts" value={summary.total} icon={Bell} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Alerts" value={summary.total} icon={Bell} color="bg-[var(--color-primary)]" />
         <KpiCard label="Critical" value={summary.critical} icon={AlertTriangle} color="bg-rose-600" />
         <KpiCard label="High Priority" value={summary.high} icon={ShieldAlert} color="bg-orange-500" />
         <KpiCard label="Medium Priority" value={summary.medium} icon={Clock} color="bg-amber-500" />
@@ -946,14 +918,14 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
               <button
                 type="button"
                 onClick={() => setShowCreate(false)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                className="ui-btn-secondary"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="ui-btn-hr"
+                className="ui-btn-primary"
               >
                 <Save className="h-4 w-4" />
                 {saving ? "Saving..." : "Create Alert"}
@@ -962,7 +934,6 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
           </form>
         </div>
       )}
-      </div>
     </div>
   );
 }

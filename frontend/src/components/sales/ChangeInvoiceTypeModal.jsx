@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 
 /**
  * Confirm changing invoice type (erases entered data).
@@ -58,7 +58,7 @@ export default function ChangeInvoiceTypeModal({ open, onClose, onConfirm }) {
               onConfirm?.();
               onClose?.();
             }}
-            className="min-w-[110px] rounded-xl px-6 py-2.5 text-[14px] font-semibold text-[#1a1a1f] shadow-sm"
+            className="min-w-[110px] rounded-xl px-6 py-2.5 text-[14px] font-semibold text-white shadow-sm"
             style={{ background: YELLOW }}
           >
             Okay

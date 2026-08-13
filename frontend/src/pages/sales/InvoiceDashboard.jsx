@@ -220,7 +220,7 @@ export default function InvoiceDashboard() {
         </div>
         <Link
           to="/sales/invoices/create"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[#F5C518] px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f] shadow-sm hover:bg-[#e6b800]"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-action-blue)] px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm hover:bg-[var(--color-action-blue-hover)] active:bg-[var(--color-action-blue-active)]"
         >
           <Plus className="h-4 w-4" strokeWidth={2.5} />
           Create Invoice
@@ -410,7 +410,7 @@ export default function InvoiceDashboard() {
                         (r.invoice_status || "active") !== "cancelled" ? (
                           <Link
                             to={`/sales/payments/create?invoice_id=${r.id}`}
-                            className="text-[12px] font-semibold text-teal-700 hover:underline"
+                            className="text-[12px] font-semibold text-[var(--color-success)] hover:underline"
                           >
                             Pay
                           </Link>

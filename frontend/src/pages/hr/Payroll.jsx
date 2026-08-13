@@ -1,3 +1,5 @@
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle, Clock, Download, HeartPulse, IndianRupee, Plus, Receipt, Shield, TrendingUp, Wallet, X, Save } from "lucide-react";
 
@@ -13,25 +15,6 @@ import { DEMO_PAY_SUMMARY, formatInr, statusColor } from "../../data/hrMasterDat
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="group rounded-2xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[11px] font-bold uppercase tracking-wider text-slate-400 font-sans">{label}</p>
-          <p className="mt-1 text-lg sm:text-xl font-black tracking-tight text-slate-900 tabular-nums truncate" title={String(value)}>
-            {value}
-          </p>
-        </div>
-        {Icon && (
-          <div className={`flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl shadow-xs transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white shrink-0" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default function Payroll() {
   const tenantId = useTenantId();
@@ -219,7 +202,7 @@ export default function Payroll() {
             Mark Paid
           </button>
         )}
-        <button type="button" onClick={() => setSelected(r)} className="text-xs font-semibold text-[#2563EB] hover:underline">
+        <button type="button" onClick={() => setSelected(r)} className="text-xs font-semibold text-[var(--color-primary)] hover:underline">
           Payslip
         </button>
       </div>
@@ -308,24 +291,24 @@ export default function Payroll() {
   if (loading && rows.length === 0) return <Loader label="Loading payroll..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Enterprise payroll with PF, ESI, tax, overtime, and salary slip generation.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="Enterprise payroll with PF, ESI, tax, overtime, and salary slip generation."
+        action={
+          <>
+            <button
             type="button"
             onClick={() => setShowCreateModal(true)}
             className="ui-btn-hr"
           >
             <Plus className="h-4 w-4" /> Create Payroll
           </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7">
-        <KpiCard label="Monthly Payroll" value={formatInr(liveSummary.monthly_payroll)} icon={Wallet} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Monthly Payroll" value={formatInr(liveSummary.monthly_payroll)} icon={Wallet} color="bg-[var(--color-primary)]" />
         <KpiCard label="Pending Salary" value={formatInr(liveSummary.pending_salary)} icon={Clock} color="bg-amber-500" />
         <KpiCard label="Processed" value={formatInr(liveSummary.processed_salary)} icon={CheckCircle} color="bg-green-600" />
         <KpiCard label="OT Cost" value={formatInr(liveSummary.overtime_cost)} icon={TrendingUp} color="bg-orange-500" />
@@ -334,10 +317,10 @@ export default function Payroll() {
         <KpiCard label="Prof. Tax" value={formatInr(liveSummary.professional_tax)} icon={Receipt} color="bg-purple-600" />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="ui-card p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-semibold text-slate-900 font-sans">Payroll Register</h2>
-          <button type="button" onClick={handleExport} className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-[#2563EB]"><Download className="h-4 w-4" /> Export</button>
+          <button type="button" onClick={handleExport} className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-[var(--color-primary)]"><Download className="h-4 w-4" /> Export</button>
         </div>
         <DataTable columns={columns} data={rows} searchPlaceholder="Search employee..." searchKeys={["employee_name", "status"]} />
       </div>

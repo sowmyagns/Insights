@@ -1,3 +1,5 @@
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { Award, Calendar, CheckCircle, Clock, Coffee, HeartPulse, Plus, XCircle, X, Save } from "lucide-react";
 import usePageRefresh from "../../hooks/usePageRefresh";
@@ -25,25 +27,6 @@ const ALL_LEAVE_TYPES = [
   { value: "unpaid", label: "Loss of Pay (LOP) / Unpaid Leave" },
 ];
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="group rounded-2xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[11px] font-bold uppercase tracking-wider text-slate-400 font-sans">{label}</p>
-          <p className="mt-1 text-lg sm:text-xl font-black tracking-tight text-slate-900 tabular-nums truncate" title={String(value)}>
-            {value}
-          </p>
-        </div>
-        {Icon && (
-          <div className={`flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl shadow-xs transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white shrink-0" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default function Leave() {
   const { addToast } = useToast();
@@ -187,27 +170,27 @@ export default function Leave() {
   if (loading && rows.length === 0) return <Loader label="Loading leave requests..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Leave calendar, multi-level approval workflow, and balance tracking.</p>
-        </div>
-        <div className="flex gap-2">
-          <button
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="Leave calendar, multi-level approval workflow, and balance tracking."
+        action={
+          <>
+            <button
             type="button"
             onClick={() => setShowCreateModal(true)}
             className="ui-btn-hr"
           >
             <Plus className="h-4 w-4" /> Request Leave
           </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 2xl:grid-cols-7">
+      <div className="ui-grid-kpi">
         <KpiCard label="Pending Requests" value={summary.pending_leave} icon={Clock} color="bg-amber-500" />
         <KpiCard label="Approved" value={summary.approved} icon={CheckCircle} color="bg-green-600" />
         <KpiCard label="Rejected" value={summary.rejected} icon={XCircle} color="bg-red-500" />
-        <KpiCard label="Pending Leave Days" value={summary.available_leave} icon={Calendar} color="bg-blue-600" />
+        <KpiCard label="Pending Leave Days" value={summary.available_leave} icon={Calendar} color="bg-[var(--color-primary)]" />
         <KpiCard label="Sick Leave" value={summary.sick_leave} icon={HeartPulse} color="bg-orange-500" />
         <KpiCard label="Casual" value={summary.casual_leave} icon={Coffee} color="bg-indigo-600" />
         <KpiCard label="Earned" value={summary.earned_leave} icon={Award} color="bg-teal-600" />
@@ -223,22 +206,22 @@ export default function Leave() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border px-3 py-2 text-sm">
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="ui-input">
           <option value="">All Status</option>
           {["pending", "approved", "rejected"].map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <div className="flex gap-1 rounded-lg bg-slate-100 p-0.5">
-          <button type="button" onClick={() => setView("table")} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${view === "table" ? "bg-white text-[#2563EB] shadow-sm" : "text-slate-500"}`}>Table</button>
-          <button type="button" onClick={() => setView("calendar")} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${view === "calendar" ? "bg-white text-[#2563EB] shadow-sm" : "text-slate-500"}`}>Calendar</button>
+          <button type="button" onClick={() => setView("table")} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${view === "table" ? "bg-white text-[var(--color-primary)] shadow-sm" : "text-slate-500"}`}>Table</button>
+          <button type="button" onClick={() => setView("calendar")} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${view === "calendar" ? "bg-white text-[var(--color-primary)] shadow-sm" : "text-slate-500"}`}>Calendar</button>
         </div>
       </div>
 
       {view === "table" ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="ui-card p-4">
           <DataTable columns={columns} data={filtered} searchPlaceholder="Search employee, type..." searchKeys={["employee_name", "leave_type"]} />
         </div>
       ) : (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="ui-card p-5">
           <h2 className="mb-4 font-semibold text-slate-900 font-sans">July 2026 — Leave Calendar</h2>
           <div className="grid grid-cols-7 gap-1 text-center text-xs">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <div key={d} className="py-2 font-semibold text-slate-500">{d}</div>)}

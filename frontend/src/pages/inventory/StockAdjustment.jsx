@@ -160,7 +160,7 @@ export default function StockAdjustment() {
                 type="button"
                 disabled={isBusy}
                 onClick={() => handleStatusChange(r.id, "approved")}
-                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-success)] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[var(--color-success-hover)] disabled:opacity-50"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" /> Approve
               </button>

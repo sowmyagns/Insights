@@ -26,7 +26,7 @@ export default function LowStockAlerts() {
             </p>
             <Link
               to="/inventory/raw-materials"
-              className="mt-2 inline-block font-medium text-teal-700 hover:underline dark:text-teal-400"
+              className="mt-2 inline-block font-medium text-[var(--color-success)] hover:underline dark:text-teal-400"
             >
               {t("alerts.viewInventory", { defaultValue: "View inventory" })}
             </Link>

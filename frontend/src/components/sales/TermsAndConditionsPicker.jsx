@@ -152,7 +152,7 @@ export default function TermsAndConditionsPicker({
                 }}
                 className={`relative flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 text-left transition ${
                   active
-                    ? "border-[#F5C518] bg-[#fffbeb]"
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)]"
                     : "border-[#ececf0] bg-white hover:border-[#d8d8e0]"
                 }`}
               >

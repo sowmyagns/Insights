@@ -47,7 +47,6 @@ export default function PasswordInput({
         disabled={disabled}
         className="absolute right-2.5 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500/40 disabled:opacity-50"
         aria-label={visible ? "Hide password" : "Show password"}
-        tabIndex={-1}
       >
         {visible ? <EyeOff className="h-5 w-5 shrink-0" /> : <Eye className="h-5 w-5 shrink-0" />}
       </button>

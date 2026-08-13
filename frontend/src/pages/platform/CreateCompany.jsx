@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -79,35 +79,55 @@ function formatApiError(detail) {
 }
 
 function clientValidate(form, isTrial) {
-  const companyName = form.company_name.trim();
-  if (!companyName) return { _form: "Company Name is required." };
-  if (!/[\p{L}]/u.test(companyName)) {
-    return { company_name: "Company Name must contain alphabetic characters." };
-  }
-  if (!form.company_email.trim()) return { _form: "Company Email is required." };
-  if (!form.admin_name.trim()) return { _form: "Admin Name is required." };
-  if (!form.admin_email.trim()) return { _form: "Admin Email is required." };
-  const mobile = form.mobile_number.replace(/\D/g, "");
-  if (mobile.length !== 10 || !/^[6-9]/.test(mobile)) {
-    return { mobile_number: "Mobile Number must be a valid 10-digit Indian number." };
-  }
-  const addressErrors = validateCompanyAddress(form, { pinKey: "pin_code" });
-  if (Object.keys(addressErrors).length) return addressErrors;
-  if (form.gst_number.trim()) {
-    const gst = form.gst_number.replace(/\s+/g, "").toUpperCase();
-    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gst)) {
-      return { gst_number: "GST Number format is invalid." };
+  const errors = {};
+  
+  if (!form.company_name || !form.company_name.trim()) {
+    errors.company_name = "Company Name is required.";
+  } else {
+    if (!/[a-zA-Z]/.test(form.company_name)) {
+      errors.company_name = "Company Name must contain alphabetic characters.";
+    } else if (!/^[a-zA-Z0-9\s$]+$/.test(form.company_name)) {
+      errors.company_name = "Only alphabets, numbers, spaces, and '$' are allowed.";
     }
   }
+
+  if (!form.company_email || !form.company_email.trim()) {
+    errors.company_email = "Company Email is required.";
+  }
+  if (!form.admin_name || !form.admin_name.trim()) {
+    errors.admin_name = "Admin Name is required.";
+  }
+  if (!form.admin_email || !form.admin_email.trim()) {
+    errors.admin_email = "Admin Email is required.";
+  }
+  
+  const mobile = (form.mobile_number || "").replace(/\D/g, "");
+  if (mobile.length !== 10 || !/^[6-9]/.test(mobile)) {
+    errors.mobile_number = "Mobile Number must be exactly 10 digits.";
+  }
+
+  const addressErrors = validateCompanyAddress(form, { pinKey: "pin_code" });
+  if (Object.keys(addressErrors).length) {
+    Object.assign(errors, addressErrors);
+  }
+
+  if (form.gst_number && form.gst_number.trim()) {
+    const gst = form.gst_number.replace(/\s+/g, "").toUpperCase();
+    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gst)) {
+      errors.gst_number = "GST Number format is invalid.";
+    }
+  }
+
   if (isTrial) {
     const days = Number(form.trial_days);
     if (!Number.isFinite(days) || days < 7 || days > 30) {
-      return { trial_days: "Trial Days must be between 7 and 30." };
+      errors.trial_days = "Trial Days must be between 7 and 30.";
     }
   } else if (!form.billing_cycle) {
-    return { billing_cycle: "Billing Cycle is required for paid plans." };
+    errors.billing_cycle = "Billing Cycle is required for paid plans.";
   }
-  return {};
+
+  return errors;
 }
 
 function CreateCompanyForm() {
@@ -192,7 +212,16 @@ function CreateCompanyForm() {
       setResult(data);
     } catch (err) {
       const detail = err.response?.data?.detail;
-      setError(formatApiError(detail));
+      const responseMsg = err.response?.data?.message;
+      const networkMsg = err.message;
+
+      const parsedDetail = formatApiError(detail);
+      const errorToShow =
+        parsedDetail && parsedDetail !== "Failed to create company."
+          ? parsedDetail
+          : responseMsg || networkMsg || "Could not create company. Please try again.";
+
+      setError(errorToShow);
       if (Array.isArray(detail)) {
         const mapped = {};
         detail.forEach((item) => {
@@ -246,7 +275,7 @@ function CreateCompanyForm() {
               {result.company?.id ? (
                 <Link
                   to={`/gns-admin/companies/${result.company.id}`}
-                  className="rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
+                  className="rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-success)]"
                 >
                   View Company
                 </Link>
@@ -347,6 +376,7 @@ function CreateCompanyForm() {
                 placeholder="9876543210"
                 disabled={loading}
                 error={fieldErrors.mobile_number}
+                maxLength={10}
               />
               <Field
                 label="GST Number"

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 
 const EMPTY = {
   transporter_name: "",
@@ -106,7 +106,7 @@ export default function AddTransporterDetailsModal({ open, onClose, onSave, init
           </button>
           <button
             type="submit"
-            className="rounded-xl py-3 text-[14px] font-semibold text-[#1a1a1f]"
+            className="rounded-xl py-3 text-[14px] font-semibold text-white"
             style={{ background: YELLOW }}
           >
             Save

@@ -7,6 +7,8 @@ import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
 import { getExtendedReports } from "../../api/accountsApi";
 import { formatInr } from "../../data/financeMasterData";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 export default function MultiBranchLedger() {
   const { addToast } = useToast();
@@ -73,15 +75,11 @@ export default function MultiBranchLedger() {
   const consolidatedRev = branchData.reduce((s, b) => s + b.revenue, 0) || 0;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Consolidated posting logs and branch-level financial comparison dashboard.</p>
-        </div>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader subtitle="Consolidated posting logs and branch-level financial comparison dashboard." />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <KpiCard label="Total Consolidated Revenue" value={formatInr(summary.revenue)} icon={Building2} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Consolidated Revenue" value={formatInr(summary.revenue)} icon={Building2} color="bg-[var(--color-primary)]" />
         <KpiCard label="Total Consolidated Expenses" value={formatInr(summary.expenses)} icon={TrendingDown} color="bg-red-500" />
         <KpiCard label="Consolidated Net Profit" value={formatInr(summary.revenue - summary.expenses)} icon={TrendingUp} color="bg-green-600" />
       </div>
@@ -100,7 +98,7 @@ export default function MultiBranchLedger() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-900">Branch Performance Comparison</h2>
+          <h2 className="ui-section-title mb-4">Branch Performance Comparison</h2>
           <div className="h-64">
             {hasBranchData ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -138,7 +136,7 @@ export default function MultiBranchLedger() {
                       <span className="font-bold text-blue-600">{((b.revenue / consolidatedRev) * 100).toFixed(0)}% contribution</span>
                     </div>
                     <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <div className="bg-[#2563EB] h-full" style={{ width: `${(b.revenue / consolidatedRev) * 100}%` }} />
+                      <div className="bg-[var(--color-primary)] h-full" style={{ width: `${(b.revenue / consolidatedRev) * 100}%` }} />
                     </div>
                   </div>
                 ))}
@@ -208,20 +206,3 @@ export default function MultiBranchLedger() {
   );
 }
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{value}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}

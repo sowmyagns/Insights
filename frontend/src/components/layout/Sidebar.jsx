@@ -152,11 +152,10 @@ const PROD_MANAGER_ALLOWED_CHILDREN = new Set([
   "/production/mrp",
   "/production/work-orders",
   "/production/work-orders/create-quick",
+  "/production/job-card",
   "/production/schedule",
   "/factory-monitor/live-production",
   "/production/tasks",
-  "/production/assign-tasks",
-  "/production/batches",
   "/production/reports",
   "/inventory",
   "/inventory/raw-materials",
@@ -344,14 +343,14 @@ export default function Sidebar({ collapsed = false, onToggleCollapse, onClose }
   const childLinkClass = ({ isActive }) =>
     `relative block rounded-lg py-2 pl-9 pr-3 text-[13px] transition-colors ${
       isActive
-        ? "bg-[#195CCF] font-medium text-white"
+        ? "bg-[var(--color-nav-active)] font-medium text-white"
         : "text-slate-400 hover:bg-white/10 hover:text-slate-200"
     }`;
 
   const sectionButtonClass = (_isOpen, hasActive) =>
     `relative flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
       hasActive
-        ? "bg-[#195CCF] text-white"
+        ? "bg-[var(--color-nav-active)] text-white"
         : "text-slate-300 hover:bg-white/10 hover:text-white"
     }`;
 
@@ -362,12 +361,12 @@ export default function Sidebar({ collapsed = false, onToggleCollapse, onClose }
   const childLabel = (child) => child.label || (child.labelKey ? t(child.labelKey) : child.to);
 
   return (
-    <aside className="relative flex h-full w-full shrink-0 flex-col bg-[#001B3D] text-white">
+    <aside className="relative flex h-full w-full shrink-0 flex-col bg-[var(--color-nav-bg)] text-white">
       {typeof onToggleCollapse === "function" ? (
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="absolute -right-3 top-[48%] z-20 hidden h-11 w-6 -translate-y-1/2 items-center justify-center rounded-l-md border border-r-0 border-[#c8c8d0] bg-[#001B3D] text-white shadow-sm hover:bg-[#00264f] lg:flex"
+          className="absolute -right-3 top-[48%] z-20 hidden h-11 w-6 -translate-y-1/2 items-center justify-center rounded-l-md border border-r-0 border-[#c8c8d0] bg-[var(--color-nav-bg)] text-white shadow-sm hover:bg-[var(--color-nav-bg-hover)] lg:flex"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >

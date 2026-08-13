@@ -17,8 +17,9 @@ import { isProductionManager } from "../../config/permissions";
 import AddNewItemModal from "../../components/sales/AddNewItemModal";
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { deleteProduct, getProducts } from "../../api/productsApi";
-import { enrichApiProduct } from "../../data/productsMasterData";
+import { computeSummary, enrichApiProduct, getCategoryChartData } from "../../data/productsMasterData";
 import { exportToExcel } from "../../utils/exportUtils";
 import { apiErrorMessage } from "../../utils/apiError";
 
@@ -136,6 +137,9 @@ export default function ProductsMaster() {
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
 
+  const summary = useMemo(() => computeSummary(products), [products]);
+  const categoryChart = useMemo(() => getCategoryChartData(products), [products]);
+
   const onExport = () => {
     exportToExcel(
       filtered,
@@ -184,6 +188,75 @@ export default function ProductsMaster() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
+
+        {/* Summary Cards */}
+        <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="rounded-xl border border-[#e8e8ee] bg-white p-4 shadow-sm">
+            <p className="text-[12px] font-semibold text-[#6b6b76]">Total Products</p>
+            <p className="mt-1 text-2xl font-bold text-[#1a1a1f]">{summary.total}</p>
+          </div>
+          <div className="rounded-xl border border-[#e8e8ee] bg-white p-4 shadow-sm">
+            <p className="text-[12px] font-semibold text-[#6b6b76]">Categories</p>
+            <p className="mt-1 text-2xl font-bold text-[#1a1a1f]">{summary.categories}</p>
+          </div>
+          <div className="rounded-xl border border-[#e8e8ee] bg-white p-4 shadow-sm">
+            <p className="text-[12px] font-semibold text-[#6b6b76]">Active Products</p>
+            <p className="mt-1 text-2xl font-bold text-[#22c55e]">{summary.active}</p>
+          </div>
+          <div className="rounded-xl border border-[#e8e8ee] bg-white p-4 shadow-sm">
+            <p className="text-[12px] font-semibold text-[#6b6b76]">Low Stock</p>
+            <p className="mt-1 text-2xl font-bold text-[#f59e0b]">{summary.lowStock}</p>
+          </div>
+        </div>
+
+        {/* Product Categories Chart */}
+        {categoryChart.length > 0 && (
+          <div className="mb-5 rounded-xl border border-[#e8e8ee] bg-white p-4 sm:p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-[#1a1a1f]">Product Categories Chart</h3>
+            <p className="text-xs text-[#6b6b76]">Breakdown of products by category</p>
+            <div className="mt-4 flex flex-col items-center gap-6 sm:flex-row">
+              <div className="h-44 w-44 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categoryChart}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={70}
+                      paddingAngle={2}
+                    >
+                      {categoryChart.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: 8,
+                        border: "1px solid #e4e4ea",
+                        fontSize: 12,
+                      }}
+                      formatter={(value, name) => [`${value} products`, name]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <ul className="flex-1 space-y-2 text-xs">
+                {categoryChart.map((item) => (
+                  <li key={item.name} className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-2 text-[#4a4a55]">
+                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="font-medium">{item.name}</span>
+                    </span>
+                    <span className="font-bold text-[#1a1a1f]">{item.value}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
 
         <div className="ui-card p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center gap-2.5">
@@ -289,7 +362,7 @@ export default function ProductsMaster() {
                                 setEditing(p);
                                 setAddOpen(true);
                               }}
-                              className="grid h-8 w-8 place-items-center rounded-full bg-[#eef0ff] text-[#5b5bd6] hover:bg-[#e4e6fc]"
+                              className="grid h-8 w-8 place-items-center rounded-full bg-[var(--color-primary-soft)] text-[var(--color-primary)] hover:bg-[#e4e6fc]"
                               title="Edit"
                               aria-label="Edit product"
                             >

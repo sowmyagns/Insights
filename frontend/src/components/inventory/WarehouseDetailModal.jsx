@@ -103,7 +103,7 @@ export default function WarehouseDetailModal({ warehouse, detail, onClose, onEdi
               type="button"
               onClick={() => setTab(t.id)}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                tab === t.id ? "bg-[#2563EB] text-white" : "text-slate-600 hover:bg-slate-100"
+                tab === t.id ? "bg-[var(--color-primary)] text-white" : "text-slate-600 hover:bg-slate-100"
               }`}
             >
               {t.label}
@@ -253,7 +253,7 @@ export default function WarehouseDetailModal({ warehouse, detail, onClose, onEdi
         </div>
 
         <div className="flex flex-wrap gap-2 border-t border-slate-100 px-5 py-4">
-          <Link to="/inventory/stock-transfer" className="inline-flex items-center gap-1.5 rounded-lg bg-[#2563EB] px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">
+          <Link to="/inventory/stock-transfer" className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">
             <ArrowDownUp className="h-3.5 w-3.5" /> Stock Transfer
           </Link>
           <Link to={`/inventory/stock-ledger`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">

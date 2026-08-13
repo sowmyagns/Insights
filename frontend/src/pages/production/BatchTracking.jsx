@@ -6,7 +6,6 @@ import { AlertTriangle, CheckCircle2, Clock, Download, Pause, Search, XCircle } 
 import BatchDetailModal from "../../components/production/BatchDetailModal";
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { useToast } from "../../context/ToastContext";
 import { getBatchDetail, getBatchSummary, getBatchesEnriched } from "../../api/productionApi";
 import {
@@ -58,7 +57,6 @@ export default function BatchTracking() {
         getBatchSummary(),
         getBatchesEnriched(),
       ]);
-
 
       if (sumRes.status === "fulfilled" && sumRes.value?.data) {
         setSummary({ ...DEMO_BATCH_SUMMARY, ...sumRes.value.data });
@@ -142,7 +140,6 @@ export default function BatchTracking() {
           </p>
         </div>
 
-
         <div className="mb-0 flex flex-wrap items-center justify-between gap-2 print:hidden">
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={handleExport} className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]">
@@ -152,7 +149,7 @@ export default function BatchTracking() {
         </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-        <SummaryCard label="Total Batches" value={summary.total_batches} icon={Search} color="bg-[#2563EB]" />
+        <SummaryCard label="Total Batches" value={summary.total_batches} icon={Search} color="bg-[var(--color-primary)]" />
         <SummaryCard label="Running" value={summary.running} icon={Clock} color="bg-green-500" />
         <SummaryCard label="Completed" value={summary.completed} icon={CheckCircle2} color="bg-emerald-500" />
         <SummaryCard label="Hold" value={summary.hold} icon={Pause} color="bg-amber-500" />

@@ -307,7 +307,7 @@ export default function CreateBill() {
             Cancel
           </Link>
           <button type="submit" disabled={saving}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-6 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-blue-700 disabled:opacity-60">
+            className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-6 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-[var(--color-primary-hover)] disabled:opacity-60">
             {saving ? (
               <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Saving…</>
             ) : (

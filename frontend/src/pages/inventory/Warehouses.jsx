@@ -339,7 +339,7 @@ export default function Warehouses() {
       </header>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        <SummaryCard label="Total Warehouses" value={summary.total} icon={Warehouse} color="bg-[#2563EB]" />
+        <SummaryCard label="Total Warehouses" value={summary.total} icon={Warehouse} color="bg-[var(--color-primary)]" />
         <SummaryCard label="Active Warehouses" value={summary.active} icon={Box} color="bg-green-500" />
         <SummaryCard label="Primary Warehouse" value={summary.primary} icon={Layers} color="bg-purple-500" sub="Main store" />
         <SummaryCard label="Storage Utilization" value={`${summary.utilizationPct}%`} icon={Layers} color="bg-orange-500" />

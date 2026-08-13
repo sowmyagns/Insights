@@ -228,6 +228,35 @@ def production_plan_machine(
     return success_response("Machine assigned to production plan", _dump(order))
 
 
+# ── Job Cards (Work Order shop-floor document) ─────────────────────────────
+
+
+@router.get("/job-cards")
+def list_job_cards_endpoint(
+    user_tenant: tuple[User, int] = Depends(require_tenant("workorders")),
+    db: Session = Depends(get_db),
+):
+    from app.services.job_card_service import list_job_cards
+
+    user, tenant_id = user_tenant
+    return success_response("Job cards retrieved", list_job_cards(db, tenant_id, user=user))
+
+
+@router.get("/job-cards/{work_order_id}")
+def get_job_card_endpoint(
+    work_order_id: int,
+    user_tenant: tuple[User, int] = Depends(require_tenant("workorders")),
+    db: Session = Depends(get_db),
+):
+    from app.services.job_card_service import build_job_card
+
+    user, tenant_id = user_tenant
+    card = build_job_card(db, tenant_id, work_order_id, user=user)
+    if not card:
+        raise HTTPException(404, "Job card not found")
+    return success_response("Job card retrieved", card)
+
+
 # ── Work Orders ────────────────────────────────────────────────────────────
 
 
@@ -308,14 +337,18 @@ def update_work_order_endpoint(
         raise HTTPException(403, "You cannot change work order status")
     if payload.actual_quantity is not None and not user_can_action(user, "production", "update_qty"):
         raise HTTPException(403, "You cannot update production quantity")
+    can_update = user_can_action(user, "production", "update")
     wo = update_work_order(
         db,
         work_order_id,
         tenant_id,
         user=user,
         actual_quantity=payload.actual_quantity,
-        status=payload.status if user_can_action(user, "production", "update") else None,
-        machine_id=payload.machine_id if user_can_action(user, "production", "update") else None,
+        status=payload.status if can_update else None,
+        machine_id=payload.machine_id if can_update else None,
+        shift=payload.shift if can_update else None,
+        operator_name=payload.operator_name if can_update else None,
+        priority=payload.priority if can_update else None,
     )
     if not wo:
         raise HTTPException(404, "Work order not found")

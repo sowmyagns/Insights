@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { Plus, AlertTriangle, ShieldCheck, HeartPulse, ShieldAlert, X, Save } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -12,25 +14,6 @@ import { apiErrorMessage } from "../../utils/apiError";
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="group ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white shrink-0" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl" title={String(value)}>
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 const severityBadgeColor = (sev) => {
   switch (String(sev).toLowerCase()) {
@@ -191,30 +174,30 @@ export default function IncidentReports({ autoOpenCreate }) {
   if (loading && incidents.length === 0) return <Loader label="Loading safety log..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Record, investigate, and audit occupational health and safety incidents and near misses.</p>
-        </div>
-        <div className="flex gap-2">
-          <button
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="Record, investigate, and audit occupational health and safety incidents and near misses."
+        action={
+          <>
+            <button
             type="button"
             onClick={handleOpenCreateModal}
             className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 shadow-sm transition-all animate-none"
           >
             <Plus className="h-4 w-4" /> Report Incident
           </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="ui-grid-kpi">
         <KpiCard label="Total Safety Events" value={kpis.total} icon={AlertTriangle} color="bg-slate-600" />
-        <KpiCard label="Open Investigations" value={kpis.openCount} icon={ShieldAlert} color="bg-blue-600" />
+        <KpiCard label="Open Investigations" value={kpis.openCount} icon={ShieldAlert} color="bg-[var(--color-primary)]" />
         <KpiCard label="Critical Incidents" value={kpis.critical} icon={HeartPulse} color="bg-red-600" />
         <KpiCard label="Resolution Rate" value={`${kpis.resolved}%`} icon={ShieldCheck} color="bg-green-600" />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="ui-card p-4">
         <DataTable
           columns={columns}
           data={incidents}

@@ -1,3 +1,5 @@
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 ﻿import { useState, useEffect, useCallback } from "react";
 import { Clock, Coffee, Layers, Plus, X, Save } from "lucide-react";
 
@@ -11,23 +13,6 @@ import { useToast } from "../../context/ToastContext";
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 font-sans">{label}</p>
-          <p className="mt-1.5 text-2xl font-black tracking-tight text-slate-900 tabular-nums">{value}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-5.5 w-5.5 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function formatTime(t) {
   if (!t) return "-";
@@ -112,29 +97,29 @@ export default function Shifts() {
   if (loading && shifts.length === 0) return <Loader label="Loading shifts..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Configure employee working shifts, time ranges, and daily capacity.</p>
-        </div>
-        <div className="flex gap-2">
-          <button
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="Configure employee working shifts, time ranges, and daily capacity."
+        action={
+          <>
+            <button
             type="button"
             onClick={() => setShowCreateModal(true)}
             className="ui-btn-hr"
           >
             <Plus className="h-4 w-4" /> Create Shift
           </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard label="Configured Shifts" value={totalShifts} icon={Layers} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Configured Shifts" value={totalShifts} icon={Layers} color="bg-[var(--color-primary)]" />
         <KpiCard label="Avg Capacity" value={avgCapacity} icon={Clock} color="bg-indigo-600" />
         <KpiCard label="Total Break Time" value={totalBreak} icon={Coffee} color="bg-teal-600" />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="ui-card p-4">
         <Table
           columns={[
             { key: "name", label: "Name", render: (r) => <span className="font-semibold text-slate-800">{r.name}</span> },

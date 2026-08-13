@@ -39,7 +39,7 @@ export default function InventoryLineItems({
         <button
           type="button"
           onClick={addLine}
-          className="inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:text-teal-700"
+          className="inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:text-[var(--color-success)]"
         >
           <Plus className="h-4 w-4" />
           Add line

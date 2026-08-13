@@ -6,6 +6,7 @@ const pathLabels = {
   production: "Production",
   planning: "Production Planning",
   "work-orders": "Work Orders",
+  "job-card": "Job Card",
   tasks: "Tasks",
   batches: "Batch Tracking",
   machines: "Machines",

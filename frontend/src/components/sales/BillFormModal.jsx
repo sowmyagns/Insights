@@ -300,7 +300,7 @@ export default function BillFormModal({ invoice, onClose, onSave }) {
             Cancel
           </button>
           <button type="button" onClick={handleSave} disabled={saving}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] disabled:opacity-60">
             {saving
               ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Saving…</>
               : <><Save className="h-4 w-4" /> Save Bill</>}

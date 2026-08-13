@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class WarehouseBase(BaseModel):
@@ -45,7 +45,7 @@ class InventoryItemBase(BaseModel):
     name: str
     description: str | None = None
     unit: str = "pcs"
-    unit_cost: float | None = None
+    unit_cost: float | None = Field(None, ge=0)
     reorder_level: int = 0
     item_type: str = "raw_material"  # raw_material, finished_good
     category: str | None = None
@@ -61,6 +61,16 @@ class InventoryItemBase(BaseModel):
     warranty: str | None = None
     is_active: bool = True
 
+    @field_validator("unit_cost", mode="before")
+    @classmethod
+    def validate_unit_cost_not_negative(cls, v: float | int | str | None) -> float | None:
+        if v is not None and v != "":
+            val = float(v)
+            if val < 0:
+                raise ValueError("Purchase Price cannot be negative.")
+            return val
+        return None
+
 
 class InventoryItemCreate(InventoryItemBase):
     pass
@@ -73,7 +83,7 @@ class InventoryItemUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     unit: str | None = None
-    unit_cost: float | None = None
+    unit_cost: float | None = Field(None, ge=0)
     reorder_level: int | None = None
     item_type: str | None = None
     category: str | None = None
@@ -88,6 +98,16 @@ class InventoryItemUpdate(BaseModel):
     production_date: str | None = None
     warranty: str | None = None
     is_active: bool | None = None
+
+    @field_validator("unit_cost", mode="before")
+    @classmethod
+    def validate_unit_cost_not_negative(cls, v: float | int | str | None) -> float | None:
+        if v is not None and v != "":
+            val = float(v)
+            if val < 0:
+                raise ValueError("Purchase Price cannot be negative.")
+            return val
+        return None
 
 
 class InventoryItemRead(InventoryItemBase):

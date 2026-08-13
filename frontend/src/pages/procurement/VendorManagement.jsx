@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, Building2, Download, FileText, Plus, Printer, Star, Upload, UserCheck, UserX, Wallet } from "lucide-react";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -34,7 +35,7 @@ import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
 function SummaryCard({ label, value, icon: Icon, color, format }) {
   const display = format === "currency" ? `₹${Number(value || 0).toLocaleString("en-IN")}` : value;
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="ui-card p-4">
       <div className="flex items-center justify-between">
         <div className="min-w-0">
           <p className="text-xs font-medium text-slate-500">{label}</p>
@@ -298,7 +299,7 @@ export default function VendorManagement() {
       sortable: false,
       render: (r) => (
         <div className="flex flex-wrap gap-1 text-xs">
-          <button type="button" onClick={() => openVendor(r)} className="font-semibold text-[#2563EB] hover:underline">View</button>
+          <button type="button" onClick={() => openVendor(r)} className="font-semibold text-[var(--color-primary)] hover:underline">View</button>
           <button type="button" onClick={() => setFormVendor(r)} className="font-semibold text-slate-600 hover:underline">Edit</button>
           {isAdmin && r.approval_status === "pending" && (
             <button type="button" onClick={() => handleApprove(r, "approved")} className="font-semibold text-teal-600 hover:underline">Approve</button>
@@ -327,34 +328,32 @@ export default function VendorManagement() {
   if (loading) return <Loader label="Loading vendors..." />;
 
   return (
-    <div className="space-y-6 pb-8">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">
-            Manage vendors, purchase history, outstanding payables, and performance ratings.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setFormVendor({})} className="ui-btn-primary">
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="Manage vendors, purchase history, outstanding payables, and performance ratings."
+        action={
+          <>
+            <button type="button" onClick={() => setFormVendor({})} className="ui-btn-primary">
             <Plus className="h-4 w-4" /> Add Vendor
           </button>
-          <button type="button" onClick={handleDownloadTemplate} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          <button type="button" onClick={handleDownloadTemplate} className="ui-btn-secondary">
             <Upload className="h-4 w-4" /> Import
           </button>
-          <button type="button" onClick={handleExportExcel} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          <button type="button" onClick={handleExportExcel} className="ui-btn-secondary">
             <Download className="h-4 w-4" /> Export Excel
           </button>
-          <button type="button" onClick={handleExportPdf} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          <button type="button" onClick={handleExportPdf} className="ui-btn-secondary">
             <FileText className="h-4 w-4" /> Export PDF
           </button>
-          <button type="button" onClick={handlePrint} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          <button type="button" onClick={handlePrint} className="ui-btn-secondary">
             <Printer className="h-4 w-4" /> Print
           </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        <SummaryCard label="Total Vendors" value={summary.total} icon={Building2} color="bg-[#2563EB]" />
+        <SummaryCard label="Total Vendors" value={summary.total} icon={Building2} color="bg-[var(--color-primary)]" />
         <SummaryCard label="Active Vendors" value={summary.active} icon={UserCheck} color="bg-green-500" />
         <SummaryCard label="Inactive Vendors" value={summary.inactive} icon={UserX} color="bg-slate-500" />
         <SummaryCard label="Pending Approval" value={summary.pendingApproval} icon={AlertCircle} color="bg-amber-500" />
@@ -362,7 +361,7 @@ export default function VendorManagement() {
         <SummaryCard label="New Vendors (This Month)" value={summary.newThisMonth} icon={Star} color="bg-purple-500" />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="ui-card p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
             <input
@@ -381,11 +380,11 @@ export default function VendorManagement() {
             </button>
           </div>
           <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-            <button type="button" onClick={handleExportExcel} className="hover:text-[#2563EB]">Export</button>
+            <button type="button" onClick={handleExportExcel} className="hover:text-[var(--color-primary)]">Export</button>
             <span>·</span>
-            <button type="button" onClick={handleDownloadTemplate} className="hover:text-[#2563EB]">Import</button>
+            <button type="button" onClick={handleDownloadTemplate} className="hover:text-[var(--color-primary)]">Import</button>
             <span>·</span>
-            <button type="button" onClick={loadVendors} className="hover:text-[#2563EB]">Refresh</button>
+            <button type="button" onClick={loadVendors} className="hover:text-[var(--color-primary)]">Refresh</button>
           </div>
         </div>
 

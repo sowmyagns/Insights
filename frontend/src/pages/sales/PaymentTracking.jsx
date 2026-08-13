@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Plus } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
+import PageHeader from "../../components/common/PageHeader";
 import Table from "../../components/common/Table";
 import { getPayments, getInvoices } from "../../api/salesApi";
 import useTenantId from "../../hooks/useTenantId";
@@ -39,22 +39,14 @@ export default function PaymentTracking() {
 
   return (
     <div className="space-y-5 pb-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="ui-eyebrow">Sales</p>
-          <h2 className="mt-0.5 ui-title">Payment Tracking</h2>
-          <p className="ui-subtitle">
-            Payments update invoice balances, income, and AR journal entries.
-          </p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        subtitle="Payments update invoice balances, income, and AR journal entries."
+        action={
           <Link to="/sales/payments/create" className="ui-btn-primary">
             <Plus className="h-4 w-4" /> Record Payment
           </Link>
-        </div>
-      </div>
-
-      <ManufacturingWorkflowBar currentStepId="payment" />
+        }
+      />
 
       <div className="ui-card p-4">
         <Table
@@ -69,6 +61,7 @@ export default function PaymentTracking() {
             {
               key: "amount",
               label: "Amount",
+              align: "right",
               render: (r) => formatInr(r.amount),
             },
             { key: "method", label: "Method" },

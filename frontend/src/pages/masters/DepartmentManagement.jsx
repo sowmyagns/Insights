@@ -317,11 +317,11 @@ export default function DepartmentManagement() {
       </header>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        <SummaryCard label="Total Departments" value={summary.total_departments} icon={Building2} color="bg-[#2563EB]" />
+        <SummaryCard label="Total Departments" value={summary.total_departments} icon={Building2} color="bg-[var(--color-primary)]" />
         <SummaryCard label="Active Departments" value={summary.active_departments} icon={UserCheck} color="bg-green-500" />
         <SummaryCard label="Production Departments" value={summary.production_departments} icon={Layers} color="bg-indigo-500" />
         <SummaryCard label="Support Departments" value={summary.support_departments} icon={Building2} color="bg-amber-500" />
-        <SummaryCard label="Employees" value={summary.total_employees} icon={Users} color="bg-teal-500" />
+        <SummaryCard label="Employees" value={summary.total_employees} icon={Users} color="bg-[var(--color-success-soft)]0" />
         <SummaryCard label="Machines" value={summary.total_machines} icon={Cpu} color="bg-slate-600" />
       </div>
 

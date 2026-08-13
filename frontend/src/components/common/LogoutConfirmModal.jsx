@@ -41,7 +41,7 @@ export default function LogoutConfirmModal({ open, onCancel, onConfirm, busy = f
         className="w-full max-w-[380px] rounded-2xl bg-white px-8 py-9 text-center shadow-2xl"
       >
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center">
-          <LogOut className="h-12 w-12 text-[#F5C518]" strokeWidth={1.75} />
+          <LogOut className="h-12 w-12 text-[var(--color-cta)]" strokeWidth={1.75} />
         </div>
 
         <h2 id={titleId} className="text-xl font-bold leading-snug text-slate-900">
@@ -54,7 +54,7 @@ export default function LogoutConfirmModal({ open, onCancel, onConfirm, busy = f
             checked={allDevices}
             onChange={(e) => setAllDevices(e.target.checked)}
             disabled={busy}
-            className="h-4 w-4 rounded border-slate-300 text-[#F5C518] focus:ring-[#F5C518]/40"
+            className="h-4 w-4 rounded border-slate-300 text-[var(--color-cta)] focus:ring-[var(--color-cta)]/40"
           />
           Also log out from all devices
         </label>
@@ -73,7 +73,7 @@ export default function LogoutConfirmModal({ open, onCancel, onConfirm, busy = f
             type="button"
             disabled={busy}
             onClick={() => onConfirm?.({ allDevices })}
-            className="rounded-xl bg-[#F5C518] px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-[#e6b800] disabled:opacity-60"
+            className="rounded-xl bg-[var(--color-cta)] px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-[var(--color-cta-hover)] disabled:opacity-60"
           >
             {busy ? "Logging out…" : "Log Out"}
           </button>

@@ -218,9 +218,13 @@ def record_stock_movement(
 
     mov = StockMovement(**data)
     db.add(mov)
-    stmt = select(StockLevel).where(
-        StockLevel.warehouse_id == payload.warehouse_id,
-        StockLevel.item_id == payload.item_id,
+    stmt = (
+        select(StockLevel)
+        .where(
+            StockLevel.warehouse_id == payload.warehouse_id,
+            StockLevel.item_id == payload.item_id,
+        )
+        .with_for_update()
     )
     sl = db.scalars(stmt).first()
     qty = abs(int(payload.quantity))
@@ -271,16 +275,27 @@ def record_stock_movement(
 def get_inventory_dashboard(
     db: Session, tenant_id: int, item_type: str | None = None
 ) -> list[dict]:
-    """Items with total stock, reorder status, stock value."""
+    """Items with total stock, reorder status, stock value (single aggregated stock query)."""
     stmt = select(InventoryItem).where(
         InventoryItem.tenant_id == tenant_id, InventoryItem.is_active
     )
     if item_type:
         stmt = stmt.where(InventoryItem.item_type == item_type)
     items = list(db.scalars(stmt).all())
+    if not items:
+        return []
+
+    item_ids = [item.id for item in items]
+    stock_rows = db.execute(
+        select(StockLevel.item_id, func.coalesce(func.sum(StockLevel.quantity), 0))
+        .where(StockLevel.item_id.in_(item_ids))
+        .group_by(StockLevel.item_id)
+    ).all()
+    stock_map = {int(item_id): int(total or 0) for item_id, total in stock_rows}
+
     result = []
     for item in items:
-        total = get_total_stock(db, item.id)
+        total = stock_map.get(item.id, 0)
         stock_value = (item.unit_cost or 0) * total if item.unit_cost else None
         needs_reorder = total < item.reorder_level if item.reorder_level else False
         result.append(
@@ -307,12 +322,21 @@ def list_stock_levels_by_warehouse(db: Session, warehouse_id: int) -> list[Stock
 
 
 def list_stock_movements(
-    db: Session, tenant_id: int, item_id: int | None = None
+    db: Session,
+    tenant_id: int,
+    item_id: int | None = None,
+    *,
+    limit: int = 200,
+    offset: int = 0,
 ) -> list[StockMovement]:
     stmt = select(StockMovement).where(StockMovement.tenant_id == tenant_id)
     if item_id is not None:
         stmt = stmt.where(StockMovement.item_id == item_id)
-    stmt = stmt.order_by(StockMovement.id.desc())
+    stmt = (
+        stmt.order_by(StockMovement.id.desc())
+        .offset(max(0, offset))
+        .limit(max(1, min(limit, 500)))
+    )
     return list(db.scalars(stmt).all())
 
 

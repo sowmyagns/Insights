@@ -200,7 +200,7 @@ export default function LeadDetailModal({ lead, onClose, onStatusChange, onConve
                   <div className="flex justify-end gap-2 pt-1">
                     <button
                       type="submit"
-                      className="rounded-lg bg-[#2563EB] px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 shadow-xs"
+                      className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--color-primary-hover)] shadow-xs"
                     >
                       Save Activity
                     </button>
@@ -249,7 +249,7 @@ export default function LeadDetailModal({ lead, onClose, onStatusChange, onConve
           {["qualified", "converted", "won"].includes(String(lead.status || "").toLowerCase()) ? (
             <Link
               to={`/sales/quotations?create=true&customer_name=${encodeURIComponent(lead.customer_name || lead.company || "")}`}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 shadow-xs transition-all"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-bold text-white hover:bg-[var(--color-primary-hover)] shadow-xs transition-all"
             >
               Create Quotation
             </Link>

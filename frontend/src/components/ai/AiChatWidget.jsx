@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bot, ChevronDown, Download, History, Loader2, Printer, Send, Sparkles, X,
@@ -322,7 +322,7 @@ export default function AiChatWidget() {
           {/* History panel */}
           {showHistory && (
             <div className="max-h-40 overflow-y-auto border-b border-slate-100 bg-slate-50 p-2">
-              <button type="button" onClick={startNewChat} className="mb-2 w-full rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white">
+              <button type="button" onClick={startNewChat} className="mb-2 w-full rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white">
                 + New Chat
               </button>
               {conversations.length === 0 && (
@@ -369,7 +369,7 @@ export default function AiChatWidget() {
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 {m.role === "user" ? (
-                  <div className="max-w-[85%] rounded-2xl bg-blue-600 px-3.5 py-2.5 text-white">
+                  <div className="max-w-[85%] rounded-2xl bg-[var(--color-primary)] px-3.5 py-2.5 text-white">
                     <p className="text-sm">{m.content}</p>
                   </div>
                 ) : (
@@ -384,7 +384,7 @@ export default function AiChatWidget() {
                         <button
                           type="button"
                           onClick={() => handleNav(m.navigation)}
-                          className="mt-2 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700"
+                          className="mt-2 inline-flex items-center gap-1 rounded-lg bg-[var(--color-primary)] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]"
                         >
                           Open Page <ChevronDown className="h-3 w-3 -rotate-90" />
                         </button>
@@ -463,7 +463,7 @@ export default function AiChatWidget() {
                 type="button"
                 onClick={() => sendMessage()}
                 disabled={loading || !input.trim()}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] disabled:opacity-50"
               >
                 <Send className="h-4 w-4" />
               </button>

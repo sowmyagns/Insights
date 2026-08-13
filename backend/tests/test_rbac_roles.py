@@ -75,8 +75,9 @@ def _ensure_tenant_resources(tenant_id):
     try:
         product = db.scalars(select(Product).where(Product.tenant_id == tenant_id)).first()
         if not product:
-            seed_products(db, tenant_id)
-            product = db.scalars(select(Product).where(Product.tenant_id == tenant_id)).first()
+            product = Product(tenant_id=tenant_id, sku=f"SEED-{tenant_id}", name="Seed Product", unit_cost=10.0, unit_price=20.0)
+            db.add(product)
+            db.flush()
 
         machine = db.scalars(
             select(Machine).where(Machine.tenant_id == tenant_id, Machine.code == "CNC-01")

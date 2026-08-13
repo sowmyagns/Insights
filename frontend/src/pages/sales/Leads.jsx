@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Filter, LayoutGrid, List, PhoneCall, Plus, Target, TrendingUp, UserPlus, Users, XCircle } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
+import PageHeader from "../../components/common/PageHeader";
 import CreateLeadModal from "../../components/sales/CreateLeadModal";
 import LeadDetailModal from "../../components/sales/LeadDetailModal";
 import { useToast } from "../../context/ToastContext";
@@ -27,23 +29,6 @@ import {
 } from "../../data/salesMasterData";
 import { exportToExcel } from "../../utils/exportUtils";
 
-function KpiCard({ label, value, icon: Icon, color, suffix }) {
-  return (
-    <div className="ui-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
-          <p className="mt-1 text-xl font-bold text-slate-900">{value}{suffix || ""}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}>
-            <Icon className="h-4 w-4 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 const defaultFilters = { sales_executive: "", source: "", industry: "", region: "", status: "", priority: "" };
 
@@ -156,7 +141,7 @@ export default function Leads() {
   };
 
   const columns = [
-    { key: "lead_id", label: "Lead ID", render: (r) => <span className="rounded bg-teal-50 px-2 py-0.5 font-mono text-xs font-bold text-teal-800">{r.lead_id || `LD-${r.id}`}</span> },
+    { key: "lead_id", label: "Lead ID", render: (r) => <span className="rounded bg-[var(--color-success-soft)] px-2 py-0.5 font-mono text-xs font-bold text-[var(--color-success)]">{r.lead_id || `LD-${r.id}`}</span> },
     { key: "customer_name", label: "Customer", render: (r) => <span className="font-bold text-slate-900">{r.customer_name}</span> },
     { key: "company", label: "Company" },
     { key: "contact", label: "Contact" },
@@ -172,13 +157,13 @@ export default function Leads() {
         const isQualified = ["qualified", "converted", "won"].includes(String(r.status || "").toLowerCase());
         return (
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setSelected(r)} className="text-xs font-bold text-teal-800 hover:underline">
+            <button type="button" onClick={() => setSelected(r)} className="text-xs font-bold text-[var(--color-primary)] hover:underline">
               View
             </button>
             {isQualified ? (
               <Link
                 to={`/sales/quotations?create=true&customer_name=${encodeURIComponent(r.customer_name || r.company || "")}`}
-            className="rounded bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-800 hover:bg-teal-100 transition-colors"
+            className="rounded bg-[var(--color-primary-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-primary)] hover:opacity-90 transition-colors"
               >
                 Create Quote
               </Link>
@@ -197,13 +182,9 @@ export default function Leads() {
 
   return (
     <div className="space-y-5 pb-4">
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-eyebrow">Sales</p>
-          <h2 className="mt-0.5 ui-title">Leads (CRM)</h2>
-          <p className="ui-subtitle">Enterprise CRM pipeline with Kanban view, 360° lead profile, and opportunity tracking.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <PageHeader
+        subtitle="Enterprise CRM pipeline with Kanban view, 360° lead profile, and opportunity tracking."
+        action={
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
@@ -211,56 +192,56 @@ export default function Leads() {
           >
             <Plus className="h-4 w-4" /> New Lead
           </button>
-        </div>
-      </header>
+        }
+      />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Total Leads" value={summary.total_leads} icon={Users} color="bg-teal-700" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Leads" value={summary.total_leads} icon={Users} color="bg-[var(--color-success)]" />
         <KpiCard label="New Leads" value={summary.new_leads} icon={UserPlus} color="bg-indigo-600" />
         <KpiCard label="Contacted" value={summary.contacted_leads} icon={PhoneCall} color="bg-cyan-600" />
         <KpiCard label="Qualified" value={summary.qualified_leads} icon={Target} color="bg-slate-600" />
         <KpiCard label="Lost Leads" value={summary.lost_leads} icon={XCircle} color="bg-rose-600" />
-        <KpiCard label="Conversion Rate" value={summary.conversion_rate} suffix="%" icon={TrendingUp} color="bg-emerald-600" />
+        <KpiCard label="Conversion Rate" value={summary.conversion_rate} suffix="%" icon={TrendingUp} color="bg-[var(--color-success)]" />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 ui-card px-4 py-3 text-xs font-medium text-slate-600">
+      <div className="ui-toolbar ui-card px-4 py-3 text-[var(--text-xs)] font-medium text-[var(--color-text-secondary)]">
         {["Lead", "Qualification", "Opportunity", "Quotation", "Sales Order"].map((s, i, arr) => (
           <span key={s} className="flex items-center gap-2">
-            <span className="rounded-lg bg-slate-50 px-2 py-1 font-bold text-slate-800 ring-1 ring-slate-200/80">{s}</span>
-            {i < arr.length - 1 && <span className="text-slate-400">→</span>}
+            <span className="rounded-lg bg-[var(--color-surface-muted)] px-2 py-1 font-bold text-[var(--color-text)] ring-1 ring-[var(--color-border)]">{s}</span>
+            {i < arr.length - 1 && <span className="text-[var(--color-text-faint)]">→</span>}
           </span>
         ))}
       </div>
 
       <div className="ui-card p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700"><Filter className="h-4 w-4" /> Advanced Filters</button>
-          <div className="flex gap-1 rounded-lg bg-slate-100 p-0.5">
-            <button type="button" onClick={() => setView("table")} className={`inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-semibold ${view === "table" ? "bg-white text-teal-800 shadow-sm" : "text-slate-500"}`}><List className="h-3.5 w-3.5" /> Table View</button>
-            <button type="button" onClick={() => setView("kanban")} className={`inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-semibold ${view === "kanban" ? "bg-white text-teal-800 shadow-sm" : "text-slate-500"}`}><LayoutGrid className="h-3.5 w-3.5" /> Kanban View</button>
+          <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} className="inline-flex items-center gap-2 text-[var(--text-sm)] font-semibold text-[var(--color-text-secondary)]"><Filter className="h-4 w-4" /> Advanced Filters</button>
+          <div className="flex gap-1 rounded-lg bg-[var(--color-surface-muted)] p-0.5">
+            <button type="button" onClick={() => setView("table")} className={`inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-semibold ${view === "table" ? "bg-[var(--color-surface)] text-[var(--color-primary)] shadow-sm" : "text-[var(--color-text-muted)]"}`}><List className="h-3.5 w-3.5" /> Table View</button>
+            <button type="button" onClick={() => setView("kanban")} className={`inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-semibold ${view === "kanban" ? "bg-[var(--color-surface)] text-[var(--color-primary)] shadow-sm" : "text-[var(--color-text-muted)]"}`}><LayoutGrid className="h-3.5 w-3.5" /> Kanban View</button>
           </div>
         </div>
 
         {showAdvanced && (
           <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <input value={filters.sales_executive} onChange={(e) => setFilters({ ...filters, sales_executive: e.target.value })} placeholder="Sales Executive" className="ui-input" />
-            <select value={filters.source} onChange={(e) => setFilters({ ...filters, source: e.target.value })} className="ui-input">
+            <select value={filters.source} onChange={(e) => setFilters({ ...filters, source: e.target.value })} className="ui-select">
               <option value="">All Sources</option>
               {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={filters.industry} onChange={(e) => setFilters({ ...filters, industry: e.target.value })} className="ui-input">
+            <select value={filters.industry} onChange={(e) => setFilters({ ...filters, industry: e.target.value })} className="ui-select">
               <option value="">All Industries</option>
               {LEAD_INDUSTRIES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={filters.region} onChange={(e) => setFilters({ ...filters, region: e.target.value })} className="ui-input">
+            <select value={filters.region} onChange={(e) => setFilters({ ...filters, region: e.target.value })} className="ui-select">
               <option value="">All Regions</option>
               {LEAD_REGIONS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="ui-input">
+            <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="ui-select">
               <option value="">All Status</option>
               {["new", "contacted", "qualified", "converted", "won", "lost"].map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select value={filters.priority} onChange={(e) => setFilters({ ...filters, priority: e.target.value })} className="ui-input">
+            <select value={filters.priority} onChange={(e) => setFilters({ ...filters, priority: e.target.value })} className="ui-select">
               <option value="">All Priority</option>
               {["urgent", "high", "medium", "low"].map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -295,7 +276,7 @@ export default function Leads() {
                             <p className="mt-1.5 text-xs font-black text-blue-600">{formatInr(r.opportunity_value || r.estimated_value)}</p>
                           )}
                           <div className="mt-3 flex items-center justify-between border-t pt-2 text-xs">
-                            <button type="button" onClick={() => setSelected(r)} className="font-bold text-teal-800 hover:underline">
+                            <button type="button" onClick={() => setSelected(r)} className="font-bold text-[var(--color-success)] hover:underline">
                               View 360°
                             </button>
                             {isQualified ? (

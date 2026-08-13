@@ -102,7 +102,7 @@ export default function Navbar({ onMenuClick }) {
     "flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] dark:text-slate-300 dark:hover:bg-slate-800";
 
   return (
-    <header className="sticky top-0 z-20 shrink-0 border-b border-[#d7e6f8] bg-white/95 shadow-[0_1px_0_rgba(25,92,207,0.06)] backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95 print:hidden">
+    <header className="sticky top-0 z-20 shrink-0 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 shadow-[var(--shadow-card)] backdrop-blur-md print:hidden">
       <div className="flex items-center gap-3 px-4 py-2.5 lg:gap-4 lg:px-6">
         {/* Left: menu + title + breadcrumbs */}
         <div className="flex min-w-0 flex-1 items-center gap-2.5 lg:max-w-[min(420px,36%)]">
@@ -119,7 +119,7 @@ export default function Navbar({ onMenuClick }) {
             <div className="mt-0.5 hidden sm:block">
               <Breadcrumbs compact />
             </div>
-            <p className="mt-0.5 truncate text-xs text-[#195CCF] dark:text-teal-400 sm:hidden">
+            <p className="mt-0.5 truncate text-[var(--text-xs)] text-[var(--color-primary)] sm:hidden">
               {t("common.welcomeUser", { name: firstName })}
             </p>
           </div>
@@ -153,13 +153,13 @@ export default function Navbar({ onMenuClick }) {
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </button>
 
-          <div className="hidden items-center gap-2 rounded-lg border border-[#d7e6f8] bg-[#F5F9FF] px-2.5 py-1.5 lg:flex dark:border-slate-700 dark:bg-slate-800/80">
-            <Calendar className="h-3.5 w-3.5 text-[#195CCF] dark:text-teal-400" aria-hidden />
+          <div className="hidden items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-primary-soft)] px-2.5 py-1.5 lg:flex">
+            <Calendar className="h-3.5 w-3.5 text-[var(--color-primary)]" aria-hidden />
             <div className="leading-tight">
-              <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+              <p className="text-[10px] font-medium text-[var(--color-text-muted)]">
                 {weekdayLabel} · {dateLabel}
               </p>
-              <p className="text-xs font-bold tabular-nums text-[#002C66] dark:text-slate-100">{timeLabel}</p>
+              <p className="text-[var(--text-xs)] font-bold tabular-nums text-[var(--color-text)]">{timeLabel}</p>
             </div>
           </div>
 
@@ -171,11 +171,11 @@ export default function Navbar({ onMenuClick }) {
               aria-expanded={showProfile}
               aria-haspopup="menu"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#195CCF] text-xs font-bold text-white">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary)] text-xs font-bold text-white">
                 {String(displayName)[0].toUpperCase()}
               </div>
               <div className="hidden text-left sm:block">
-                <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-100">
+                <p className="text-sm font-semibold leading-tight text-[var(--color-text)]">
                   {displayName}
                 </p>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400">{displayRole}</p>
@@ -193,7 +193,7 @@ export default function Navbar({ onMenuClick }) {
       </div>
 
       {/* Mobile search + breadcrumbs */}
-      <div className="space-y-2 border-t border-[#e8f0fb] bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900/95 md:hidden">
+      <div className="space-y-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 md:hidden">
         <GlobalSearch />
         <Breadcrumbs compact />
       </div>

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link } from "react-router-dom";
 import { AlertCircle, Building2, Clock, FileText, IndianRupee } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import FinanceFilters from "../../components/finance/FinanceFilters";
@@ -10,16 +12,6 @@ import { useToast } from "../../context/ToastContext";
 import { getAPEnriched, getAPSummary } from "../../api/accountsApi";
 import { FINANCE_FLOW, formatInr, statusColor } from "../../data/financeMasterData";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div><p className="text-xs font-medium text-slate-500">{label}</p><p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value}</p></div>
-        {Icon && <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}><Icon className="h-5 w-5 text-white" /></div>}
-      </div>
-    </div>
-  );
-}
 
 export default function AccountsPayable() {
   const { addToast } = useToast();
@@ -86,7 +78,7 @@ export default function AccountsPayable() {
     { key: "actions", label: "Actions", render: (r) => (
       <Link
         to={`/purchases/payments-made/create?vendor=${encodeURIComponent(r.vendor_name || "")}&bill=${encodeURIComponent(r.bill_number || "")}`}
-        className="text-xs font-semibold text-[#2563EB] hover:underline"
+        className="text-xs font-semibold text-[var(--color-primary)] hover:underline"
       >
         Record Payment
       </Link>
@@ -96,17 +88,17 @@ export default function AccountsPayable() {
   if (loading) return <Loader label="Loading accounts payable..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Vendor bills, payment scheduling, and outstanding payables management.</p>
-        </div>
-        <div className="flex gap-2">
-          <Link to="/purchases/payments-made/create" className="inline-flex items-center rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Record Payment</Link>
-        </div>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="Vendor bills, payment scheduling, and outstanding payables management."
+        action={
+          <>
+            <Link to="/purchases/payments-made/create" className="ui-btn-primary">Record Payment</Link>
+          </>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="ui-grid-kpi">
         <KpiCard label="Outstanding Payables" value={formatInr(summary.outstanding_payables)} icon={IndianRupee} color="bg-red-500" />
         <KpiCard label="Due This Week" value={summary.due_this_week} icon={Clock} color="bg-amber-500" />
         <KpiCard label="Overdue Bills" value={summary.overdue_bills} icon={AlertCircle} color="bg-orange-500" />
@@ -115,11 +107,11 @@ export default function AccountsPayable() {
         <KpiCard label="Vendor Count" value={summary.vendor_count} icon={Building2} color="bg-teal-600" />
       </div>
 
-      <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-medium text-slate-600 sm:text-xs">
+      <div className="ui-toolbar ui-card px-4 py-3 text-[var(--text-xs)] font-medium text-[var(--color-text-secondary)]">
         {FINANCE_FLOW.map((s, i) => (
           <span key={s} className="flex items-center gap-1">
-            <span className="rounded bg-white px-1.5 py-0.5 shadow-sm">{s}</span>
-            {i < FINANCE_FLOW.length - 1 && <span className="text-slate-400">↓</span>}
+            <span className="rounded bg-[var(--color-surface-muted)] px-1.5 py-0.5 ring-1 ring-[var(--color-border)]">{s}</span>
+            {i < FINANCE_FLOW.length - 1 && <span className="text-[var(--color-text-faint)]">↓</span>}
           </span>
         ))}
       </div>
@@ -136,7 +128,7 @@ export default function AccountsPayable() {
         searchPlaceholder="Search bill, vendor, PO, invoice..."
       />
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="ui-card p-4">
         <DataTable columns={columns} data={filtered} searchPlaceholder="" searchKeys={[]} />
       </div>
     </div>

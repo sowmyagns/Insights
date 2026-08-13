@@ -8,7 +8,7 @@ import { getCompanySettings, updateCompanySettings } from "../../api/settingsApi
 import { INDIAN_STATES } from "../../data/customersMasterData";
 import { useToast } from "../../context/ToastContext";
 
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const PURPLE = "#6b4eff";
 
 const inputClass =
@@ -401,7 +401,7 @@ export default function EditCompanyDetailsModal({ open, onClose, onSaved }) {
           <button
             type="submit"
             disabled={saving || loading}
-            className="rounded-xl py-3 text-[14px] font-semibold text-[#1a1a1f] disabled:opacity-60"
+            className="rounded-xl py-3 text-[14px] font-semibold text-white disabled:opacity-60"
             style={{ background: YELLOW }}
           >
             {saving ? "Saving…" : "Submit"}

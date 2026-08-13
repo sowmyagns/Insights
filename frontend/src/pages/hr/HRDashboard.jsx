@@ -2,31 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link } from "react-router-dom";
 import { AlertTriangle, Briefcase, Clock, IndianRupee, UserCheck, Users } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
 import { getHRHub } from "../../api/hrApi";
 import { HR_FLOW, formatInr } from "../../data/hrMasterData";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="group ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white shrink-0" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl" title={String(value)}>
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 const alertIcons = { certification: AlertTriangle, leave: Briefcase, payroll: IndianRupee, attendance: Clock };
 
@@ -56,15 +39,11 @@ export default function HRDashboard() {
   if (loading && !hub.total_employees) return <Loader label="Loading HR dashboard..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <p className="ui-subtitle">Workforce analytics, attendance, leave, payroll, and manufacturing HR insights.</p>
-        </div>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader subtitle="Workforce analytics, attendance, leave, payroll, and manufacturing HR insights." />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Total Employees" value={hub.total_employees} icon={Users} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Employees" value={hub.total_employees} icon={Users} color="bg-[var(--color-primary)]" />
         <KpiCard label="Present Today" value={hub.present_today} icon={UserCheck} color="bg-green-600" />
         <KpiCard label="Pending Leave" value={hub.pending_leave} icon={Briefcase} color="bg-amber-500" />
         <KpiCard label="Monthly Payroll" value={formatInr(hub.monthly_payroll)} icon={IndianRupee} color="bg-indigo-600" />
@@ -82,14 +61,14 @@ export default function HRDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md">
-          <h2 className="mb-4 text-base font-bold text-slate-900 tracking-tight font-sans">Department Strength</h2>
+        <div className="ui-card p-5">
+          <h2 className="ui-section-title mb-4">Department Strength</h2>
           {hub.department_strength && hub.department_strength.length > 0 ? (
             <ul className="space-y-2.5">
               {hub.department_strength.map((d) => (
                 <li key={d.name} className="flex items-center justify-between rounded-xl bg-slate-50/80 border border-slate-100 px-3.5 py-2.5 text-sm transition-colors hover:bg-slate-100/80">
                   <span className="font-semibold text-slate-700">{d.name}</span>
-                  <span className="inline-flex items-center justify-center rounded-lg bg-blue-50 px-2.5 py-0.5 text-xs font-extrabold text-[#2563EB]">{d.count}</span>
+                  <span className="inline-flex items-center justify-center rounded-lg bg-blue-50 px-2.5 py-0.5 text-xs font-extrabold text-[var(--color-primary)]">{d.count}</span>
                 </li>
               ))}
             </ul>
@@ -98,18 +77,18 @@ export default function HRDashboard() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md">
-          <h2 className="mb-4 text-base font-bold text-slate-900 tracking-tight font-sans">Shift Utilization</h2>
+        <div className="ui-card p-5">
+          <h2 className="ui-section-title mb-4">Shift Utilization</h2>
           {hub.shift_utilization && hub.shift_utilization.length > 0 ? (
             <ul className="space-y-3.5">
               {hub.shift_utilization.map((s) => (
                 <li key={s.name}>
                   <div className="mb-1.5 flex justify-between text-sm">
                     <span className="font-semibold text-slate-700">{s.name}</span>
-                    <span className="font-bold text-[#2563EB]">{s.utilization}%</span>
+                    <span className="font-bold text-[var(--color-primary)]">{s.utilization}%</span>
                   </div>
                   <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full rounded-full bg-[#2563EB] transition-all duration-500" style={{ width: `${s.utilization}%` }} />
+                    <div className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-500" style={{ width: `${s.utilization}%` }} />
                   </div>
                 </li>
               ))}
@@ -120,8 +99,8 @@ export default function HRDashboard() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md">
-        <h2 className="mb-4 text-base font-bold text-slate-900 tracking-tight font-sans">Alerts & Notifications</h2>
+      <div className="ui-card p-5">
+        <h2 className="ui-section-title mb-4">Alerts & Notifications</h2>
         {hub.alerts && hub.alerts.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2">
             {hub.alerts.map((a, i) => {
@@ -157,7 +136,7 @@ export default function HRDashboard() {
 
 function QuickLink({ to, label }) {
   return (
-    <Link to={to} className="group flex items-center justify-between rounded-xl border border-slate-200/80 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-xs hover:border-[#2563EB] hover:text-[#2563EB] transition-all hover:shadow-sm">
+    <Link to={to} className="group flex items-center justify-between rounded-xl border border-slate-200/80 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-xs hover:border-[#2563EB] hover:text-[var(--color-primary)] transition-all hover:shadow-sm">
       <span>{label}</span>
       <span className="transition-transform group-hover:translate-x-1">→</span>
     </Link>

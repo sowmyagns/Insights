@@ -10,7 +10,7 @@ import { deletePayment, getInvoicesV2, getPayments } from "../../api/salesApi";
 import { formatInr } from "../../data/salesMasterData";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const ACCENT = "#0f6d84";
+const ACCENT = "var(--color-action-teal)"; /* #0F6D84 */
 const PAGE_SIZES = [10, 20, 50];
 
 const SORT_OPTIONS = [
@@ -367,10 +367,10 @@ export default function PaymentReceipts() {
           </div>
           <Link
             to="/sales/payment-receipts/create"
-            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
             style={{ background: ACCENT }}
           >
-            <Plus className="h-4 w-4" strokeWidth={2.5} /> Record Payment
+            <Plus className="h-4 w-4 text-white" strokeWidth={2.5} /> Record Payment
           </Link>
         </div>
       </div>
@@ -399,10 +399,10 @@ export default function PaymentReceipts() {
                     </p>
                     <Link
                       to="/sales/payment-receipts/create"
-                      className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
+                      className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
                       style={{ background: ACCENT }}
                     >
-                      <Plus className="h-4 w-4" /> Record Payment
+                      <Plus className="h-4 w-4 text-white" /> Record Payment
                     </Link>
                   </td>
                 </tr>

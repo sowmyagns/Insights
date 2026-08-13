@@ -7,6 +7,8 @@ import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
 import { getExtendedReports, createFixedAsset } from "../../api/accountsApi";
 import { formatInr } from "../../data/financeMasterData";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all";
@@ -125,17 +127,18 @@ export default function FixedAssets() {
   if (loading) return <Loader label="Loading Fixed Assets..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">Track company capitalizations, useful lives, accumulated depreciation, and asset schedules.</p>
-        </div>
-        <div className="flex gap-2">
-        </div>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="Track company capitalizations, useful lives, accumulated depreciation, and asset schedules."
+        action={
+          <>
+            
+          </>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Gross Block" value={formatInr(totalCost)} icon={Layers} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Gross Block" value={formatInr(totalCost)} icon={Layers} color="bg-[var(--color-primary)]" />
         <KpiCard label="Accumulated Depreciation" value={formatInr(totalDep)} icon={Calculator} color="bg-red-500" />
         <KpiCard label="Net Book Value" value={formatInr(netValue)} icon={Award} color="bg-green-600" />
         <KpiCard label="Current Month Depreciation" value={formatInr(currentMonthDep)} icon={ShieldAlert} color="bg-indigo-600" />
@@ -196,7 +199,7 @@ export default function FixedAssets() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="ui-card p-5">
           <h2 className="mb-1 font-semibold text-slate-900">Cost vs Depreciation vs Net Value</h2>
           <p className="mb-4 text-xs text-slate-400">Per asset breakdown</p>
           <div className="h-64">
@@ -340,7 +343,7 @@ export default function FixedAssets() {
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm transition-all"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] shadow-sm transition-all"
                 >
                   Capitalize Asset
                 </button>
@@ -353,20 +356,3 @@ export default function FixedAssets() {
   );
 }
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{value}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}

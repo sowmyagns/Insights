@@ -12,6 +12,7 @@ _SENSITIVE_FIELDS = ("bank_account_number", "bank_ifsc")
 
 
 def get_or_create_settings(db: Session, tenant_id: int) -> CompanySettings:
+    """Return settings for tenant. Flush only — never commit (callers own the txn)."""
     settings = db.scalars(
         select(CompanySettings).where(CompanySettings.tenant_id == tenant_id)
     ).first()
@@ -23,12 +24,16 @@ def get_or_create_settings(db: Session, tenant_id: int) -> CompanySettings:
         tenant_id=tenant_id,
         company_name=tenant.name if tenant else None,
         invoice_prefix="INV-",
+        quotation_prefix="QUO-",
+        purchase_prefix="PUR-",
         po_prefix="PO-",
         so_prefix="SO-",
         invoice_next_number=1,
+        quotation_next_number=1,
+        purchase_next_number=1,
     )
     db.add(settings)
-    db.commit()
+    db.flush()
     db.refresh(settings)
     return settings
 

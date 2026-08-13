@@ -1,6 +1,9 @@
 from datetime import date
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+
+from app.utils.gst import validate_gstin
 
 
 class CustomerBase(BaseModel):
@@ -20,6 +23,30 @@ class CustomerBase(BaseModel):
     credit_limit: float | None = 0.0
     outstanding: float | None = 0.0
     status: str = "active"
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def validate_phone(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        val_str = str(value).strip()
+        if not val_str:
+            return None
+        if not val_str.isdigit():
+            raise ValueError("Phone field must accept only numeric digits (0-9)")
+        if len(val_str) > 15 or len(val_str) < 7:
+            raise ValueError("Phone number must be between 7 and 15 numeric digits")
+        return val_str
+
+    @field_validator("gstin", mode="before")
+    @classmethod
+    def validate_gst(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        val_str = str(value).strip().upper()
+        if not val_str:
+            return None
+        return validate_gstin(val_str)
 
 
 class CustomerCreate(CustomerBase):
@@ -42,6 +69,30 @@ class CustomerUpdate(BaseModel):
     credit_limit: float | None = None
     outstanding: float | None = None
     status: str | None = None
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def validate_phone(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        val_str = str(value).strip()
+        if not val_str:
+            return None
+        if not val_str.isdigit():
+            raise ValueError("Phone field must accept only numeric digits (0-9)")
+        if len(val_str) > 15 or len(val_str) < 7:
+            raise ValueError("Phone number must be between 7 and 15 numeric digits")
+        return val_str
+
+    @field_validator("gstin", mode="before")
+    @classmethod
+    def validate_gst(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        val_str = str(value).strip().upper()
+        if not val_str:
+            return None
+        return validate_gstin(val_str)
 
 
 class CustomerRead(CustomerBase):
@@ -231,6 +282,7 @@ class QuotationCreate(BaseModel):
     notes: str | None = None
     sales_person: str | None = None
     discount: float = 0
+    meta_json: dict | str | None = None
 
 
 class QuotationUpdate(BaseModel):
@@ -243,6 +295,7 @@ class QuotationUpdate(BaseModel):
     notes: str | None = None
     sales_person: str | None = None
     discount: float | None = None
+    meta_json: dict | str | None = None
 
 
 class QuotationRead(QuotationBase):

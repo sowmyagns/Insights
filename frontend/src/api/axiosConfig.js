@@ -113,15 +113,22 @@ api.interceptors.response.use(
       original?.url?.includes("/auth/refresh");
 
     if (status === 401 && !isAuthUrl) {
-      clearAuthStorage();
-      if (typeof onUnauthorized === "function") {
-        onUnauthorized();
-      } else if (
-        typeof window !== "undefined" &&
-        !window.location.pathname.startsWith("/login") &&
-        !window.location.pathname.startsWith("/gns-admin")
-      ) {
-        window.location.assign("/login");
+      let hasStoredUser = false;
+      try {
+        hasStoredUser = Boolean(localStorage.getItem("smrt-user"));
+      } catch {}
+
+      if (!hasStoredUser) {
+        clearAuthStorage();
+        if (typeof onUnauthorized === "function") {
+          onUnauthorized();
+        } else if (
+          typeof window !== "undefined" &&
+          !window.location.pathname.startsWith("/login") &&
+          !window.location.pathname.startsWith("/gns-admin")
+        ) {
+          window.location.assign("/login");
+        }
       }
     } else if (typeof onApiError === "function" && !error.config?.skipGlobalError) {
       if (!status || status >= 500) {

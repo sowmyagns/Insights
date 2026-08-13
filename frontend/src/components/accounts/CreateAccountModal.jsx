@@ -315,7 +315,7 @@ export default function CreateAccountModal({
             type="submit"
             disabled={!canSubmit}
             className="rounded-lg px-5 py-2.5 text-[14px] font-bold text-[#1a1a1f] disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ background: "#F5C518" }}
+            style={{ background: "var(--color-cta)" }}
           >
             {account ? "Update" : "Create Account"}
           </button>

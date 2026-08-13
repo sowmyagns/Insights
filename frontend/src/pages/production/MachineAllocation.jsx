@@ -5,7 +5,6 @@ import { Cpu, Download, GripVertical, Settings, Users, Wrench } from "lucide-rea
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { useToast } from "../../context/ToastContext";
 import {
   assignAllocation,
@@ -78,7 +77,6 @@ export default function MachineAllocation() {
         getAllocations(),
         getAllocationMachines(),
       ]);
-
 
       if (sumRes.status === "fulfilled" && sumRes.value?.data) {
         setSummary({ ...DEMO_ALLOC_SUMMARY, ...sumRes.value.data });
@@ -224,7 +222,7 @@ export default function MachineAllocation() {
         </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <SummaryCard label="Total Machines" value={summary.total_machines} icon={Cpu} color="bg-[#2563EB]" />
+        <SummaryCard label="Total Machines" value={summary.total_machines} icon={Cpu} color="bg-[var(--color-primary)]" />
         <SummaryCard label="Allocated" value={summary.allocated} icon={Settings} color="bg-violet-500" />
         <SummaryCard label="Free Machines" value={summary.free_machines} icon={Cpu} color="bg-green-500" />
         <SummaryCard label="Under Maintenance" value={summary.under_maintenance} icon={Wrench} color="bg-red-500" />

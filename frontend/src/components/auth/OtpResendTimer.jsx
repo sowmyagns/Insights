@@ -71,7 +71,7 @@ export default function OtpResendTimer({
       aria-live="polite"
       className={`w-full rounded-lg border py-2.5 text-sm font-medium transition ${
         canResend
-          ? "border-teal-600 bg-white text-teal-700 hover:bg-teal-50"
+          ? "border-teal-600 bg-white text-[var(--color-success)] hover:bg-[var(--color-success-soft)]"
           : "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500 opacity-80"
       }`}
     >

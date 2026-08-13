@@ -28,7 +28,7 @@ export default function SettingsSectionPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <Link
         to="/settings"
-        className="inline-flex items-center gap-2 text-sm font-medium text-teal-700 hover:text-teal-800 dark:text-teal-400"
+        className="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-success)] hover:text-[var(--color-success)] dark:text-teal-400"
       >
         <ArrowLeft className="h-4 w-4" />
         All settings

@@ -19,7 +19,7 @@ import {
 } from "../../utils/customerOptions";
 import { formatInr } from "../../data/salesMasterData";
 
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const PAGE_SIZES = [10, 25, 50];
 
 function mapDocToRow(doc) {
@@ -298,7 +298,7 @@ function CreateRefundVoucherModal({
             </button>
             <button
               type="submit"
-              className="rounded-xl py-3 text-[14px] font-semibold"
+              className="rounded-xl py-3 text-[14px] font-semibold text-white"
               style={{ background: YELLOW }}
             >
               Save
@@ -465,7 +465,7 @@ export default function RefundVouchers() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search"
-            className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] shadow-sm placeholder:text-[#9a9aa5] focus:border-[#F5C518] focus:outline-none focus:ring-2 focus:ring-[#F5C518]/25"
+            className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] shadow-sm placeholder:text-[#9a9aa5] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/25"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -488,7 +488,7 @@ export default function RefundVouchers() {
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
             style={{ background: YELLOW }}
           >
             <Plus className="h-4 w-4" strokeWidth={2.5} /> New Refund Voucher
@@ -520,7 +520,7 @@ export default function RefundVouchers() {
                     <button
                       type="button"
                       onClick={() => setCreateOpen(true)}
-                      className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
+                      className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
                       style={{ background: YELLOW }}
                     >
                       <Plus className="h-4 w-4" /> New Refund Voucher
@@ -582,7 +582,7 @@ export default function RefundVouchers() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="min-w-[2rem] rounded-md bg-[#F5C518]/70 px-2.5 py-1 text-center text-[13px] font-semibold">
+            <span className="min-w-[2rem] rounded-md bg-[var(--color-primary-soft)] px-2.5 py-1 text-center text-[13px] font-semibold text-[var(--color-primary-dark)]">
               {page}
             </span>
             <button

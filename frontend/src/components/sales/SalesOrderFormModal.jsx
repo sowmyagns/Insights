@@ -180,7 +180,7 @@ export default function SalesOrderFormModal({ onClose, onSave }) {
             <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
               Cancel
             </button>
-            <button type="submit" disabled={saving || !form.customer_id} className="inline-flex items-center gap-1.5 rounded-lg bg-[#2563EB] px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+            <button type="submit" disabled={saving || !form.customer_id} className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] disabled:opacity-50">
               <Save className="h-4 w-4" />
               {saving ? "Saving…" : "Save Order"}
             </button>

@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link } from "react-router-dom";
 import { AlertTriangle, Cpu, Factory, Target, Trash2, Users, Zap } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { useToast } from "../../context/ToastContext";
 import {
   getShopFloorAlerts,
@@ -24,23 +24,6 @@ import {
   shopStatusLabel,
 } from "../../data/shopFloorMasterData";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-extrabold tabular-nums text-slate-900 leading-none">{value}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function LiveProduction() {
   const { addToast } = useToast();
@@ -60,7 +43,6 @@ export default function LiveProduction() {
         getShopFloorAlerts(),
         getShopFloorTimeline(),
       ]);
-
 
       if (sumRes.status === "fulfilled" && sumRes.value?.data) {
         setSummary({ ...DEMO_SHOP_SUMMARY, ...sumRes.value.data });
@@ -104,7 +86,7 @@ export default function LiveProduction() {
         <div className="min-w-[90px]">
           <div className="mb-0.5 text-xs text-slate-500">{r.progress_pct}%</div>
           <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
-            <div className="h-full rounded-full bg-teal-500" style={{ width: `${r.progress_pct}%` }} />
+            <div className="h-full rounded-full bg-[var(--color-success-soft)]0" style={{ width: `${r.progress_pct}%` }} />
           </div>
         </div>
       ),
@@ -145,10 +127,6 @@ export default function LiveProduction() {
           </p>
         </div>
 
-        <div className="print:hidden">
-          <ManufacturingWorkflowBar currentStepId="shop_floor" />
-        </div>
-
         <div className="mb-0 flex flex-wrap items-center justify-between gap-2 print:hidden">
           <div className="flex flex-wrap gap-2">
             <Link to="/production" className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]">
@@ -157,9 +135,9 @@ export default function LiveProduction() {
           </div>
         </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
+      <div className="ui-grid-kpi">
         <KpiCard label="Running Jobs" value={summary.running_jobs} icon={Factory} color="bg-teal-600" />
-        <KpiCard label="Active Machines" value={summary.active_machines} icon={Cpu} color="bg-[#2563EB]" />
+        <KpiCard label="Active Machines" value={summary.active_machines} icon={Cpu} color="bg-[var(--color-primary)]" />
         <KpiCard label="Operators Working" value={summary.operators_working} icon={Users} color="bg-indigo-500" />
         <KpiCard label="Today's Production" value={summary.todays_production?.toLocaleString()} icon={Zap} color="bg-green-500" />
         <KpiCard label="Today's Target" value={summary.todays_target?.toLocaleString()} icon={Target} color="bg-amber-500" />
@@ -183,7 +161,7 @@ export default function LiveProduction() {
                   <span className="w-14 text-xs font-semibold text-slate-500">{block.slot}</span>
                   <div className="flex-1">
                     <div
-                      className="rounded-lg bg-[#2563EB] px-3 py-2 text-xs font-semibold text-white"
+                      className="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white"
                       style={{ width: `${(block.span_slots / 3) * 100}%`, minWidth: "120px" }}
                     >
                       {block.product_name}

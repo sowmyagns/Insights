@@ -302,7 +302,7 @@ export default function InventoryItemDetailV2() {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3" style={{ background: PAGE_BG }}>
         <p className="text-sm text-slate-600">Item not found.</p>
-        <Link to="/inventory" className="text-sm font-semibold text-teal-700 underline">
+        <Link to="/inventory" className="text-sm font-semibold text-[var(--color-success)] underline">
           Back to Inventory
         </Link>
       </div>

@@ -6,7 +6,7 @@ import json
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -16,6 +16,14 @@ class BusinessDocument(Base, TimestampMixin):
     """Unified store for payment receipts, credit notes, purchases, etc."""
 
     __tablename__ = "business_documents"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "doc_type",
+            "document_number",
+            name="uq_business_documents_tenant_type_number",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), nullable=False, index=True)

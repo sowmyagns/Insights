@@ -11,7 +11,7 @@ import { INDIAN_STATES } from "../../data/customersMasterData";
 import { useToast } from "../../context/ToastContext";
 
 const PURPLE = "#6b4eff";
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 
 const EMPTY_FORM = {
   gstin: "",
@@ -234,7 +234,7 @@ export function AddDispatchAddressModal({ open, onClose, onSaved }) {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-xl py-3 text-[14px] font-semibold text-[#1a1a1f] disabled:opacity-60"
+              className="rounded-xl py-3 text-[14px] font-semibold text-white disabled:opacity-60"
               style={{ background: YELLOW }}
             >
               {saving ? "Saving…" : "Save"}

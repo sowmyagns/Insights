@@ -1,10 +1,12 @@
-"""Generate A4 portrait GST tax invoice PDF (ReportLab)."""
+"""Generate A4 portrait GST invoice PDF aligned to ERP reference layout."""
 
 from __future__ import annotations
 
 import io
 from typing import Any
 
+from reportlab.graphics.barcode import qr
+from reportlab.graphics.shapes import Drawing
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
@@ -15,17 +17,40 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from app.services.invoice_gst_service import _money
 
 
-def _inr(n: float) -> str:
-    return f"₹ {_money(n):,.2f}"
+def _fmt(n: float, digits: int = 2) -> str:
+    return f"{float(n or 0):.{digits}f}"
 
 
-def _words_placeholder(grand: float) -> str:
+def _fmt_qty(n: float) -> str:
+    return f"{float(n or 0):.2f}"
+
+
+def _inr(n: float, digits: int = 3) -> str:
+    return f"₹ {float(n or 0):,.{digits}f}"
+
+
+def _words(n: float) -> str:
     try:
-        from app.utils.inr_words import number_to_words_inr  # optional util
+        from app.utils.inr_words import number_to_words_inr
 
-        return number_to_words_inr(grand)
+        return number_to_words_inr(n)
     except Exception:
-        return f"Indian Rupees {_money(grand):,.2f} Only"
+        return f"Indian Rupees {_money(n):,.2f} Only"
+
+
+def _p(text: str, style: ParagraphStyle) -> Paragraph:
+    return Paragraph((text or "").replace("\n", "<br/>"), style)
+
+
+def _qr_cell(value: str, size_mm: float = 27) -> Drawing:
+    widget = qr.QrCodeWidget(value or "e-invoice")
+    bounds = widget.getBounds()
+    width = bounds[2] - bounds[0]
+    height = bounds[3] - bounds[1]
+    size = size_mm * mm
+    drawing = Drawing(size, size, transform=[size / width, 0, 0, size / height, 0, 0])
+    drawing.add(widget)
+    return drawing
 
 
 def generate_invoice_pdf(doc: dict[str, Any]) -> bytes:
@@ -33,225 +58,244 @@ def generate_invoice_pdf(doc: dict[str, Any]) -> bytes:
     pdf = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        leftMargin=12 * mm,
-        rightMargin=12 * mm,
-        topMargin=10 * mm,
-        bottomMargin=10 * mm,
+        leftMargin=8 * mm,
+        rightMargin=8 * mm,
+        topMargin=8 * mm,
+        bottomMargin=8 * mm,
         title=f"Invoice {doc.get('meta', {}).get('invoice_no', '')}",
     )
 
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        "InvTitle",
-        parent=styles["Heading1"],
-        fontSize=14,
-        alignment=TA_CENTER,
-        spaceAfter=6,
-        textColor=colors.HexColor("#0f766e"),
-    )
-    small = ParagraphStyle("Small", parent=styles["Normal"], fontSize=7, leading=9)
-    bold_small = ParagraphStyle("BoldSmall", parent=small, fontName="Helvetica-Bold")
+    body = ParagraphStyle("Body", parent=styles["Normal"], fontName="Helvetica", fontSize=7.2, leading=8.3)
+    body_bold = ParagraphStyle("BodyBold", parent=body, fontName="Helvetica-Bold")
+    tiny = ParagraphStyle("Tiny", parent=body, fontSize=6.3, leading=7.1)
+    title_style = ParagraphStyle("InvTitle", parent=styles["Heading1"], fontName="Helvetica-Bold", fontSize=13, alignment=TA_CENTER, spaceAfter=1)
+    right = ParagraphStyle("Right", parent=body, alignment=TA_RIGHT)
+    center = ParagraphStyle("Center", parent=body, alignment=TA_CENTER)
 
     seller = doc.get("seller") or {}
     meta = doc.get("meta") or {}
     buyer = doc.get("buyer") or {}
+    consignee = doc.get("consignee") or buyer
+    dispatch = doc.get("dispatch") or {}
+    items = doc.get("items") or []
     summary = doc.get("summary") or {}
-    payment = doc.get("payment") or {}
-    tax_mode = doc.get("tax_mode") or "cgst_sgst"
-    is_igst = tax_mode == "igst"
+    is_igst = (doc.get("tax_mode") or "cgst_sgst") == "igst"
+    show_einvoice = bool(doc.get("e_invoice_enabled", True) or doc.get("irn"))
 
-    story = [
-        Paragraph(doc.get("title") or "TAX INVOICE", title_style),
-        Spacer(1, 4),
-    ]
-
-    header_data = [
-        [
-            Paragraph(f"<b>{seller.get('name', '')}</b><br/>{seller.get('address', '')}<br/>"
-                      f"GSTIN: {seller.get('gstin', '')} | PAN: {seller.get('pan', '')}<br/>"
-                      f"Phone: {seller.get('phone', '')} | Email: {seller.get('email', '')}", small),
-            Paragraph(
-                f"<b>Invoice No:</b> {meta.get('invoice_no', '')}<br/>"
-                f"<b>Date:</b> {meta.get('date', '')}<br/>"
-                f"<b>Due Date:</b> {meta.get('due_date', '')}<br/>"
-                f"<b>E-Way Bill:</b> {meta.get('eway_bill_no', '') or '—'}<br/>"
-                f"<b>Place of Supply:</b> {buyer.get('place_of_supply', '')}",
-                small,
-            ),
+    qr_value = "|".join(
+        p
+        for p in [
+            f"Seller:{seller.get('name', '')}",
+            f"GSTIN:{seller.get('gstin', '')}",
+            f"Doc:{meta.get('invoice_no', '')}",
+            f"Date:{meta.get('date', '')}",
+            f"Party:{buyer.get('name', '')}",
+            f"Total:{summary.get('grand_total', 0)}",
+            f"IRN:{doc.get('irn', '')}",
         ]
+        if p.split(":", 1)[1]
+    )
+
+    outer_rows: list[list[Any]] = []
+
+    header_left = _p(
+        (
+            (f"<b>IRN</b> : {doc.get('irn', '')}<br/>" if doc.get("irn") else "")
+            + (f"<b>Ack No.</b> : {doc.get('ack_no', '')}<br/>" if doc.get("ack_no") else "")
+            + (f"<b>Ack Date</b> : {doc.get('ack_date', '')}" if doc.get("ack_date") else "")
+        ),
+        tiny,
+    )
+    header_right = (
+        Table(
+            [[_p("<b>e-Invoice</b>", tiny)], [_qr_cell(qr_value)]],
+            colWidths=[35 * mm],
+            rowHeights=[4 * mm, 27 * mm],
+        )
+        if show_einvoice
+        else _p("", tiny)
+    )
+    outer_rows.append([header_left, _p("Tax Invoice", title_style), header_right])
+
+    seller_text = "<b>{}</b><br/>{}".format(seller.get("name", ""), seller.get("address", ""))
+    if seller.get("udyam"):
+        seller_text += f"<br/>UDYAM Reg No.: {seller.get('udyam', '')}"
+    if seller.get("gstin"):
+        seller_text += f"<br/><b>GSTIN/UIN</b> : {seller.get('gstin', '')}"
+    if seller.get("state"):
+        seller_text += f"<br/><b>State Name</b> : {seller.get('state', '')}, Code : {seller.get('state_code', '')}"
+    if seller.get("cin"):
+        seller_text += f"<br/><b>CIN</b> : {seller.get('cin', '')}"
+    if seller.get("email"):
+        seller_text += f"<br/><b>E-Mail</b> : {seller.get('email', '')}"
+
+    meta_grid = [
+        ["Invoice No.", meta.get("invoice_no", ""), "e-Way Bill No.", meta.get("eway_bill_no", ""), "Dated", meta.get("date", "")],
+        ["Delivery Note", meta.get("delivery_note", ""), "Mode/Terms of Payment", meta.get("payment_terms", ""), "", ""],
+        ["Reference No. & Date.", meta.get("reference_no", ""), "Other References", meta.get("other_references", ""), "", ""],
+        ["Buyer's Order No.", meta.get("buyers_order_no", ""), "Dated", meta.get("buyer_order_date", ""), "", ""],
+        ["Dispatch Doc No.", dispatch.get("dispatch_doc_no", ""), "Delivery Note Date", dispatch.get("delivery_note_date", ""), "", ""],
+        ["Dispatched through", dispatch.get("dispatch_through", "") or dispatch.get("transport_name", ""), "Destination", dispatch.get("destination", ""), "", ""],
+        ["Terms of Delivery", dispatch.get("delivery_terms", ""), "", "", "", ""],
     ]
-    header_table = Table(header_data, colWidths=[95 * mm, 85 * mm])
-    header_table.setStyle(
+    meta_table = Table(meta_grid, colWidths=[21 * mm, 26 * mm, 25 * mm, 24 * mm, 12 * mm, 15 * mm])
+    meta_table.setStyle(
         TableStyle(
             [
-                ("BOX", (0, 0), (-1, -1), 0.5, colors.grey),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
-                ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                ("TOPPADDING", (0, 0), (-1, -1), 6),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("BOX", (0, 0), (-1, -1), 0.7, colors.black),
+                ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.black),
+                ("FONT", (0, 0), (-1, -1), "Helvetica", 6.8),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
             ]
         )
     )
-    story.append(header_table)
-    story.append(Spacer(1, 6))
+    main_info = Table([[_p(seller_text, body), meta_table]], colWidths=[86 * mm, 104 * mm])
+    main_info.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.7, colors.black), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2)]))
+    outer_rows.append([main_info, "", ""])
 
-    party_data = [
-        ["Bill To", "Ship To"],
+    ship_text = (
+        f"<b>{consignee.get('name', '')}</b><br/>{consignee.get('address', buyer.get('shipping_address', ''))}"
+        f"<br/>Mobile No. : {consignee.get('phone', buyer.get('phone', ''))}"
+        f"<br/>GSTIN/UIN : {consignee.get('gstin', buyer.get('gstin', ''))}"
+        f"<br/>State Name : {consignee.get('state', buyer.get('state', ''))}, Code : {consignee.get('state_code', buyer.get('state_code', ''))}"
+    )
+    bill_text = (
+        f"<b>{buyer.get('name', '')}</b><br/>{buyer.get('billing_address', buyer.get('address', ''))}"
+        f"<br/>Mobile No. : {buyer.get('phone', '')}"
+        f"<br/>GSTIN/UIN : {buyer.get('gstin', '')}"
+        f"<br/>State Name : {buyer.get('state', '')}, Code : {buyer.get('state_code', '')}"
+    )
+    party_table = Table(
         [
-            Paragraph(
-                f"<b>{buyer.get('name', '')}</b><br/>{buyer.get('billing_address', '')}<br/>"
-                f"GSTIN: {buyer.get('gstin', '')}<br/>State: {buyer.get('state', '')} ({buyer.get('state_code', '')})<br/>"
-                f"Contact: {buyer.get('phone', '')}",
-                small,
-            ),
-            Paragraph(
-                f"<b>{buyer.get('name', '')}</b><br/>{buyer.get('shipping_address', '')}<br/>"
-                f"GSTIN: {buyer.get('gstin', '')}<br/>State: {buyer.get('state', '')} ({buyer.get('state_code', '')})",
-                small,
-            ),
+            [_p("<b>Consignee (Ship to)</b>", body), _p("<b>Buyer (Bill to)</b>", body)],
+            [_p(ship_text, body), _p(bill_text, body)],
+            [_p(f"<b>Place of Supply</b> : {buyer.get('place_of_supply', buyer.get('state', ''))}", body), ""],
         ],
-    ]
-    party_table = Table(party_data, colWidths=[90 * mm, 90 * mm])
+        colWidths=[95 * mm, 95 * mm],
+    )
     party_table.setStyle(
         TableStyle(
             [
-                ("BOX", (0, 0), (-1, -1), 0.5, colors.grey),
-                ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.lightgrey),
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f766e")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, 0), 8),
+                ("BOX", (0, 0), (-1, -1), 0.7, colors.black),
+                ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.black),
+                ("SPAN", (0, 2), (1, 2)),
+                ("FONT", (0, 0), (-1, -1), "Helvetica", 7),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 5),
-                ("TOPPADDING", (0, 0), (-1, -1), 4),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2),
             ]
         )
     )
-    story.append(party_table)
-    story.append(Spacer(1, 6))
+    outer_rows.append([party_table, "", ""])
 
-    if is_igst:
-        item_header = ["#", "Description", "HSN", "Qty", "Unit", "Rate", "Taxable", "IGST%", "Total"]
-        col_widths = [8 * mm, 52 * mm, 18 * mm, 14 * mm, 12 * mm, 18 * mm, 20 * mm, 12 * mm, 20 * mm]
-    else:
-        item_header = ["#", "Description", "HSN", "Qty", "Unit", "Rate", "Taxable", "CGST%", "SGST%", "Total"]
-        col_widths = [8 * mm, 44 * mm, 16 * mm, 12 * mm, 10 * mm, 16 * mm, 18 * mm, 10 * mm, 10 * mm, 18 * mm]
+    item_rows: list[list[Any]] = [["Sl No.", "Description of Goods", "HSN/SAC", "Quantity", "Rate", "per", "Amount"]]
+    for idx, item in enumerate(items, 1):
+        item_rows.append(
+            [
+                str(item.get("si", idx)),
+                item.get("description", "")[:120],
+                item.get("hsn", ""),
+                f"{_fmt_qty(item.get('qty', 0))} {(item.get('unit') or '').upper()}",
+                _fmt(item.get("rate", 0), 3),
+                (item.get("unit", "") or "").upper(),
+                _fmt(item.get("total_amount", item.get("taxable_amount", 0)), 3),
+            ]
+        )
+    for _ in range(max(0, 8 - len(items))):
+        item_rows.append(["", "", "", "", "", "", ""])
 
-    rows = [item_header]
-    for item in doc.get("items") or []:
-        if is_igst:
-            rows.append(
-                [
-                    str(item.get("si", "")),
-                    str(item.get("description", ""))[:80],
-                    item.get("hsn", ""),
-                    f"{item.get('qty', 0):.2f}",
-                    item.get("unit", ""),
-                    f"{item.get('rate', 0):.2f}",
-                    f"{item.get('taxable_amount', 0):.2f}",
-                    f"{item.get('igst_pct', 0):.1f}",
-                    f"{item.get('total_amount', 0):.2f}",
-                ]
-            )
-        else:
-            rows.append(
-                [
-                    str(item.get("si", "")),
-                    str(item.get("description", ""))[:70],
-                    item.get("hsn", ""),
-                    f"{item.get('qty', 0):.2f}",
-                    item.get("unit", ""),
-                    f"{item.get('rate', 0):.2f}",
-                    f"{item.get('taxable_amount', 0):.2f}",
-                    f"{item.get('cgst_pct', 0):.1f}",
-                    f"{item.get('sgst_pct', 0):.1f}",
-                    f"{item.get('total_amount', 0):.2f}",
-                ]
-            )
+    if is_igst and float(summary.get("igst_total", 0) or 0) > 0:
+        item_rows.append(["", "", "", "", "", f"IGST {_fmt((items[0] if items else {}).get('igst_pct', 18), 0)}%", _fmt(summary.get("igst_total", 0), 2)])
+    if not is_igst and float(summary.get("cgst_total", 0) or 0) > 0:
+        item_rows.append(["", "", "", "", "", "CGST", _fmt(summary.get("cgst_total", 0), 2)])
+    if not is_igst and float(summary.get("sgst_total", 0) or 0) > 0:
+        item_rows.append(["", "", "", "", "", "SGST", _fmt(summary.get("sgst_total", 0), 2)])
+    if float(summary.get("round_off", 0) or 0) != 0:
+        item_rows.append(["", "Less : ROUNDED OFF", "", "", "", "", f"({_fmt(abs(summary.get('round_off', 0)), 3)})"])
+    item_rows.append(["", "Total", "", f"{_fmt_qty(summary.get('qty_total', 0))}", "", "", _inr(summary.get("grand_total", 0), 3)])
 
-    items_table = Table(rows, colWidths=col_widths, repeatRows=1)
-    items_table.setStyle(
+    item_table = Table(item_rows, colWidths=[10 * mm, 82 * mm, 18 * mm, 18 * mm, 16 * mm, 11 * mm, 35 * mm], repeatRows=1)
+    item_table.setStyle(
         TableStyle(
             [
-                ("BOX", (0, 0), (-1, -1), 0.5, colors.grey),
-                ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.lightgrey),
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#134e4a")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 7),
-                ("ALIGN", (0, 1), (0, -1), "CENTER"),
-                ("ALIGN", (3, 1), (-1, -1), "RIGHT"),
+                ("BOX", (0, 0), (-1, -1), 0.7, colors.black),
+                ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.black),
+                ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 7),
+                ("FONT", (0, 1), (-1, -1), "Helvetica", 7),
+                ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                ("ALIGN", (2, 0), (6, -1), "RIGHT"),
+                ("ALIGN", (1, 0), (1, -1), "LEFT"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("TOPPADDING", (0, 0), (-1, -1), 3),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+                ("FONT", (0, -1), (-1, -1), "Helvetica-Bold", 7.3),
             ]
         )
     )
-    story.append(items_table)
-    story.append(Spacer(1, 6))
+    outer_rows.append([item_table, "", ""])
 
-    totals = [
-        ["Taxable Value", _inr(summary.get("taxable_value", 0))],
-    ]
-    if is_igst:
-        totals.append(["IGST Total", _inr(summary.get("igst_total", 0))])
+    amount_words = _words(summary.get("grand_total", 0))
+    words_row = Table(
+        [[_p("<b>Amount Chargeable (in words)</b><br/>" + amount_words, body), _p("<b>E. & O.E</b>", center)]],
+        colWidths=[172 * mm, 18 * mm],
+    )
+    words_row.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.7, colors.black), ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.black), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2)]))
+    outer_rows.append([words_row, "", ""])
+
+    tax_total = float(summary.get("igst_total", 0) if is_igst else float(summary.get("cgst_total", 0) or 0) + float(summary.get("sgst_total", 0) or 0))
+    hsn_rows = [["HSN/SAC", "Taxable Value", "Rate", "Tax Amount", "Total Tax Amount"]]
+    if items:
+        for item in items:
+            rate = item.get("igst_pct", 0) if is_igst else item.get("cgst_pct", 0)
+            amt = item.get("igst_amount", 0) if is_igst else float(item.get("cgst_amount", 0) or 0) + float(item.get("sgst_amount", 0) or 0)
+            hsn_rows.append([item.get("hsn", ""), _fmt(item.get("taxable_amount", 0), 2), f"{_fmt(rate, 0)}%", _fmt(amt, 2), _fmt(amt, 2)])
     else:
-        totals.append(["CGST Total", _inr(summary.get("cgst_total", 0))])
-        totals.append(["SGST Total", _inr(summary.get("sgst_total", 0))])
-    if summary.get("round_off"):
-        totals.append(["Round Off", _inr(summary.get("round_off", 0))])
-    totals.append(["Grand Total", _inr(summary.get("grand_total", 0))])
+        hsn_rows.append(["", _fmt(summary.get("taxable_value", 0), 2), "", _fmt(tax_total, 2), _fmt(tax_total, 2)])
+    hsn_rows.append(["Total", _fmt(summary.get("taxable_value", 0), 2), "", _fmt(tax_total, 2), _fmt(tax_total, 2)])
+    hsn_table = Table(hsn_rows, colWidths=[46 * mm, 46 * mm, 20 * mm, 40 * mm, 38 * mm], repeatRows=1)
+    hsn_table.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.7, colors.black), ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.black), ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 7), ("FONT", (0, 1), (-1, -1), "Helvetica", 6.9), ("ALIGN", (1, 0), (-1, -1), "RIGHT"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2)]))
+    outer_rows.append([hsn_table, "", ""])
+    outer_rows.append([_p(f"<b>Tax Amount (in words)</b> : {_words(tax_total)}", body), "", ""])
 
-    totals_table = Table(totals, colWidths=[120 * mm, 60 * mm])
-    totals_table.setStyle(
-        TableStyle(
-            [
-                ("BOX", (0, 0), (-1, -1), 0.5, colors.grey),
-                ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-                ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-                ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#ecfdf5")),
-                ("FONTSIZE", (0, 0), (-1, -1), 8),
-                ("TOPPADDING", (0, 0), (-1, -1), 4),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-            ]
-        )
+    declaration = (doc.get("terms") or "").strip() or (
+        "1. Certified that the particulars given above are true and correct.\n"
+        "2. Goods once sold cannot be taken back.\n"
+        "3. Subject to local jurisdiction."
     )
-    story.append(totals_table)
-    story.append(Spacer(1, 4))
-    story.append(Paragraph(f"<b>Amount in words:</b> {_words_placeholder(summary.get('grand_total', 0))}", small))
-    story.append(Spacer(1, 6))
+    rejection = (
+        "1. Loose winding and edge damages to be reported immediately.\n"
+        "2. Quality claims require sample and batch details.\n"
+        "3. Complaints accepted within 24 hours from receipt."
+    )
+    decl_lines = "<br/>".join([f"{i+1}. {ln.strip()}" for i, ln in enumerate([x for x in declaration.splitlines() if x.strip()])])
+    rej_lines = "<br/>".join([f"{i+1}. {ln.strip()}" for i, ln in enumerate([x for x in rejection.splitlines() if x.strip()])])
+    bottom_text = Table(
+        [[_p(f"<b>Declaration</b><br/>{decl_lines}", tiny), _p(f"<b>Rejection Policy</b><br/>{rej_lines}", tiny)]],
+        colWidths=[95 * mm, 95 * mm],
+    )
+    bottom_text.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.7, colors.black), ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.black), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2)]))
+    outer_rows.append([bottom_text, "", ""])
 
-    bank_lines = (
-        f"Bank: {payment.get('bank_name', '')} | A/C: {payment.get('account_number', '')} | "
-        f"IFSC: {payment.get('ifsc', '')} | Balance Due: {_inr(payment.get('balance_due', 0))}"
-    )
-    story.append(Paragraph(bank_lines, small))
-    story.append(Spacer(1, 8))
+    remarks_text = doc.get("remarks", "")
+    outer_rows.append([_p(f"<b>Remarks</b> : {remarks_text}", body), "", ""])
 
-    footer = Table(
-        [
-            [
-                Paragraph(f"Prepared by: {doc.get('prepared_by', '')}", small),
-                Paragraph("Checked by: ___________", small),
-                Paragraph(f"for {seller.get('name', '')}<br/><br/>Authorised Signatory", small),
-            ]
-        ],
-        colWidths=[60 * mm, 55 * mm, 65 * mm],
+    sign_row = Table(
+        [[_p("<b>Prepared by</b><br/><br/>" + (doc.get("prepared_by", "") or ""), body), _p("<b>Verified by</b>", body), _p(f"for {seller.get('name', '')}<br/><br/><b>Authorised Signatory</b>", right)]],
+        colWidths=[50 * mm, 50 * mm, 90 * mm],
     )
-    footer.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
-    story.append(footer)
-    story.append(Spacer(1, 6))
-    story.append(
-        Paragraph(
-            "<i>This is a Computer Generated Invoice</i>",
-            ParagraphStyle("Foot", parent=small, alignment=TA_CENTER, textColor=colors.grey),
-        )
-    )
+    sign_row.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.7, colors.black), ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.black), ("VALIGN", (0, 0), (-1, -1), "BOTTOM"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
+    outer_rows.append([sign_row, "", ""])
+    outer_rows.append([_p("This is a Computer Generated Invoice", ParagraphStyle("Foot", parent=tiny, alignment=TA_CENTER)), "", ""])
 
-    pdf.build(story)
+    outer = Table([[row[0]] for row in outer_rows], colWidths=[190 * mm], repeatRows=0)
+    outer.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.8, colors.black), ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.black), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0), ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0)]))
+
+    pdf.build([outer, Spacer(1, 1)])
     return buffer.getvalue()

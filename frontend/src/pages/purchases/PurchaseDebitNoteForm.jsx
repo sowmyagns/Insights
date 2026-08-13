@@ -26,7 +26,7 @@ import { apiErrorMessage } from "../../utils/apiError";
 
 const LAVENDER = "#efeaf8";
 const PURPLE = "#6b4eff";
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const PREFIX_STORAGE_KEY = "gns_purchase_debit_note_prefixes";
 const DEFAULT_PREFIXES = ["DN"];
 
@@ -129,7 +129,7 @@ function PrefixDropdown({ value, options, onChange, onAddNew }) {
                     setOpen(false);
                   }}
                   className={`block w-full rounded-lg border-2 py-2.5 text-center text-[13px] font-bold ${
-                    value === prefix ? "border-[#F5C518] bg-[#fffbeb]" : "border-[#F5C518]/70 bg-[#fffdf5] hover:bg-[#fffbeb]"
+                    value === prefix ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)]" : "border-[var(--color-primary)]/70 bg-[var(--color-primary-soft)] hover:bg-[var(--color-primary-soft)]"
                   }`}
                 >
                   {prefix || "No Prefix"}
@@ -604,7 +604,7 @@ export default function PurchaseDebitNoteForm() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-[#1a1a1f] shadow-sm disabled:opacity-60"
+            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-white shadow-sm disabled:opacity-60"
             style={{ background: YELLOW }}
           >
             {saving ? "Saving…" : "Save"}
@@ -626,8 +626,8 @@ export default function PurchaseDebitNoteForm() {
                   checked={noteType === "debit_note"}
                   onChange={() => setNoteType("debit_note")}
                 />
-                <span className={`flex h-4 w-4 items-center justify-center rounded-full border-2 border-[#F5C518] ${noteType === "debit_note" ? "" : "border-[#d0d0d8]"}`}>
-                  {noteType === "debit_note" ? <span className="h-2 w-2 rounded-full bg-[#F5C518]" /> : null}
+                <span className={`flex h-4 w-4 items-center justify-center rounded-full border-2 border-[var(--color-primary)] ${noteType === "debit_note" ? "" : "border-[#d0d0d8]"}`}>
+                  {noteType === "debit_note" ? <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" /> : null}
                 </span>
                 Debit Note
               </label>
@@ -639,8 +639,8 @@ export default function PurchaseDebitNoteForm() {
                   checked={noteType === "purchase_return"}
                   onChange={() => setNoteType("purchase_return")}
                 />
-                <span className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${noteType === "purchase_return" ? "border-[#F5C518]" : "border-[#d0d0d8]"}`}>
-                  {noteType === "purchase_return" ? <span className="h-2 w-2 rounded-full bg-[#F5C518]" /> : null}
+                <span className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${noteType === "purchase_return" ? "border-[var(--color-primary)]" : "border-[#d0d0d8]"}`}>
+                  {noteType === "purchase_return" ? <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" /> : null}
                 </span>
                 Purchase Return
               </label>
@@ -1430,7 +1430,7 @@ export default function PurchaseDebitNoteForm() {
                 role="switch"
                 aria-checked={signatureOn}
                 onClick={() => setSignatureOn((current) => !current)}
-                className={`relative h-6 w-11 rounded-full transition ${signatureOn ? "bg-[#F5C518]" : "bg-[#d4d4d8]"}`}
+                className={`relative h-6 w-11 rounded-full transition ${signatureOn ? "bg-[var(--color-primary)]" : "bg-[#d4d4d8]"}`}
               >
                 <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${signatureOn ? "left-[22px]" : "left-0.5"}`} />
               </button>

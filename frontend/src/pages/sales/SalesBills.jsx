@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { CheckCircle, FileText, Plus, TrendingUp, Download, Search } from "lucide-react";
 import DataTable from "../../components/common/DataTable";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 import BillFormModal from "../../components/sales/BillFormModal";
 import { exportToExcel } from "../../utils/exportUtils";
 import api from "../../api/axiosConfig";
@@ -122,7 +124,7 @@ export default function SalesBills() {
     {
       key: "invoice_number",
       label: "Bill No.",
-      render: (r) => <span className="font-semibold text-teal-800">{r.invoice_number || r.bill_number}</span>,
+      render: (r) => <span className="font-semibold text-[var(--color-success)]">{r.invoice_number || r.bill_number}</span>,
     },
     { key: "customer_name", label: "Customer" },
     {
@@ -216,7 +218,7 @@ export default function SalesBills() {
       label: "Actions",
       render: (r) => (
         <div className="flex gap-2">
-          <Link to={`/sales/bills/${r.id}`} className="text-xs font-semibold text-teal-800 hover:underline">View</Link>
+          <Link to={`/sales/bills/${r.id}`} className="text-xs font-semibold text-[var(--color-success)] hover:underline">View</Link>
           {String(r.status || "").toLowerCase() !== "paid" && (
             <button type="button" onClick={() => handleUpdateBillStatus(r.id, "paid")}
               className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100">
@@ -234,57 +236,45 @@ export default function SalesBills() {
 
   return (
     <div className="space-y-5 pb-4">
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-eyebrow">Sales</p>
-          <h2 className="mt-0.5 ui-title">Bills</h2>
-          <p className="ui-subtitle">Manage your billing records.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to="/sales/bills/create" className="ui-btn-primary">
-            <Plus className="h-4 w-4" /> Create Bill
-          </Link>
-          <button type="button" onClick={() => exportToExcel(
-            filteredBills.map((b) => ({
-              ...b,
-              product: b.items?.[0]?.item_description || "—",
-              quantity: b.items?.[0]?.qty ?? b.items?.[0]?.quantity ?? "—",
-              unit: b.items?.[0]?.unit || "—",
-              unit_price: b.items?.[0]?.rate || 0,
-            })),
-            [
-              { key: "invoice_number", label: "Bill No." },
-              { key: "customer_name", label: "Customer" },
-              { key: "issue_date", label: "Issue Date" },
-              { key: "product", label: "Product" },
-              { key: "quantity", label: "Quantity" },
-              { key: "unit", label: "Unit" },
-              { key: "unit_price", label: "Unit Price (₹)" },
-              { key: "grand_total", label: "Amount" },
-              { key: "status", label: "Status" },
-            ],
-            "sales-bills"
-          )}
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            <Download className="h-4 w-4" /> Export
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        subtitle="Manage your billing records."
+        action={
+          <>
+            <Link to="/sales/bills/create" className="ui-btn-primary">
+              <Plus className="h-4 w-4" /> Create Bill
+            </Link>
+            <button type="button" onClick={() => exportToExcel(
+              filteredBills.map((b) => ({
+                ...b,
+                product: b.items?.[0]?.item_description || "—",
+                quantity: b.items?.[0]?.qty ?? b.items?.[0]?.quantity ?? "—",
+                unit: b.items?.[0]?.unit || "—",
+                unit_price: b.items?.[0]?.rate || 0,
+              })),
+              [
+                { key: "invoice_number", label: "Bill No." },
+                { key: "customer_name", label: "Customer" },
+                { key: "issue_date", label: "Issue Date" },
+                { key: "product", label: "Product" },
+                { key: "quantity", label: "Quantity" },
+                { key: "unit", label: "Unit" },
+                { key: "unit_price", label: "Unit Price (₹)" },
+                { key: "grand_total", label: "Amount" },
+                { key: "status", label: "Status" },
+              ],
+              "sales-bills"
+            )}
+              className="ui-btn-secondary">
+              <Download className="h-4 w-4" /> Export
+            </button>
+          </>
+        }
+      />
 
-      {/* KPI Cards */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="flex items-center justify-between ui-card p-4">
-          <div><p className="text-[11px] font-medium text-[var(--color-text-muted)]">Total Bills</p><p className="mt-1 text-xl font-bold text-slate-900">{bills.length}</p></div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-700"><FileText className="h-4 w-4 text-white" /></div>
-        </div>
-        <div className="flex items-center justify-between ui-card p-4">
-          <div><p className="text-[11px] font-medium text-[var(--color-text-muted)]">Paid / Pending</p><p className="mt-1 text-xl font-bold text-slate-900">{paidCount} <span className="text-base font-normal text-slate-400">/ {pendingCount}</span></p></div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600"><CheckCircle className="h-4 w-4 text-white" /></div>
-        </div>
-        <div className="flex items-center justify-between ui-card p-4">
-          <div><p className="text-[11px] font-medium text-[var(--color-text-muted)]">Combined Total</p><p className="mt-1 text-xl font-bold text-teal-800">{fmt(totalAmount)}</p></div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600"><TrendingUp className="h-4 w-4 text-white" /></div>
-        </div>
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Bills" value={bills.length} icon={FileText} tone="primary" />
+        <KpiCard label="Paid / Pending" value={`${paidCount} / ${pendingCount}`} icon={CheckCircle} tone="success" />
+        <KpiCard label="Combined Total" value={fmt(totalAmount)} icon={TrendingUp} tone="info" />
       </div>
 
       {/* Search + Table */}

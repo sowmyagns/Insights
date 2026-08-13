@@ -93,22 +93,25 @@ class CreateCompanyRequest(BaseModel):
     password: str | None = Field(default=None, min_length=12, max_length=128)
     confirm_password: str | None = Field(default=None, min_length=12, max_length=128)
 
-    @field_validator("company_name")
-    @classmethod
-    def validate_company_name(cls, value: str) -> str:
-        cleaned = sanitize_text(value, max_length=255)
-        if not cleaned:
-            raise ValueError("Required field")
-        if not _has_alpha(cleaned):
-            raise ValueError("Company Name must contain alphabetic characters.")
-        return cleaned
-
     @field_validator("admin_name", "address", "city", "state", "country")
     @classmethod
     def sanitize_text_fields(cls, value: str) -> str:
         cleaned = sanitize_text(value, max_length=512)
         if not cleaned:
             raise ValueError("Required field")
+        return cleaned
+
+    @field_validator("company_name")
+    @classmethod
+    def validate_company_name(cls, value: str) -> str:
+        import re
+        cleaned = sanitize_text(value, max_length=255)
+        if not cleaned:
+            raise ValueError("Required field")
+        if not any(c.isalpha() for c in cleaned):
+            raise ValueError("Company Name must contain alphabetic characters")
+        if not re.match(r"^[a-zA-Z0-9\s$]+$", cleaned):
+            raise ValueError("Only alphabets, numbers, spaces, and '$' are allowed.")
         return cleaned
 
     @field_validator("company_email", "admin_email")

@@ -342,7 +342,7 @@ function FiltersDrawer({ open, onClose, selected, onApply }) {
                   onClick={() => toggle(type)}
                   className={`rounded-full border px-3 py-1.5 text-[12px] font-medium ${
                     active
-                      ? "border-[#93c5fd] bg-[#dbeafe] text-[#1e3a8a]"
+                      ? "border-[#93c5fd] bg-[#dbeafe] text-[var(--color-primary-dark)]"
                       : "border-[#d8d8e0] bg-white text-[#4a4a55]"
                   }`}
                 >

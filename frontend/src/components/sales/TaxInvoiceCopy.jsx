@@ -515,9 +515,9 @@ export default function TaxInvoiceCopy({ data }) {
                   "2.The amount indicated represents the price actually charged and that there is no flow of additional consideration directly or indirectly from the buyer.",
                   "3.All disputes subject to Hyderabad jurisdiction.",
                   "4.Goods once sold cannot be taken back or exchanged.",
-                  "Cheques subject to realisation.",
-                  "24% Interest per annum will be charged if the bills are not paid within due days.",
-                  `Goods Return "As it is" shall be taken back, only within 7 days from the Date of Delivery & the same shall have to be intimated in "Writing" along with reasons for Goods Return.`,
+                  "5.Cheques subject to realisation.",
+                  "6.24% Interest per annum will be charged if the bills are not paid within due days.",
+                  `7.Goods Return "As it is" shall be taken back, only within 7 days from the Date of Delivery & the same shall have to be intimated in "Writing" along with reasons for Goods Return.`,
                 ].map((d,i)=><li key={i} style={{ marginBottom:"1px" }}>{d}</li>)}
               </ol>
               {(data.remarks||meta.remarks) && (
@@ -533,15 +533,11 @@ export default function TaxInvoiceCopy({ data }) {
                 {(data.rejection_policy
                   ? data.rejection_policy.split("\n").filter(Boolean)
                   : [
-                    "Loose Winding & Tight Release",
-                    "Printability on face paper",
-                    "Loop Tack, Peel Adhesion and Shear Strength (15% tolerance) are less than what is mentioned in our Technical Data Sheet.",
-                    "For all Rejection and Quality Claims, End user Email /Samples for evaluation is mandatory.",
+                    "1.",
+                    "2.",
+                    "3.",
+                    "4.",
                     "For application issues End user visit by company team is mandatory.",
-                    "No rejection claim will be accepted if above conditions are not fulfilled.",
-                    "We are not responsible for material application related issues.",
-                    "Any quantity discrepancies are only accepted within 24 hours from the receipt of the material",
-                    "Any quality discrepancies are only accepted within 7 working days from the receipt of the Material (Unconverted Rolls Only)",
                   ]
                 ).map((r,i)=>(
                   <div key={i} style={{ marginBottom:"1px" }}>{r.replace(/^\d+\.\s*/,"")}</div>

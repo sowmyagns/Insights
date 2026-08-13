@@ -30,7 +30,7 @@ import {
 import { formatInr } from "../../data/salesMasterData";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const PURPLE = "#6b4eff";
 const LAVENDER = "#efeaf8";
 const ACCOUNTS_KEY = "gns_payment_accounts";
@@ -417,7 +417,7 @@ export default function PaymentReceiptForm() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg px-5 py-2 text-[13px] font-semibold disabled:opacity-60"
+            className="rounded-lg px-5 py-2 text-[13px] font-semibold disabled:opacity-60 text-white"
             style={{ background: YELLOW }}
           >
             {saving ? "Saving…" : isEdit ? "Update" : "Save"}
@@ -477,7 +477,7 @@ export default function PaymentReceiptForm() {
                             )}
                           </div>
                           <Star
-                            className={`mt-0.5 h-4 w-4 ${c.favorite ? "fill-[#F5C518] text-[#F5C518]" : "text-[#c4c4cc]"}`}
+                            className={`mt-0.5 h-4 w-4 ${c.favorite ? "fill-[var(--color-primary)] text-[var(--color-primary)]" : "text-[#c4c4cc]"}`}
                           />
                           <span className="rounded-full bg-[#e6f4ea] px-2 py-0.5 text-[11px] font-semibold text-[#166534]">
                             ₹ 0

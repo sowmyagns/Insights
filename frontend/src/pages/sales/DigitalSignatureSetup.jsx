@@ -59,7 +59,7 @@ export default function DigitalSignatureSetup() {
 
       <div className="mx-auto max-w-lg rounded-2xl border border-slate-100 bg-white p-8 shadow-lg">
         <div className="mb-4 flex justify-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-50 text-[#F5C518]">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary)]">
             <ScrollText className="h-8 w-8" />
           </div>
         </div>
@@ -72,7 +72,7 @@ export default function DigitalSignatureSetup() {
         </h2>
         <p className="mb-5 text-center text-sm font-semibold text-slate-700">Why Digital Signature?</p>
 
-        <div className="mb-5 rounded-xl border border-dashed border-amber-300 bg-amber-50/80 p-4 text-center">
+        <div className="mb-5 rounded-xl border border-dashed border-[var(--color-primary-light)] bg-[var(--color-primary-soft)]/80 p-4 text-center">
           <p className="text-sm font-semibold text-slate-800">
             Signed by {status?.signatory_name || "Gimbooks User"}
           </p>
@@ -104,7 +104,7 @@ export default function DigitalSignatureSetup() {
           <button
             type="button"
             onClick={() => setShowForm(true)}
-            className="w-full rounded-xl bg-[#F5C518] py-3 text-sm font-bold text-slate-900 hover:bg-[#e6b800]"
+            className="w-full rounded-xl bg-[var(--color-primary)] py-3 text-sm font-bold text-white hover:bg-[var(--color-primary-hover)]"
           >
             {status?.is_setup ? "Update Digital Signature" : "Set Up Digital Signature"}
           </button>
@@ -139,7 +139,7 @@ export default function DigitalSignatureSetup() {
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 rounded-xl bg-[#F5C518] py-2.5 text-sm font-bold disabled:opacity-60"
+                className="flex-1 rounded-xl bg-[var(--color-primary)] py-2.5 text-sm font-bold disabled:opacity-60"
               >
                 {saving ? "Saving…" : "Confirm"}
               </button>

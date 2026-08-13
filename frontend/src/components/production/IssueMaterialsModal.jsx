@@ -74,28 +74,51 @@ export default function IssueMaterialsModal({ workOrder, onClose, onSuccess, add
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     setSubmitting(true);
 
     const selectedMachine = machines.find((m) => String(m.id) === String(form.machine_id));
-    const machineName = selectedMachine ? (selectedMachine.name || selectedMachine.code || `Machine #${selectedMachine.id}`) : (form.machine_id ? `Machine #${form.machine_id}` : "");
-    const selectedMat = rawMaterials.find((m) => String(m.id) === String(form.raw_material_id));
-    const matName = selectedMat?.name || form.raw_material_name || "Raw Material";
+    const machineName = selectedMachine
+      ? selectedMachine.name || selectedMachine.code || `Machine #${selectedMachine.id}`
+      : form.machine_id
+        ? `Machine #${form.machine_id}`
+        : "";
     const plannedQty = Number(form.quantity) || workOrder?.planned_quantity || 100;
 
-    // Backend API updates if integer ID
+    // Server work orders: issue via API only (inventory must update)
     if (workOrder && typeof workOrder.id === "number") {
       try {
-        await issueWorkOrderMaterials(workOrder.id, form.warehouse_id).catch(() => null);
+        const warehouseId =
+          form.warehouse_id && /^\d+$/.test(String(form.warehouse_id))
+            ? Number(form.warehouse_id)
+            : undefined;
+        await issueWorkOrderMaterials(workOrder.id, warehouseId);
         if (form.machine_id) {
-          const poId = workOrder.production_order_id || workOrder.id;
-          await updateProductionOrderMachine(poId, Number(form.machine_id)).catch(() => null);
+          const poId = workOrder.production_order_id;
+          if (poId) {
+            await updateProductionOrderMachine(poId, Number(form.machine_id)).catch(() => null);
+          }
         }
-      } catch {}
+        notifyManufacturingSpine(MANUFACTURING_EVENTS.WORK_ORDER_UPDATED, { workOrderId: workOrder.id });
+        addToast?.(`Materials issued for ${woNumber}`, "success");
+        onSuccess?.(workOrder);
+        onClose?.();
+      } catch (err) {
+        const detail = err?.response?.data?.detail;
+        addToast?.(
+          typeof detail === "string"
+            ? detail
+            : detail?.message || "Failed to issue materials — inventory was not updated",
+          "error"
+        );
+      } finally {
+        setSubmitting(false);
+      }
+      return;
     }
 
-    // Comprehensive Local Storage Persistence for Work Orders, Production Orders & Allocations
+    // Local-only demo rows (non-numeric ids)
     try {
-      // 1. Update Work Orders
       const storedWOs = localStorage.getItem("smrt_local_work_orders") || localStorage.getItem("smrt_work_orders");
       const localWOs = storedWOs ? JSON.parse(storedWOs) : [];
       let updatedWOs = localWOs.map((w) => {
@@ -106,8 +129,6 @@ export default function IssueMaterialsModal({ workOrder, onClose, onSuccess, add
             machine_id: form.machine_id || w.machine_id || "",
             machine_name: machineName || w.machine_name || "Unassigned",
             operator_name: form.operator_name || w.operator_name || "",
-            raw_material_id: form.raw_material_id || w.raw_material_id,
-            raw_material_name: matName,
             planned_quantity: plannedQty,
             warehouse_id: form.warehouse_id,
             status: w.status === "planned" || w.status === "draft" ? "material_ready" : w.status,
@@ -115,76 +136,16 @@ export default function IssueMaterialsModal({ workOrder, onClose, onSuccess, add
         }
         return w;
       });
-
-      // If workOrder not found in array, create or push it
-      const exists = updatedWOs.some((w) => w.id === workOrder?.id || w.work_order_number === woNumber);
-      if (!exists && workOrder) {
-        updatedWOs.unshift({
-          ...workOrder,
-          work_order_number: woNumber,
-          materials_issued: true,
-          machine_id: form.machine_id || "",
-          machine_name: machineName || "Unassigned",
-          operator_name: form.operator_name || "",
-          raw_material_id: form.raw_material_id,
-          raw_material_name: matName,
-          planned_quantity: plannedQty,
-          warehouse_id: form.warehouse_id,
-          status: workOrder.status === "planned" || workOrder.status === "draft" ? "material_ready" : (workOrder.status || "planned"),
-        });
-      }
-
       localStorage.setItem("smrt_local_work_orders", JSON.stringify(updatedWOs));
       localStorage.setItem("smrt_work_orders", JSON.stringify(updatedWOs));
-
-      // 2. Update linked Production Order
-      const storedPOs = localStorage.getItem("smrt_local_production_orders");
-      if (storedPOs) {
-        const localPOs = JSON.parse(storedPOs);
-        const poId = workOrder?.production_order_id || workOrder?.id;
-        const updatedPOs = localPOs.map((po) => {
-          if ((poId && String(po.id) === String(poId)) || (po.order_number && String(po.order_number) === String(workOrder?.production_order_number || workOrder?.order_number))) {
-            return {
-              ...po,
-              machine_id: form.machine_id || po.machine_id,
-              machine_name: machineName || po.machine_name,
-              operator_name: form.operator_name || po.operator_name,
-              planned_quantity: plannedQty,
-              materials_issued: true,
-              status: po.status === "draft" || po.status === "planned" ? "machine_assigned" : po.status,
-            };
-          }
-          return po;
-        });
-        localStorage.setItem("smrt_local_production_orders", JSON.stringify(updatedPOs));
-      }
-    } catch {}
-
-    notifyManufacturingSpine(MANUFACTURING_EVENTS.WORK_ORDER_UPDATED, {
-      workOrderId: workOrder?.id,
-      workOrderNumber: woNumber,
-      machineId: form.machine_id,
-      machineName,
-      operatorName: form.operator_name,
-      materialsIssued: true,
-    });
-
-    const successMsg = machineName 
-      ? `Materials issued & machine (${machineName}) allocated to ${woNumber}`
-      : `Materials issued successfully for ${woNumber} (${matName})`;
-
-    addToast?.(successMsg, "success");
-    setSubmitting(false);
-    onSuccess?.({
-      ...workOrder,
-      materials_issued: true,
-      raw_material_name: matName,
-      machine_id: form.machine_id,
-      machine_name: machineName,
-      operator_name: form.operator_name,
-      planned_quantity: plannedQty,
-    });
-    onClose?.();
+      addToast?.(`Materials marked issued locally for ${woNumber}`, "success");
+      onSuccess?.(workOrder);
+      onClose?.();
+    } catch {
+      addToast?.("Failed to update local work order", "error");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Download, Eye, File, FileArchive, FileImage, FileSpreadsheet, FileText, Filter, FolderOpen, HardDrive, Pencil, Plus, Search, Trash2, Upload, X, User, CheckCircle, Tag, Calendar } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
 
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
@@ -50,32 +51,6 @@ const DEPARTMENT_BY_TYPE = {
   general: "General",
 };
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  const displayVal =
-    value === null || value === undefined
-      ? "0"
-      : typeof value === "object"
-      ? (value?.value ?? value?.count ?? value?.total ?? JSON.stringify(value))
-      : String(value);
-
-  return (
-    <div className="group ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white shrink-0" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl" title={displayVal}>
-          {displayVal}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function FileTypeIcon({ name }) {
   const cat = fileTypeCategory(name);
@@ -424,11 +399,11 @@ Description:  ${doc.description || "No description provided."}
       )}
 
       {/* KPI Cards Grid */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-        <KpiCard label="Total Documents" value={summary.total} icon={FolderOpen} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Documents" value={summary.total} icon={FolderOpen} color="bg-[var(--color-primary)]" />
         <KpiCard label="PDF Files" value={summary.pdf} icon={FileText} color="bg-rose-600" />
         <KpiCard label="Images" value={summary.image} icon={FileImage} color="bg-violet-600" />
-        <KpiCard label="Excel Files" value={summary.excel} icon={FileSpreadsheet} color="bg-emerald-600" />
+        <KpiCard label="Excel Files" value={summary.excel} icon={FileSpreadsheet} color="bg-[var(--color-success)]" />
         <KpiCard label="Word Files" value={summary.word} icon={FileText} color="bg-sky-600" />
         <KpiCard label="Recent Uploads" value={summary.recent} icon={Plus} color="bg-amber-500" />
         <KpiCard
@@ -906,7 +881,7 @@ Description:  ${doc.description || "No description provided."}
               <button
                 type="button"
                 onClick={() => handleDownload(preview)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition-colors shadow-xs"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)] transition-colors shadow-xs"
               >
                 <Download className="h-4 w-4" /> Download File
               </button>

@@ -247,7 +247,7 @@ export default function MachineDetailModal({ machine, detail, onClose, onStatusC
             ) : (
               /* Admin / Manager: full controls */
               <>
-                <Link to="/production/work-orders" className="rounded-lg bg-[#2563EB] px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">
+                <Link to="/production/work-orders" className="rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">
                   Assign Work Order
                 </Link>
                 {status !== "running" && (
@@ -281,7 +281,7 @@ export default function MachineDetailModal({ machine, detail, onClose, onStatusC
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                  tab === t.id ? "bg-[#2563EB] text-white" : "text-slate-600 hover:bg-slate-100"
+                  tab === t.id ? "bg-[var(--color-primary)] text-white" : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
                 {t.label}

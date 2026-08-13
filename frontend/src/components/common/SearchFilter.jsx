@@ -1,8 +1,5 @@
-import { useTranslation } from "react-i18next";
 import { Search, X } from "lucide-react";
-
-const inputBase =
-  "w-full rounded-full border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] py-2.5 text-[13px] text-[var(--color-text)] placeholder-[var(--color-text-placeholder)] outline-none transition-all focus:border-[var(--color-border-strong)] focus:bg-white";
+import { useTranslation } from "react-i18next";
 
 export function SearchBar({ value, onChange, placeholder = "Search...", onClear }) {
   const { t } = useTranslation();
@@ -14,9 +11,9 @@ export function SearchBar({ value, onChange, placeholder = "Search...", onClear 
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder || t("common.search")}
-        className={`${inputBase} !pl-10 !pr-10`}
+        className="ui-input !rounded-full pl-10 pr-10"
       />
-      {value && (
+      {value ? (
         <button
           type="button"
           onClick={() => {
@@ -28,7 +25,7 @@ export function SearchBar({ value, onChange, placeholder = "Search...", onClear 
         >
           <X className="h-4 w-4" />
         </button>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -36,11 +33,11 @@ export function SearchBar({ value, onChange, placeholder = "Search...", onClear 
 export function FilterSelect({ label, value, options, onChange, placeholder }) {
   return (
     <div className="flex items-center gap-2">
-      {label && <span className="text-sm text-[var(--color-text-muted)]">{label}</span>}
+      {label ? <span className="ui-caption">{label}</span> : null}
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
-        className="min-w-[120px] rounded-lg border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] px-3 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[var(--color-border-strong)] focus:bg-white"
+        className="ui-select min-w-[120px]"
       >
         <option value="">{placeholder ?? "All"}</option>
         {options.map((opt) => (
@@ -57,7 +54,6 @@ export default function SearchFilter({
   searchValue,
   onSearchChange,
   searchPlaceholder,
-  searchKeys,
   filters = [],
   filterValues,
   onFilterChange,
@@ -65,7 +61,7 @@ export default function SearchFilter({
   children,
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="ui-toolbar">
       <SearchBar
         value={searchValue}
         onChange={onSearchChange}
@@ -82,7 +78,7 @@ export default function SearchFilter({
         />
       ))}
       {typeof resultCount === "number" ? (
-        <span className="text-xs text-[var(--color-text-muted)]">{resultCount} results</span>
+        <span className="ui-caption ml-auto">{resultCount} results</span>
       ) : null}
       {children}
     </div>

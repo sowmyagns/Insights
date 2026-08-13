@@ -107,7 +107,7 @@ export default function VendorDetailModal({
               type="button"
               onClick={() => setTab(t.id)}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                tab === t.id ? "bg-[#2563EB] text-white" : "text-slate-600 hover:bg-slate-100"
+                tab === t.id ? "bg-[var(--color-primary)] text-white" : "text-slate-600 hover:bg-slate-100"
               }`}
             >
               {t.label}
@@ -323,7 +323,7 @@ export default function VendorDetailModal({
         </div>
 
         <div className="flex flex-wrap gap-2 border-t border-slate-100 px-5 py-4">
-          <Link to="/procurement/purchase-orders/create" className="inline-flex items-center gap-1.5 rounded-lg bg-[#2563EB] px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">
+          <Link to="/procurement/purchase-orders/create" className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)]">
             <ShoppingCart className="h-3.5 w-3.5" /> Create PO
           </Link>
           <Link to="/procurement/goods-receipt/create" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
@@ -336,7 +336,7 @@ export default function VendorDetailModal({
             Edit Vendor
           </button>
           {v.approval_status === "pending" && onApprove && (
-            <button type="button" onClick={() => onApprove(v, "approved")} className="rounded-lg border border-teal-200 px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50">
+            <button type="button" onClick={() => onApprove(v, "approved")} className="rounded-lg border border-teal-200 px-3 py-2 text-xs font-semibold text-[var(--color-success)] hover:bg-[var(--color-success-soft)]">
               Approve
             </button>
           )}

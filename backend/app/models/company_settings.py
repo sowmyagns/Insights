@@ -42,6 +42,10 @@ class CompanySettings(Base, TimestampMixin):
     # Document number format
     invoice_prefix: Mapped[str | None] = mapped_column(String(16))
     invoice_next_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    quotation_prefix: Mapped[str | None] = mapped_column(String(16))
+    quotation_next_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    purchase_prefix: Mapped[str | None] = mapped_column(String(16))
+    purchase_next_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     po_prefix: Mapped[str | None] = mapped_column(String(16))
     so_prefix: Mapped[str | None] = mapped_column(String(16))
 

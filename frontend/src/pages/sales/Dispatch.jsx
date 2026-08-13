@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Package, Truck, X } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
+import PageHeader from "../../components/common/PageHeader";
 import { useToast } from "../../context/ToastContext";
 import {
   getDeliveryChallan,
@@ -19,23 +20,6 @@ import {
   notifyManufacturingSpine,
 } from "../../utils/manufacturingEvents";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="ui-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
-          <p className="mt-1 text-xl font-bold text-slate-900">{value ?? 0}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}>
-            <Icon className="h-4 w-4 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function printChallan(challan) {
   const linesHtml = (challan.lines || [])
@@ -130,7 +114,7 @@ function TrackingModal({ row, onClose, onPrintChallan, onShip }) {
           {row.shipped && !row.invoiced && (
             <Link
               to={`/sales/invoices/create?sales_order_id=${soId}`}
-              className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800"
+              className="rounded-lg bg-[var(--color-success)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-success-hover)]"
             >
               Create Invoice
             </Link>
@@ -257,7 +241,7 @@ export default function Dispatch() {
           <button
             type="button"
             onClick={() => setSelected(r)}
-            className="text-xs font-semibold text-teal-800 hover:underline"
+            className="text-xs font-semibold text-[var(--color-primary)] hover:underline"
           >
             Track
           </button>
@@ -265,7 +249,7 @@ export default function Dispatch() {
             <button
               type="button"
               onClick={() => handleShip(r)}
-              className="text-xs text-teal-600 hover:underline"
+              className="text-xs text-[var(--color-primary)] hover:underline"
             >
               Ship
             </button>
@@ -279,24 +263,16 @@ export default function Dispatch() {
 
   return (
     <div className="space-y-5 pb-4">
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-eyebrow">Sales</p>
-          <h2 className="mt-0.5 ui-title">Dispatch & Logistics</h2>
-          <p className="ui-subtitle">
-            Packing, delivery challans, FG stock-out on ship, then invoice.
-          </p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        subtitle="Packing, delivery challans, FG stock-out on ship, then invoice."
+        action={
           <Link to="/sales/orders" className="ui-btn-primary">
             <Truck className="h-4 w-4" /> View Sales Orders
           </Link>
-        </div>
-      </header>
+        }
+      />
 
-      <ManufacturingWorkflowBar currentStepId="dispatch" />
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="ui-grid-kpi">
         <KpiCard
           label="Ready to Dispatch"
           value={summary.ready_to_dispatch}
@@ -305,7 +281,7 @@ export default function Dispatch() {
         />
         <KpiCard label="Packed" value={summary.packed} icon={Package} color="bg-indigo-600" />
         <KpiCard label="In Transit" value={summary.in_transit} icon={Truck} color="bg-cyan-600" />
-        <KpiCard label="Delivered" value={summary.delivered} icon={Truck} color="bg-emerald-600" />
+        <KpiCard label="Delivered" value={summary.delivered} icon={Truck} color="bg-[var(--color-success)]" />
         <KpiCard label="Delayed" value={summary.delayed} icon={Truck} color="bg-rose-600" />
       </div>
 

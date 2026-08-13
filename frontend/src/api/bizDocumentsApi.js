@@ -14,6 +14,10 @@ export const updateBizDocument = (id, payload) =>
 export const deleteBizDocument = (id) =>
   api.delete(`/biz/documents/${id}`);
 
+export const getPurchaseDocument = (id) => api.get(`/biz/documents/${id}/document`);
+export const downloadPurchasePdf = (id) =>
+  api.get(`/biz/documents/${id}/pdf`, { responseType: "blob" });
+
 export const getEwaybillStatus = () => api.get("/biz/ewaybill/status");
 export const ewaybillLogin = (payload) => api.post("/biz/ewaybill/login", payload);
 export const ewaybillLogout = () => api.post("/biz/ewaybill/logout");

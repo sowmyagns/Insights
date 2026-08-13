@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertCircle, ClipboardList, Download, Filter, Plus } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { useToast } from "../../context/ToastContext";
 import {
   approveMaterialRequest,
@@ -28,23 +29,6 @@ import {
   notifyManufacturingSpine,
 } from "../../utils/manufacturingEvents";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value ?? 0}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function ConvertToPOModal({ row, onClose, onConverted }) {
   const { addToast } = useToast();
@@ -189,7 +173,7 @@ function ConvertToPOModal({ row, onClose, onConverted }) {
             type="button"
             disabled={saving || loading}
             onClick={handleConvert}
-            className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             {saving ? "Converting…" : "Create PO"}
           </button>
@@ -283,7 +267,7 @@ function MRDetailModal({ row, onClose, onConvert, onApproved }) {
                 type="button"
                 disabled={approving}
                 onClick={() => handleApprove(true)}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                className="rounded-lg bg-[var(--color-success)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {approving ? "Saving…" : "Approve PR"}
               </button>
@@ -293,7 +277,7 @@ function MRDetailModal({ row, onClose, onConvert, onApproved }) {
             <button
               type="button"
               onClick={() => onConvert(row)}
-              className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white"
+              className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white"
             >
               Convert to PO
             </button>
@@ -436,7 +420,7 @@ export default function MaterialRequests() {
           <button
             type="button"
             onClick={() => setSelected(r)}
-            className="text-xs font-semibold text-[#2563EB] hover:underline"
+            className="text-xs font-semibold text-[var(--color-primary)] hover:underline"
           >
             View
           </button>
@@ -445,7 +429,7 @@ export default function MaterialRequests() {
               <button
                 type="button"
                 onClick={() => setConvertRow(r)}
-                className="text-xs font-semibold text-teal-700 hover:underline"
+                className="text-xs font-semibold text-[var(--color-success)] hover:underline"
               >
                 To PO
               </button>
@@ -467,15 +451,12 @@ export default function MaterialRequests() {
   if (loading) return <Loader label="Loading material requests..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">
-            MRP shortages become purchase requests, then purchase orders.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to="/procurement/material-requests/create" className="ui-btn-primary">
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="MRP shortages become purchase requests, then purchase orders."
+        action={
+          <>
+            <Link to="/procurement/material-requests/create" className="ui-btn-primary">
             <Plus className="h-4 w-4" /> New Material Request
           </Link>
           <button
@@ -487,17 +468,16 @@ export default function MaterialRequests() {
                 "material-requests"
               )
             }
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="ui-btn-secondary"
           >
             <Download className="h-4 w-4" /> Export
           </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      <ManufacturingWorkflowBar currentStepId="purchase_request" />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Total Requests" value={summary.total_requests} icon={ClipboardList} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Requests" value={summary.total_requests} icon={ClipboardList} color="bg-[var(--color-primary)]" />
         <KpiCard label="Pending Approval" value={summary.pending_approval} icon={AlertCircle} color="bg-amber-500" />
         <KpiCard label="Approved" value={summary.approved} icon={ClipboardList} color="bg-green-600" />
         <KpiCard label="Rejected" value={summary.rejected} icon={AlertCircle} color="bg-red-500" />
@@ -505,11 +485,11 @@ export default function MaterialRequests() {
         <KpiCard label="Urgent Requests" value={summary.urgent_requests} icon={AlertCircle} color="bg-orange-500" />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="ui-card p-4">
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-slate-700"
+          className="mb-3 inline-flex items-center gap-2 text-[var(--text-sm)] font-semibold text-[var(--color-text-secondary)]"
         >
           <Filter className="h-4 w-4" /> Advanced Filters
         </button>
@@ -518,7 +498,7 @@ export default function MaterialRequests() {
             <select
               value={filters.department}
               onChange={(e) => setFilters({ ...filters, department: e.target.value })}
-              className="rounded-lg border px-3 py-2 text-sm"
+              className="ui-input"
             >
               <option value="">All Departments</option>
               {MR_DEPARTMENTS.map((d) => (
@@ -530,7 +510,7 @@ export default function MaterialRequests() {
             <select
               value={filters.priority}
               onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-              className="rounded-lg border px-3 py-2 text-sm"
+              className="ui-input"
             >
               <option value="">All Priorities</option>
               {MR_PRIORITIES.map((p) => (
@@ -542,7 +522,7 @@ export default function MaterialRequests() {
             <select
               value={filters.status}
               onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              className="rounded-lg border px-3 py-2 text-sm"
+              className="ui-input"
             >
               <option value="">All Status</option>
               {["pending", "approved", "rejected", "converted"].map((s) => (
@@ -555,7 +535,7 @@ export default function MaterialRequests() {
               value={filters.requested_by}
               onChange={(e) => setFilters({ ...filters, requested_by: e.target.value })}
               placeholder="Requested by"
-              className="rounded-lg border px-3 py-2 text-sm"
+              className="ui-input"
             />
           </div>
         )}

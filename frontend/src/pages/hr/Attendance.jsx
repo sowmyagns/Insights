@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { Calendar, Clock, Filter, Moon, Timer, UserCheck, UserMinus, UserX } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -8,25 +10,6 @@ import { useToast } from "../../context/ToastContext";
 import { clockIn, clockOut, getAttendanceEnriched, getAttendanceSummary, getEmployeesEnriched, getShifts } from "../../api/hrApi";
 import { sourceLabel, statusColor } from "../../data/hrMasterData";
 
-function KpiCard({ label, value, icon: Icon, color, suffix }) {
-  return (
-    <div className="group ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white shrink-0" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl" title={`${value}${suffix || ""}`}>
-          {value}{suffix || ""}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -178,27 +161,25 @@ export default function Attendance() {
   if (loading && rows.length === 0) return <Loader label="Loading attendance..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header>
-        <p className="ui-subtitle">Biometric, RFID, GPS, QR integration with shift-wise tracking.</p>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader subtitle="Biometric, RFID, GPS, QR integration with shift-wise tracking." />
 
-      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 2xl:grid-cols-7">
+      <div className="ui-grid-kpi">
         <KpiCard label="Present" value={summary.present} icon={UserCheck} color="bg-green-600" />
         <KpiCard label="Absent" value={summary.absent} icon={UserMinus} color="bg-red-500" />
         <KpiCard label="Late" value={summary.late} icon={Clock} color="bg-amber-500" />
         <KpiCard label="Half Day" value={summary.half_day} icon={UserX} color="bg-orange-500" />
         <KpiCard label="Overtime (h)" value={summary.overtime} icon={Clock} color="bg-indigo-600" />
-        <KpiCard label="Day Shift" value={shiftCardValues.day} icon={Clock} color="bg-blue-600" />
+        <KpiCard label="Day Shift" value={shiftCardValues.day} icon={Clock} color="bg-[var(--color-primary)]" />
         <KpiCard label="Afternoon Shift" value={shiftCardValues.afternoon} icon={Clock} color="bg-orange-600" />
         <KpiCard label="Night Shift" value={summary.night_shift} icon={Moon} color="bg-purple-600" />
         <KpiCard label="Total Hours" value={summary.total_working_hours} icon={Timer} color="bg-teal-600" suffix="h" />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h3 className="mb-3 text-sm font-semibold text-slate-800">Clock In / Out</h3>
+      <div className="ui-card p-4">
+          <h3 className="ui-section-title mb-3">Clock In / Out</h3>
         <form onSubmit={handleClock} className="flex flex-wrap items-end gap-3">
-          <select value={clockEmployee} onChange={(e) => setClockEmployee(e.target.value)} required className="rounded-lg border px-3 py-2 text-sm">
+          <select value={clockEmployee} onChange={(e) => setClockEmployee(e.target.value)} required className="ui-select">
             <option value="">Select Employee</option>
             {employees.map((e) => (
               <option key={e.id} value={e.id}>
@@ -206,7 +187,7 @@ export default function Attendance() {
               </option>
             ))}
           </select>
-          <select value={action} onChange={(e) => setAction(e.target.value)} className="rounded-lg border px-3 py-2 text-sm">
+          <select value={action} onChange={(e) => setAction(e.target.value)} className="ui-input">
             <option value="in">Clock In</option>
             <option value="out">Clock Out</option>
           </select>
@@ -219,16 +200,16 @@ export default function Attendance() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-slate-500" />
-          <input type="date" value={recordDate} onChange={(e) => setRecordDate(e.target.value)} className="rounded-lg border px-3 py-2 text-sm" />
+          <input type="date" value={recordDate} onChange={(e) => setRecordDate(e.target.value)} className="ui-input" />
         </div>
         <div className="flex gap-1 rounded-lg bg-slate-100 p-0.5">
-          <button type="button" onClick={() => setView("table")} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${view === "table" ? "bg-white text-[#2563EB] shadow-sm" : "text-slate-500"}`}>Table</button>
-          <button type="button" onClick={() => setView("calendar")} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${view === "calendar" ? "bg-white text-[#2563EB] shadow-sm" : "text-slate-500"}`}><Calendar className="inline h-3.5 w-3.5" /> Summary</button>
+          <button type="button" onClick={() => setView("table")} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${view === "table" ? "bg-white text-[var(--color-primary)] shadow-sm" : "text-slate-500"}`}>Table</button>
+          <button type="button" onClick={() => setView("calendar")} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${view === "calendar" ? "bg-white text-[var(--color-primary)] shadow-sm" : "text-slate-500"}`}><Calendar className="inline h-3.5 w-3.5" /> Summary</button>
         </div>
       </div>
 
       {view === "table" ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="ui-card p-4">
           <DataTable columns={columns} data={rows} searchPlaceholder="Search employee..." searchKeys={["employee_name", "shift", "status"]} />
         </div>
       ) : shiftGrouped.length > 0 ? (

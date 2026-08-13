@@ -9,7 +9,7 @@ const TYPE_STYLES = {
   inventory: "bg-orange-50 text-orange-700",
   quality: "bg-violet-50 text-violet-700",
   maintenance: "bg-sky-50 text-sky-700",
-  sales: "bg-teal-50 text-teal-700",
+  sales: "bg-[var(--color-success-soft)] text-[var(--color-success)]",
   hr: "bg-pink-50 text-pink-700",
   finance: "bg-yellow-50 text-yellow-800",
   system: "bg-slate-100 text-slate-600",

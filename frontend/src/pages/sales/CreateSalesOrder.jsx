@@ -4,7 +4,6 @@ import { ArrowLeft, Plus, Trash2, X } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { createProduct } from "../../api/productsApi";
 import { createSalesOrder } from "../../api/salesApi";
 import { fetchCustomersWithFallback, resolveCustomerId } from "../../utils/customerOptions";
@@ -32,6 +31,10 @@ function QuickAddProductModal({ onClose, onAdded }) {
 
   const handleSave = async () => {
     if (!name.trim() || saving) return;
+    if (unit_price !== "" && !isNaN(Number(unit_price)) && Number(unit_price) < 0) {
+      alert("Price cannot be negative.");
+      return;
+    }
     setSaving(true);
     try {
       const generatedSku = sku.trim() || `SKU-${Date.now()}`;
@@ -93,7 +96,7 @@ function QuickAddProductModal({ onClose, onAdded }) {
         </div>
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className="rounded-xl border px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-          <button type="button" onClick={handleSave} disabled={!name.trim()} className="rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">Add Product</button>
+          <button type="button" onClick={handleSave} disabled={!name.trim()} className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] disabled:opacity-50">Add Product</button>
         </div>
       </div>
     </div>
@@ -279,14 +282,13 @@ export default function CreateSalesOrder() {
   return (
     <>
     <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
-      <Link to="/sales/orders" className="inline-flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-teal-700">
+      <Link to="/sales/orders" className="inline-flex items-center gap-2 text-sm font-medium text-teal-600 hover:text-[var(--color-success)]">
         <ArrowLeft className="h-4 w-4" /> Back to sales orders
       </Link>
       <PageHeader
         title={isEdit ? `Edit Sales Order — ${editKey}` : "New Sales Order"}
         subtitle={isEdit ? "Update order details and product lines." : "Add product lines so Confirm can run MRP and create production orders."}
       />
-      <ManufacturingWorkflowBar currentStepId="sales_order" compact />
 
       <form onSubmit={handleSubmit} className="ui-card space-y-4 p-6">
         {error && (

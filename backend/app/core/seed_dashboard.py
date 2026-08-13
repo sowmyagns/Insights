@@ -32,26 +32,71 @@ def seed_dashboard_data(db: Session, tenant_id: int = 1):
                 status="active",
             ))
 
+    # Real shop-floor machines only (idempotent by code or name per tenant).
+    # Does not delete existing DB records; only inserts when missing.
     machines_data = [
-        {"code": "CNC-01", "name": "CNC Milling – Line 1"},
-        {"code": "VMC-02", "name": "VMC Center – Line 2"},
-        {"code": "LATHE-03", "name": "CNC Lathe – Line 3"},
-        {"code": "PRESS-04", "name": "Hydraulic Press"},
-        {"code": "WELD-05", "name": "Robotic Welding Cell"},
-        {"code": "ASSY-06", "name": "Assembly Station"},
+        {
+            "code": "JANDU-01",
+            "name": "Jandu 1",
+            "machine_type": "CNC",
+            "department": "Machining",
+            "production_line": "Line A",
+            "work_center": "WC-01",
+            "location": "Plant 1",
+        },
+        {
+            "code": "JANDU-02",
+            "name": "Jandu 2",
+            "machine_type": "CNC",
+            "department": "Machining",
+            "production_line": "Line A",
+            "work_center": "WC-01",
+            "location": "Plant 1",
+        },
+        {
+            "code": "JANDU-03",
+            "name": "Jandu 3",
+            "machine_type": "CNC",
+            "department": "Machining",
+            "production_line": "Line A",
+            "work_center": "WC-01",
+            "location": "Plant 1",
+        },
+        {
+            "code": "JUNDU-04",
+            "name": "Jundu 4",
+            "machine_type": "CNC",
+            "department": "Machining",
+            "production_line": "Line A",
+            "work_center": "WC-01",
+            "location": "Plant 1",
+        },
     ]
     for m_info in machines_data:
         exists = db.scalars(
-            select(Machine).where(Machine.tenant_id == tenant_id, Machine.code == m_info["code"])
+            select(Machine).where(
+                Machine.tenant_id == tenant_id,
+                (Machine.code == m_info["code"]) | (Machine.name == m_info["name"]),
+            )
         ).first()
         if not exists:
-            db.add(Machine(
-                tenant_id=tenant_id,
-                code=m_info["code"],
-                name=m_info["name"],
-                status="idle",
-                plant_code="plant-1",
-            ))
+            db.add(
+                Machine(
+                    tenant_id=tenant_id,
+                    code=m_info["code"],
+                    name=m_info["name"],
+                    status="idle",
+                    is_active=True,
+                    plant_code="plant-1",
+                    machine_type=m_info.get("machine_type"),
+                    department=m_info.get("department"),
+                    production_line=m_info.get("production_line"),
+                    work_center=m_info.get("work_center"),
+                    location=m_info.get("location"),
+                    health_score=85,
+                    efficiency_pct=0,
+                )
+            )
 
     db.commit()
 

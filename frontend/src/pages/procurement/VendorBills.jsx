@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { CheckCircle2, FileText, IndianRupee, Plus, X, XCircle } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -17,23 +19,6 @@ import {
 } from "../../api/procurementApi";
 import { formatInr, statusColor } from "../../data/procurementMasterData";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="mt-1 text-xl font-bold text-slate-900">{value ?? 0}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function WorkflowStrip() {
   const steps = ["Purchase Order (PO)", "Goods Receipt Note (GRN)", "Vendor Invoice", "Finance Approval", "Payment"];
@@ -338,7 +323,7 @@ export default function VendorBills() {
                 type="button"
                 disabled={isBusy}
                 onClick={() => handleStatusChange(r.id, "approved")}
-                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-success)] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[var(--color-success-hover)] disabled:opacity-50"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" /> Approve
               </button>
@@ -361,7 +346,7 @@ export default function VendorBills() {
                 type="button"
                 disabled={isBusy}
                 onClick={() => handleStatusChange(r.id, "paid")}
-                className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-primary)] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[var(--color-primary-hover)] disabled:opacity-50"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" /> Mark Paid
               </button>
@@ -382,34 +367,32 @@ export default function VendorBills() {
   if (loading) return <Loader label="Loading vendor bills..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">
-            Invoice module with three-way matching (Purchase Order (PO) ↔ Goods Receipt Note (GRN) ↔ Vendor Invoice) and finance approval.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="Invoice module with three-way matching (Purchase Order (PO) ↔ Goods Receipt Note (GRN) ↔ Vendor Invoice) and finance approval."
+        action={
+          <>
+            <button
             type="button"
             onClick={() => setIsCreateOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-blue-700"
+            className="ui-btn-primary"
           >
             <Plus className="h-4 w-4" /> Create Vendor Bill
           </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Bills" value={summary.total_bills} icon={FileText} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Bills" value={summary.total_bills} icon={FileText} color="bg-[var(--color-primary)]" />
         <KpiCard label="Due Bills" value={summary.due_bills} icon={FileText} color="bg-amber-500" />
-        <KpiCard label="Paid" value={summary.paid} icon={FileText} color="bg-emerald-600" />
+        <KpiCard label="Paid" value={summary.paid} icon={FileText} color="bg-[var(--color-success)]" />
         <KpiCard label="Outstanding" value={formatInr(summary.outstanding)} icon={IndianRupee} color="bg-red-500" />
       </div>
 
       <WorkflowStrip />
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+      <div className="ui-card p-4">
         <DataTable
           columns={columns}
           data={rows}

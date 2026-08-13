@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link } from "react-router-dom";
 import { Download, Filter, IndianRupee, Plus, ShoppingCart, Truck } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
 
 import DataTable from "../../components/common/DataTable";
 import EmptyState from "../../components/common/EmptyState";
+import PageHeader from "../../components/common/PageHeader";
 import SkeletonTable from "../../components/common/SkeletonTable";
 import { ErrorState, NoResultsState, OfflineState } from "../../components/common/states";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import SODetailModal from "../../components/sales/SODetailModal";
 import { useToast } from "../../context/ToastContext";
 import { useNetworkStatus } from "../../context/NetworkStatusContext";
@@ -15,23 +16,6 @@ import { getSOSummary, getSalesOrdersEnriched } from "../../api/salesApi";
 import { formatInr, statusColor } from "../../data/salesMasterData";
 import { exportToExcel } from "../../utils/exportUtils";
 
-function KpiCard({ label, value, icon: Icon, color }) {
-  return (
-    <div className="ui-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value}</p>
-        </div>
-        {Icon && (
-          <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}>
-            <Icon className="h-4 w-4 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 const defaultFilters = { customer: "", status: "", sales_person: "" };
 
@@ -79,7 +63,6 @@ export default function SalesOrders() {
 
   usePageRefresh(load);
 
-
   useEffect(() => { load(); }, [load]);
 
   const summary = useMemo(() => {
@@ -113,11 +96,11 @@ export default function SalesOrders() {
       label: "Sales Order Number",
       render: (r) =>
         typeof r.id === "number" ? (
-          <Link to={`/sales/orders/${r.id}`} className="font-medium text-teal-800 hover:underline">
+          <Link to={`/sales/orders/${r.id}`} className="font-medium text-[var(--color-primary)] hover:underline">
             {r.order_number}
           </Link>
         ) : (
-          <span className="font-medium text-teal-800">{r.order_number}</span>
+          <span className="font-medium text-[var(--color-text)]">{r.order_number}</span>
         ),    },
     { key: "customer_name", label: "Customer" },
     { key: "order_date", label: "Order Date", render: (r) => String(r.order_date || r.so_date || "").slice(0, 10) || "—" },
@@ -173,13 +156,13 @@ export default function SalesOrders() {
           <button
             type="button"
             onClick={() => setSelected(r)}
-            className="text-xs font-semibold text-teal-800 hover:underline"
+            className="text-xs font-semibold text-[var(--color-primary)] hover:underline"
           >
             View
           </button>
           <Link
             to={`/sales/orders/create?edit=${r.order_number || r.so_number}`}
-            className="text-xs font-semibold text-slate-600 hover:underline"
+            className="text-xs font-semibold text-[var(--color-text-secondary)] hover:underline"
           >
             Edit
           </Link>
@@ -190,43 +173,37 @@ export default function SalesOrders() {
 
   return (
     <div className="space-y-5 pb-4">
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-eyebrow">Sales</p>
-          <h2 className="mt-0.5 ui-title">Sales Orders</h2>
-          <p className="ui-subtitle">
-            Manage orders from quotation to dispatch with production and inventory integration.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to="/sales/orders/create" className="ui-btn-primary">
-            <Plus className="h-4 w-4" /> New Sales Order
-          </Link>
-          <button
-            type="button"
-            onClick={() =>
-              exportToExcel(
-                filtered,
-                columns.filter((c) => !c.render),
-                "sales-orders"
-              )
-            }
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-          >
-            <Download className="h-4 w-4" /> Export
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        subtitle="Manage orders from quotation to dispatch with production and inventory integration."
+        action={
+          <>
+            <Link to="/sales/orders/create" className="ui-btn-primary">
+              <Plus className="h-4 w-4" /> New Sales Order
+            </Link>
+            <button
+              type="button"
+              onClick={() =>
+                exportToExcel(
+                  filtered,
+                  columns.filter((c) => !c.render),
+                  "sales-orders"
+                )
+              }
+              className="ui-btn-secondary"
+            >
+              <Download className="h-4 w-4" /> Export
+            </button>
+          </>
+        }
+      />
 
-      <ManufacturingWorkflowBar currentStepId="sales_order" />
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
-        <KpiCard label="Total Orders" value={summary.total_orders ?? 0} icon={ShoppingCart} color="bg-teal-700" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Orders" value={summary.total_orders ?? 0} icon={ShoppingCart} color="bg-[var(--color-success)]" />
         <KpiCard label="Pending" value={summary.pending ?? 0} icon={ShoppingCart} color="bg-amber-500" />
         <KpiCard label="Confirmed" value={summary.confirmed ?? 0} icon={ShoppingCart} color="bg-indigo-600" />
         <KpiCard label="Packed" value={summary.packed ?? 0} icon={ShoppingCart} color="bg-slate-600" />
         <KpiCard label="Shipped" value={summary.shipped ?? 0} icon={Truck} color="bg-cyan-600" />
-        <KpiCard label="Delivered" value={summary.delivered ?? 0} icon={Truck} color="bg-emerald-600" />
+        <KpiCard label="Delivered" value={summary.delivered ?? 0} icon={Truck} color="bg-[var(--color-success)]" />
         <KpiCard label="Cancelled" value={summary.cancelled ?? 0} icon={ShoppingCart} color="bg-rose-600" />
         <KpiCard label="Revenue" value={formatInr(summary.revenue ?? 0)} icon={IndianRupee} color="bg-emerald-700" />
       </div>
@@ -235,7 +212,7 @@ export default function SalesOrders() {
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-slate-700"
+          className="mb-3 inline-flex items-center gap-2 text-[var(--text-sm)] font-semibold text-[var(--color-text-secondary)]"
         >
           <Filter className="h-4 w-4" /> Filters
         </button>
@@ -250,7 +227,7 @@ export default function SalesOrders() {
             <select
               value={filters.status}
               onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              className="ui-input"
+              className="ui-select"
             >
               <option value="">All Status</option>
               {["draft", "pending", "confirmed", "packed", "shipped", "delivered", "cancelled"].map(

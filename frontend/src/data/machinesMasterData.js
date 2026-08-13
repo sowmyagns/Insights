@@ -1,4 +1,4 @@
-/** Machine master demo data and helpers. */
+/** Machine master filter options and display helpers (no sample machine records). */
 
 export const MACHINE_STATUSES = ["running", "idle", "maintenance", "breakdown", "offline"];
 export const MACHINE_TYPES = ["CNC", "Lathe", "Milling", "Injection Molding", "Press", "Assembly", "Welding", "Packaging"];
@@ -12,7 +12,7 @@ export const MACHINE_NAMES = [
   "Jandu 4",
 ];
 export const SHIFTS = ["Shift A", "Shift B", "Shift C"];
-export const OPERATORS = [];
+
 export const STATUS_COLORS = {
   running: { dot: "🟢", bg: "bg-green-100", text: "text-green-800", border: "border-green-200", ring: "bg-green-500" },
   idle: { dot: "🟡", bg: "bg-yellow-100", text: "text-yellow-800", border: "border-yellow-200", ring: "bg-yellow-500" },
@@ -21,23 +21,10 @@ export const STATUS_COLORS = {
   offline: { dot: "⚫", bg: "bg-slate-200", text: "text-slate-700", border: "border-slate-300", ring: "bg-slate-500" },
 };
 
-export const WORKFLOW_STEPS = [
-  "Machine",
-  "Assign Work Order",
-  "Operator Login",
-  "Production",
-  "Quality Check",
-  "Finished Goods",
-  "Maintenance",
-];
-
 export const IMPORT_TEMPLATE_HEADERS = [
   "code", "name", "machine_type", "department", "production_line", "work_center",
   "status", "assigned_operator", "current_shift", "manufacturer", "model_name",
 ];
-
-export const DEMO_MACHINES = [];
-
 
 export function normalizeStatus(machine) {
   if (!machine.is_active && machine.is_active !== undefined) return "offline";
@@ -47,49 +34,56 @@ export function normalizeStatus(machine) {
   return "idle";
 }
 
+/** Normalize an API machine row for UI display — does not invent sample machines. */
 export function enrichApiMachine(row, index = 0) {
   const status = normalizeStatus(row);
+  const shiftRaw = row.current_shift;
+  const current_shift =
+    typeof shiftRaw === "object"
+      ? shiftRaw?.label || shiftRaw?.id || null
+      : shiftRaw || null;
+
   return {
     ...row,
-    code: row.code || `MCH${String(row.id || index + 1).padStart(3, "0")}`,
+    code: row.code || (row.id != null ? `MCH${String(row.id).padStart(3, "0")}` : `MCH${String(index + 1).padStart(3, "0")}`),
     name: row.name || "Unnamed Machine",
-    machine_type: row.machine_type || "CNC",
-    department: row.department || "Machining",
-    production_line: row.production_line || "Line A",
-    work_center: row.work_center || "WC-01",
+    machine_type: row.machine_type || null,
+    department: row.department || null,
+    production_line: row.production_line || null,
+    work_center: row.work_center || null,
     display_status: status,
     status,
-    assigned_operator: row.assigned_operator || "—",
-    current_shift: typeof row.current_shift === "object" ? (row.current_shift?.label || row.current_shift?.id || "Shift A") : (row.current_shift || "Shift A"),
+    assigned_operator: row.assigned_operator || null,
+    current_shift,
     current_work_order: row.current_work_order || null,
     current_product: row.current_product || null,
-    health_score: row.health_score ?? 85,
-    efficiency_pct: row.efficiency_pct ?? 0,
-    oee_pct: row.oee_pct ?? 0,
+    health_score: row.health_score ?? null,
+    efficiency_pct: row.efficiency_pct ?? null,
+    oee_pct: row.oee_pct ?? null,
     temperature_c: row.temperature_c ?? null,
     todays_output: row.todays_output ?? 0,
     target_quantity: row.target_quantity ?? 0,
-    last_maintenance_date: row.last_maintenance_date || "—",
-    next_maintenance_date: row.next_maintenance_date || "—",
-    location: row.location || "Plant 1",
-    manufacturer: row.manufacturer || "—",
-    model_name: row.model_name || "—",
-    serial_number: row.serial_number || "—",
-    purchase_date: row.purchase_date || "—",
-    warranty_until: row.warranty_until || "—",
+    last_maintenance_date: row.last_maintenance_date || null,
+    next_maintenance_date: row.next_maintenance_date || null,
+    location: row.location || null,
+    manufacturer: row.manufacturer || null,
+    model_name: row.model_name || null,
+    serial_number: row.serial_number || null,
+    purchase_date: row.purchase_date || null,
+    warranty_until: row.warranty_until || null,
     work_orders: row.work_orders || [],
     maintenance_history: row.maintenance_history || [],
     status_logs: row.status_logs || [],
     documents: row.documents || [],
     audit_logs: row.audit_logs || [],
     iot: row.iot || {
-      temperature: row.temperature_c,
-      rpm: row.rpm,
+      temperature: row.temperature_c ?? null,
+      rpm: row.rpm ?? null,
       vibration: null,
       power_kw: null,
-      health: row.health_score,
-      running_time_hrs: 0,
-      downtime_hrs: 0,
+      health: row.health_score ?? null,
+      running_time_hrs: null,
+      downtime_hrs: null,
     },
   };
 }

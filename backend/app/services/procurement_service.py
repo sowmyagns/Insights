@@ -370,7 +370,7 @@ def approve_material_request(
 
 
 def _post_grn_stock(db: Session, gr: GoodsReceipt, tenant_id: int) -> None:
-    """Post accepted quantities (received − rejected) into warehouse stock."""
+    """Post accepted quantities (received − rejected) into warehouse stock (same txn)."""
     for line in gr.line_items:
         accepted = int(
             max(0, float(line.quantity_received or 0) - float(line.quantity_rejected or 0))
@@ -385,6 +385,7 @@ def _post_grn_stock(db: Session, gr: GoodsReceipt, tenant_id: int) -> None:
                     quantity=accepted,
                     movement_type="in",
                 ),
+                commit=False,
             )
 
 

@@ -28,7 +28,7 @@ const STATUS_CLS = {
   pending: "bg-amber-50 text-amber-800 ring-amber-200",
   approved: "bg-blue-50 text-blue-800 ring-blue-200",
   issued: "bg-indigo-50 text-indigo-800 ring-indigo-200",
-  received: "bg-teal-50 text-teal-800 ring-teal-200",
+  received: "bg-[var(--color-success-soft)] text-[var(--color-success)] ring-teal-200",
   closed: "bg-emerald-50 text-emerald-800 ring-emerald-200",
   rejected: "bg-red-50 text-red-800 ring-red-200",
 };
@@ -203,7 +203,7 @@ export default function StoreMaterialRequests({ mode = "requests" }) {
           <div className="flex flex-wrap gap-1">
             {r.status === "pending" && (
               <>
-                <button type="button" disabled={busy} onClick={() => runAction(r.id, "approve")} className="rounded-lg bg-emerald-600 px-2 py-1 text-xs font-semibold text-white disabled:opacity-50">
+                <button type="button" disabled={busy} onClick={() => runAction(r.id, "approve")} className="rounded-lg bg-[var(--color-success)] px-2 py-1 text-xs font-semibold text-white disabled:opacity-50">
                   <CheckCircle2 className="mr-0.5 inline h-3 w-3" /> Approve
                 </button>
                 <button type="button" disabled={busy} onClick={() => runAction(r.id, "reject")} className="rounded-lg bg-red-600 px-2 py-1 text-xs font-semibold text-white disabled:opacity-50">

@@ -241,7 +241,7 @@ export default function BulkImportPage({
 
               <div
                 className={`relative mt-4 rounded-lg border border-dashed bg-white p-5 text-center transition-colors ${
-                  dragOver ? "border-[#F5C518] bg-[#fffbeb]" : "border-[#222]"
+                  dragOver ? "border-[var(--color-cta)] bg-[#fffbeb]" : "border-[#222]"
                 }`}
                 onDragOver={(e) => {
                   e.preventDefault();

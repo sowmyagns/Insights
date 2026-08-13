@@ -43,7 +43,7 @@ function Radio({ name, value, checked, onChange, label, hint }) {
 
 function SectionTitle({ children }) {
   return (
-    <div className="rounded-xl bg-teal-50 px-4 py-2.5 text-[13px] font-bold uppercase tracking-wide text-[#0f6d84]">
+    <div className="rounded-xl bg-[var(--color-success-soft)] px-4 py-2.5 text-[13px] font-bold uppercase tracking-wide text-[#0f6d84]">
       {children}
     </div>
   );
@@ -51,7 +51,7 @@ function SectionTitle({ children }) {
 
 function ToggleRow({ label, on, onChange }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl bg-teal-50 px-4 py-3">
+    <div className="flex items-center justify-between gap-3 rounded-xl bg-[var(--color-success-soft)] px-4 py-3">
       <span className="text-[13px] font-bold text-[#0f6d84]">{label}</span>
       <button
         type="button"

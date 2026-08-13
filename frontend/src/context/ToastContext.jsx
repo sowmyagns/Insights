@@ -34,7 +34,9 @@ export function ToastProvider({ children }) {
       if (
         lower.includes("permission") ||
         lower.includes("access to") ||
-        lower.includes("not allowed")
+        lower.includes("not allowed") ||
+        lower.includes("network error") ||
+        lower.includes("failed to fetch")
       ) {
         return;
       }
@@ -72,43 +74,44 @@ export function ToastProvider({ children }) {
         ))}
       </div>
       <div className="fixed bottom-4 right-4 z-[9999] flex max-w-sm flex-col gap-1.5 pointer-events-none">
-        {toasts.filter((t) => t.type !== "alert").map((t) => (
-          <div
-            key={t.id}
-            className="pointer-events-auto max-w-xs rounded-lg border px-3 py-2 text-xs font-medium shadow-md animate-in slide-in-from-right-2"
-            style={{
-              background:
-                t.type === "success"
-                  ? "#f0fdf4"
-                  : t.type === "error"
-                    ? "#fef2f2"
-                    : t.type === "warning"
-                      ? "#fffbeb"
-                      : "#f8fafc",
-              color:
-                t.type === "success"
-                  ? "#166534"
-                  : t.type === "error"
-                    ? "#b91c1c"
-                    : t.type === "warning"
-                      ? "#92400e"
-                      : "#334155",
-              borderColor:
-                t.type === "success"
-                  ? "#bbf7d0"
-                  : t.type === "error"
-                    ? "#fecaca"
-                    : t.type === "warning"
-                      ? "#fde68a"
-                      : "#e2e8f0",
-            }}
-          >
-            {t.type === "success" && "✓ "}
-            {t.type === "error" && "✕ "}
-            {t.type === "warning" && "! "}
-            {t.message}
-          </div>
-        ))}
+        {toasts.filter((t) => t.type !== "alert").map((t) => {
+          const tone =
+            t.type === "success"
+              ? {
+                  background: "var(--color-success-soft)",
+                  color: "var(--color-success)",
+                  borderColor: "#bbf7d0",
+                }
+              : t.type === "error"
+                ? {
+                    background: "var(--color-danger-soft)",
+                    color: "#b91c1c",
+                    borderColor: "#fecaca",
+                  }
+                : t.type === "warning"
+                  ? {
+                      background: "var(--color-warning-soft)",
+                      color: "var(--color-warning)",
+                      borderColor: "#fde68a",
+                    }
+                  : {
+                      background: "var(--color-surface)",
+                      color: "var(--color-text-secondary)",
+                      borderColor: "var(--color-border)",
+                    };
+          return (
+            <div
+              key={t.id}
+              className="pointer-events-auto max-w-xs rounded-[var(--radius-md)] border px-3 py-2 text-[var(--text-xs)] font-medium shadow-md"
+              style={tone}
+            >
+              {t.type === "success" && "✓ "}
+              {t.type === "error" && "✕ "}
+              {t.type === "warning" && "! "}
+              {t.message}
+            </div>
+          );
+        })}
       </div>
     </ToastContext.Provider>
   );

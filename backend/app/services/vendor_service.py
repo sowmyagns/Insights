@@ -156,10 +156,11 @@ def _assert_no_duplicates(
     phone: str | None,
     exclude_id: int | None = None,
 ) -> None:
-    if gstin:
+    if gstin and gstin.strip():
+        clean_gst = gstin.strip().upper()
         q = select(Supplier).where(
             Supplier.tenant_id == tenant_id,
-            Supplier.gstin == gstin,
+            func.upper(Supplier.gstin) == clean_gst,
             _active_filter(),
         )
         if exclude_id:
@@ -167,12 +168,13 @@ def _assert_no_duplicates(
         if db.scalars(q).first():
             raise HTTPException(
                 status_code=400,
-                detail="A vendor with this GST number already exists.",
+                detail=f"A vendor with GSTIN '{clean_gst}' already exists.",
             )
-    if phone:
+    if phone and phone.strip():
+        clean_phone = phone.strip()
         q = select(Supplier).where(
             Supplier.tenant_id == tenant_id,
-            Supplier.phone == phone,
+            Supplier.phone == clean_phone,
             _active_filter(),
         )
         if exclude_id:

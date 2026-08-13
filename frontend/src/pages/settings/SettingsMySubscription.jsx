@@ -35,6 +35,19 @@ function formatExpiry(iso) {
   }
 }
 
+function getRemainingDays(expiryIso) {
+  if (!expiryIso) return null;
+  try {
+    const expiry = new Date(expiryIso);
+    if (Number.isNaN(expiry.getTime())) return null;
+    const now = new Date();
+    const diffMs = expiry.getTime() - now.getTime();
+    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  } catch {
+    return null;
+  }
+}
+
 function Modal({ open, title, onClose, children, wide }) {
   if (!open) return null;
   return (
@@ -106,6 +119,13 @@ export default function SettingsMySubscription() {
   const activeFeatures = subscription?.features?.length ? subscription.features : FREE_PLAN_FEATURES;
   const expiryLabel = formatExpiry(subscription?.trial_expires_at);
 
+  // Trial day calculations
+  const totalDays = subscription?.trial_days || 7;
+  const remainingDays = trialActive ? getRemainingDays(subscription?.trial_expires_at) : null;
+  const completedDays = remainingDays !== null ? Math.max(0, totalDays - remainingDays) : null;
+  const progressPct = remainingDays !== null ? Math.min(100, Math.round((completedDays / totalDays) * 100)) : 0;
+  const isExpiringSoon = trialActive && remainingDays !== null && remainingDays <= 2;
+
   const handleActivateTrial = async () => {
     if (!canActivate || activating) return;
     setActivating(true);
@@ -166,25 +186,100 @@ export default function SettingsMySubscription() {
       </div>
 
       {/* Free Trial Banner */}
-      <div className="mb-6 flex flex-col gap-4 rounded-xl border border-green-200 bg-green-50 p-6 dark:border-green-800 dark:bg-green-900/20 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-green-800 dark:text-green-400">
-            Free Trial ({subscription?.trial_days || 5} days)
-          </h2>
-          <p className="mt-1 text-sm text-green-700 dark:text-green-500">
-            {trialActive && expiryLabel
-              ? `Trial is active until ${expiryLabel}. Unlock all features during the trial window.`
-              : "Unlock all the features on Insights Iva with just one click!"}
-          </p>
+      <div
+        className={`mb-6 rounded-xl border p-6 ${
+          isExpiringSoon
+            ? "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20"
+            : "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20"
+        }`}
+      >
+        {/* Expiring Soon Warning */}
+        {isExpiringSoon && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-400 bg-amber-100 px-4 py-2.5 text-amber-800 dark:border-amber-600 dark:bg-amber-900/40 dark:text-amber-300">
+            <span className="text-lg">⚠️</span>
+            <span className="text-sm font-semibold">
+              Expiring Soon — only {remainingDays} {remainingDays === 1 ? "day" : "days"} remaining!
+            </span>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex-1">
+            {/* Header */}
+            <h2
+              className={`text-lg font-semibold ${
+                isExpiringSoon
+                  ? "text-amber-800 dark:text-amber-400"
+                  : "text-green-800 dark:text-green-400"
+              }`}
+            >
+              Free Trial ({totalDays} days total)
+            </h2>
+
+            {/* Detail line */}
+            {trialActive && expiryLabel ? (
+              <p
+                className={`mt-1 text-sm ${
+                  isExpiringSoon
+                    ? "text-amber-700 dark:text-amber-500"
+                    : "text-green-700 dark:text-green-500"
+                }`}
+              >
+                Trial is active: <strong>{completedDays}</strong> of <strong>{totalDays}</strong> days
+                completed &mdash;&nbsp;
+                <strong>
+                  {remainingDays} {remainingDays === 1 ? "day" : "days"} remaining
+                </strong>{" "}
+                until expiry on <strong>{expiryLabel}</strong>.
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-green-700 dark:text-green-500">
+                Unlock all the features on Insights Iva with just one click!
+              </p>
+            )}
+
+            {/* Progress Bar */}
+            {trialActive && remainingDays !== null && (
+              <div className="mt-4">
+                <div className="mb-1 flex items-center justify-between text-xs font-medium">
+                  <span className={isExpiringSoon ? "text-amber-700 dark:text-amber-400" : "text-green-700 dark:text-green-400"}>
+                    {completedDays} {completedDays === 1 ? "day" : "days"} used
+                  </span>
+                  <span className={isExpiringSoon ? "text-amber-700 dark:text-amber-400" : "text-green-700 dark:text-green-400"}>
+                    {remainingDays} {remainingDays === 1 ? "day" : "days"} left
+                  </span>
+                </div>
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/60 ring-1 ring-black/5 dark:bg-black/20">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      isExpiringSoon ? "bg-amber-500" : "bg-green-500"
+                    }`}
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+                <p className={`mt-1 text-right text-[11px] ${
+                  isExpiringSoon ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"
+                }`}>
+                  {progressPct}% of trial period elapsed
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Button */}
+          <button
+            type="button"
+            onClick={handleActivateTrial}
+            disabled={!canActivate || activating || loading}
+            className={`shrink-0 self-start rounded-lg px-5 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60 ${
+              isExpiringSoon
+                ? "bg-amber-600 hover:bg-amber-700"
+                : "bg-green-600 hover:bg-green-700"
+            }`}
+          >
+            {activating ? "Activating…" : trialActive ? "Trial Active" : "Activate Trial"}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleActivateTrial}
-          disabled={!canActivate || activating || loading}
-          className="shrink-0 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {activating ? "Activating…" : trialActive ? "Trial Active" : "Activate Trial"}
-        </button>
       </div>
 
       {/* Currently Active Plan */}

@@ -4,6 +4,8 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, R
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { FileText, IndianRupee } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import ExportButtons from "../../components/finance/ExportButtons";
 import FinanceFilters from "../../components/finance/FinanceFilters";
@@ -14,19 +16,6 @@ import { DEMO_GST, GST_REPORTS, formatInr } from "../../data/financeMasterData";
 
 const PIE_COLORS = ["#2563EB", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
 
-function KpiCard({ label, value, icon: Icon, color, highlight }) {
-  return (
-    <div className={`rounded-2xl border p-4 shadow-sm ${highlight ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white"}`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className={`text-xs font-medium ${highlight ? "text-blue-700" : "text-slate-500"}`}>{label}</p>
-          <p className={`mt-1 text-xl font-bold tabular-nums ${highlight ? "text-blue-900" : "text-slate-900"}`}>{value}</p>
-        </div>
-        {Icon && <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}><Icon className="h-5 w-5 text-white" /></div>}
-      </div>
-    </div>
-  );
-}
 
 export default function TaxReports() {
   const { addToast } = useToast();
@@ -84,21 +73,21 @@ export default function TaxReports() {
   if (loading) return <Loader label="Loading GST reports..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-subtitle">GSTR-1, GSTR-2B, GSTR-3B, GSTR-9, HSN & SAC summaries with trend analysis.</p>
-        </div>
-        <div className="flex gap-2">
-          <ExportButtons onExcel={exportExcel} onPdf={exportPdf} />
-        </div>
-      </header>
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        subtitle="GSTR-1, GSTR-2B, GSTR-3B, GSTR-9, HSN & SAC summaries with trend analysis."
+        action={
+          <>
+            <ExportButtons onExcel={exportExcel} onPdf={exportPdf} />
+          </>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+      <div className="ui-grid-kpi">
         <KpiCard label="State Goods & Services Tax (SGST)" value={formatInr(data.sgst)} icon={IndianRupee} color="bg-indigo-600" />
         <KpiCard label="Central Goods & Services Tax (CGST)" value={formatInr(data.cgst)} icon={IndianRupee} color="bg-purple-600" />
         <KpiCard label="Integrated Goods & Services Tax (IGST)" value={formatInr(data.igst)} icon={IndianRupee} color="bg-pink-600" />
-        <KpiCard label="Total Goods & Services Tax (GST)" value={formatInr(data.total_gst)} icon={IndianRupee} color="bg-blue-600" highlight />
+        <KpiCard label="Total Goods & Services Tax (GST)" value={formatInr(data.total_gst)} icon={IndianRupee} color="bg-[var(--color-primary)]" highlight />
         <KpiCard label="Taxable Value" value={formatInr(data.taxable_value)} icon={FileText} color="bg-slate-600" />
         <KpiCard label="Goods & Services Tax (GST) Payable" value={formatInr(data.gst_payable)} icon={IndianRupee} color="bg-red-500" />
         <KpiCard label="Goods & Services Tax (GST) Receivable" value={formatInr(data.gst_receivable)} icon={IndianRupee} color="bg-green-600" />
@@ -129,21 +118,21 @@ export default function TaxReports() {
             key={r}
             type="button"
             onClick={() => setActiveReport(r)}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold ${activeReport === r ? "bg-[#2563EB] text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold ${activeReport === r ? "bg-[var(--color-primary)] text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
           >
             {r}
           </button>
         ))}
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="ui-card p-5">
         <h2 className="mb-2 font-semibold text-slate-900">{activeReport}</h2>
         <p className="text-sm text-slate-500">Summary for FY {financialYear} — {formatInr(data.total_gst)} total GST collected.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-900">Monthly GST Collection</h2>
+        <div className="ui-card p-5">
+          <h2 className="ui-section-title mb-4">Monthly GST Collection</h2>
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.monthly_collection || []}>
@@ -156,8 +145,8 @@ export default function TaxReports() {
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-900">GST Trend</h2>
+        <div className="ui-card p-5">
+          <h2 className="ui-section-title mb-4">GST Trend</h2>
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data.gst_trend || []}>
@@ -173,8 +162,8 @@ export default function TaxReports() {
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-900">GST by Customer</h2>
+        <div className="ui-card p-5">
+          <h2 className="ui-section-title mb-4">GST by Customer</h2>
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -186,8 +175,8 @@ export default function TaxReports() {
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-900">GST by Product</h2>
+        <div className="ui-card p-5">
+          <h2 className="ui-section-title mb-4">GST by Product</h2>
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.gst_by_product || []} layout="vertical">

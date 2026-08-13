@@ -68,7 +68,7 @@ export default function SODetailModal({ order, onClose }) {
           {typeof order.id === "number" && (
             <Link to={`/sales/orders/${order.id}`} className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700">Full Details</Link>
           )}
-          <Link to="/sales/dispatch" className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white">Go to Dispatch</Link>
+          <Link to="/sales/dispatch" className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white">Go to Dispatch</Link>
         </div>
       </div>
     </div>

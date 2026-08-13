@@ -19,7 +19,7 @@ export function SettingsCard({ title, description, icon: Icon, soft, onClick }) 
           </h3>
           <span
             aria-hidden
-            className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-teal-700 dark:text-slate-600 dark:group-hover:text-teal-400"
+            className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[var(--color-primary)] dark:text-slate-600 dark:group-hover:text-[var(--color-primary)]"
           >
             →
           </span>
@@ -32,26 +32,17 @@ export function SettingsCard({ title, description, icon: Icon, soft, onClick }) 
   );
 }
 
-export function PanelShell({ title, description, children, actions, eyebrow = "Settings" }) {
+export function PanelShell({ title, description, children, actions, eyebrow = null }) {
   return (
     <div className="animate-in fade-in slide-in-from-right-2 space-y-5 duration-300">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          {eyebrow ? (
-            <p className="ui-eyebrow">
-              {eyebrow}
-            </p>
-          ) : null}
-          <h2 className="mt-0.5 ui-title">
-            {title}
-          </h2>
-          {description && (
-            <p className="ui-subtitle">
-              {description}
-            </p>
-          )}
+        <div className="min-w-0 space-y-1">
+          {eyebrow ? <p className="ui-eyebrow">{eyebrow}</p> : null}
+          {/* Section title kept for nested settings panels; Navbar owns top-level page name */}
+          {title ? <h2 className="ui-section-title text-[var(--text-lg)] font-semibold text-[var(--color-text)]">{title}</h2> : null}
+          {description ? <p className="ui-subtitle mt-0">{description}</p> : null}
         </div>
-        {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+        {actions ? <div className="ui-toolbar shrink-0">{actions}</div> : null}
       </div>
       {children}
     </div>
@@ -83,7 +74,7 @@ export function Field({ label, children, className = "" }) {
 }
 
 export const inputClass =
-  "ui-input w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100";
+  "ui-input w-full";
 
 export function ToggleRow({ label, description, checked, onChange }) {
   return (
@@ -98,7 +89,7 @@ export function ToggleRow({ label, description, checked, onChange }) {
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-1 h-5 w-5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+        className="mt-1 h-5 w-5 rounded border-slate-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
       />
     </label>
   );

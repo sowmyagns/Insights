@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Briefcase, UserCheck, UserMinus, UserPlus, Users, Filter, X, Save, Clock, Building2, FileText } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -13,27 +15,8 @@ import usePageRefresh from "../../hooks/usePageRefresh";
 import { deptColor, formatInr, statusColor } from "../../data/hrMasterData";
 
 const inputClass =
-  "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#F5C518] focus:outline-none focus:ring-2 focus:ring-amber-100 transition-all";
+  "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[var(--color-cta)] focus:outline-none focus:ring-2 focus:ring-amber-100 transition-all";
 
-function KpiCard({ label, value, icon: Icon, color, suffix }) {
-  return (
-    <div className="group ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-105 ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white shrink-0" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl" title={`${value}${suffix || ""}`}>
-          {value}{suffix || ""}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 const defaultFilters = { department: "", employment_type: "", shift: "", status: "" };
 
@@ -188,7 +171,7 @@ export default function Employees() {
 
   const columns = [
     { key: "photo", label: "Photo", render: (r) => (
-      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2563EB] text-xs font-bold text-white">{r.initials || "?"}</div>
+      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)] text-xs font-bold text-white">{r.initials || "?"}</div>
     )},
     { key: "employee_id", label: "Employee ID" },
     { key: "full_name", label: "Name", render: (r) => <span className="font-medium text-slate-900">{r.full_name}</span> },
@@ -201,28 +184,30 @@ export default function Employees() {
     { key: "joining_date", label: "Joining", render: (r) => String(r.joining_date || "").slice(0, 10) || "—" },
     { key: "salary", label: "Salary", render: (r) => r.salary ? formatInr(r.salary) : "—" },
     { key: "actions", label: "Actions", render: (r) => (
-      <button type="button" onClick={() => setSelected(r)} className="text-xs font-semibold text-[#2563EB] hover:underline">Profile</button>
+      <button type="button" onClick={() => setSelected(r)} className="text-xs font-semibold text-[var(--color-primary)] hover:underline">Profile</button>
     )},
   ];
 
   if (loading && rows.length === 0) return <Loader label="Loading employees..." />;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex flex-wrap gap-2 lg:ml-auto">
-          <button
+    <div className="space-y-5 pb-4">
+      <PageHeader
+        action={
+          <>
+            <button
             type="button"
             onClick={() => setShowCreateModal(true)}
             className="ui-btn-hr"
           >
             <Plus className="h-4 w-4" /> Create Employee
           </button>
-        </div>
-      </header>
+          </>
+        }
+      />
 
-      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-8">
-        <KpiCard label="Total Employees" value={summary.total_employees} icon={Users} color="bg-blue-600" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Employees" value={summary.total_employees} icon={Users} color="bg-[var(--color-primary)]" />
         <KpiCard label="Present Today" value={summary.present_today} icon={UserCheck} color="bg-green-600" />
         <KpiCard label="Absent" value={summary.absent} icon={UserMinus} color="bg-red-500" />
         <KpiCard label="On Leave" value={summary.on_leave} icon={Briefcase} color="bg-amber-500" />
@@ -231,19 +216,19 @@ export default function Employees() {
         <KpiCard label="New Joiners" value={summary.new_joiners} icon={UserPlus} color="bg-purple-600" />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-slate-700"><Filter className="h-4 w-4" /> Filters</button>
+      <div className="ui-card p-4">
+        <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} className="mb-3 inline-flex items-center gap-2 text-[var(--text-sm)] font-semibold text-[var(--color-text-secondary)]"><Filter className="h-4 w-4" /> Filters</button>
         {showAdvanced && (
           <div className="mb-4 grid gap-3 sm:grid-cols-3">
-            <select value={filters.department} onChange={(e) => setFilters({ ...filters, department: e.target.value })} className="rounded-lg border px-3 py-2 text-sm">
+            <select value={filters.department} onChange={(e) => setFilters({ ...filters, department: e.target.value })} className="ui-input">
               <option value="">All Departments</option>
               {["Production", "HR", "Sales", "Accountant", "Store Manager", "Operator"].map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
-            <select value={filters.employment_type} onChange={(e) => setFilters({ ...filters, employment_type: e.target.value })} className="rounded-lg border px-3 py-2 text-sm">
+            <select value={filters.employment_type} onChange={(e) => setFilters({ ...filters, employment_type: e.target.value })} className="ui-input">
               <option value="">All Types</option>
               {["permanent", "contract", "temporary"].map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            <select value={filters.shift} onChange={(e) => setFilters({ ...filters, shift: e.target.value })} className="rounded-lg border px-3 py-2 text-sm">
+            <select value={filters.shift} onChange={(e) => setFilters({ ...filters, shift: e.target.value })} className="ui-input">
               <option value="">All Shifts</option>
               {["Morning", "General", "Evening", "Night"].map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -369,7 +354,7 @@ export default function Employees() {
                     <button
                       type="button"
                       onClick={() => setShowDeptForm(true)}
-                      className="text-[11px] font-semibold text-[#2563EB] hover:underline"
+                      className="text-[11px] font-semibold text-[var(--color-primary)] hover:underline"
                     >
                       <Plus className="mr-1 inline h-3 w-3" /> Add Department
                     </button>

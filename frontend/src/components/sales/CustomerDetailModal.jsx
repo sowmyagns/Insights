@@ -92,7 +92,7 @@ export default function CustomerDetailModal({ customer, onClose, onEdit, onDelet
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === t.id ? "bg-[#2563EB] text-white" : "text-slate-600 hover:bg-slate-100"}`}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === t.id ? "bg-[var(--color-primary)] text-white" : "text-slate-600 hover:bg-slate-100"}`}
             >
               {t.label}
             </button>
@@ -255,7 +255,68 @@ export function CustomerFormModal({ customer, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <form onSubmit={(e) => { e.preventDefault(); onSave(form); }} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!form.company.trim()) {
+            alert("Company Name is required.");
+            return;
+          }
+          if (!/[a-zA-Z]/.test(form.company)) {
+            alert("Company Name must contain at least one letter.");
+            return;
+          }
+          const trimmedContact = form.contact_person.trim();
+          if (form.contact_person && !trimmedContact) {
+            alert("Contact Person cannot contain only spaces. Please enter a valid name or leave it blank.");
+            return;
+          }
+          if (trimmedContact && !/[a-zA-Z]/.test(trimmedContact)) {
+            alert("Contact Person name must contain at least one letter.");
+            return;
+          }
+          const trimmedEmail = form.email.trim();
+          if (form.email && !trimmedEmail) {
+            alert("Email cannot contain only spaces. Please enter a valid email address or leave it blank.");
+            return;
+          }
+          if (trimmedEmail) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(trimmedEmail) || trimmedEmail.includes("..")) {
+              alert("Please enter a valid email address.");
+              return;
+            }
+          }
+          const trimmedPhone = form.phone.trim();
+          if (trimmedPhone) {
+            if (/\D/.test(trimmedPhone)) {
+              alert("Phone must contain only numeric digits (0-9).");
+              return;
+            }
+            if (trimmedPhone.length !== 10) {
+              alert("Phone number must be exactly 10 digits.");
+              return;
+            }
+          const trimmedGstin = form.gstin.trim();
+          if (trimmedGstin) {
+            if (/[a-z]/.test(trimmedGstin)) {
+              alert("GSTIN must contain only uppercase letters and numeric values.");
+              return;
+            }
+            if (trimmedGstin.length !== 15) {
+              alert("GSTIN must be exactly 15 characters.");
+              return;
+            }
+            const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+            if (!gstinRegex.test(trimmedGstin)) {
+              alert("Invalid GSTIN format.");
+              return;
+            }
+          }
+          onSave({ ...form, contact_person: trimmedContact, email: trimmedEmail || null, phone: trimmedPhone || null, gstin: trimmedGstin || null });
+        }}
+        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"
+      >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">{customer?.customer_code ? "Edit Customer" : "New Customer"}</h2>
           <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button>
@@ -309,9 +370,7 @@ export function CustomerFormModal({ customer, onClose, onSave }) {
     value={form.gstin}
     maxLength={15}
     onChange={(e) => {
-      const value = e.target.value
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, ""); // Allow only letters and numbers
+      const value = e.target.value.replace(/[^a-zA-Z0-9]/g, ""); // Allow only letters and numbers
       if (value.length <= 15) {
         set("gstin", value);
       }

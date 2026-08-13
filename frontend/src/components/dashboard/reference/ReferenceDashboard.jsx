@@ -38,13 +38,14 @@ import SkeletonCard, { SkeletonChart } from "../../common/SkeletonCard";
 import { quickActionsRef } from "../../../data/referenceDashboardData";
 import { getErpDashboard } from "../../../api/dashboardApi";
 import useAuth from "../../../hooks/useAuth";
+import MachineControlCard from "../MachineControlCard";
 import useManufacturingRefresh from "../../../hooks/useManufacturingRefresh";
 import { userCanAccess, isOperator } from "../../../config/permissions";
 import { CardShell, KpiIconWell, StatusBadge, TrendBadge, getKpiAccent } from "./ReferenceParts";
 
 /** Masters → Products visual tokens (only reference for this dashboard). */
 const PAGE_BG = "var(--color-bg)";
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-cta)";
 
 const tooltipStyle = {
   borderRadius: 12,
@@ -333,7 +334,7 @@ function PendingTasks({ overview, inventoryBlocks = [], alerts = [], profile }) 
   }
 
   const toneClass = {
-    sky: "bg-[#eef0ff] text-[#5b5bd6]",
+    sky: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]",
     amber: "bg-[#fff6e5] text-[#b45309]",
     rose: "bg-[#fde8e8] text-[#ef4444]",
     violet: "bg-[#f3eefc] text-[#6d28d9]",
@@ -390,7 +391,7 @@ function FinancialSnapshot({ inventoryBlocks = [] }) {
       title={t("refDashboard.financialSnapshot", "Financial Snapshot")}
       subtitle={t("refDashboard.financialSnapshotHint", "Inventory valuation from live stock")}
       action={
-        <Link to="/analytics/finance" className="text-[12px] font-semibold text-[#5b5bd6] hover:underline">
+        <Link to="/analytics/finance" className="text-[12px] font-semibold text-[var(--color-primary)] hover:underline">
           {t("common.viewAll")}
         </Link>
       }
@@ -401,7 +402,7 @@ function FinancialSnapshot({ inventoryBlocks = [] }) {
           return (
             <li key={row.label} className="flex items-center justify-between gap-3 rounded-lg bg-[#f3f3f6] px-3 py-2.5">
               <span className="flex items-center gap-2 text-[13px] text-[#4a4a55]">
-                <Icon className="h-4 w-4 text-[#5b5bd6]" aria-hidden />
+                <Icon className="h-4 w-4 text-[var(--color-primary)]" aria-hidden />
                 {row.label}
               </span>
               <span className="text-[13px] font-bold tabular-nums text-[#1a1a1f]">{row.value}</span>
@@ -448,7 +449,7 @@ function ProductionOverview({ chartSets }) {
               <YAxis tick={{ fontSize: 11, fill: "#6b6b76" }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8, color: "#4a4a55" }} />
-              <Line type="monotone" dataKey="planned" name={t("refDashboard.plannedQty")} stroke="#5b5bd6" strokeWidth={2.5} dot={{ r: 3, fill: "#5b5bd6" }} />
+              <Line type="monotone" dataKey="planned" name={t("refDashboard.plannedQty")} stroke="var(--color-primary)" strokeWidth={2.5} dot={{ r: 3, fill: "var(--color-primary)" }} />
               <Line type="monotone" dataKey="actual" name={t("refDashboard.actualQty")} stroke="#15803d" strokeWidth={2.5} dot={{ r: 3, fill: "#15803d" }} />
             </LineChart>
           </ResponsiveContainer>
@@ -521,16 +522,16 @@ function TopMachines({ machines = [] }) {
       <ul className="space-y-3">
         {machines.map((m) => (
           <li key={m.id} className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#eef0ff] text-[10px] font-bold text-[#5b5bd6]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary-soft)] text-[10px] font-bold text-[var(--color-primary)]">
               {String(m.id).split("-")[0]}
             </div>
             <div className="min-w-0 flex-1">
               <div className="mb-1 flex justify-between text-xs">
                 <span className="font-semibold text-[#1a1a1f]">{m.id}</span>
-                <span className="font-bold tabular-nums text-[#5b5bd6]">{m.utilization}%</span>
+                <span className="font-bold tabular-nums text-[var(--color-primary)]">{m.utilization}%</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-[#f3f3f6]">
-                <div className="h-full rounded-full bg-[#5b5bd6]" style={{ width: `${m.utilization}%` }} />
+                <div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${m.utilization}%` }} />
               </div>
             </div>
           </li>
@@ -544,7 +545,7 @@ function OrdersOverview({ overview = EMPTY_ORDERS }) {
   const { t } = useTranslation();
   const labels = overview.labels || {};
   const stats = [
-    { label: labels.total || t("refDashboard.totalOrders"), value: overview.total, color: "text-[#5b5bd6]" },
+    { label: labels.total || t("refDashboard.totalOrders"), value: overview.total, color: "text-[var(--color-primary)]" },
     { label: labels.inProgress || t("refDashboard.inProgress"), value: overview.inProgress, color: "text-[#b45309]" },
     { label: labels.completed || t("refDashboard.completed"), value: overview.completed, color: "text-[#15803d]" },
     { label: labels.onHold || t("refDashboard.onHold"), value: overview.onHold, color: "text-[#ef4444]" },
@@ -562,10 +563,10 @@ function OrdersOverview({ overview = EMPTY_ORDERS }) {
       <div>
         <div className="mb-1 flex justify-between text-xs">
           <span className="font-medium text-[#4a4a55]">{t("refDashboard.overallProgress")}</span>
-          <span className="font-bold tabular-nums text-[#5b5bd6]">{overview.progress}%</span>
+          <span className="font-bold tabular-nums text-[var(--color-primary)]">{overview.progress}%</span>
         </div>
         <div className="h-2.5 overflow-hidden rounded-full bg-[#f3f3f6]">
-          <div className="h-full rounded-full bg-[#5b5bd6]" style={{ width: `${overview.progress}%` }} />
+          <div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${overview.progress}%` }} />
         </div>
       </div>
     </CardShell>
@@ -591,7 +592,7 @@ function InventorySummary({ blocks = [], warehouses = [] }) {
             <div key={b.label} className="flex items-center gap-3 rounded-lg border border-[#ececf0] px-3 py-2.5">
               <div
                 className="flex h-9 w-9 items-center justify-center rounded-lg"
-                style={{ backgroundColor: `${b.color || "#5b5bd6"}18`, color: b.color || "#5b5bd6" }}
+                style={{ backgroundColor: `${b.color || "var(--color-primary)"}18`, color: b.color || "var(--color-primary)" }}
               >
                 <Icon className="h-4 w-4" />
               </div>
@@ -636,7 +637,7 @@ function AlertsNotifications({ alerts = [] }) {
     <CardShell
       title={t("refDashboard.alertsNotifications")}
       action={
-        <Link to="/alerts" className="text-xs font-semibold text-[#5b5bd6] hover:underline">
+        <Link to="/alerts" className="text-xs font-semibold text-[var(--color-primary)] hover:underline">
           {t("common.viewAll")}
         </Link>
       }
@@ -651,7 +652,7 @@ function AlertsNotifications({ alerts = [] }) {
               <>
                 <div
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                  style={{ backgroundColor: `${a.color || "#5b5bd6"}18`, color: a.color || "#5b5bd6" }}
+                  style={{ backgroundColor: `${a.color || "var(--color-primary)"}18`, color: a.color || "var(--color-primary)" }}
                 >
                   <Icon className="h-4 w-4" />
                 </div>
@@ -717,7 +718,7 @@ function RecentWorkOrders({ workOrders = [] }) {
     <CardShell
       title={t("refDashboard.recentWorkOrders")}
       action={
-        <Link to="/production/work-orders" className="text-xs font-semibold text-[#5b5bd6] hover:underline">
+        <Link to="/production/work-orders" className="text-xs font-semibold text-[var(--color-primary)] hover:underline">
           {t("common.viewAll")}
         </Link>
       }
@@ -739,7 +740,7 @@ function RecentWorkOrders({ workOrders = [] }) {
             <tbody>
               {workOrders.map((wo) => (
                 <tr key={wo.wo} className="border-b border-[#f0f0f4] last:border-0">
-                  <td className="px-3 py-2.5 font-semibold text-[#5b5bd6]">{wo.wo}</td>
+                  <td className="px-3 py-2.5 font-semibold text-[var(--color-primary)]">{wo.wo}</td>
                   <td className="px-3 py-2.5 text-[#1a1a1f]">{wo.product}</td>
                   <td className="px-3 py-2.5 tabular-nums text-[#4a4a55]">{wo.qty}</td>
                   <td className="px-3 py-2.5">
@@ -818,7 +819,7 @@ function TodaysSummary({ items = [] }) {
           return (
             <li key={item.key || item.label || i} className="flex items-center justify-between gap-3 rounded-lg bg-[#f3f3f6] px-3 py-2.5">
               <span className="flex items-center gap-2.5 text-sm text-[#4a4a55]">
-                <Icon className="h-4 w-4 text-[#5b5bd6]" aria-hidden />
+                <Icon className="h-4 w-4 text-[var(--color-primary)]" aria-hidden />
                 {label}
               </span>
               <span className="text-sm font-bold tabular-nums text-[#1a1a1f]">{item.value}</span>
@@ -951,10 +952,15 @@ export default function ReferenceDashboard() {
         {(showProduction || showShopFloor || showTopMachines || (isOpProfile && sectionVisible(sections, "production_overview"))) && (
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
             {(showProduction || (isOpProfile && sectionVisible(sections, "production_overview"))) && (
-              <div className={isOpProfile || (!showShopFloor && !showTopMachines) ? "xl:col-span-12" : "xl:col-span-5"}>
+              <div className={isOpProfile ? "xl:col-span-6" : (!showShopFloor && !showTopMachines) ? "xl:col-span-12" : "xl:col-span-5"}>
                 <ProductionOverview chartSets={chartSets} />
               </div>
             )}
+            {isOpProfile ? (
+              <div className="xl:col-span-6">
+                <MachineControlCard initialMachines={apiData?.top_machines || apiData?.machines} onRefreshData={() => load(true)} />
+              </div>
+            ) : null}
             {showShopFloor ? (
               <div className="xl:col-span-3">
                 <ShopFloorStatus statusData={apiData?.shop_floor_status || []} />

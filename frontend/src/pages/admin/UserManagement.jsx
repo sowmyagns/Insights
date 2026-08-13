@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, ShieldCheck, UserCog, KeyRound } from "lucide-rea
 
 import PageHeader from "../../components/common/PageHeader";
 import DataTable from "../../components/common/DataTable";
+import KpiCard from "../../components/common/KpiCard";
 import { Input } from "../../components/common/FormField";
 import AdminModal from "../../components/admin/AdminModal";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
@@ -36,14 +37,8 @@ const EMPTY_FORM = {
 
 function StatusBadge({ active }) {
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-        active
-          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-          : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"
-      }`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-green-500" : "bg-slate-400"}`} />
+    <span className={`ui-badge ${active ? "ui-badge--success" : "ui-badge--neutral"}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-[var(--color-success)]" : "bg-[var(--color-text-faint)]"}`} />
       {active ? "Active" : "Inactive"}
     </span>
   );
@@ -235,7 +230,7 @@ export default function UserManagement() {
               r.roles.map((role) => (
                 <span
                   key={role.id}
-                  className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
+                  className="inline-flex items-center gap-1 rounded-md bg-[var(--color-success-soft)] px-2 py-0.5 text-xs font-medium text-[var(--color-success)] dark:bg-teal-900/30 dark:text-teal-300"
                 >
                   {role.name === "Admin" && <ShieldCheck className="h-3 w-3" />}
                   {role.name}
@@ -282,7 +277,7 @@ export default function UserManagement() {
           <button
             type="button"
             onClick={() => openEdit(r)}
-            className="rounded-lg p-1.5 text-slate-500 hover:bg-teal-50 hover:text-teal-600 dark:hover:bg-teal-900/20"
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-[var(--color-success-soft)] hover:text-teal-600 dark:hover:bg-teal-900/20"
             title="Edit user"
           >
             <Pencil className="h-4 w-4" />
@@ -319,17 +314,19 @@ export default function UserManagement() {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard label="Total Users" value={users.length} icon={UserCog} />
-        <StatCard
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Users" value={users.length} icon={UserCog} tone="primary" />
+        <KpiCard
           label="Active"
           value={users.filter((u) => u.is_active).length}
           icon={UserCog}
+          tone="success"
         />
-        <StatCard
+        <KpiCard
           label="Administrators"
           value={users.filter((u) => (u.roles || []).some((r) => r.name === "Admin")).length}
           icon={ShieldCheck}
+          tone="info"
         />
       </div>
 
@@ -476,7 +473,7 @@ export default function UserManagement() {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-xl bg-teal-600 px-5 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+              className="rounded-xl bg-teal-600 px-5 py-2 text-sm font-semibold text-white hover:bg-[var(--color-success)] disabled:opacity-50"
             >
               {saving ? "Saving…" : editing ? "Save Changes" : "Create User"}
             </button>

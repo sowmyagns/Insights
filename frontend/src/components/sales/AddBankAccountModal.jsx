@@ -5,7 +5,7 @@ import { Check, ChevronDown, X } from "lucide-react";
 import { lookupVendorBank } from "../../api/procurementApi";
 import { useToast } from "../../context/ToastContext";
 
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 
 const EMPTY = {
   ifsc: "",
@@ -219,7 +219,7 @@ export default function AddBankAccountModal({ open, onClose, onSave, initial }) 
               <span
                 className={`flex h-4 w-4 items-center justify-center rounded border ${
                   form.show_upi_qr
-                    ? "border-[#F5C518] bg-[#F5C518]"
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary)]"
                     : "border-[#c4c4cc] bg-white"
                 }`}
               >
@@ -275,7 +275,7 @@ export default function AddBankAccountModal({ open, onClose, onSave, initial }) 
           </button>
           <button
             type="submit"
-            className="rounded-xl py-3 text-[14px] font-semibold text-[#1a1a1f]"
+            className="rounded-xl py-3 text-[14px] font-semibold text-white"
             style={{ background: YELLOW }}
           >
             Save

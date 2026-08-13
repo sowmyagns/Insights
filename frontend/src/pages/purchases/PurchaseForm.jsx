@@ -24,7 +24,7 @@ import { useToast } from "../../context/ToastContext";
 
 const LAVENDER = "#efeaf8";
 const PURPLE = "#6b4eff";
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const emptyItem = () => ({
   item_description: "",
   hsn: "",
@@ -409,7 +409,7 @@ export default function PurchaseForm() {
       const payload = {
         module: "purchases",
         doc_type: "purchase",
-        document_number: form.invoice_number || String(Date.now()).slice(-6),
+        ...(isEdit ? { document_number: form.invoice_number } : {}),
         party_name: selectedSeller?.name || selectedSeller?.vendor_name || null,
         document_date: form.issue_date,
         due_date: form.due_date || null,
@@ -449,11 +449,12 @@ export default function PurchaseForm() {
       if (isEdit) {
         await updateBizDocument(editId, payload);
         addToast("Purchase updated");
+        navigate(`/purchases/${editId}`);
       } else {
-        await createBizDocument(payload);
+        const res = await createBizDocument(payload);
         addToast("Purchase created");
+        navigate(res.data?.id ? `/purchases/${res.data.id}` : "/purchases");
       }
-      navigate("/purchases");
     } catch (err) {
       console.error(err);
       addToast(apiErrorMessage(err, "Failed to save purchase"), "error");
@@ -500,7 +501,7 @@ export default function PurchaseForm() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-[#1a1a1f] shadow-sm disabled:opacity-60"
+            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-white shadow-sm disabled:opacity-60"
             style={{ background: YELLOW }}
           >
             {saving ? "Saving…" : "Save"}

@@ -116,7 +116,7 @@ export default function ExecutiveDashboard() {
       />
 
       <div className="flex flex-wrap gap-2">
-        <Link to="/analytics/live" className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Live Dashboard</Link>
+        <Link to="/analytics/live" className="rounded-lg bg-[var(--color-success)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-success-hover)]">Live Dashboard</Link>
         <Link to="/analytics/production" className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold hover:bg-slate-700">Production</Link>
         <Link to="/analytics/inventory" className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold hover:bg-slate-700">Inventory</Link>
         <Link to="/analytics/sales" className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold hover:bg-slate-700">Sales</Link>

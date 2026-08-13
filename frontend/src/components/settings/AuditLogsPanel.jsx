@@ -273,7 +273,7 @@ export default function AuditLogsPanel() {
                 ].map(([key, label]) => (
                   <th
                     key={key}
-                    className="cursor-pointer whitespace-nowrap px-2.5 py-2.5 hover:text-teal-700"
+                    className="cursor-pointer whitespace-nowrap px-2.5 py-2.5 hover:text-[var(--color-success)]"
                     onClick={() => toggleSort(key === "date" || key === "time" ? "logged_at" : key)}
                   >
                     {label}

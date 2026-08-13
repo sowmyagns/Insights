@@ -111,7 +111,7 @@ export default function SearchableSelect({
                 {allowCustom && query.trim() ? (
                   <button
                     type="button"
-                    className="font-medium text-teal-700 hover:underline"
+                    className="font-medium text-[var(--color-success)] hover:underline"
                     onClick={() => {
                       onChange?.(query.trim());
                       setOpen(false);
@@ -135,7 +135,7 @@ export default function SearchableSelect({
                       onClick={() => pick(opt)}
                       className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm ${
                         active
-                          ? "bg-teal-50 text-teal-800 dark:bg-teal-900/30 dark:text-teal-200"
+                          ? "bg-[var(--color-success-soft)] text-[var(--color-success)] dark:bg-teal-900/30 dark:text-teal-200"
                           : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/50"
                       }`}
                     >

@@ -4,7 +4,7 @@ import { AlertTriangle, Ban, CheckCircle, CheckCircle2, ChevronLeft, ChevronRigh
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
+import CreateProductionOrderModal from "../../components/production/CreateProductionOrderModal";
 import ProductionOrderDetailModal, {
   CompleteWorkflowModal,
   StartCheckModal,
@@ -15,7 +15,6 @@ import { notifyManufacturingSpine, MANUFACTURING_EVENTS } from "../../utils/manu
 import useAuth from "../../hooks/useAuth";
 import useTenantId from "../../hooks/useTenantId";
 import { isOperator } from "../../config/permissions";
-import { PLANNING_SPINE_STEP_IDS } from "../../config/manufacturingWorkflow";
 import {
   completeProductionOrder,
   createProductionOrder,
@@ -35,7 +34,6 @@ import {
   ORDER_STATUSES,
   PRIORITIES,
   SHIFTS,
-  STATUS_FLOW,
   canPause,
   canStart,
   calculateProgressPct,
@@ -111,7 +109,7 @@ function ProgressCell({ row }) {
         <span>{pct}%</span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-slate-200 print:border print:border-slate-300">
-        <div className="h-full rounded-full bg-[#2563EB] print:bg-slate-700" style={{ width: `${Math.min(pct, 100)}%` }} />
+        <div className="h-full rounded-full bg-[var(--color-primary)] print:bg-slate-700" style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
     </div>
   );
@@ -149,7 +147,7 @@ function OrderCreatedToast({ order, onClose }) {
 
   return (
     <div className="fixed bottom-6 right-6 z-[9999] w-full max-w-sm animate-in slide-in-from-bottom-5 duration-300 print:hidden">
-      <div className="relative overflow-hidden rounded-2xl bg-white p-5 shadow-2xl ring-1 ring-yellow-400/40 border-l-6 border-[#F5C518]">
+      <div className="relative overflow-hidden rounded-2xl bg-white p-5 shadow-2xl ring-1 ring-yellow-400/40 border-l-6 border-[var(--color-cta)]">
         {/* close */}
         <button
           onClick={onClose}
@@ -161,7 +159,7 @@ function OrderCreatedToast({ order, onClose }) {
 
         {/* Icon & Title */}
         <div className="flex items-start gap-3.5 mb-3 pr-6">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F5C518] shadow-sm text-gray-900">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--color-cta)] shadow-sm text-gray-900">
             <CheckCircle className="h-6 w-6 text-gray-900" />
           </div>
           <div>
@@ -185,7 +183,7 @@ function OrderCreatedToast({ order, onClose }) {
               </div>
             </div>
             {order.operator_id && order.operator_id !== "—" && (
-              <span className="text-[11px] font-bold text-gray-900 bg-[#F5C518] px-2 py-0.5 rounded-md shrink-0 shadow-xs">
+              <span className="text-[11px] font-bold text-gray-900 bg-[var(--color-cta)] px-2 py-0.5 rounded-md shrink-0 shadow-xs">
                 ID: {order.operator_id}
               </span>
             )}
@@ -217,6 +215,8 @@ export default function ProductionPlanning() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const [createdToastOrder, setCreatedToastOrder] = useState(null);
+  const [createOrderModalOpen, setCreateOrderModalOpen] = useState(false);
+  const [editModalOrder, setEditModalOrder] = useState(null);
   const [quickWoOrder, setQuickWoOrder] = useState(null);
   const [issueModalOrder, setIssueModalOrder] = useState(null);
 
@@ -722,7 +722,7 @@ export default function ProductionPlanning() {
         return (
           <div className="flex flex-wrap gap-1 text-xs print:hidden">
             <button type="button" title="View" onClick={() => openOrder(r)} className="font-semibold text-[#2563EB] hover:underline">👁 View</button>
-            <Link to={`/production/create?id=${r.id}&product_id=${r.product_id || ""}&order_number=${encodeURIComponent(r.order_number || "")}&buyer_company=${encodeURIComponent(r.buyer_company || r.customer_name || "")}&operator_name=${encodeURIComponent(r.operator_name || "")}&operator_id=${encodeURIComponent(r.operator_id || "")}&bom_version=${encodeURIComponent(r.bom_version || "BOM v1.0")}&planned_quantity=${r.planned_quantity || ""}&produced_quantity=${r.produced_quantity ?? 0}&priority=${r.priority || "medium"}&shift=${encodeURIComponent(shiftStr)}&machine_id=${r.machine_id || ""}&start_date=${r.start_date || ""}&due_date=${r.due_date || ""}&size=${encodeURIComponent(r.size || "")}&status=${encodeURIComponent(r.status || "planned")}&progress=${calculateProgressPct(r)}`} className="font-semibold text-slate-600 hover:underline">✏ Edit</Link>
+            <button type="button" title="Edit" onClick={() => { setEditModalOrder(r); setCreateOrderModalOpen(true); }} className="font-semibold text-slate-600 hover:underline">✏ Edit</button>
             <button type="button" onClick={() => handleIndividualPrint(r)} className="font-semibold text-slate-500 hover:underline">🖨 Print</button>
             {canStart(r.status) && (
               <button type="button" onClick={() => handleStartClick(r)} className="font-semibold text-green-700 hover:underline">▶ Start</button>
@@ -766,27 +766,6 @@ export default function ProductionPlanning() {
             accept=".csv, .txt"
             className="hidden"
           />
-
-          <div>
-            <nav className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm text-slate-500 print:hidden" aria-label="Breadcrumb">
-              <Link to="/" className="hover:text-[#002C66]">Home</Link>
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
-              <Link to="/production" className="hover:text-[#002C66]">Production</Link>
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
-              <span className="font-medium text-[#002C66]">Production Planning</span>
-            </nav>
-            <p className="mt-1.5 text-sm text-slate-500 print:hidden">
-              Plan, schedule, and monitor production orders across machines, materials, and operators.
-            </p>
-          </div>
-
-          <div className="print:hidden">
-            <ManufacturingWorkflowBar
-              currentStepId="production_planning"
-              filterByRole={false}
-              stepIds={PLANNING_SPINE_STEP_IDS}
-            />
-          </div>
 
           <div className="flex flex-wrap gap-2 print:hidden">
             <Link
@@ -859,14 +838,18 @@ export default function ProductionPlanning() {
                 Print
               </button>
               {!isOperator(user) && (
-                <Link
-                  to="/production/create"
-                  className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold text-white"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditModalOrder(null);
+                    setCreateOrderModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
                   style={{ background: PRIMARY_BLUE }}
                 >
                   <Plus className="h-4 w-4" />
                   New Production Order
-                </Link>
+                </button>
               )}
             </div>
 
@@ -962,27 +945,6 @@ export default function ProductionPlanning() {
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
-            </div>
-          </div>
-
-          <div className="print:hidden">
-            <ManufacturingWorkflowBar
-              currentStepId="production_planning"
-              compact
-              filterByRole={false}
-              stepIds={PLANNING_SPINE_STEP_IDS}
-            />
-          </div>
-
-          <div className="rounded-xl border border-[#d7e6f8] bg-white px-4 py-3 print:hidden">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Status Flow</p>
-            <div className="flex flex-wrap items-center gap-2">
-              {STATUS_FLOW.map((s, i) => (
-                <span key={s} className="flex items-center gap-2 text-xs text-[#002C66]">
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">{s}</span>
-                  {i < STATUS_FLOW.length - 1 && <span className="text-slate-300">→</span>}
-                </span>
-              ))}
             </div>
           </div>
         </div>
@@ -1115,6 +1077,20 @@ export default function ProductionPlanning() {
           onClose={() => setCreatedToastOrder(null)}
         />
       )}
+
+      <CreateProductionOrderModal
+        open={createOrderModalOpen}
+        onClose={() => {
+          setCreateOrderModalOpen(false);
+          setEditModalOrder(null);
+        }}
+        initialOrder={editModalOrder}
+        machinesList={machines}
+        onSaved={(newOrder) => {
+          load({ isRefresh: true });
+          setCreatedToastOrder(newOrder);
+        }}
+      />
 
       {/* Global CSS for Print Optimization */}
       <style>{`

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import Loader from "../../components/common/Loader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { getInvoices, createPayment } from "../../api/salesApi";
 import useTenantId from "../../hooks/useTenantId";
 import { useToast } from "../../context/ToastContext";
@@ -74,7 +73,6 @@ export default function CreatePayment() {
 
   return (
     <div style={{ maxWidth: 500 }} className="space-y-4 p-4">
-      <ManufacturingWorkflowBar currentStepId="payment" compact />
       <h2>Record Payment</h2>
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14, marginTop: 16 }}>
         <label>

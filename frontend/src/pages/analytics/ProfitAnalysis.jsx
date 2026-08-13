@@ -13,6 +13,7 @@ import {
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
 import EmptyState from "../../components/common/EmptyState";
+import KpiCard from "../../components/common/KpiCard";
 import { useToast } from "../../context/ToastContext";
 import { getProfitAnalysis } from "../../api/analyticsApi";
 
@@ -53,17 +54,15 @@ export default function ProfitAnalysis() {
         subtitle={`Revenue, cost, and margin for ${data.year}.`}
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <StatCard label="Revenue" value={fmt(data.total_revenue)} />
-        <StatCard label="Expenses" value={fmt(data.total_expense)} />
-        <StatCard label="Net Profit" value={fmt(data.total_profit)} accent />
-        <StatCard label="Margin" value={`${data.overall_margin_percent}%`} />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Revenue" value={fmt(data.total_revenue)} tone="success" />
+        <KpiCard label="Expenses" value={fmt(data.total_expense)} tone="danger" />
+        <KpiCard label="Net Profit" value={fmt(data.total_profit)} tone="primary" />
+        <KpiCard label="Margin" value={`${data.overall_margin_percent}%`} tone="info" />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
-        <h3 className="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-200">
-          Monthly Revenue vs Expense vs Profit
-        </h3>
+      <div className="ui-card p-6">
+        <h3 className="ui-section-title mb-4">Monthly Revenue vs Expense vs Profit</h3>
         {hasData ? (
           <ResponsiveContainer width="100%" height={340}>
             <LineChart data={data.monthly}>
@@ -81,20 +80,6 @@ export default function ProfitAnalysis() {
           <EmptyState icon="chart" title="No financial data" description="Record income and expenses to see profit trends." />
         )}
       </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value, accent }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-      <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
-      <p
-        className="mt-1 text-2xl font-bold"
-        style={{ color: accent ? "var(--color-primary)" : undefined }}
-      >
-        {value}
-      </p>
     </div>
   );
 }

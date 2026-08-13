@@ -9,7 +9,7 @@ import { cancelInvoice, getInvoicesV2 } from "../../api/salesApi";
 import { apiErrorMessage } from "../../utils/apiError";
 import { formatInr } from "../../data/salesMasterData";
 
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const PAGE_BG = "var(--color-bg)";
 const PAGE_SIZES = [10, 20, 50];
 
@@ -282,7 +282,7 @@ export default function CreditNotes() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search"
-              className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] shadow-sm placeholder:text-[#9a9aa5] focus:border-[#F5C518] focus:outline-none focus:ring-2 focus:ring-[#F5C518]/25"
+              className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] shadow-sm placeholder:text-[#9a9aa5] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/25"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
@@ -304,7 +304,7 @@ export default function CreditNotes() {
             </div>
             <Link
               to="/sales/credit-notes/create"
-              className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f] shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm"
               style={{ background: YELLOW }}
             >
               <Plus className="h-4 w-4" strokeWidth={2.5} /> Create Credit Note
@@ -394,7 +394,7 @@ export default function CreditNotes() {
                       </p>
                       <Link
                         to="/sales/credit-notes/create"
-                        className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
+                        className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
                         style={{ background: YELLOW }}
                       >
                         <Plus className="h-4 w-4" /> Create Credit Note
@@ -499,7 +499,7 @@ export default function CreditNotes() {
             </button>
             <span
               className="min-w-[2rem] rounded-md border border-[#e4e4ea] px-2.5 py-1 text-center text-[13px] font-semibold"
-              style={{ background: `${YELLOW}B3` }}
+              style={{ background: "color-mix(in srgb, var(--color-primary) 28%, white)" }}
             >
               {page}
             </span>

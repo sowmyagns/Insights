@@ -40,7 +40,7 @@ import {
 
 const LAVENDER = "#efeaf8";
 const PURPLE = "#6b4eff";
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const PREFIX_STORAGE_KEY = "gns_quotation_prefixes";
 const DEFAULT_PREFIXES = ["QUO"];
 const ADD_PREFIX_VALUE = "__add_prefix__";
@@ -477,7 +477,7 @@ export default function QuotationForm() {
         tenant_id: form.tenant_id,
         customer_id: customerId,
         customer_name: buyer?.name || form.consignee_name || null,
-        quote_number: quoteNumber,
+        quote_number: isEdit ? quoteNumber : undefined,
         quote_date: form.issue_date,
         valid_until: form.valid_until || form.due_date || null,
         status: "draft",
@@ -485,6 +485,30 @@ export default function QuotationForm() {
         discount: invoiceDiscount,
         notes: notesParts || null,
         sales_person: form.sales_person || null,
+        meta_json: {
+          items: filledItems.map((i) => {
+            const t = lineTotals(i);
+            return {
+              item_description: i.item_description.trim(),
+              hsn: i.hsn || null,
+              qty: Number(i.qty) || 0,
+              unit: i.unit || "pcs",
+              rate: Number(i.rate) || 0,
+              tax_type: i.tax_type || "Exclusive",
+              discount: Number(i.discount) || 0,
+              discount_type: i.discount_type || "₹",
+              gst_pct: Number(i.gst_pct) || 0,
+              taxable_value: t.taxable,
+              gst_amount: t.gst,
+              amount: t.total,
+            };
+          }),
+          transportation: { ...form },
+          payment_terms: form.payment_terms || null,
+          terms: termsAttached ? form.notes : null,
+          round_off: Number(form.round_off) || 0,
+          other_charge: otherCharge,
+        },
       };
       const res = isEdit
         ? await updateQuotation(editId, payload)
@@ -493,7 +517,8 @@ export default function QuotationForm() {
         quotation_id: res.data?.id || editId,
       });
       addToast(isEdit ? "Quotation updated" : "Quotation created");
-      navigate("/sales/quotations");
+      const savedId = res.data?.id || editId;
+      navigate(savedId ? `/sales/quotations/${savedId}` : "/sales/quotations");
     } catch (err) {
       console.error(err);
       addToast(apiErrorMessage(err, "Failed to save quotation"), "error");
@@ -540,7 +565,7 @@ export default function QuotationForm() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-[#1a1a1f] shadow-sm disabled:opacity-60"
+            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-white shadow-sm disabled:opacity-60"
             style={{ background: YELLOW }}
           >
             {saving ? "Saving…" : "Save"}
@@ -1329,7 +1354,7 @@ export default function QuotationForm() {
                 aria-checked={signatureOn}
                 onClick={() => setSignatureOn((v) => !v)}
                 className={`relative h-6 w-11 rounded-full transition ${
-                  signatureOn ? "bg-[#F5C518]" : "bg-[#d4d4d8]"
+                  signatureOn ? "bg-[var(--color-primary)]" : "bg-[#d4d4d8]"
                 }`}
               >
                 <span

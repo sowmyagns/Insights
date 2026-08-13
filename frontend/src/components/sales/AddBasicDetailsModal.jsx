@@ -1,8 +1,8 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const PURPLE = "#6b4eff";
 
 const CREDIT_DAYS = ["0", "7", "15", "30", "45", "60", "90"];
@@ -19,9 +19,11 @@ const inputClass =
 
 export default function AddBasicDetailsModal({ open, onClose, initial, onSave }) {
   const [form, setForm] = useState(EMPTY);
+  const [emailError, setEmailError] = useState("");
 
   useEffect(() => {
     if (!open) return;
+    setEmailError("");
     setForm({
       payment_terms_days: initial?.payment_terms_days ?? "",
       opening_balance: initial?.opening_balance ?? "",
@@ -34,7 +36,20 @@ export default function AddBasicDetailsModal({ open, onClose, initial, onSave })
 
   const handleSave = (e) => {
     e.preventDefault();
-    onSave?.({ ...form });
+    const trimmedEmail = form.email.trim();
+    if (form.email && !trimmedEmail) {
+      setEmailError("Email cannot contain only spaces.");
+      return;
+    }
+    if (trimmedEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedEmail) || trimmedEmail.includes("..")) {
+        setEmailError("Please enter a valid email address.");
+        return;
+      }
+    }
+    setEmailError("");
+    onSave?.({ ...form, email: trimmedEmail || null });
     onClose?.();
   };
 
@@ -123,7 +138,7 @@ export default function AddBasicDetailsModal({ open, onClose, initial, onSave })
                     onClick={() => setForm((f) => ({ ...f, balance_type: opt.id }))}
                     className={`inline-flex items-center justify-center gap-2 rounded-full border px-3 py-2 text-[13px] font-medium transition ${
                       active
-                        ? "border-[#F5C518] bg-white text-[#1a1a1f]"
+                        ? "border-[var(--color-primary)] bg-white text-[#1a1a1f]"
                         : "border-[#d8d8e0] bg-white text-[#6b6b76]"
                     }`}
                   >
@@ -153,10 +168,16 @@ export default function AddBasicDetailsModal({ open, onClose, initial, onSave })
             <input
               type="email"
               value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, email: e.target.value }));
+                if (emailError) setEmailError("");
+              }}
               placeholder="Enter Email ID"
-              className={inputClass}
+              className={`${inputClass}${emailError ? " border-[#e11d48] focus:border-[#e11d48] focus:ring-[#fecdd3]" : ""}`}
             />
+            {emailError && (
+              <p className="mt-1 text-[11px] font-medium text-[#e11d48]">{emailError}</p>
+            )}
             <p className="mt-2 text-[11px] leading-relaxed text-[#9a9aa5]">
               This email id will be used to send vouchers and party statements when you
               use the &apos;Send Email&apos; feature in Insights Iva.
@@ -174,7 +195,7 @@ export default function AddBasicDetailsModal({ open, onClose, initial, onSave })
           </button>
           <button
             type="submit"
-            className="rounded-xl py-3 text-[14px] font-semibold text-[#1a1a1f]"
+            className="rounded-xl py-3 text-[14px] font-semibold text-white"
             style={{ background: YELLOW }}
           >
             Save

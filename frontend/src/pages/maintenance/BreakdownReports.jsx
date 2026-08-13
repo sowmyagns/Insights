@@ -1,33 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { AlertTriangle, Clock, Timer, Wrench, Zap } from "lucide-react";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import MaintenanceErrorState from "../../components/maintenance/MaintenanceErrorState";
 import MaintenanceFilters from "../../components/maintenance/MaintenanceFilters";
 import Loader from "../../components/common/Loader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { useToast } from "../../context/ToastContext";
 import { getBreakdownsEnriched, getBreakdownSummary, updateBreakdownStatus } from "../../api/maintenanceApi";
 import { DEMO_BREAKDOWN_LIST, DEMO_BREAKDOWN_SUMMARY, WORK_ORDER_FLOW, mntStatusColor, priorityColor } from "../../data/maintenanceMasterData";
 
-function KpiCard({ label, value, icon: Icon, color, suffix }) {
-  return (
-    <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none">{value}{suffix || ""}</p>
-      </div>
-    </div>
-  );
-}
 
 const STATUS_NEXT = { reported: "assigned", assigned: "in_progress", in_progress: "resolved" };
 
@@ -45,7 +29,6 @@ export default function BreakdownReports() {
     setError(null);
     try {
       const [sumRes, listRes] = await Promise.allSettled([getBreakdownSummary(), getBreakdownsEnriched()]);
-
 
       if (sumRes.status === "rejected" && listRes.status === "rejected") throw new Error("Network error");
       if (sumRes.status === "fulfilled" && sumRes.value?.data) setSummary({ ...DEMO_BREAKDOWN_SUMMARY, ...sumRes.value.data });
@@ -109,19 +92,10 @@ export default function BreakdownReports() {
   if (error && !rows.length) return <MaintenanceErrorState message={error} onRetry={load} />;
 
   return (
-    <div className="min-h-full pb-8 print:p-0" style={{ background: "#F5F5F5" }}>
-      <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
-        <div>
-          <p className="mt-0.5 text-xs text-slate-500 print:hidden">Critical production breakdowns — downtime tracking, MTTR, and repair workflow.</p>
-        </div>
+    <div className="space-y-5 pb-4">
+      <PageHeader subtitle="Critical production breakdowns — downtime tracking, MTTR, and repair workflow." />
 
-
-        <div className="mb-0 flex flex-wrap items-center justify-between gap-2 print:hidden">
-          <div className="flex flex-wrap gap-2">
-          </div>
-        </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="ui-grid-kpi">
         <KpiCard label="Active Breakdowns" value={summary.active_breakdowns} icon={AlertTriangle} color="bg-red-500" />
         <KpiCard label="Total Downtime" value={summary.total_downtime_hours} suffix=" h" icon={Clock} color="bg-orange-500" />
         <KpiCard label="MTTR" value={summary.avg_repair_time_mttr} suffix=" h" icon={Timer} color="bg-indigo-600" />
@@ -130,11 +104,11 @@ export default function BreakdownReports() {
         <KpiCard label="Emergency" value={summary.emergency_breakdowns} icon={Zap} color="bg-red-700" />
       </div>
 
-      <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-medium text-slate-600 sm:text-xs">
+      <div className="ui-toolbar ui-card px-4 py-3 text-[var(--text-xs)] font-medium text-[var(--color-text-secondary)]">
         {WORK_ORDER_FLOW.map((s, i) => (
           <span key={s} className="flex items-center gap-1">
-            <span className="rounded bg-white px-1.5 py-0.5 shadow-sm">{s}</span>
-            {i < WORK_ORDER_FLOW.length - 1 && <span className="text-slate-400">↓</span>}
+            <span className="rounded bg-[var(--color-surface)] px-1.5 py-0.5 ring-1 ring-[var(--color-border)]">{s}</span>
+            {i < WORK_ORDER_FLOW.length - 1 && <span className="text-[var(--color-text-faint)]">↓</span>}
           </span>
         ))}
       </div>
@@ -143,7 +117,6 @@ export default function BreakdownReports() {
 
       <div className="ui-card p-4 sm:p-5 overflow-x-auto">
         <DataTable columns={columns} data={filtered} searchPlaceholder="" searchKeys={[]} />
-      </div>
       </div>
     </div>
   );

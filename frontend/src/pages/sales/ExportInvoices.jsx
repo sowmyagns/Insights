@@ -245,7 +245,7 @@ export default function ExportInvoices() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search"
-            className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] shadow-sm placeholder:text-[#9a9aa5] focus:border-[#F5C518] focus:outline-none focus:ring-2 focus:ring-[#F5C518]/25"
+            className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] shadow-sm placeholder:text-[#9a9aa5] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/25"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -269,7 +269,7 @@ export default function ExportInvoices() {
           </div>
           <Link
             to="/sales/export-invoices/create"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#F5C518] px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f] shadow-sm hover:bg-[#e6b800]"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm hover:bg-[var(--color-primary-hover)]"
           >
             <Plus className="h-4 w-4" strokeWidth={2.5} />
             Export Invoice
@@ -358,7 +358,7 @@ export default function ExportInvoices() {
                     </p>
                     <Link
                       to="/sales/export-invoices/create"
-                      className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#F5C518] px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
+                      className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-[14px] font-semibold text-white"
                     >
                       <Plus className="h-4 w-4" /> Export Invoice
                     </Link>
@@ -422,7 +422,7 @@ export default function ExportInvoices() {
                         {(r.payment_status || r.status) !== "paid" && (
                           <Link
                             to={`/sales/payments/create?invoice_id=${r.id}`}
-                            className="text-[12px] font-semibold text-teal-700 hover:underline"
+                            className="text-[12px] font-semibold text-[var(--color-success)] hover:underline"
                           >
                             Pay
                           </Link>
@@ -466,7 +466,7 @@ export default function ExportInvoices() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="min-w-[2rem] rounded-md bg-[#F5C518]/70 px-2.5 py-1 text-center text-[13px] font-semibold text-[#1a1a1f]">
+            <span className="min-w-[2rem] rounded-md bg-[var(--color-primary-soft)] px-2.5 py-1 text-center text-[13px] font-semibold text-[var(--color-primary-dark)]">
               {page}
             </span>
             <button

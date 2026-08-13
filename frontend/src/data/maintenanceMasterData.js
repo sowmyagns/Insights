@@ -61,7 +61,7 @@ export function mntStatusColor(s) {
     assigned: "bg-amber-100 text-amber-800",
     resolved: "bg-green-100 text-green-800",
     closed: "bg-slate-200 text-slate-700",
-    verified: "bg-teal-100 text-teal-800",
+    verified: "bg-teal-100 text-[var(--color-success)]",
     running: "bg-green-100 text-green-800",
     idle: "bg-slate-100 text-slate-700",
     breakdown: "bg-red-100 text-red-800",

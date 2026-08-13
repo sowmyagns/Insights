@@ -9,7 +9,7 @@ import { deleteBizDocument, listBizDocuments } from "../../api/bizDocumentsApi";
 import { apiErrorMessage } from "../../utils/apiError";
 import { formatInr } from "../../data/salesMasterData";
 
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const PAGE_BG = "#F5F5F5";
 const PAGE_SIZES = [10, 25, 50];
 
@@ -185,7 +185,7 @@ export default function Purchases() {
           </div>
           <Link
             to="/purchases/create"
-            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f] shadow-sm"
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm"
             style={{ background: YELLOW }}
           >
             <Plus className="h-4 w-4" strokeWidth={2.5} /> Create New
@@ -201,7 +201,7 @@ export default function Purchases() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search"
-              className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] shadow-sm placeholder:text-[#9a9aa5] focus:border-[#F5C518] focus:outline-none focus:ring-2 focus:ring-[#F5C518]/25"
+              className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] shadow-sm placeholder:text-[#9a9aa5] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/25"
             />
           </div>
           <div className="relative flex gap-2">
@@ -286,7 +286,7 @@ export default function Purchases() {
                       </p>
                       <Link
                         to="/purchases/create"
-                        className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
+                        className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
                         style={{ background: YELLOW }}
                       >
                         <Plus className="h-4 w-4" /> Create New
@@ -314,15 +314,13 @@ export default function Purchases() {
                       <td className="border-t border-[#d0d0d8] px-4 py-3">
                         <div className="flex flex-wrap gap-2">
                           <Link
-                            to={`/purchases/${r.id}/edit`}
-                            state={{ viewId: r.id, document: r }}
+                            to={`/purchases/${r.id}`}
                             className="text-[12px] font-semibold text-[#6b4eff] hover:underline"
                           >
                             View
                           </Link>
                           <Link
                             to={`/purchases/${r.id}/edit`}
-                            state={{ viewId: r.id, document: r }}
                             className="text-[12px] font-semibold text-[#4a4a55] hover:underline"
                           >
                             Edit
@@ -375,7 +373,7 @@ export default function Purchases() {
             </button>
             <span
               className="min-w-[2rem] rounded-md border border-[#e4e4ea] px-2.5 py-1 text-center text-[13px] font-semibold"
-              style={{ background: `${YELLOW}B3` }}
+              style={{ background: "color-mix(in srgb, var(--color-primary) 28%, white)" }}
             >
               {page}
             </span>

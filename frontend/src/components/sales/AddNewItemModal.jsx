@@ -11,12 +11,13 @@ import {
 } from "lucide-react";
 
 import AddCustomFieldModal from "./AddCustomFieldModal";
-import { createProduct, updateProduct } from "../../api/productsApi";
+import { createProduct, getProducts, updateProduct } from "../../api/productsApi";
 import { PRODUCT_CATEGORIES, PRODUCT_UNITS } from "../../data/productsMasterData";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
+import { apiErrorMessage } from "../../utils/apiError";
 
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-primary)";
 const PURPLE = "#6b4eff";
 const BLUE = "#2563eb";
 
@@ -45,6 +46,7 @@ const EMPTY = {
   purchase_price: "0",
   purchase_tax_type: "Exclusive",
   opening_stock: "",
+  min_stock: "",
   barcode: "",
   track_inventory: "",
   low_stock_alert: false,
@@ -208,7 +210,7 @@ function ViewBarcodeModal({ open, code, onClose }) {
           <button
             type="button"
             onClick={download}
-            className="rounded-xl py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
+            className="rounded-xl py-2.5 text-[14px] font-semibold text-white"
             style={{ background: YELLOW }}
           >
             Download
@@ -288,8 +290,25 @@ export default function AddNewItemModal({
   const [customOpen, setCustomOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const [existingProducts, setExistingProducts] = useState([]);
 
   const isGoods = form.item_type === "goods";
+
+  useEffect(() => {
+    if (!open) {
+      setBarcodeOpen(false);
+      return;
+    }
+    let mounted = true;
+    getProducts()
+      .then((res) => {
+        if (mounted && Array.isArray(res?.data)) setExistingProducts(res.data);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -316,6 +335,7 @@ export default function AddNewItemModal({
         category: item?.category || "",
         purchase_price: String(item?.purchase_price ?? item?.unit_cost ?? "0"),
         opening_stock: String(item?.current_stock ?? ""),
+        min_stock: String(item?.min_stock ?? ""),
         barcode: existingBarcode,
         low_stock_alert: Number(item?.min_stock || 0) > 0,
         image_url: item?.image_url || "",
@@ -363,8 +383,62 @@ export default function AddNewItemModal({
       addToast("Item Name is required", "error");
       return;
     }
+    if (!/[a-zA-Z0-9]/.test(form.name.trim())) {
+      addToast("Product Name must contain at least one letter or number and cannot consist only of special characters", "error");
+      return;
+    }
+    const cleanName = form.name.trim().toLowerCase();
+    const dup = existingProducts.find(
+      (p) =>
+        String(p.id) !== String(item?.id) &&
+        p.name &&
+        p.name.trim().toLowerCase() === cleanName
+    );
+    if (dup) {
+      addToast(`Product Name "${form.name.trim()}" already exists.`, "error");
+      return;
+    }
     if (!form.sale_price && form.sale_price !== "0") {
       addToast("Sale Price is required", "error");
+      return;
+    }
+    if (form.purchase_price !== "" && form.purchase_price !== null && form.purchase_price !== undefined) {
+      const pCost = Number(form.purchase_price);
+      if (!isNaN(pCost) && pCost < 0) {
+        addToast("Purchase Price cannot be negative.", "error");
+        return;
+      }
+    }
+    if (form.sale_price !== "" && form.sale_price !== null && form.sale_price !== undefined) {
+      const sPrice = Number(form.sale_price);
+      if (!isNaN(sPrice) && sPrice < 0) {
+        addToast("Sale Price cannot be negative.", "error");
+        return;
+      }
+    }
+    if (form.opening_stock !== "" && form.opening_stock !== null && form.opening_stock !== undefined) {
+      const oStock = Number(form.opening_stock);
+      if (!isNaN(oStock) && oStock < 0) {
+        addToast("Current Stock cannot be negative.", "error");
+        return;
+      }
+    }
+    if (form.min_stock !== "" && form.min_stock !== null && form.min_stock !== undefined) {
+      const mStock = Number(form.min_stock);
+      if (!isNaN(mStock) && mStock < 0) {
+        addToast("Min Stock cannot be negative.", "error");
+        return;
+      }
+    }
+    // Cross-field: selling price must not be less than purchase price
+    const pCostFinal = Number(form.purchase_price);
+    const sPriceFinal = Number(form.sale_price);
+    if (
+      form.purchase_price !== "" && form.sale_price !== "" &&
+      !isNaN(pCostFinal) && !isNaN(sPriceFinal) &&
+      sPriceFinal < pCostFinal
+    ) {
+      addToast("Selling Price cannot be lower than Purchase Price.", "error");
       return;
     }
 
@@ -374,11 +448,13 @@ export default function AddNewItemModal({
         form.barcode.trim() ||
         `SKU-${Date.now().toString().slice(-8)}`;
       const stockQty = Number(form.opening_stock);
+      const minStockVal = Number(form.min_stock);
       const payload = {
         tenant_id: tenantId,
         sku,
         name: form.name.trim(),
         category: form.category || "Finished Goods",
+        product_type: form.category || "Finished Goods",
         description: [
           form.description.trim(),
           form.item_type === "services" ? "Type: Service" : "Type: Goods",
@@ -395,10 +471,14 @@ export default function AddNewItemModal({
         unit_cost: Number(form.purchase_price) || 0,
         unit: form.unit || form.primary_unit || "Pcs",
         current_stock:
-          isGoods && Number.isFinite(stockQty) && stockQty >= 1
-            ? Math.floor(stockQty)
-            : 1,
-        min_stock: form.low_stock_alert ? 1 : undefined,
+          isGoods && Number.isFinite(stockQty)
+            ? Math.max(0, Math.floor(stockQty))
+            : 0,
+        min_stock: Number.isFinite(minStockVal)
+          ? minStockVal
+          : form.low_stock_alert
+            ? 1
+            : undefined,
       };
 
       let product = null;
@@ -406,12 +486,8 @@ export default function AddNewItemModal({
         const res = await updateProduct(item.id, payload);
         product = res?.data || null;
       } else {
-        try {
-          const res = await createProduct(payload);
-          product = res?.data || null;
-        } catch {
-          // Still add to invoice line if master create fails (e.g. permission).
-        }
+        const res = await createProduct(payload);
+        product = res?.data || null;
       }
 
       const line = {
@@ -435,7 +511,7 @@ export default function AddNewItemModal({
       onSaved?.(line, product, { isEdit: Boolean(item?.id), item });
       onClose?.();
     } catch (err) {
-      addToast(err.response?.data?.detail || "Failed to save item", "error");
+      addToast(apiErrorMessage(err, "Failed to save item"), "error");
     } finally {
       setSaving(false);
     }
@@ -494,7 +570,7 @@ export default function AddNewItemModal({
                     onClick={() => setForm((f) => ({ ...f, item_type: opt.id }))}
                     className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-[13px] font-semibold transition ${
                       active
-                        ? "border-[#F5C518] bg-[#FFF6D6] text-[#1a1a1f]"
+                        ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[#1a1a1f]"
                         : "border-[#e4e4ea] bg-white text-[#4a4a55]"
                     }`}
                   >
@@ -553,7 +629,7 @@ export default function AddNewItemModal({
                     onChange={(e) =>
                       setForm((f) => ({
                         ...f,
-                        sale_price: e.target.value.replace(/[^\d.]/g, ""),
+                        sale_price: e.target.value.replace(/[^\d.-]/g, ""),
                       }))
                     }
                     placeholder="Enter Price"
@@ -745,11 +821,11 @@ export default function AddNewItemModal({
                     <span className="flex items-center pl-3 text-[13px] text-[#6b6b76]">₹</span>
                     <input
                       value={form.purchase_price}
-                      onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                      onFocus={(e) => { const t = e.target; setTimeout(() => t?.select?.(), 0); }}
                       onChange={(e) =>
                         setForm((f) => {
-                          let val = e.target.value.replace(/[^\d.]/g, "");
-                          if (/^0+[1-9]/.test(val)) val = val.replace(/^0+/, "");
+                          let val = e.target.value.replace(/[^\d.-]/g, "");
+                          val = val.replace(/^0+(?=[0-9])/, "");
                           return { ...f, purchase_price: val };
                         })
                       }
@@ -782,15 +858,31 @@ export default function AddNewItemModal({
                     <SoftLabel>Opening Stock</SoftLabel>
                     <input
                       value={form.opening_stock}
-                      onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                      onFocus={(e) => { const t = e.target; setTimeout(() => t?.select?.(), 0); }}
                       onChange={(e) =>
                         setForm((f) => {
-                          let val = e.target.value.replace(/[^\d.]/g, "");
-                          if (/^0+[1-9]/.test(val)) val = val.replace(/^0+/, "");
+                          let val = e.target.value.replace(/[^\d.-]/g, "");
+                          val = val.replace(/^0+(?=[0-9])/, "");
                           return { ...f, opening_stock: val };
                         })
                       }
                       placeholder="Enter stock quantity"
+                      className={inputClass}
+                    />
+                  </label>
+                  <label className="block">
+                    <SoftLabel>Min Stock</SoftLabel>
+                    <input
+                      value={form.min_stock}
+                      onFocus={(e) => { const t = e.target; setTimeout(() => t?.select?.(), 0); }}
+                      onChange={(e) =>
+                        setForm((f) => {
+                          let val = e.target.value.replace(/[^\d.-]/g, "");
+                          val = val.replace(/^0+(?=[0-9])/, "");
+                          return { ...f, min_stock: val };
+                        })
+                      }
+                      placeholder="Enter min stock"
                       className={inputClass}
                     />
                   </label>
@@ -870,7 +962,7 @@ export default function AddNewItemModal({
                           }
                           className={`rounded-full border px-3 py-1.5 text-[12px] font-medium ${
                             active
-                              ? "border-[#F5C518] bg-[#FFF6D6] text-[#1a1a1f]"
+                              ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[#1a1a1f]"
                               : "border-[#d8d8e0] bg-white text-[#6b6b76]"
                           }`}
                         >
@@ -1021,7 +1113,7 @@ export default function AddNewItemModal({
           <button
             type="submit"
             disabled={saving}
-            className="rounded-xl py-3 text-[14px] font-semibold text-[#1a1a1f] disabled:opacity-60"
+            className="rounded-xl py-3 text-[14px] font-semibold text-white disabled:opacity-60"
             style={{ background: YELLOW }}
           >
             {saving ? "Saving…" : "Save"}

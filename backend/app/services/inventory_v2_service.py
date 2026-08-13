@@ -57,19 +57,34 @@ def serialize_item(p: Product) -> dict:
     }
 
 
-def list_items(db: Session, tenant_id: int, q: str | None = None) -> list[dict]:
-    stmt = select(Product).where(Product.tenant_id == tenant_id).order_by(Product.name)
+def list_items(
+    db: Session,
+    tenant_id: int,
+    q: str | None = None,
+    *,
+    limit: int = 500,
+    offset: int = 0,
+) -> list[dict]:
+    from sqlalchemy import or_
+
+    stmt = select(Product).where(Product.tenant_id == tenant_id)
+    if q and q.strip():
+        needle = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                Product.name.ilike(needle),
+                Product.sku.ilike(needle),
+                Product.hsn_code.ilike(needle),
+                Product.category.ilike(needle),
+            )
+        )
+    stmt = (
+        stmt.order_by(Product.name)
+        .offset(max(0, offset))
+        .limit(max(1, min(limit, 2000)))
+    )
     rows = list(db.scalars(stmt).all())
-    data = [serialize_item(p) for p in rows]
-    if q:
-        needle = q.strip().lower()
-        data = [
-            r
-            for r in data
-            if needle
-            in f"{r['name']} {r['hsn_code']} {r['category']} {r['sku']}".lower()
-        ]
-    return data
+    return [serialize_item(p) for p in rows]
 
 
 def get_item(db: Session, tenant_id: int, product_id: int) -> dict | None:

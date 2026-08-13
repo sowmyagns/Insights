@@ -12,7 +12,7 @@ export const DEPARTMENT_COLORS = {
   Production: "bg-blue-100 text-blue-800",
   Quality: "bg-purple-100 text-purple-800",
   Maintenance: "bg-orange-100 text-orange-800",
-  Stores: "bg-teal-100 text-teal-800",
+  Stores: "bg-teal-100 text-[var(--color-success)]",
   HR: "bg-pink-100 text-pink-800",
   Finance: "bg-indigo-100 text-indigo-800",
 };

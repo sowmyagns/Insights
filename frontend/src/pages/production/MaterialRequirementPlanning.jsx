@@ -5,7 +5,6 @@ import { AlertTriangle, CheckCircle2, ClipboardList, Package, ShoppingCart } fro
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { useToast } from "../../context/ToastContext";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { runMrp } from "../../api/productionApi";
@@ -198,27 +197,23 @@ export default function MaterialRequirementPlanning() {
   }
 
 const PAGE_BG = "var(--color-bg)";
-const YELLOW = "#F5C518";
 
   return (
     <div className="min-h-full pb-8" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
         <PageHeader
           title="Material Requirement Planning"
-          subtitle="Explode BOM against stock. Shortages automatically create a Purchase Request."
           action={
             <div className="flex flex-wrap gap-2">
-              <Link to="/procurement/material-requests" className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]">
+              <Link to="/procurement/material-requests" className="ui-btn-secondary">
                 <ShoppingCart className="h-4 w-4" /> Purchase Requests
               </Link>
-              <Link to="/production/planning" className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f]" style={{ background: YELLOW }}>
+              <Link to="/production/planning" className="ui-btn-success">
                 Production Planning
               </Link>
             </div>
           }
         />
-
-      <ManufacturingWorkflowBar currentStepId="mrp" />
 
       <form
         onSubmit={handleRun}
@@ -291,7 +286,7 @@ const YELLOW = "#F5C518";
           <ClipboardList className="mx-auto h-10 w-10 text-slate-300" />
           <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-300">No products in masters.</p>
           {!isOperator(user) && (
-            <Link to="/masters/products" className="ui-btn-primary mt-4 inline-flex">
+            <Link to="/masters/products" className="ui-btn-success mt-4 inline-flex">
               Add products
             </Link>
           )}
@@ -330,7 +325,7 @@ const YELLOW = "#F5C518";
                 </Link>
               )}
               {result.enough_stock && (
-                <Link to="/production/planning" className="ui-btn-primary">
+                <Link to="/production/planning" className="ui-btn-success">
                   Go to Production Planning
                 </Link>
               )}

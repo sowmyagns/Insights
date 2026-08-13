@@ -157,7 +157,7 @@ export default function SectorSettingsV2() {
       <div className="mx-auto max-w-[1100px] px-4 py-5 sm:px-6 lg:px-8">
         <div className="rounded-2xl border border-[#d8d8de] bg-white px-4 py-6 shadow-sm sm:px-8 sm:py-8">
           <div className="mb-6 flex items-start gap-3">
-            <span className="mt-0.5 grid h-9 w-9 place-items-center rounded-lg bg-teal-50 text-[#6b4eff]">
+            <span className="mt-0.5 grid h-9 w-9 place-items-center rounded-lg bg-[var(--color-success-soft)] text-[#6b4eff]">
               <Settings2 className="h-4.5 w-4.5 h-[18px] w-[18px]" />
             </span>
             <div>

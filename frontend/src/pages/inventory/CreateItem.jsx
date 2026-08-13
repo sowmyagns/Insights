@@ -36,7 +36,7 @@ const DEFAULT_WAREHOUSES = [
 ];
 
 const PAGE_BG = "var(--color-bg)";
-const YELLOW = "#F5C518";
+const YELLOW = "var(--color-cta)";
 
 /* ─── Collapsible Section Component (matching Create Production) ─────────────── */
 function CollapsibleSection({ title, subtitle, expanded, onToggle, children }) {
@@ -50,7 +50,7 @@ function CollapsibleSection({ title, subtitle, expanded, onToggle, children }) {
         <button
           type="button"
           onClick={onToggle}
-          className="ml-4 flex items-center gap-1.5 rounded-full border border-[#F5C518] bg-white px-4 py-1.5 text-[13px] font-semibold text-slate-800 hover:bg-yellow-50 transition-colors"
+          className="ml-4 flex items-center gap-1.5 rounded-full border border-[var(--color-cta)] bg-white px-4 py-1.5 text-[13px] font-semibold text-slate-800 hover:bg-yellow-50 transition-colors"
         >
           {expanded ? (
             <><ChevronUp className="h-3.5 w-3.5" /> Hide</>

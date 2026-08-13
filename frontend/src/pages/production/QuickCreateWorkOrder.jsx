@@ -538,7 +538,7 @@ export default function QuickCreateWorkOrder() {
           <button
             type="submit"
             disabled={saving || products.length === 0}
-            className="rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-700 disabled:bg-slate-400"
+            className="rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[var(--color-success)] disabled:bg-slate-400"
           >
             {saving ? "Saving..." : "Save & Done"}
           </button>

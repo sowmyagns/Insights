@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -173,13 +173,18 @@ class InventoryItem(Base, TimestampMixin):
 
 class StockLevel(Base, TimestampMixin):
     __tablename__ = "stock_levels"
+    __table_args__ = (
+        UniqueConstraint(
+            "warehouse_id", "item_id", name="uq_stock_levels_warehouse_item"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     warehouse_id: Mapped[int] = mapped_column(
-        ForeignKey("warehouses.id"), nullable=False
+        ForeignKey("warehouses.id"), nullable=False, index=True
     )
     item_id: Mapped[int] = mapped_column(
-        ForeignKey("inventory_items.id"), nullable=False
+        ForeignKey("inventory_items.id"), nullable=False, index=True
     )
     quantity: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
@@ -195,10 +200,10 @@ class StockMovement(Base, TimestampMixin):
         ForeignKey("tenants.id"), nullable=False, index=True
     )
     warehouse_id: Mapped[int] = mapped_column(
-        ForeignKey("warehouses.id"), nullable=False
+        ForeignKey("warehouses.id"), nullable=False, index=True
     )
     item_id: Mapped[int] = mapped_column(
-        ForeignKey("inventory_items.id"), nullable=False
+        ForeignKey("inventory_items.id"), nullable=False, index=True
     )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     movement_type: Mapped[str] = mapped_column(

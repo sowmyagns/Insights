@@ -5,9 +5,10 @@ import { AlertTriangle, ArrowDownRight, ArrowUpRight, IndianRupee, Landmark, Tre
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
+import KpiCard from "../../components/common/KpiCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import Loader from "../../components/common/Loader";
-import ManufacturingWorkflowBar from "../../components/manufacturing/ManufacturingWorkflowBar";
 import { getFinanceHub } from "../../api/accountsApi";
 import { getInvoices, getPayments } from "../../api/salesApi";
 import { FINANCE_FLOW, formatInr } from "../../data/financeMasterData";
@@ -37,24 +38,6 @@ const INITIAL_FINANCE_HUB = {
   alerts: [],
 };
 
-function KpiCard({ label, value, icon: Icon, color, sub }) {
-  return (
-    <div className="ui-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value}</p>
-          {sub && <p className="mt-0.5 text-xs text-slate-400">{sub}</p>}
-        </div>
-        {Icon && (
-          <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}>
-            <Icon className="h-4 w-4 text-white" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 const alertIcons = { overdue: TrendingDown, gst: Landmark, ap: ArrowDownRight, budget: AlertTriangle };
 
@@ -181,24 +164,20 @@ export default function AccountsDashboard() {
           {error}
         </div>
       )}
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="ui-eyebrow">Finance</p>
-          <h2 className="mt-0.5 ui-title">Finance Dashboard</h2>
-          <p className="ui-subtitle">Enterprise finance hub — cash flow, revenue, expenses, GST, and manufacturing cost insights.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setShowRecordIncome(true)} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700">+ Record Income</button>
-          <button type="button" onClick={() => setShowRecordExpense(true)} className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700">+ Record Expense</button>
-        </div>
-      </header>
+      <PageHeader
+        subtitle="Enterprise finance hub — cash flow, revenue, expenses, GST, and manufacturing cost insights."
+        action={
+          <>
+            <button type="button" onClick={() => setShowRecordIncome(true)} className="ui-btn-primary">+ Record Income</button>
+            <button type="button" onClick={() => setShowRecordExpense(true)} className="ui-btn-danger">+ Record Expense</button>
+          </>
+        }
+      />
 
-      <ManufacturingWorkflowBar currentStepId="invoice" />
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Total Receivables" value={formatInr(hub.total_receivables)} icon={ArrowUpRight} color="bg-teal-700" />
+      <div className="ui-grid-kpi">
+        <KpiCard label="Total Receivables" value={formatInr(hub.total_receivables)} icon={ArrowUpRight} color="bg-[var(--color-success)]" />
         <KpiCard label="Outstanding Payables" value={formatInr(hub.outstanding_payables)} icon={ArrowDownRight} color="bg-rose-600" />
-        <KpiCard label="Cash Balance" value={formatInr(hub.cash_balance)} icon={IndianRupee} color="bg-emerald-600" />
+        <KpiCard label="Cash Balance" value={formatInr(hub.cash_balance)} icon={IndianRupee} color="bg-[var(--color-success)]" />
         <KpiCard label="Monthly Revenue" value={formatInr(hub.monthly_revenue)} icon={TrendingUp} color="bg-indigo-600" />
         <KpiCard label="Monthly Expenses" value={formatInr(hub.monthly_expenses)} icon={TrendingDown} color="bg-amber-500" />
         <KpiCard label="Net Profit" value={formatInr(hub.net_profit)} icon={IndianRupee} color="bg-cyan-600" sub={`GST Payable: ${formatInr(hub.gst_payable)}`} />
@@ -226,23 +205,23 @@ export default function AccountsDashboard() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="ui-card p-5">
-          <h2 className="mb-4 text-sm font-bold text-slate-900">Department Cost</h2>
+          <h2 className="ui-section-title mb-4">Department Cost</h2>
           <ul className="space-y-2">
             {(hub.department_cost || []).map((d) => (
               <li key={d.name} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
                 <span className="font-medium">{d.name}</span>
-                <span className="font-semibold text-teal-800">{formatInr(d.amount)}</span>
+                <span className="font-semibold text-[var(--color-primary)]">{formatInr(d.amount)}</span>
               </li>
             ))}
           </ul>
         </div>
         <div className="ui-card p-5">
-          <h2 className="mb-4 text-sm font-bold text-slate-900">Manufacturing Cost</h2>
+          <h2 className="ui-section-title mb-4">Manufacturing Cost</h2>
           <ul className="space-y-2">
             {(hub.manufacturing_cost || []).map((d) => (
               <li key={d.name} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
                 <span className="font-medium">{d.name}</span>
-                <span className="font-semibold text-teal-800">{formatInr(d.amount)}</span>
+                <span className="font-semibold text-[var(--color-primary)]">{formatInr(d.amount)}</span>
               </li>
             ))}
           </ul>
@@ -250,7 +229,7 @@ export default function AccountsDashboard() {
       </div>
 
       <div className="ui-card p-5">
-        <h2 className="mb-4 text-sm font-bold text-slate-900">Accounts Aging</h2>
+        <h2 className="ui-section-title mb-4">Accounts Aging</h2>
         <div className="h-48">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={hub.accounts_aging || []}>
@@ -265,7 +244,7 @@ export default function AccountsDashboard() {
       </div>
 
       <div className="ui-card p-5">
-        <h2 className="mb-4 text-sm font-bold text-slate-900">Alerts</h2>
+        <h2 className="ui-section-title mb-4">Alerts</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {(hub.alerts || []).map((a, i) => {
             const Icon = alertIcons[a.type] || AlertTriangle;
