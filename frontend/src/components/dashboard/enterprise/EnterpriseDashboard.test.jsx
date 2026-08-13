@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+﻿import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -56,6 +56,6 @@ describe("EnterpriseDashboard", () => {
         <EnterpriseDashboard />
       </MemoryRouter>
     );
-    expect(await screen.findByText("GNS Insights Command Center")).toBeInTheDocument();
+    expect(await screen.findByText("Insights Iva Command Center")).toBeInTheDocument();
   });
 });

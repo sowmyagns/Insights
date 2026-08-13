@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Check,
@@ -664,7 +664,7 @@ function NotificationsSection() {
   return (
     <PanelShell
       title="Notifications"
-      description="Choose how GNS Insights alerts you about operations and system events."
+      description="Choose how Insights Iva alerts you about operations and system events."
       actions={
         <button type="button" className="ui-btn-primary" onClick={save}>
           <Save className="h-4 w-4" /> Save
@@ -1119,7 +1119,7 @@ function AboutSection() {
       <SectionCard>
         <dl className="grid gap-3 sm:grid-cols-2">
           {[
-            ["Application", "GNS Insights ERP"],
+            ["Application", "Insights Iva ERP"],
             ["Version", "1.0.0"],
             ["Build", "2026.07"],
             ["License", user?.license_status || "Active"],

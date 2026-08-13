@@ -1,0 +1,69 @@
+﻿
+> sm-ai-frontend@0.1.0 test
+> vitest run
+
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Users/gogul/Downloads/GNS Insights/Insights/GNS Insights/frontend[39m
+
+ [32mΓ£ô[39m src/config/permissions.test.js [2m([22m[2m13 tests[22m[2m)[22m[90m 24[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/finance/accountsPayableUtils.test.js [2m([22m[2m2 tests[22m[2m)[22m[90m 8[2mms[22m[39m
+ [32mΓ£ô[39m src/components/common/ActionButton.test.jsx [2m([22m[2m1 test[22m[2m)[22m[90m 168[2mms[22m[39m
+ [32mΓ£ô[39m src/components/hr/DepartmentDetailModal.test.jsx [2m([22m[2m1 test[22m[2m)[22m[33m 416[2mms[22m[39m
+   [33m[2mΓ£ô[22m[39m DepartmentFormModal[2m > [22mrequires department code and name before saving [33m413[2mms[22m[39m
+ [32mΓ£ô[39m src/components/common/RowActionMenu.test.jsx [2m([22m[2m1 test[22m[2m)[22m[90m 278[2mms[22m[39m
+node.exe : [90mstderr[2m | 
+src/components/dashboard/reference/ReferenceDashboard.test.jsx[2m > 
+[22m[2mReferenceDashboard[2m > [22m[2mshows store KPIs and hides 
+production sections for Store Manager
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([90mstderr[2m...r Store Manager 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[22m[39mΓÜá∩╕Å React Router Future Flag Warning: React Router will begin 
+wrapping state updates in `React.startTransition` in v7. You can use the 
+`v7_startTransition` future flag to opt-in early. For more information, see 
+https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+ΓÜá∩╕Å React Router Future Flag Warning: Relative route resolution within 
+Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future 
+flag to opt-in early. For more information, see 
+https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+[90mstderr[2m | src/components/hr/EmployeeDetailModal.test.jsx[2m > 
+[22m[2mEmployeeDetailModal[2m > [22m[2mshows personal details from the 
+employee row
+[22m[39mΓÜá∩╕Å React Router Future Flag Warning: React Router will begin 
+wrapping state updates in `React.startTransition` in v7. You can use the 
+`v7_startTransition` future flag to opt-in early. For more information, see 
+https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+ΓÜá∩╕Å React Router Future Flag Warning: Relative route resolution within 
+Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future 
+flag to opt-in early. For more information, see 
+https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32mΓ£ô[39m src/components/hr/EmployeeDetailModal.test.jsx [2m([22m[2m1 test[22m[2m)[22m[90m 234[2mms[22m[39m
+ [32mΓ£ô[39m src/components/dashboard/reference/ReferenceDashboard.test.jsx [2m([22m[2m2 tests[22m[2m)[22m[33m 514[2mms[22m[39m
+   [33m[2mΓ£ô[22m[39m ReferenceDashboard[2m > [22mshows store KPIs and hides production sections for Store Manager [33m357[2mms[22m[39m
+ [32mΓ£ô[39m src/App.test.jsx [2m([22m[2m3 tests[22m[2m)[22m[90m 3[2mms[22m[39m
+[90mstderr[2m | 
+src/components/dashboard/enterprise/EnterpriseDashboard.test.jsx[2m > 
+[22m[2mEnterpriseDashboard[2m > [22m[2mrenders KPI values from the live 
+ERP dashboard payload
+[22m[39mΓÜá∩╕Å React Router Future Flag Warning: React Router will begin 
+wrapping state updates in `React.startTransition` in v7. You can use the 
+`v7_startTransition` future flag to opt-in early. For more information, see 
+https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+ΓÜá∩╕Å React Router Future Flag Warning: Relative route resolution within 
+Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future 
+flag to opt-in early. For more information, see 
+https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32mΓ£ô[39m src/components/dashboard/enterprise/EnterpriseDashboard.test.jsx [2m([22m[2m1 test[22m[2m)[22m[90m 204[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m9 passed[39m[22m[90m (9)[39m
+[2m      Tests [22m [1m[32m25 passed[39m[22m[90m (25)[39m
+[2m   Start at [22m 12:23:09
+[2m   Duration [22m 7.32s[2m (transform 3.25s, setup 3.92s, collect 12.61s, tests 1.85s, environment 23.67s, prepare 3.89s)[22m
+

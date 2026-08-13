@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Download, Mail, Printer, X } from "lucide-react";
 
@@ -68,9 +68,9 @@ export default function QuoteDetailModal({ quote, onClose, onStatusChange, onCon
   const handleSendEmail = () => {
     const companyEmail = "sales@gnsinsights.com";
     const customerEmail = `${(quote.customer_name || "client").toLowerCase().replace(/[^a-z0-9]/g, "")}@company.com`;
-    const subject = encodeURIComponent(`Commercial Quotation ${quote.quote_number} - GNS Insights`);
+    const subject = encodeURIComponent(`Commercial Quotation ${quote.quote_number} - Insights Iva`);
     const body = encodeURIComponent(
-      `Dear ${quote.customer_name || "Customer"},\n\nPlease find attached Commercial Quotation ${quote.quote_number} for total amount ${formatInr(amount)}.\n\nQuote Date: ${quote.quote_date || "—"}\nValid Until: ${quote.valid_until || "—"}\nSales Representative: ${quote.sales_person || "Vikram Sharma"}\n\nTerms & Notes:\n${quote.notes || "30% advance deposit, 70% upon dispatch. Validity: 30 days."}\n\nBest regards,\nGNS Insights Sales Team\nCompany Email: ${companyEmail}`
+      `Dear ${quote.customer_name || "Customer"},\n\nPlease find attached Commercial Quotation ${quote.quote_number} for total amount ${formatInr(amount)}.\n\nQuote Date: ${quote.quote_date || "—"}\nValid Until: ${quote.valid_until || "—"}\nSales Representative: ${quote.sales_person || "Vikram Sharma"}\n\nTerms & Notes:\n${quote.notes || "30% advance deposit, 70% upon dispatch. Validity: 30 days."}\n\nBest regards,\nInsights Iva Sales Team\nCompany Email: ${companyEmail}`
     );
 
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&tf=1&to=${customerEmail}&cc=${companyEmail}&su=${subject}&body=${body}`;

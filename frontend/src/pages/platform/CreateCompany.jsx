@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -504,7 +504,7 @@ function PageHeader() {
       <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3.5 sm:px-6">
         <BrandLogo size="hero" />
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900">GNS Admin Portal</p>
+          <p className="text-sm font-semibold text-slate-900">Insights Iva Admin Portal</p>
           <p className="text-xs text-slate-500">Company provisioning</p>
         </div>
       </div>

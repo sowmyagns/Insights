@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════════
-   Invoice.css  —  single-pixel borders everywhere, no doubles
+   Invoice.css  —  single-pixel borders, no horizontal lines
+                   inside goods-table body rows
    ═══════════════════════════════════════════════════════════ */
 
 .invoice-page {
@@ -48,7 +49,7 @@
   font-weight: 700;
 }
 
-/* ── ALL tables: collapse so adjacent cells share one border ── */
+/* ── ALL tables: collapse borders ── */
 .invoice-page table {
   width: 100%;
   border-collapse: collapse;
@@ -56,32 +57,76 @@
   margin: 0;
 }
 
-/* ── meta-table: full outer border, top included ── */
+/* ── meta-table ── */
 .invoice-page .meta-table {
   border: 1px solid #000;
 }
 
-/* ── goods-table: overlaps meta-table by 1px so borders share ── */
+.invoice-page .meta-table th,
+.invoice-page .meta-table td {
+  border: 1px solid #000;
+  padding: 4px 5px;
+  vertical-align: middle;
+  font-size: 9.5px;
+  line-height: 1.25;
+}
+
+/* ── goods-table outer box ── */
 .invoice-page .goods-table {
   border-left: 1px solid #000;
   border-right: 1px solid #000;
-  border-bottom: none;       /* total-row bottom IS the bottom line */
   border-top: none;
-  margin-top: -1px;          /* overlap meta-table bottom = shared single line */
+  border-bottom: none;
+  margin-top: -1px;
 }
 
-/* ── tax-table: overlaps amount-word bottom by 1px ── */
+/* ── goods-table: base cell — only right border (vertical divider) ── */
+.invoice-page .goods-table th,
+.invoice-page .goods-table td {
+  border: none;
+  border-right: 1px solid #000;
+  padding: 4px 6px;
+  vertical-align: middle;
+  font-size: 9.5px;
+  line-height: 1.25;
+}
+
+/* last column: no right border (table outer border handles it) */
+.invoice-page .goods-table th:last-child,
+.invoice-page .goods-table td:last-child {
+  border-right: none;
+}
+
+/* ── header row: top + bottom lines, grey bg ── */
+.invoice-page .goods-table thead th {
+  border-top: 1px solid #000;
+  border-bottom: 1px solid #000;
+  background: #f4f4f4;
+  font-weight: 700;
+  text-align: center;
+  font-size: 9px;
+  padding: 5px 6px;
+}
+
+/* ── body rows (items, fillers, tax row): NO horizontal lines ── */
+.invoice-page .goods-table tbody tr:not(.goods-total-row) td {
+  border-top: none;
+  border-bottom: none;
+}
+
+/* ── total row: top + bottom lines ── */
+.invoice-page .goods-table tbody tr.goods-total-row td {
+  border-top: 1px solid #000;
+  border-bottom: 1px solid #000;
+}
+
+/* ── tax-table ── */
 .invoice-page .tax-table {
   border: 1px solid #000;
   border-top: none;
-  margin-top: -1px;   /* overlap amount-word bottom = shared single line */
+  margin-top: -1px;
 }
 
-/* ── All table cells: uniform 1px border ── */
-.invoice-page .meta-table th,
-.invoice-page .meta-table td,
-.invoice-page .goods-table th,
-.invoice-page .goods-table td,
 .invoice-page .tax-table th,
 .invoice-page .tax-table td {
   border: 1px solid #000;
@@ -91,42 +136,6 @@
   line-height: 1.25;
 }
 
-/* ── goods-table cells: only vertical column borders, no horizontal row lines ── */
-.invoice-page .goods-table th,
-.invoice-page .goods-table td {
-  border-top: none;
-  border-bottom: none;
-  border-left: none;
-  border-right: 1px solid #000;
-}
-.invoice-page .goods-table th:first-child,
-.invoice-page .goods-table td:first-child {
-  border-left: 1px solid #000;
-}
-
-/* goods header: top line restores the shared border; bottom separates header from rows */
-.invoice-page .goods-table thead tr th {
-  border-top: 1px solid #000;
-  border-bottom: 1px solid #000;
-}
-
-/* goods total row: top line separates from data; bottom closes the table */
-.invoice-page .goods-table tbody tr.goods-total-row td {
-  border-top: 1px solid #000;
-  border-bottom: 1px solid #000; /* this IS the top of amount-word */
-}
-
-/* ── Label cells (grey background) ── */
-.invoice-page .meta-table .label,
-.invoice-page .meta-table th.label,
-.invoice-page .meta-table td.label {
-  background: #f4f4f4;
-  font-weight: 700;
-  font-size: 8.8px;
-}
-
-/* ── Table header cells ── */
-.invoice-page .goods-table thead th,
 .invoice-page .tax-table thead th {
   background: #f4f4f4;
   font-weight: 700;
@@ -135,7 +144,16 @@
   padding: 5px 6px;
 }
 
-/* ── Company cell (left spanning cell) ── */
+/* ── Label cells ── */
+.invoice-page .meta-table .label,
+.invoice-page .meta-table th.label,
+.invoice-page .meta-table td.label {
+  background: #f4f4f4;
+  font-weight: 700;
+  font-size: 8.8px;
+}
+
+/* ── Company cell ── */
 .invoice-page .company-cell {
   border-right: 1px solid #000;
   padding: 0;
@@ -193,9 +211,6 @@
 }
 
 /* ── Alignment helpers ── */
-.invoice-page .goods-table td,
-.invoice-page .tax-table td { padding: 4px 6px; }
-
 .invoice-page .goods-table td.text-right,
 .invoice-page .tax-table td.text-right { text-align: right; }
 
@@ -212,13 +227,13 @@
 .invoice-page .meta-table th.bold,
 .invoice-page .bold { font-weight: 700; }
 
-/* amount-word: overlaps goods total-row bottom by 1px — shared single line */
+/* ── Amount in words ── */
 .invoice-page .amount-word {
   border-left: 1px solid #000;
   border-right: 1px solid #000;
   border-bottom: 1px solid #000;
   border-top: none;
-  margin-top: -1px;   /* overlap total-row bottom = shared single line */
+  margin-top: -1px;
   padding: 5px 7px 6px;
   font-size: 9.2px;
   line-height: 1.35;

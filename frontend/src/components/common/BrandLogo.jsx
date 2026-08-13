@@ -1,4 +1,4 @@
-const LOGO_SRC = "/logo.png";
+﻿const LOGO_SRC = "/logo.png";
 
 const SIZE_CLASS = {
   sm: "h-9",
@@ -13,7 +13,7 @@ export default function BrandLogo({
   className = "",
   imageClassName = "",
   showName = false,
-  name = "GNS Insights",
+  name = "Insights Iva",
   nameClassName = "",
   nameStyle,
 }) {
@@ -23,7 +23,7 @@ export default function BrandLogo({
     <div className={`flex items-center gap-2.5 ${className}`}>
       <img
         src={LOGO_SRC}
-        alt="GNS Insights logo"
+        alt="Insights Iva logo"
         className={`${heightClass} w-auto max-w-full object-contain shrink-0 ${imageClassName}`}
       />
       {showName ? (

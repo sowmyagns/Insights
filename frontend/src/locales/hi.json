@@ -1,4 +1,4 @@
-{
+﻿{
   "erpNav": {
     "roleWorkflow": "भूमिका-आधारित वर्कफ़्लो"
   },
@@ -95,7 +95,7 @@
     "tagline": "एआई के साथ स्मार्ट विनिर्माण",
     "userRole": "उपयोगकर्ता भूमिका",
     "superAdmin": "सुपर एडमिन",
-    "footerTagline": "GNS Insights · स्मार्ट विनिर्माण को सशक्त बनाना"
+    "footerTagline": "Insights Iva · स्मार्ट विनिर्माण को सशक्त बनाना"
   },
   "common": {
     "search": "खोजें...",
@@ -232,7 +232,7 @@
     "powerConsumption": "बिजली खपत",
     "productionEfficiency": "उत्पादन दक्षता",
     "targetAchievement": "लक्ष्य प्राप्ति",
-    "copyright": "© 2026 GNS Insights. सर्वाधिकार सुरक्षित।",
+    "copyright": "© 2026 Insights Iva. सर्वाधिकार सुरक्षित।",
     "poweredBy": "GNS Software Pvt Ltd द्वारा संचालित",
     "alertDelayed": "कार्य आदेश WO-1025 विलंबित है",
     "alertMaintenance": "मशीन CNC-03 को रखरखाव की आवश्यकता है",

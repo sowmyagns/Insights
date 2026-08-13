@@ -1,4 +1,4 @@
-{
+﻿{
   "erpNav": {
     "dashboard": "Dashboard",
     "roleWorkflow": "Role Workflow",
@@ -214,7 +214,7 @@
     "tagline": "Business Intelligence • Analytics • AI",
     "userRole": "User Role",
     "superAdmin": "Super Admin",
-    "footerTagline": "GNS Insights · Business Intelligence • Analytics • AI",
+    "footerTagline": "Insights Iva · Business Intelligence • Analytics • AI",
     "groupHome": "Home",
     "groupOperations": "Operations",
     "groupCommerce": "Commerce",
@@ -460,7 +460,7 @@
     "workingHours": "Working Hours",
     "powerConsumption": "Power Consumption",
     "targetAchievement": "Target Achievement",
-    "copyright": "© 2026 GNS Insights. All rights reserved.",
+    "copyright": "© 2026 Insights Iva. All rights reserved.",
     "poweredBy": "Powered by GNS Software Private Limited",
     "alertDelayed": "Work Order WO-1025 is delayed",
     "alertMaintenance": "Machine CNC-03 requires maintenance",

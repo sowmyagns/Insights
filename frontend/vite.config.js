@@ -11,6 +11,8 @@ export default defineConfig({
     strictPort: false,
     watch: {
       ignored: ["**/node_modules_bak_push/**", "**/dist/**", "**/.git/**"],
+      usePolling: true,
+      interval: 300,
     },
     proxy: {
       // Proxy API requests while bypassing static public assets (.png, .jpg, etc.)

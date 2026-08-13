@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
@@ -159,7 +159,7 @@ export default function AddBasicDetailsModal({ open, onClose, initial, onSave })
             />
             <p className="mt-2 text-[11px] leading-relaxed text-[#9a9aa5]">
               This email id will be used to send vouchers and party statements when you
-              use the &apos;Send Email&apos; feature in GNS Insights.
+              use the &apos;Send Email&apos; feature in Insights Iva.
             </p>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { Info, Check, Eye, Phone, GitCompare, X } from "lucide-react";
 
@@ -172,7 +172,7 @@ export default function SettingsMySubscription() {
           <p className="mt-1 text-sm text-green-700 dark:text-green-500">
             {trialActive && expiryLabel
               ? `Trial is active until ${expiryLabel}. Unlock all features during the trial window.`
-              : "Unlock all the features on GNS Insights with just one click!"}
+              : "Unlock all the features on Insights Iva with just one click!"}
           </p>
         </div>
         <button

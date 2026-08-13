@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bot, ChevronDown, Download, History, Loader2, Printer, Send, Sparkles, X,
@@ -31,7 +31,7 @@ const OPERATION_CARDS = [
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Build a standalone print-ready HTML page from the markdown content element. */
-function buildPrintHtml(contentHtml, title = "GNS Insights — AI Reply") {
+function buildPrintHtml(contentHtml, title = "Insights Iva — AI Reply") {
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -52,10 +52,10 @@ function buildPrintHtml(contentHtml, title = "GNS Insights — AI Reply") {
   </style>
 </head>
 <body>
-  <h1>GNS Insights — AI Assistant</h1>
+  <h1>Insights Iva — AI Assistant</h1>
   <div class="meta">Generated on ${new Date().toLocaleString("en-IN", { dateStyle: "long", timeStyle: "short" })}</div>
   <div class="content">${contentHtml}</div>
-  <div class="footer">Confidential · GNS Insights ERP · Operator AI Assistant</div>
+  <div class="footer">Confidential · Insights Iva ERP · Operator AI Assistant</div>
 </body>
 </html>`;
 }
@@ -91,7 +91,7 @@ function downloadAsPdf(plainText) {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text("GNS Insights — AI Assistant", margin, 14);
+  doc.text("Insights Iva — AI Assistant", margin, 14);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   const now = new Date().toLocaleString("en-IN", { dateStyle: "long", timeStyle: "short" });
@@ -156,7 +156,7 @@ function downloadAsPdf(plainText) {
     doc.setFontSize(7);
     doc.setTextColor(148, 163, 184);
     doc.text(
-      `Confidential · GNS Insights ERP · Operator AI Assistant  |  Page ${p} of ${totalPages}`,
+      `Confidential · Insights Iva ERP · Operator AI Assistant  |  Page ${p} of ${totalPages}`,
       pageW / 2,
       pageH - 6,
       { align: "center" }
@@ -300,7 +300,7 @@ export default function AiChatWidget() {
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
               <div>
-                <p className="text-sm font-semibold">GNS Insights Assistant</p>
+                <p className="text-sm font-semibold">Insights Iva Assistant</p>
                 <p className="text-[10px] opacity-80">Production · Inventory · Analytics</p>
               </div>
             </div>

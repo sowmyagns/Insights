@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import BrandLogo from "../components/common/BrandLogo";
 
 const features = [
@@ -40,7 +40,7 @@ export default function Landing() {
           </div>
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl" style={{ color: "var(--color-dark-bg)" }}>
             Control Your Factory in Real-Time with{" "}
-            <span style={{ color: "var(--color-primary)" }}>GNS Insights</span>
+            <span style={{ color: "var(--color-primary)" }}>Insights Iva</span>
           </h1>
           <p className="mt-6 text-xl text-slate-600">
             Business Intelligence • Analytics • AI for modern manufacturing operations.
@@ -136,7 +136,7 @@ export default function Landing() {
             <a href="#contact" className="hover:text-slate-900">Contact</a>
           </div>
         </div>
-        <p className="mt-6 text-center text-sm text-slate-500">© 2026 GNS Insights. All rights reserved.</p>
+        <p className="mt-6 text-center text-sm text-slate-500">© 2026 Insights Iva. All rights reserved.</p>
       </footer>
     </div>
   );

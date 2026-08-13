@@ -1,387 +1,373 @@
-/* GNS Insights — Enterprise GST Tax Invoice (original design) */
+/* Insights Iva — Classic Indian GST Tax Invoice (Stic-On style) */
 
-.gst-invoice {
-  --gst-teal: #0f766e;
-  --gst-teal-light: #ecfdf5;
-  --gst-border: #cbd5e1;
-  --gst-text: #0f172a;
-  --gst-muted: #64748b;
-
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+/* ──────────────────────────────────────────────
+   Wrapper / page
+────────────────────────────────────────────── */
+.gti-wrap {
+  font-family: "Arial", "Helvetica Neue", sans-serif;
   font-size: 11px;
-  line-height: 1.45;
-  color: var(--gst-text);
+  line-height: 1.4;
+  color: #000;
   background: #fff;
   width: 210mm;
   min-height: 297mm;
   margin: 0 auto;
-  padding: 12mm 14mm 10mm;
+  padding: 8mm 10mm 8mm;
   box-sizing: border-box;
-  border: 1px solid var(--gst-border);
+  border: 1px solid #888;
 }
 
-.gst-invoice__header {
+/* ──────────────────────────────────────────────
+   Top labels row  (Tax Invoice  |  e-Invoice)
+────────────────────────────────────────────── */
+.gti-top-labels {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  padding-bottom: 12px;
-  border-bottom: 3px solid var(--gst-teal);
-  margin-bottom: 12px;
-}
-
-.gst-invoice__brand {
-  display: flex;
-  gap: 12px;
-  flex: 1;
-}
-
-.gst-invoice__logo {
-  width: 64px;
-  height: 64px;
-  border: 1px solid var(--gst-border);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  flex-shrink: 0;
-  background: var(--gst-teal-light);
-}
-
-.gst-invoice__logo img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.gst-invoice__logo-fallback {
-  font-weight: 800;
-  color: var(--gst-teal);
-  font-size: 14px;
-}
-
-.gst-invoice__company {
-  margin: 0 0 2px;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--gst-teal);
-}
-
-.gst-invoice__tagline {
-  margin: 0 0 4px;
-  font-size: 10px;
-  color: var(--gst-muted);
-}
-
-.gst-invoice__address {
-  margin: 0 0 4px;
-  color: var(--gst-muted);
-}
-
-.gst-invoice__ids,
-.gst-invoice__contact {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  font-size: 10px;
-}
-
-.gst-invoice__title-block {
-  text-align: right;
-  min-width: 140px;
-}
-
-.gst-invoice__title {
-  margin: 0 0 8px;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: var(--gst-text);
-}
-
-.gst-invoice__einvoice-label {
-  display: block;
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--gst-teal);
+  align-items: flex-start;
   margin-bottom: 4px;
 }
 
-.gst-invoice__qr-wrap {
-  display: inline-block;
-  border: 1px solid var(--gst-border);
-  padding: 4px;
-  border-radius: 4px;
-  background: #fff;
+.gti-top-labels__title {
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  flex: 1;
 }
 
-.gst-invoice__qr-placeholder {
-  width: 80px;
-  height: 80px;
+.gti-top-labels__einv {
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 110px;
+  text-align: right;
+}
+
+/* ──────────────────────────────────────────────
+   IRN / Ack / QR row
+────────────────────────────────────────────── */
+.gti-irn-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid #888;
+  padding: 5px 8px;
+  margin-bottom: 0;
+  font-size: 10px;
+}
+
+.gti-irn-row__left {
+  flex: 1;
+}
+
+.gti-irn-row__left p {
+  margin: 2px 0;
+}
+
+.gti-irn-row__irn {
+  word-break: break-all;
+  font-size: 9px;
+}
+
+.gti-irn-row__qr {
+  flex-shrink: 0;
+}
+
+.gti-qr-ph {
+  width: 100px;
+  height: 100px;
+  border: 1px solid #ccc;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8fafc;
-  color: var(--gst-muted);
-}
-
-.gst-invoice__irn {
-  margin: 4px 0 0;
-  font-size: 8px;
-  word-break: break-all;
-  max-width: 160px;
-  margin-left: auto;
-}
-
-.gst-invoice__grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.gst-invoice__meta-grid {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.gst-invoice__card {
-  border: 1px solid var(--gst-border);
-  border-radius: 6px;
-  padding: 8px 10px;
-  background: #fafafa;
-}
-
-.gst-invoice__card h3 {
-  margin: 0 0 6px;
   font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--gst-teal);
-  border-bottom: 1px solid var(--gst-border);
-  padding-bottom: 4px;
+  color: #999;
 }
 
-.gst-invoice__card dl {
-  margin: 0;
-  display: grid;
-  gap: 3px;
-}
-
-.gst-invoice__card dl div {
-  display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 6px;
-}
-
-.gst-invoice__card dt {
-  color: var(--gst-muted);
-  font-weight: 500;
-}
-
-.gst-invoice__card dd {
-  margin: 0;
-  font-weight: 600;
-}
-
-.gst-invoice__party-name {
-  font-weight: 700;
-  margin: 0 0 4px;
-}
-
-.gst-invoice__table-wrap {
-  overflow-x: auto;
-  margin-bottom: 10px;
-}
-
-.gst-invoice__table {
+/* ──────────────────────────────────────────────
+   Shared table base
+────────────────────────────────────────────── */
+.gti-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 9.5px;
+  border: 1px solid #888;
+  margin-top: -1px; /* collapse borders */
 }
 
-.gst-invoice__table th,
-.gst-invoice__table td {
-  border: 1px solid var(--gst-border);
-  padding: 5px 6px;
+.gti-td,
+.gti-th {
+  border: 1px solid #888;
+  padding: 4px 6px;
   vertical-align: top;
 }
 
-.gst-invoice__table thead th {
-  background: var(--gst-teal);
-  color: #fff;
-  font-weight: 600;
+.gti-th {
+  background: #fff;
+  font-weight: 700;
   text-align: center;
+  font-size: 10.5px;
+}
+
+.gti-meta-label {
+  border: 1px solid #888;
+  padding: 3px 6px;
+  font-size: 10px;
+  color: #222;
+  vertical-align: top;
   white-space: nowrap;
 }
 
-.gst-invoice__table .num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+.gti-meta-val {
+  border: 1px solid #888;
+  padding: 3px 6px;
+  font-size: 10.5px;
+  vertical-align: top;
 }
 
-.gst-invoice__table .bold {
-  font-weight: 700;
+/* ──────────────────────────────────────────────
+   Seller block
+────────────────────────────────────────────── */
+.gti-seller-table {
+  /* stacked under irn row */
 }
 
-.gst-invoice__desc {
-  min-width: 120px;
+.gti-seller-cell {
+  border: 1px solid #888;
+  padding: 6px 8px;
+  vertical-align: top;
+  width: 50%;
 }
 
-.gst-invoice__code {
-  display: block;
-  font-size: 8px;
-  color: var(--gst-muted);
-  font-weight: 600;
+.gti-seller-logo {
+  max-width: 60px;
+  max-height: 50px;
+  object-fit: contain;
+  float: left;
+  margin-right: 8px;
+  border: 1px solid #ccc;
+  padding: 2px;
+  background: #fff;
 }
 
-.gst-invoice__summary-row {
+.gti-seller-logo-fb {
+  float: left;
+  width: 52px;
+  height: 44px;
+  border: 1px solid #ccc;
   display: flex;
-  gap: 12px;
-  margin-bottom: 10px;
-  align-items: flex-start;
-}
-
-.gst-invoice__words {
-  flex: 1;
-  border: 1px solid var(--gst-border);
-  border-radius: 6px;
-  padding: 8px 10px;
-  background: var(--gst-teal-light);
-}
-
-.gst-invoice__words-text {
-  margin: 4px 0 0;
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 10px;
-}
-
-.gst-invoice__remarks {
-  margin: 8px 0 0;
-  font-size: 9px;
-}
-
-.gst-invoice__totals {
-  min-width: 220px;
-  border-collapse: collapse;
-  font-size: 10px;
-}
-
-.gst-invoice__totals td {
-  border: 1px solid var(--gst-border);
-  padding: 5px 8px;
-}
-
-.gst-invoice__totals td:last-child {
-  text-align: right;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.gst-invoice__grand td {
-  background: var(--gst-teal);
-  color: #fff;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
   font-weight: 800;
+  color: #333;
+  margin-right: 8px;
+  background: #f5f5f5;
+}
+
+.gti-seller-info {
+  overflow: hidden;
+}
+
+.gti-seller-info p {
+  margin: 1px 0;
+  font-size: 10px;
+}
+
+.gti-seller-name {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  margin-bottom: 2px !important;
+}
+
+/* ──────────────────────────────────────────────
+   Consignee / Buyer party blocks
+────────────────────────────────────────────── */
+.gti-party-header {
+  border: 1px solid #888;
+  padding: 3px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #fff;
+}
+
+.gti-party-cell {
+  border: 1px solid #888;
+  padding: 5px 8px;
+  vertical-align: top;
+  min-height: 80px;
+}
+
+.gti-party-cell p {
+  margin: 1px 0;
+  font-size: 10px;
+}
+
+.gti-party-name {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  margin-bottom: 3px !important;
+}
+
+/* ──────────────────────────────────────────────
+   Items table
+────────────────────────────────────────────── */
+.gti-items-table thead tr th {
+  border: 1px solid #888;
+  padding: 4px 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: center;
+  background: #fff;
+}
+
+.gti-items-table tbody .gti-td {
+  font-size: 10.5px;
+}
+
+.gti-item-code {
+  font-size: 9px;
+  color: #555;
+  margin-top: 1px;
+}
+
+.gti-tax-row td {
+  font-size: 10.5px;
+}
+
+.gti-blank {
+  height: 14px;
+}
+
+.gti-total-row td {
+  border-top: 2px solid #000;
   font-size: 11px;
 }
 
-.gst-invoice__hsn-wrap {
-  margin-bottom: 10px;
+.gti-grand {
+  font-size: 12px !important;
+  font-weight: 800 !important;
 }
 
-.gst-invoice__hsn-table {
-  width: 100%;
-  border-collapse: collapse;
+/* ──────────────────────────────────────────────
+   Amount in words
+────────────────────────────────────────────── */
+.gti-words-cell {
+  border: 1px solid #888;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+/* ──────────────────────────────────────────────
+   HSN summary table
+────────────────────────────────────────────── */
+.gti-hsn-table thead th {
+  background: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.gti-hsn-total td {
+  font-weight: 700;
+  border-top: 1px solid #000;
+}
+
+/* ──────────────────────────────────────────────
+   Declaration / Rejection Policy
+────────────────────────────────────────────── */
+.gti-decl-cell {
+  border: 1px solid #888;
+  padding: 5px 8px;
+  font-size: 9.5px;
+  vertical-align: top;
+}
+
+.gti-decl-list {
+  margin: 0;
+  padding-left: 15px;
   font-size: 9.5px;
 }
 
-.gst-invoice__hsn-table th,
-.gst-invoice__hsn-table td {
-  border: 1px solid var(--gst-border);
-  padding: 4px 8px;
+.gti-decl-list li {
+  margin-bottom: 2px;
 }
 
-.gst-invoice__hsn-table thead th {
-  background: #f1f5f9;
-  font-weight: 700;
+.gti-remarks {
+  margin-top: 6px;
+  font-size: 9.5px;
 }
 
-.gst-invoice__tax-words {
-  margin: 4px 0 0;
+/* ──────────────────────────────────────────────
+   Signature row
+────────────────────────────────────────────── */
+.gti-sig-table {
+  margin-top: 0;
+}
+
+.gti-sig-cell {
+  border: 1px solid #888;
   padding: 6px 8px;
-  border: 1px solid var(--gst-border);
-  border-top: none;
-  font-size: 9px;
+  vertical-align: top;
+  height: 52px;
 }
 
-.gst-invoice__footer-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.gst-invoice__terms ol {
-  margin: 0;
-  padding-left: 16px;
-  font-size: 9px;
-  color: var(--gst-muted);
-}
-
-.gst-invoice__signatures {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--gst-border);
-  font-size: 9px;
-}
-
-.gst-invoice__signatures > div {
-  flex: 1;
-}
-
-.gst-invoice__signatures span {
+.gti-sig-label {
   display: block;
-  color: var(--gst-muted);
-  margin-bottom: 24px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-bottom: 2px;
 }
 
-.gst-invoice__signatory {
+.gti-sig-line {
+  display: block;
+  font-size: 10px;
+  margin-top: 24px;
+}
+
+.gti-sig-company {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
   text-align: right;
 }
 
-.gst-invoice__sign-line {
-  margin-top: 28px;
+.gti-sig-auth {
+  display: block;
+  font-size: 10px;
   font-weight: 700;
-  border-top: 1px solid var(--gst-text);
-  display: inline-block;
-  padding-top: 4px;
+  text-align: right;
+  margin-top: 28px;
+  border-top: 1px solid #000;
+  padding-top: 2px;
 }
 
-.gst-invoice__disclaimer {
+/* ──────────────────────────────────────────────
+   Disclaimer
+────────────────────────────────────────────── */
+.gti-disclaimer {
   text-align: center;
-  font-size: 8.5px;
-  color: var(--gst-muted);
+  font-size: 9px;
+  color: #444;
   font-style: italic;
-  margin: 8px 0 0;
+  margin: 5px 0 0;
 }
 
+/* ──────────────────────────────────────────────
+   Utilities
+────────────────────────────────────────────── */
+.gti-bold   { font-weight: 700; }
+.gti-center { text-align: center; }
+.gti-right  { text-align: right; font-variant-numeric: tabular-nums; }
+.gti-small-italic { font-size: 9px; font-style: italic; }
+
+/* ──────────────────────────────────────────────
+   Print
+────────────────────────────────────────────── */
 @media print {
-  body * {
-    visibility: hidden;
-  }
-
-  .gst-invoice,
-  .gst-invoice * {
-    visibility: visible;
-  }
-
-  .gst-invoice {
+  body * { visibility: hidden; }
+  .gti-wrap, .gti-wrap * { visibility: visible; }
+  .gti-wrap {
     position: absolute;
-    left: 0;
-    top: 0;
+    left: 0; top: 0;
     width: 100%;
     margin: 0;
     padding: 10mm;
@@ -390,15 +376,12 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-
-  .no-print {
-    display: none !important;
-  }
+  .no-print { display: none !important; }
 }
 
 @media screen {
-  .gst-invoice {
-    box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+  .gti-wrap {
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.1);
     margin: 16px auto;
   }
 }

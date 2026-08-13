@@ -94,8 +94,6 @@ export default function AccessLogs() {
         eyebrow="Admin"
         title="Audit Logs"
         subtitle="Audit trail of administrative actions across users, roles, and permissions."
-        action={
-        }
       />
 
       <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800 sm:p-6">

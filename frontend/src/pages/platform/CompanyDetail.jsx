@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, CreditCard, Users } from "lucide-react";
@@ -138,7 +138,7 @@ function CompanyDetailContent() {
             <div className="ap-header__brand">
               <BrandLogo size="hero" />
               <div>
-                <div className="ap-header__title">GNS Admin Portal</div>
+                <div className="ap-header__title">Insights Iva Admin Portal</div>
                 <div className="ap-header__sub">Company Detail</div>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { Link, Outlet } from "react-router-dom";
+﻿import { Link, Outlet } from "react-router-dom";
 import { ArrowLeft, Settings } from "lucide-react";
 
 import useSettings from "../../context/SettingsContext";
@@ -19,7 +19,7 @@ export default function SettingsLayout() {
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-                GNS Insights Settings
+                Insights Iva Settings
               </p>
               <p className="truncate text-xs text-slate-500">{tenantName}</p>
             </div>

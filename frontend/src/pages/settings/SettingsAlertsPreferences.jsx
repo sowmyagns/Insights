@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Info, RefreshCw, Shield } from "lucide-react";
 
 const DATA_SCOPE_OPTIONS = ["All data", "My data", "Team data"];
@@ -113,7 +113,7 @@ export default function SettingsAlertsPreferences() {
               className="mt-1 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
             />
             <span className="text-sm text-slate-700 dark:text-slate-300">
-              I agree to receive GNS Insights account related information on WhatsApp
+              I agree to receive Insights Iva account related information on WhatsApp
             </span>
             <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-green-100 text-green-600 dark:bg-green-900/40">
               <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">

@@ -131,6 +131,8 @@ class InvoiceBase(BaseModel):
     grand_total: float = 0
     amount_paid: float = 0
     status: str = "draft"
+    ack_no: str | None = None
+    ack_date: date | None = None
 
 
 class InvoiceCreate(InvoiceBase):

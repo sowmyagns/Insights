@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { superAdminLogin } from "../../api/platformApi";
@@ -124,7 +124,7 @@ export default function SuperAdminLogin() {
             <div className="sa-card__logo">
               <BrandLogo size="lg" />
             </div>
-            <h1 className="sa-card__title">GNS Admin Portal</h1>
+            <h1 className="sa-card__title">Insights Iva Admin Portal</h1>
             <p className="sa-card__subtitle">Super Admin sign in</p>
           </div>
 

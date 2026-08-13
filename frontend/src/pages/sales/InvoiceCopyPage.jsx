@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Download, Mail, MessageCircle, Printer, Share2 } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
-import GstTaxInvoice from "../../components/sales/GstTaxInvoice";
+import TaxInvoiceCopy from "../../components/sales/TaxInvoiceCopy";
 import { useToast } from "../../context/ToastContext";
 import {
   downloadInvoicePdf,
@@ -96,7 +96,7 @@ export default function InvoiceCopyPage() {
   const handleWhatsApp = useCallback(() => {
     const phone = (copyData?.buyer?.phone || "").replace(/\D/g, "");
     const text = encodeURIComponent(
-      `Tax Invoice ${invoiceNo} from ${copyData?.seller?.name || "GNS Insights"}. Total: ₹${copyData?.summary?.grand_total ?? copyData?.grandTotal ?? 0}`
+      `Tax Invoice ${invoiceNo} from ${copyData?.seller?.name || "Insights Iva"}. Total: ₹${copyData?.summary?.grand_total ?? copyData?.grandTotal ?? 0}`
     );
     const url = phone
       ? `https://wa.me/${phone.startsWith("91") ? phone : `91${phone}`}?text=${text}`
@@ -154,7 +154,7 @@ export default function InvoiceCopyPage() {
           ) : null}
         </div>
       </div>
-      <GstTaxInvoice data={copyData} />
+      <TaxInvoiceCopy data={copyData} />
     </div>
   );
 }

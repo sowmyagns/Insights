@@ -423,6 +423,8 @@ def create_invoice_v2(db: Session, payload: InvoiceV2Create) -> Invoice:
         bank_details_json=json.dumps(payload.bank_details) if payload.bank_details else None,
         custom_fields_json=json.dumps(payload.custom_fields) if payload.custom_fields else None,
         notes=payload.notes,
+        ack_no=payload.ack_no,
+        ack_date=payload.ack_date,
     )
     db.add(inv)
     db.flush()
@@ -602,6 +604,8 @@ def update_invoice_v2(db: Session, tenant_id: int, invoice_id: int, payload: Inv
     inv.bank_details_json = json.dumps(payload.bank_details) if payload.bank_details else inv.bank_details_json
     inv.custom_fields_json = json.dumps(payload.custom_fields) if payload.custom_fields else inv.custom_fields_json
     inv.notes = payload.notes
+    inv.ack_no = payload.ack_no
+    inv.ack_date = payload.ack_date
     inv.e_waybill_status = "active" if payload.ewaybill_number else getattr(inv, "e_waybill_status", None) or "all"
 
     for old in list(inv.items):
@@ -713,6 +717,8 @@ def get_invoice_v2(db: Session, tenant_id: int, invoice_id: int) -> InvoiceV2Rea
         sales_order_id=inv.sales_order_id,
         document_type=getattr(inv, "document_type", None) or "tax_invoice",
         invoice_prefix=getattr(inv, "invoice_prefix", None),
+        ack_no=getattr(inv, "ack_no", None) or f"ACK-{inv.id:03d}",
+        ack_date=getattr(inv, "ack_date", None) or inv.issue_date,
         invoice_number=inv.invoice_number,
         issue_date=inv.issue_date,
         due_date=inv.due_date,

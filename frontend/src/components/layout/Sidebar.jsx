@@ -383,7 +383,7 @@ export default function Sidebar({ collapsed = false, onToggleCollapse, onClose }
           <BrandLogo size="md" imageClassName="rounded-lg bg-white/95 p-0.5" />
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-lg font-bold tracking-tight">GNS Insights</p>
+              <p className="text-lg font-bold tracking-tight">Insights Iva</p>
               <p className="text-[9px] leading-tight text-slate-400">
                 {storeMode ? "Store Manager" : t("nav.tagline")}
               </p>

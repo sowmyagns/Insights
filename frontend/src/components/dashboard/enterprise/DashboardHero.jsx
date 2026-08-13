@@ -1,4 +1,4 @@
-import useAuth from "../../../hooks/useAuth";
+﻿import useAuth from "../../../hooks/useAuth";
 
 export default function DashboardHero({ now }) {
   const { user } = useAuth();
@@ -30,7 +30,7 @@ export default function DashboardHero({ now }) {
         <div>
           <p className="text-sm font-medium text-blue-200/90">{greeting}, {user?.name || "Admin"}</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-            GNS Insights Command Center
+            Insights Iva Command Center
           </h1>
           <p className="mt-2 max-w-xl text-sm text-slate-300">
             Unified view of production, inventory, quality, and shop floor performance.

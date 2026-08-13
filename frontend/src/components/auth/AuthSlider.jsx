@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 
 const RobotArmIcon = (props) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.4} {...props}>
@@ -28,7 +28,7 @@ const WarehouseIcon = (props) => (
 const SLIDES = [
   {
     image: "/auth/slide-1.png",
-    badge: "GNS Insights",
+    badge: "Insights Iva",
     text: "Business Intelligence • Analytics • AI — production, inventory, and manufacturing insights in one platform.",
     gradient: "from-teal-500 via-teal-600 to-emerald-700",
     Icon: RobotArmIcon,

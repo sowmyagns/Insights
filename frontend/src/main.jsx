@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+﻿import React, { Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import "./i18n";
@@ -27,7 +27,7 @@ const LoadingFallback = () => (
     <div className="mb-4 flex h-10 w-10 items-center justify-center">
       <div className="h-8 w-8 animate-spin rounded-full border-2 border-teal-600 border-t-transparent dark:border-teal-400" />
     </div>
-    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Loading GNS Insights…</p>
+    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Loading Insights Iva…</p>
     <p className="ui-hint mt-1 text-center">Preparing your workspace</p>
   </div>
 );

@@ -1,4 +1,4 @@
-{
+﻿{
   "erpNav": {
     "roleWorkflow": "பாத்திரம் அடிப்படையிலான பணிப்பாய்வு"
   },
@@ -95,7 +95,7 @@
     "tagline": "செயற்கை நுண்ணறிவுடன் ஸ்மார்ட் உற்பத்தி",
     "userRole": "பயனர் பங்கு",
     "superAdmin": "சூப்பர் அட்மின்",
-    "footerTagline": "GNS Insights · ஸ்மார்ட் உற்பத்தியை மேம்படுத்து"
+    "footerTagline": "Insights Iva · ஸ்மார்ட் உற்பத்தியை மேம்படுத்து"
   },
   "common": {
     "search": "தேடு...",
@@ -232,7 +232,7 @@
     "powerConsumption": "மின் நுகர்வு",
     "productionEfficiency": "உற்பத்தி செயல்திறன்",
     "targetAchievement": "இலக்கு சாதனை",
-    "copyright": "© 2026 GNS Insights. அனைத்து உரிமைகளும் பாதுகாக்கப்பட்டவை.",
+    "copyright": "© 2026 Insights Iva. அனைத்து உரிமைகளும் பாதுகாக்கப்பட்டவை.",
     "poweredBy": "GNS Software Pvt Ltd மூலம் இயக்கப்படுகிறது",
     "alertDelayed": "பணி ஆர்டர் WO-1025 தாமதமாகியுள்ளது",
     "alertMaintenance": "இயந்திரம் CNC-03க்கு பராமரிப்பு தேவை",

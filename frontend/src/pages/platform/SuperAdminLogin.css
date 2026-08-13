@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    SuperAdminLogin.css — pixel-perfect match to screenshot
    ============================================================ */
 
@@ -88,7 +88,7 @@ body:has(.sa-root) {
   margin-bottom: 14px;
 }
 
-/* ─── TITLE "GNS Admin Portal" ─── */
+/* ─── TITLE "Insights Iva Admin Portal" ─── */
 .sa-card__title {
   margin: 0;
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;

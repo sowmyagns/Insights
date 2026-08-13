@@ -3,7 +3,7 @@ import QRCode from "qrcode";
 import { numberToWordsInr } from "../../utils/invoiceCopyData";
 import "./GstTaxInvoice.css";
 
-function QRCanvas({ value, size = 80 }) {
+function QRCanvas({ value, size = 100 }) {
   const ref = useRef(null);
   useEffect(() => {
     if (!ref.current || !value) return;
@@ -12,293 +12,458 @@ function QRCanvas({ value, size = 80 }) {
   return <canvas ref={ref} aria-label="E-Invoice QR code" />;
 }
 
-function fmt(n, d = 2) {
+function fmt(n, d = 3) {
   return Number(n || 0).toFixed(d);
 }
-
-function fmtInr(n) {
-  return `₹ ${fmt(n)}`;
+function fmt2(n) {
+  return Number(n || 0).toFixed(2);
 }
 
 /**
- * Enterprise GST Tax Invoice — original GNS Insights layout.
- * Accepts unified `data` from mapDetailToInvoiceCopy / backend /document API.
+ * Classic Indian GST Tax Invoice — matches the Stic-On style reference layout.
  */
 export default function GstTaxInvoice({ data }) {
   if (!data) return null;
 
-  const seller = data.seller || {};
-  const meta = data.meta || {};
-  const buyer = data.buyer || {};
+  const seller    = data.seller    || {};
+  const meta      = data.meta      || {};
+  const buyer     = data.buyer     || {};
   const consignee = data.consignee || buyer;
-  const dispatch = data.dispatch || {};
-  const items = data.items || [];
-  const summary = data.summary || {};
-  const payment = data.payment || {};
-  const taxMode = data.tax_mode || data.taxMode || (data.isIgst ? "igst" : "cgst_sgst");
-  const isIgst = taxMode === "igst";
+  const dispatch  = data.dispatch  || {};
+  const items     = data.items     || [];
+  const summary   = data.summary   || {};
+  const payment   = data.payment   || {};
 
-  const taxable = summary.taxable_value ?? summary.taxableTotal ?? items.reduce((s, it) => s + Number(it.taxable_amount ?? it.amount ?? 0), 0);
-  const cgstTotal = summary.cgst_total ?? summary.cgstTotal ?? Number(data.cgst_amount ?? data.cgstAmount ?? 0);
-  const sgstTotal = summary.sgst_total ?? summary.sgstTotal ?? Number(data.sgst_amount ?? data.sgstAmount ?? 0);
-  const igstTotal = summary.igst_total ?? summary.igstTotal ?? Number(data.igst_amount ?? data.igstAmount ?? 0);
-  const roundOff = summary.round_off ?? data.roundOff ?? 0;
-  const grand = summary.grand_total ?? data.grandTotal ?? taxable + cgstTotal + sgstTotal + igstTotal + roundOff;
-  const qtyTotal = summary.qty_total ?? items.reduce((s, it) => s + parseFloat(it.qty || 0), 0);
+  const taxMode = data.tax_mode || data.taxMode || (data.isIgst ? "igst" : "cgst_sgst");
+  const isIgst  = taxMode === "igst";
+
+  const irn      = data.irn      || "";
+  const ackNo    = data.ackNo    || data.ack_no    || "";
+  const ackDate  = data.ackDate  || data.ack_date  || "";
+
+  const taxable   = Number(summary.taxable_value  ?? summary.taxableTotal  ?? items.reduce((s, it) => s + Number(it.taxable_amount ?? it.amount ?? 0), 0));
+  const cgstTotal = Number(summary.cgst_total     ?? summary.cgstTotal     ?? data.cgst_amount  ?? data.cgstAmount  ?? 0);
+  const sgstTotal = Number(summary.sgst_total     ?? summary.sgstTotal     ?? data.sgst_amount  ?? data.sgstAmount  ?? 0);
+  const igstTotal = Number(summary.igst_total     ?? summary.igstTotal     ?? data.igst_amount  ?? data.igstAmount  ?? 0);
+  const roundOff  = Number(summary.round_off      ?? data.roundOff         ?? 0);
+  const grand     = Number(summary.grand_total    ?? data.grandTotal       ?? taxable + cgstTotal + sgstTotal + igstTotal + roundOff);
+  const qtyTotal  = summary.qty_total ?? items.reduce((s, it) => s + parseFloat(it.qty || 0), 0);
+  const totalTax  = isIgst ? igstTotal : cgstTotal + sgstTotal;
 
   const qrValue = [
     `Seller:${seller.name}`,
-    seller.gstin ? `GSTIN:${seller.gstin}` : "",
-    meta.invoice_no || meta.invoiceNo ? `Invoice:${meta.invoice_no || meta.invoiceNo}` : "",
-    meta.date ? `Date:${meta.date}` : "",
-    buyer.name ? `Buyer:${buyer.name}` : "",
-    buyer.gstin ? `BuyerGSTIN:${buyer.gstin}` : "",
+    seller.gstin    ? `GSTIN:${seller.gstin}`       : "",
+    meta.invoice_no ? `Invoice:${meta.invoice_no}`   : "",
+    meta.date       ? `Date:${meta.date}`             : "",
+    buyer.name      ? `Buyer:${buyer.name}`           : "",
+    buyer.gstin     ? `BuyerGSTIN:${buyer.gstin}`    : "",
     `Total:${grand}`,
-    data.irn && data.irn !== "—" ? `IRN:${data.irn}` : "",
+    irn && irn !== "—" ? `IRN:${irn}` : "",
   ].filter(Boolean).join("|");
 
-  const terms = (data.terms || data.termsAndConditions || "").split("\n").filter(Boolean);
-  const defaultTerms = [
-    "Payment due within agreed credit period.",
-    "Goods once sold will not be taken back except per return policy.",
-    "Interest @ 18% p.a. on overdue invoices.",
-    "All disputes subject to local jurisdiction.",
+  const declaration = (data.declaration || "").split("\n").filter(Boolean);
+  const defaultDeclaration = [
+    "Certified that the particulars given above are true and correct",
+    "The amount indicated represents the price actually charged and that there is no flow of additional consideration directly or indirectly from the buyer.",
+    "All disputes subject to Hyderabad jurisdiction.",
+    "Goods once sold cannot be taken back or exchanged.",
+    "Cheques subject to realisation.",
+    "24% Interest per annum will be charged if the bills are not paid within due days.",
+    "Goods Return "As it is" shall be taken back, only within 7 days from the Date of Delivery & the same shall have to be intimated in "Writing" along with reasons for Goods Return.",
   ];
 
+  const rejection = (data.rejection_policy || "").split("\n").filter(Boolean);
+  const defaultRejection = [
+    "Loose Winding & Tight Release",
+    "Printability on face paper",
+    "Loop Tack, Peel Adhesion and Shear Strength (15% tolerance) are less than what is mentioned in our Technical Data Sheet.",
+    "For all Rejection and Quality Claims, End user Email /Samples for evaluation is mandatory.",
+    "For application issues End user visit by Stic On Papers Private Limited team is mandatory.",
+    "No rejection claim will be accepted if above conditions are not fulfilled.",
+    "We are not responsible for material application related issues.",
+    "Any quantity discrepancies are only accepted within 24 hours from the receipt of the material",
+    "Any quality discrepancies are only accepted within 7 working days from the receipt of the Material (Unconverted Rolls Only)",
+  ];
+
+  const declLines = declaration.length ? declaration : defaultDeclaration;
+  const rejLines  = rejection.length  ? rejection  : defaultRejection;
+
+  // Build HSN summary grouped by HSN code
+  const hsnMap = {};
+  items.forEach((it) => {
+    const key = it.hsn || "—";
+    if (!hsnMap[key]) hsnMap[key] = { hsn: key, taxable: 0, cgst: 0, sgst: 0, igst: 0, rate: it.igst_pct ?? it.igstPct ?? it.cgst_pct ?? it.cgstPct ?? 0 };
+    hsnMap[key].taxable += Number(it.taxable_amount ?? it.amount ?? 0);
+    hsnMap[key].cgst    += Number(it.cgst_amount ?? it.cgstAmount ?? 0);
+    hsnMap[key].sgst    += Number(it.sgst_amount ?? it.sgstAmount ?? 0);
+    hsnMap[key].igst    += Number(it.igst_amount ?? it.igstAmount ?? 0);
+  });
+  const hsnRows = Object.values(hsnMap);
+  if (!hsnRows.length) {
+    hsnRows.push({ hsn: "—", taxable, cgst: cgstTotal, sgst: sgstTotal, igst: igstTotal, rate: 0 });
+  }
+
   return (
-    <article className="gst-invoice" aria-label="GST Tax Invoice">
-      {/* Header band */}
-      <header className="gst-invoice__header">
-        <div className="gst-invoice__brand">
-          <div className="gst-invoice__logo">
-            {seller.logo ? (
-              <img src={seller.logo} alt={`${seller.name} logo`} />
-            ) : (
-              <span className="gst-invoice__logo-fallback">GNS</span>
-            )}
+    <article className="gti-wrap" aria-label="GST Tax Invoice">
+
+      {/* ── Top label row ─────────────────────────────── */}
+      <div className="gti-top-labels">
+        <span className="gti-top-labels__title">Tax Invoice</span>
+        {(data.eInvoice || data.e_invoice_enabled || irn) && (
+          <span className="gti-top-labels__einv">e-Invoice</span>
+        )}
+      </div>
+
+      {/* ── IRN / Ack / QR row ────────────────────────── */}
+      {(irn || ackNo) && (
+        <div className="gti-irn-row">
+          <div className="gti-irn-row__left">
+            {irn   && <p><strong>IRN</strong> : <span className="gti-irn-row__irn">{irn}</span></p>}
+            {ackNo && <p><strong>Ack No.</strong> : {ackNo}</p>}
+            {ackDate && <p><strong>Ack Date</strong> : {ackDate}</p>}
           </div>
-          <div>
-            <h1 className="gst-invoice__company">{seller.name}</h1>
-            {seller.tagline ? <p className="gst-invoice__tagline">{seller.tagline}</p> : null}
-            <p className="gst-invoice__address">{seller.address}</p>
-            <div className="gst-invoice__ids">
-              {seller.gstin ? <span>GSTIN: {seller.gstin}</span> : null}
-              {seller.pan ? <span>PAN: {seller.pan}</span> : null}
-              {seller.cin ? <span>CIN: {seller.cin}</span> : null}
-            </div>
-            <div className="gst-invoice__contact">
-              {seller.phone ? <span>📞 {seller.phone}</span> : null}
-              {seller.email ? <span>✉ {seller.email}</span> : null}
-              {seller.website ? <span>🌐 {seller.website}</span> : null}
-            </div>
+          <div className="gti-irn-row__qr">
+            {qrValue ? <QRCanvas value={qrValue} size={100} /> : <div className="gti-qr-ph">QR</div>}
           </div>
         </div>
-        <div className="gst-invoice__title-block">
-          <h2 className="gst-invoice__title">{data.title || "TAX INVOICE"}</h2>
-          {(data.eInvoice || data.e_invoice_enabled) && (
-            <div className="gst-invoice__einvoice">
-              <span className="gst-invoice__einvoice-label">e-Invoice Ready</span>
-              <div className="gst-invoice__qr-wrap">
-                {qrValue ? <QRCanvas value={qrValue} /> : <div className="gst-invoice__qr-placeholder">QR</div>}
+      )}
+
+      {/* ── Seller + Invoice meta ─────────────────────── */}
+      <table className="gti-table gti-seller-table">
+        <tbody>
+          <tr>
+            {/* Seller block */}
+            <td className="gti-seller-cell" rowSpan={5}>
+              {seller.logo
+                ? <img src={seller.logo} alt={seller.name} className="gti-seller-logo" />
+                : <div className="gti-seller-logo-fb">{(seller.name || "GNS").substring(0, 3).toUpperCase()}</div>
+              }
+              <div className="gti-seller-info">
+                <p className="gti-seller-name">{seller.name || "—"}</p>
+                <p>{seller.address}</p>
+                {seller.gstin   && <p>GSTIN/UIN: {seller.gstin}</p>}
+                {seller.udyam   && <p>UDYAM: {seller.udyam}</p>}
+                {seller.state   && <p>State Name : {seller.state}{seller.state_code ? `, Code : ${seller.state_code}` : ""}</p>}
+                {seller.cin     && <p>CIN: {seller.cin}</p>}
+                {seller.email   && <p>E-Mail : {seller.email}</p>}
+                {seller.phone   && <p>Phone : {seller.phone}</p>}
               </div>
-              {data.irn && data.irn !== "—" ? (
-                <p className="gst-invoice__irn"><strong>IRN:</strong> {data.irn}</p>
-              ) : null}
-            </div>
+            </td>
+            {/* Invoice No / eWay / Date */}
+            <td className="gti-meta-label">Invoice No.</td>
+            <td className="gti-meta-label">e-Way Bill No.</td>
+            <td className="gti-meta-label">Dated</td>
+          </tr>
+          <tr>
+            <td className="gti-meta-val gti-bold">{meta.invoice_no || meta.invoiceNo || "—"}</td>
+            <td className="gti-meta-val">{meta.eway_bill_no || meta.eWayBillNo || "—"}</td>
+            <td className="gti-meta-val gti-bold">{meta.date || "—"}</td>
+          </tr>
+          <tr>
+            <td className="gti-meta-label">Delivery Note</td>
+            <td className="gti-meta-label" colSpan={2}>Mode/Terms of Payment</td>
+          </tr>
+          <tr>
+            <td className="gti-meta-val">{meta.delivery_note || meta.deliveryNote || "—"}</td>
+            <td className="gti-meta-val gti-bold" colSpan={2}>{payment.terms || meta.payment_terms || "Advance"}</td>
+          </tr>
+          <tr>
+            <td className="gti-meta-label">Reference No. &amp; Date.</td>
+            <td className="gti-meta-label" colSpan={2}>Other References</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* Reference / Buyer Order row */}
+      <table className="gti-table">
+        <tbody>
+          <tr>
+            <td className="gti-meta-label" style={{width:"25%"}}>Reference No. &amp; Date.</td>
+            <td className="gti-meta-val" style={{width:"25%"}}>{meta.reference_no || meta.referenceNo || ""}</td>
+            <td className="gti-meta-label" style={{width:"25%"}}>Other References</td>
+            <td className="gti-meta-val" style={{width:"25%"}}>{meta.other_references || ""}</td>
+          </tr>
+          <tr>
+            <td className="gti-meta-label">Buyer's Order No.</td>
+            <td className="gti-meta-val">{meta.buyer_order_no || meta.buyerOrderNo || ""}</td>
+            <td className="gti-meta-label">Dated</td>
+            <td className="gti-meta-val">{meta.buyer_order_date || ""}</td>
+          </tr>
+          <tr>
+            <td className="gti-meta-label">Dispatch Doc No.</td>
+            <td className="gti-meta-val">{dispatch.doc_no || dispatch.docNo || ""}</td>
+            <td className="gti-meta-label">Delivery Note Date</td>
+            <td className="gti-meta-val">{dispatch.delivery_note_date || ""}</td>
+          </tr>
+          <tr>
+            <td className="gti-meta-label">Dispatched through</td>
+            <td className="gti-meta-val">{dispatch.dispatch_through || dispatch.dispatchThrough || dispatch.transport_name || ""}</td>
+            <td className="gti-meta-label">Destination</td>
+            <td className="gti-meta-val gti-bold">{dispatch.destination || buyer.city || ""}</td>
+          </tr>
+          <tr>
+            <td className="gti-meta-label" colSpan={4}>Terms of Delivery</td>
+          </tr>
+          <tr>
+            <td className="gti-meta-val" colSpan={4}>{dispatch.delivery_terms || dispatch.deliveryTerms || ""}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* ── Consignee + Buyer ─────────────────────────── */}
+      <table className="gti-table">
+        <tbody>
+          <tr>
+            <td className="gti-party-header" style={{width:"50%"}}>Consignee (Ship to)</td>
+            <td className="gti-party-header" style={{width:"50%"}}>Buyer (Bill to)</td>
+          </tr>
+          <tr>
+            <td className="gti-party-cell">
+              <p className="gti-party-name">{consignee.name || buyer.name || "—"}</p>
+              <p>{consignee.address || buyer.shipping_address || buyer.address || ""}</p>
+              {(consignee.phone || buyer.phone) && <p>Mob: {consignee.phone || buyer.phone}</p>}
+              {(consignee.gstin || buyer.gstin) && <p>GSTIN/UIN : {consignee.gstin || buyer.gstin}</p>}
+              {(consignee.state || buyer.state) && (
+                <p>State Name : {consignee.state || buyer.state}{(consignee.state_code || buyer.state_code) ? `, Code : ${consignee.state_code || buyer.state_code}` : ""}</p>
+              )}
+            </td>
+            <td className="gti-party-cell">
+              <p className="gti-party-name">{buyer.name || "—"}</p>
+              <p>{buyer.billing_address || buyer.address || ""}</p>
+              {buyer.phone && <p>Mob: {buyer.phone}</p>}
+              {buyer.gstin && <p>GSTIN/UIN : {buyer.gstin}</p>}
+              {buyer.state && (
+                <p>State Name : {buyer.state}{buyer.state_code ? `, Code : ${buyer.state_code}` : ""}</p>
+              )}
+              {buyer.place_of_supply && <p>Place of Supply : {buyer.place_of_supply}</p>}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* ── Line items table ──────────────────────────── */}
+      <table className="gti-table gti-items-table">
+        <thead>
+          <tr>
+            <th className="gti-th" style={{width:"4%"}}>Sl No.</th>
+            <th className="gti-th" style={{width:"32%"}}>Description of Goods</th>
+            <th className="gti-th" style={{width:"10%"}}>HSN/SAC</th>
+            <th className="gti-th" style={{width:"10%"}}>Quantity</th>
+            <th className="gti-th" style={{width:"10%"}}>Rate</th>
+            <th className="gti-th" style={{width:"5%"}}>per</th>
+            <th className="gti-th" style={{width:"10%"}}>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item, idx) => (
+            <tr key={item.si || idx}>
+              <td className="gti-td gti-center">{item.si || idx + 1}</td>
+              <td className="gti-td">
+                <strong>{item.description || item.item_description || item.product_name || ""}</strong>
+                {item.product_code && <div className="gti-item-code">{item.product_code}</div>}
+              </td>
+              <td className="gti-td gti-center">{item.hsn || "—"}</td>
+              <td className="gti-td gti-right">
+                {fmt(item.qty)} {item.unit || ""}
+              </td>
+              <td className="gti-td gti-right">{fmt(item.rate)}</td>
+              <td className="gti-td gti-center">{item.unit || "PCS"}</td>
+              <td className="gti-td gti-right">{fmt(item.taxable_amount ?? item.amount)}</td>
+            </tr>
+          ))}
+
+          {/* Tax rows */}
+          <tr className="gti-tax-row">
+            <td className="gti-td" colSpan={2}></td>
+            <td className="gti-td gti-right gti-bold" colSpan={2}>
+              {isIgst ? "IGST" : "CGST"}
+            </td>
+            <td className="gti-td gti-center">
+              {isIgst
+                ? `${fmt2(items[0]?.igst_pct ?? items[0]?.igstPct ?? 0)} %`
+                : `${fmt2(items[0]?.cgst_pct ?? items[0]?.cgstPct ?? 0)} %`
+              }
+            </td>
+            <td className="gti-td"></td>
+            <td className="gti-td gti-right">
+              {isIgst ? fmt(igstTotal) : fmt(cgstTotal)}
+            </td>
+          </tr>
+          {!isIgst && (
+            <tr className="gti-tax-row">
+              <td className="gti-td" colSpan={2}></td>
+              <td className="gti-td gti-right gti-bold" colSpan={2}>SGST</td>
+              <td className="gti-td gti-center">{fmt2(items[0]?.sgst_pct ?? items[0]?.sgstPct ?? 0)} %</td>
+              <td className="gti-td"></td>
+              <td className="gti-td gti-right">{fmt(sgstTotal)}</td>
+            </tr>
           )}
-        </div>
-      </header>
-
-      {/* Invoice meta + parties */}
-      <section className="gst-invoice__grid gst-invoice__meta-grid">
-        <div className="gst-invoice__card">
-          <h3>Invoice Details</h3>
-          <dl>
-            <div><dt>Invoice No.</dt><dd>{meta.invoice_no || meta.invoiceNo || "—"}</dd></div>
-            <div><dt>Invoice Date</dt><dd>{meta.date || "—"}</dd></div>
-            <div><dt>Due Date</dt><dd>{meta.due_date || meta.dueDate || "—"}</dd></div>
-            <div><dt>Reference No.</dt><dd>{meta.reference_no || meta.referenceNo || "—"}</dd></div>
-            <div><dt>Delivery Note</dt><dd>{meta.delivery_note || meta.deliveryNote || "—"}</dd></div>
-            <div><dt>E-Way Bill</dt><dd>{meta.eway_bill_no || meta.eWayBillNo || "—"}</dd></div>
-            <div><dt>Place of Supply</dt><dd>{buyer.place_of_supply || buyer.placeOfSupply || "—"}</dd></div>
-          </dl>
-        </div>
-        <div className="gst-invoice__card">
-          <h3>Bill To</h3>
-          <p className="gst-invoice__party-name">{buyer.name}</p>
-          {buyer.company ? <p>{buyer.company}</p> : null}
-          <p>{buyer.billing_address || buyer.address}</p>
-          {buyer.gstin ? <p>GSTIN: {buyer.gstin}</p> : null}
-          {buyer.state ? <p>State: {buyer.state} {buyer.state_code ? `(${buyer.state_code})` : ""}</p> : null}
-          {buyer.phone || buyer.contact ? <p>Contact: {buyer.phone || buyer.contact}</p> : null}
-        </div>
-        <div className="gst-invoice__card">
-          <h3>Ship To</h3>
-          <p className="gst-invoice__party-name">{consignee.name || buyer.name}</p>
-          <p>{consignee.address || buyer.shipping_address || buyer.billing_address || buyer.address}</p>
-          {consignee.gstin || buyer.gstin ? <p>GSTIN: {consignee.gstin || buyer.gstin}</p> : null}
-          {consignee.state || buyer.state ? (
-            <p>State: {consignee.state || buyer.state} {(consignee.state_code || buyer.state_code) ? `(${consignee.state_code || buyer.state_code})` : ""}</p>
-          ) : null}
-        </div>
-        <div className="gst-invoice__card">
-          <h3>Dispatch Details</h3>
-          <dl>
-            <div><dt>Vehicle No.</dt><dd>{dispatch.vehicle_no || dispatch.vehicleNo || "—"}</dd></div>
-            <div><dt>Transport</dt><dd>{dispatch.transport_name || dispatch.transportName || "—"}</dd></div>
-            <div><dt>LR Number</dt><dd>{dispatch.lr_number || dispatch.lrNumber || "—"}</dd></div>
-            <div><dt>Dispatched Through</dt><dd>{dispatch.dispatch_through || dispatch.dispatchThrough || "—"}</dd></div>
-            <div><dt>Destination</dt><dd>{dispatch.destination || "—"}</dd></div>
-            <div><dt>Delivery Terms</dt><dd>{dispatch.delivery_terms || dispatch.deliveryTerms || "—"}</dd></div>
-          </dl>
-        </div>
-      </section>
-
-      {/* Line items */}
-      <section className="gst-invoice__table-wrap">
-        <table className="gst-invoice__table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Product / Description</th>
-              <th>HSN/SAC</th>
-              <th>Batch</th>
-              <th>Qty</th>
-              <th>Unit</th>
-              <th>Rate</th>
-              <th>Disc.</th>
-              <th>Taxable</th>
-              {!isIgst ? <><th>CGST%</th><th>SGST%</th></> : <th>IGST%</th>}
-              <th>GST Amt</th>
-              <th>Total</th>
+          {roundOff !== 0 && (
+            <tr className="gti-tax-row">
+              <td className="gti-td" colSpan={2}></td>
+              <td className="gti-td gti-right gti-bold" colSpan={2}>ROUNDED OFF</td>
+              <td className="gti-td"></td>
+              <td className="gti-td"></td>
+              <td className="gti-td gti-right">{roundOff < 0 ? `(-)${fmt(Math.abs(roundOff))}` : fmt(roundOff)}</td>
             </tr>
-          </thead>
-          <tbody>
-            {items.map((item, idx) => (
-              <tr key={item.si || idx}>
-                <td>{item.si || idx + 1}</td>
-                <td className="gst-invoice__desc">
-                  {item.product_code ? <span className="gst-invoice__code">{item.product_code}</span> : null}
-                  {item.description || item.item_description}
-                </td>
-                <td>{item.hsn || "—"}</td>
-                <td>{item.batch || item.batch_lot || "—"}</td>
-                <td className="num">{fmt(item.qty)}</td>
-                <td>{item.unit || "PCS"}</td>
-                <td className="num">{fmt(item.rate, 2)}</td>
-                <td className="num">{fmt(item.discount || 0)}</td>
-                <td className="num">{fmt(item.taxable_amount ?? item.amount)}</td>
-                {!isIgst ? (
-                  <>
-                    <td className="num">{fmt(item.cgst_pct ?? item.cgstPct ?? 0, 1)}</td>
-                    <td className="num">{fmt(item.sgst_pct ?? item.sgstPct ?? 0, 1)}</td>
-                  </>
-                ) : (
-                  <td className="num">{fmt(item.igst_pct ?? item.igstPct ?? 0, 1)}</td>
-                )}
-                <td className="num">{fmt(item.gst_amount ?? item.gstAmount ?? 0)}</td>
-                <td className="num bold">{fmt(item.total_amount ?? item.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+          )}
 
-      {/* Summary row */}
-      <section className="gst-invoice__summary-row">
-        <div className="gst-invoice__words">
-          <p><strong>Amount in words:</strong></p>
-          <p className="gst-invoice__words-text">{numberToWordsInr(grand)}</p>
-          {data.remarks ? <p className="gst-invoice__remarks"><strong>Remarks:</strong> {data.remarks}</p> : null}
-        </div>
-        <table className="gst-invoice__totals">
-          <tbody>
-            <tr><td>Total Quantity</td><td>{fmt(qtyTotal)}</td></tr>
-            <tr><td>Taxable Value</td><td>{fmtInr(taxable)}</td></tr>
-            {!isIgst ? (
-              <>
-                <tr><td>CGST Total</td><td>{fmtInr(cgstTotal)}</td></tr>
-                <tr><td>SGST Total</td><td>{fmtInr(sgstTotal)}</td></tr>
-              </>
+          {/* Blank filler rows */}
+          {[...Array(Math.max(0, 6 - items.length))].map((_, i) => (
+            <tr key={`blank-${i}`}>
+              <td className="gti-td gti-blank" colSpan={7}>&nbsp;</td>
+            </tr>
+          ))}
+
+          {/* Total row */}
+          <tr className="gti-total-row">
+            <td className="gti-td gti-bold" colSpan={2}>Total</td>
+            <td className="gti-td"></td>
+            <td className="gti-td gti-right gti-bold">{fmt(qtyTotal)} {items[0]?.unit || ""}</td>
+            <td className="gti-td" colSpan={2}></td>
+            <td className="gti-td gti-right gti-bold gti-grand">₹ {fmt2(grand)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* ── Amount in words ───────────────────────────── */}
+      <table className="gti-table">
+        <tbody>
+          <tr>
+            <td className="gti-meta-label" style={{width:"30%"}}>Amount Chargeable (in words)</td>
+            <td className="gti-meta-val gti-right gti-small-italic" style={{width:"70%"}}>E. &amp; O.E</td>
+          </tr>
+          <tr>
+            <td className="gti-words-cell" colSpan={2}>
+              <strong>INR {numberToWordsInr(grand)}</strong>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* ── HSN-wise tax summary ──────────────────────── */}
+      <table className="gti-table gti-hsn-table">
+        <thead>
+          <tr>
+            <th className="gti-th" rowSpan={2}>HSN/SAC</th>
+            <th className="gti-th" rowSpan={2}>Taxable Value</th>
+            {isIgst ? (
+              <th className="gti-th" colSpan={2}>IGST</th>
             ) : (
-              <tr><td>IGST Total</td><td>{fmtInr(igstTotal)}</td></tr>
+              <>
+                <th className="gti-th" colSpan={2}>Central Tax</th>
+                <th className="gti-th" colSpan={2}>State Tax</th>
+              </>
             )}
-            {roundOff !== 0 ? (
-              <tr><td>Round Off</td><td>{roundOff > 0 ? "+" : ""}{fmtInr(roundOff)}</td></tr>
-            ) : null}
-            <tr className="gst-invoice__grand"><td>Grand Total</td><td>{fmtInr(grand)}</td></tr>
-          </tbody>
-        </table>
-      </section>
+            <th className="gti-th" rowSpan={2}>Total Tax Amount</th>
+          </tr>
+          <tr>
+            {isIgst ? (
+              <><th className="gti-th">Rate</th><th className="gti-th">Amount</th></>
+            ) : (
+              <><th className="gti-th">Rate</th><th className="gti-th">Amount</th><th className="gti-th">Rate</th><th className="gti-th">Amount</th></>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {hsnRows.map((row, i) => {
+            const rowTax = isIgst ? row.igst : row.cgst + row.sgst;
+            const cgstPct = items.find(it => it.hsn === row.hsn)?.cgst_pct ?? 0;
+            const sgstPct = items.find(it => it.hsn === row.hsn)?.sgst_pct ?? 0;
+            const igstPct = items.find(it => it.hsn === row.hsn)?.igst_pct ?? 0;
+            return (
+              <tr key={i}>
+                <td className="gti-td">{row.hsn}</td>
+                <td className="gti-td gti-right">{fmt2(row.taxable)}</td>
+                {isIgst ? (
+                  <><td className="gti-td gti-center">{fmt2(igstPct)}%</td><td className="gti-td gti-right">{fmt2(row.igst)}</td></>
+                ) : (
+                  <>
+                    <td className="gti-td gti-center">{fmt2(cgstPct)}%</td>
+                    <td className="gti-td gti-right">{fmt2(row.cgst)}</td>
+                    <td className="gti-td gti-center">{fmt2(sgstPct)}%</td>
+                    <td className="gti-td gti-right">{fmt2(row.sgst)}</td>
+                  </>
+                )}
+                <td className="gti-td gti-right">{fmt2(rowTax)}</td>
+              </tr>
+            );
+          })}
+          {/* Totals */}
+          <tr className="gti-hsn-total">
+            <td className="gti-td gti-bold">Total</td>
+            <td className="gti-td gti-right gti-bold">{fmt2(taxable)}</td>
+            {isIgst ? (
+              <><td className="gti-td"></td><td className="gti-td gti-right gti-bold">{fmt2(igstTotal)}</td></>
+            ) : (
+              <>
+                <td className="gti-td"></td>
+                <td className="gti-td gti-right gti-bold">{fmt2(cgstTotal)}</td>
+                <td className="gti-td"></td>
+                <td className="gti-td gti-right gti-bold">{fmt2(sgstTotal)}</td>
+              </>
+            )}
+            <td className="gti-td gti-right gti-bold">{fmt2(totalTax)}</td>
+          </tr>
+        </tbody>
+      </table>
 
-      {/* HSN tax summary */}
-      <section className="gst-invoice__hsn-wrap">
-        <table className="gst-invoice__hsn-table">
-          <thead>
-            <tr>
-              <th>HSN/SAC</th>
-              <th>Taxable Value</th>
-              {!isIgst ? <><th>CGST</th><th>SGST</th></> : <th>IGST</th>}
-              <th>Total Tax</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(items.length ? items : [{ hsn: "—", taxable_amount: taxable }]).map((item, i) => {
-              const lineTax = isIgst
-                ? (item.igst_amount ?? item.igstAmount ?? 0)
-                : (Number(item.cgst_amount ?? item.cgstAmount ?? 0) + Number(item.sgst_amount ?? item.sgstAmount ?? 0));
-              return (
-                <tr key={i}>
-                  <td>{item.hsn || "—"}</td>
-                  <td className="num">{fmt(item.taxable_amount ?? item.amount ?? taxable)}</td>
-                  {!isIgst ? (
-                    <>
-                      <td className="num">{fmt(item.cgst_amount ?? item.cgstAmount ?? cgstTotal / Math.max(items.length, 1))}</td>
-                      <td className="num">{fmt(item.sgst_amount ?? item.sgstAmount ?? sgstTotal / Math.max(items.length, 1))}</td>
-                    </>
-                  ) : (
-                    <td className="num">{fmt(item.igst_amount ?? item.igstAmount ?? igstTotal)}</td>
-                  )}
-                  <td className="num bold">{fmt(lineTax || (isIgst ? igstTotal : cgstTotal + sgstTotal))}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        <p className="gst-invoice__tax-words">
-          <strong>Tax amount in words:</strong> {numberToWordsInr(isIgst ? igstTotal : cgstTotal + sgstTotal)}
-        </p>
-      </section>
+      {/* Tax amount in words */}
+      <table className="gti-table">
+        <tbody>
+          <tr>
+            <td className="gti-meta-label" style={{width:"30%"}}>Tax Amount (in words) :</td>
+            <td className="gti-words-cell"><strong>INR {numberToWordsInr(totalTax)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
 
-      {/* Payment + terms */}
-      <section className="gst-invoice__footer-grid">
-        <div className="gst-invoice__card">
-          <h3>Payment Details</h3>
-          <dl>
-            <div><dt>Payment Terms</dt><dd>{payment.terms || meta.payment_terms || "—"}</dd></div>
-            <div><dt>Advance Received</dt><dd>{fmtInr(payment.advance_received ?? summary.amount_paid ?? 0)}</dd></div>
-            <div><dt>Balance Due</dt><dd>{fmtInr(payment.balance_due ?? summary.balance_due ?? grand)}</dd></div>
-            <div><dt>Bank</dt><dd>{payment.bank_name || "—"}</dd></div>
-            <div><dt>Account No.</dt><dd>{payment.account_number || "—"}</dd></div>
-            <div><dt>IFSC</dt><dd>{payment.ifsc || "—"}</dd></div>
-          </dl>
-        </div>
-        <div className="gst-invoice__card gst-invoice__terms">
-          <h3>Terms &amp; Conditions</h3>
-          <ol>{(terms.length ? terms : defaultTerms).map((t, i) => <li key={i}>{t.replace(/^\d+\.\s*/, "")}</li>)}</ol>
-        </div>
-      </section>
+      {/* ── Declaration + Rejection Policy ───────────── */}
+      <table className="gti-table">
+        <tbody>
+          <tr>
+            <td className="gti-party-header" style={{width:"50%"}}>Declaration</td>
+            <td className="gti-party-header" style={{width:"50%"}}>Rejection Policy :</td>
+          </tr>
+          <tr>
+            <td className="gti-decl-cell" style={{verticalAlign:"top"}}>
+              <ol className="gti-decl-list">
+                {declLines.map((d, i) => <li key={i}>{d.replace(/^\d+\.\s*/, "")}</li>)}
+              </ol>
+              {data.remarks && (
+                <p className="gti-remarks"><strong>Remarks :</strong> {data.remarks}</p>
+              )}
+            </td>
+            <td className="gti-decl-cell" style={{verticalAlign:"top"}}>
+              <ol className="gti-decl-list">
+                {rejLines.map((r, i) => <li key={i}>{r.replace(/^\d+\.\s*/, "")}</li>)}
+              </ol>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-      {/* Signatures */}
-      <footer className="gst-invoice__signatures">
-        <div><span>Prepared by</span><strong>{data.prepared_by || data.preparedBy || "___________"}</strong></div>
-        <div><span>Checked by</span><strong>{data.checked_by || data.checkedBy || "___________"}</strong></div>
-        <div className="gst-invoice__signatory">
-          <span>for {seller.name}</span>
-          <div className="gst-invoice__sign-line">Authorised Signatory</div>
-        </div>
-      </footer>
-      <p className="gst-invoice__disclaimer">This is a Computer Generated Invoice</p>
+      {/* ── Signature footer ──────────────────────────── */}
+      <table className="gti-table gti-sig-table">
+        <tbody>
+          <tr>
+            <td className="gti-sig-cell" style={{width:"33%"}}>
+              <span className="gti-sig-label">Prepared by</span>
+              <span className="gti-sig-line">{data.prepared_by || data.preparedBy || ""}</span>
+            </td>
+            <td className="gti-sig-cell" style={{width:"33%"}}>
+              <span className="gti-sig-label">Verified by</span>
+              <span className="gti-sig-line">{data.verified_by || data.verifiedBy || ""}</span>
+            </td>
+            <td className="gti-sig-cell gti-right" style={{width:"34%"}}>
+              <span className="gti-sig-company">for {seller.name || "Company"}</span>
+              <span className="gti-sig-auth">Authorised Signatory</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p className="gti-disclaimer">This is a Computer Generated Invoice</p>
     </article>
   );
 }

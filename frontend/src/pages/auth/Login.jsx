@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { login as loginApi, getApiErrorMessage } from "../../api/authApi";
 import useAuth from "../../hooks/useAuth";
@@ -75,7 +75,7 @@ export default function Login() {
                 <div className="mb-4 flex justify-center">
                   <BrandLogo size="xl" />
                 </div>
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">GNS Insights</h1>
+                <h1 className="text-4xl font-bold text-gray-900 mb-2">Insights Iva</h1>
                 <p className="text-gray-600 text-sm">Business Intelligence • Analytics • AI</p>
               </div>
 

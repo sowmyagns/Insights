@@ -188,6 +188,8 @@ class Invoice(Base, TimestampMixin):
     bank_details_json: Mapped[str | None] = mapped_column(Text)
     custom_fields_json: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
+    ack_no: Mapped[str | None] = mapped_column(String(128))
+    ack_date: Mapped[date | None] = mapped_column(Date)
 
     customer = relationship("Customer", back_populates="invoices")
     sales_order = relationship("SalesOrder", back_populates="invoices")

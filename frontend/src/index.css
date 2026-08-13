@@ -1,8 +1,8 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ========== GNS Insights Design System – User-friendly UI/UX ========== */
+/* ========== Insights Iva Design System – User-friendly UI/UX ========== */
 :root {
   --color-primary: #0f6d84;
   --color-primary-dark: #0c5b6f;

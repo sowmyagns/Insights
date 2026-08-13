@@ -187,8 +187,8 @@ def build_invoice_document(db: Session, tenant_id: int, invoice_id: int) -> dict
         "tax_mode": tax_mode,
         "e_invoice_enabled": (getattr(inv, "e_invoice_status", "") or "").lower() == "active",
         "irn": "",
-        "ack_no": "",
-        "ack_date": _format_date(inv.issue_date),
+        "ack_no": inv.ack_no or f"ACK-{inv.id:03d}",
+        "ack_date": _format_date(inv.ack_date) if inv.ack_date else _format_date(inv.issue_date),
         "seller": {
             "name": company.company_name or company.legal_name or "Company",
             "logo": company.logo_url or "",

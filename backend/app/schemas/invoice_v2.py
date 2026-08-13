@@ -98,6 +98,8 @@ class InvoiceV2Create(BaseModel):
     bank_details: dict[str, Any] | None = None
     custom_fields: list[dict[str, Any]] | None = None
     notes: str | None = None
+    ack_no: str | None = None
+    ack_date: date | None = None
     items: list[InvoiceV2ItemCreate] = []
 
 
@@ -118,6 +120,8 @@ class InvoiceV2Read(BaseModel):
     sales_order_id: int | None = None
     document_type: str
     invoice_prefix: str | None = None
+    ack_no: str | None = None
+    ack_date: date | None = None
     invoice_number: str
     issue_date: date
     due_date: date | None = None

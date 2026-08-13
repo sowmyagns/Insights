@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+﻿import { useEffect, useRef } from "react";
 import QRCode from "qrcode";
 import { numberToWordsInr } from "../../utils/invoiceCopyData";
 import "./Invoice.css";
@@ -20,7 +20,7 @@ export default function Invoice({ data }) {
   if (!data) return null;
 
   /* ── seller ── */
-  const sName  = data.seller?.name    || "GNS INSIGHTS PRIVATE LIMITED";
+  const sName  = data.seller?.name    || "INSIGHTS IVA PRIVATE LIMITED";
   const sAddr  = data.seller?.address || "Hyderabad, Telangana";
   const sGstin = data.seller?.gstin   || "";
   const sState = data.seller?.state   || "Telangana";

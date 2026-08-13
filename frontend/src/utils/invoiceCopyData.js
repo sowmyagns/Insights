@@ -1,4 +1,4 @@
-/** Indian Rupee amount to words for GST invoices. */
+﻿/** Indian Rupee amount to words for GST invoices. */
 const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
 const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
 
@@ -44,7 +44,7 @@ export const SAMPLE_INVOICE_COPY = {
   e_invoice_enabled: true,
   irn: "",
   seller: {
-    name: "GNS Insights Pvt Ltd",
+    name: "Insights Iva Pvt Ltd",
     tagline: "Enterprise Manufacturing ERP",
     address: "Hyderabad, Telangana - 500032",
     gstin: "36AABCG1234A1Z5",
@@ -215,9 +215,11 @@ export function mapDetailToInvoiceCopy(detail, companySettings = {}) {
     tax_mode: taxMode,
     eInvoice: Boolean(companySettings.e_invoice_enabled),
     e_invoice_enabled: Boolean(companySettings.e_invoice_enabled),
-    irn: companySettings.irn || "",
+    irn: inv.irn || companySettings.irn || "36XXXXX0000X1Z0",
+    ackNo: inv.ack_no || inv.ackNo || "ACK-001",
+    ackDate: formatDate(inv.ack_date || inv.ackDate) || formatDate(inv.issue_date) || "12-Aug-26",
     seller: {
-      name: companySettings.company_name || companySettings.name || "GNS Insights",
+      name: companySettings.company_name || companySettings.name || "Insights Iva",
       logo: companySettings.logo_url || "",
       tagline: companySettings.tagline || "",
       address: [companySettings.address_line1, companySettings.address_line2, companySettings.city, companySettings.state, companySettings.pincode].filter(Boolean).join(", ") || "India",

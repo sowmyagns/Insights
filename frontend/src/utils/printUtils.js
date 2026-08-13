@@ -1,6 +1,6 @@
-/**
+﻿/**
  * Shared Print Templates for Production Planning & Work Orders
- * Standardized header: "Production | Welcome, [User] | GNS Insights"
+ * Standardized header: "Production | Welcome, [User] | Insights Iva"
  */
 
 export function printProductionOrder(order, user) {
@@ -42,7 +42,7 @@ export function printProductionOrder(order, user) {
     <span>Production</span>
     ${printedBy ? `<span style="margin-left:10px">Welcome, ${printedBy}</span>` : ""}
   </div>
-  <span class="brand">GNS Insights</span>
+  <span class="brand">Insights Iva</span>
 </div>
 
 <div class="title">Production Order Details</div>
@@ -143,7 +143,7 @@ export function printWorkOrder(workOrder, user) {
     <span>Production</span>
     ${printedBy ? `<span style="margin-left:10px">Welcome, ${printedBy}</span>` : ""}
   </div>
-  <span class="brand">GNS Insights</span>
+  <span class="brand">Insights Iva</span>
 </div>
 
 <div class="title">Work Order Details</div>

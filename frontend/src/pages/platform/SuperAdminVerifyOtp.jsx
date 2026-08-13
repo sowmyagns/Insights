@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+﻿import { useCallback, useState } from "react";
 import { Navigate, useLocation, useNavigate, Link } from "react-router-dom";
 import {
   setPlatformSession,
@@ -41,7 +41,7 @@ export default function SuperAdminVerifyOtp() {
         const data = await superAdminVerifyOtp(challengeToken, otpCode);
         setPlatformSession(data);
         setSuccess("OTP verified. Redirecting…");
-        const role = data.role || data.admin?.role || "GNS Super Admin";
+        const role = data.role || data.admin?.role || "Insights Iva Super Admin";
         const path = data.dashboard_path || getDashboardPathForRole(role);
         setTimeout(() => navigate(path, { replace: true }), 400);
       } catch (err) {

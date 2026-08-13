@@ -1,4 +1,4 @@
-import {
+﻿import {
   BarChart3,
   Bell,
   Boxes,
@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 /**
- * GNS Insights sidebar structure. Children are filtered by RBAC per-item `module`.
+ * Insights Iva sidebar structure. Children are filtered by RBAC per-item `module`.
  * Routes map to existing pages where available; others use /erp/* placeholders.
  */
 export const SIDEBAR_NAV = [
@@ -107,14 +107,6 @@ export const SIDEBAR_NAV = [
     ],
   },
   {
-    key: "hrMasters",
-    label: "Masters",
-    icon: Layers,
-    children: [
-      { label: "Departments", to: "/masters/departments", module: "hr" },
-    ],
-  },
-  {
     key: "hr",
     labelKey: "erpNav.hr",
     icon: Users,
@@ -129,13 +121,6 @@ export const SIDEBAR_NAV = [
       { labelKey: "erpNav.assetManagement", to: "/hr/assets", module: "hr" },
       { labelKey: "erpNav.incidentReports", to: "/hr/incidents", module: "hr" },
     ],
-  },
-  {
-    key: "expense",
-    label: "Expense",
-    to: "/accounts/expenses",
-    icon: Wallet,
-    module: "accounts",
   },
   {
     key: "finance",

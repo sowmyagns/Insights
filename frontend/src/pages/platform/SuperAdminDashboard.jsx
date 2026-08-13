@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link, useNavigate } from "react-router-dom";
 import { Building2, Loader2, LogOut, PauseCircle, PlayCircle, Plus, Trash2, Users } from "lucide-react";
@@ -163,7 +163,7 @@ function SuperAdminDashboardContent() {
             <div className="ap-header__brand">
               <BrandLogo size="hero" />
               <div>
-                <div className="ap-header__title">GNS Admin Portal</div>
+                <div className="ap-header__title">Insights Iva Admin Portal</div>
                 <div className="ap-header__sub">Super Admin — Company Management</div>
               </div>
             </div>
