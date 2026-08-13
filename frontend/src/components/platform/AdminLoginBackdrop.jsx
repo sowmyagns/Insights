@@ -1,4 +1,4 @@
-﻿/** Abstract wave backdrop for the Insights Iva Admin Portal sign-in (Figma palette). */
+/** Abstract wave backdrop for the Insights Iva Admin Portal sign-in (Figma palette). */
 export default function AdminLoginBackdrop() {
   return (
     <svg

@@ -14,7 +14,7 @@ import useTenantId from "../../hooks/useTenantId";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { apiErrorMessage, asArray } from "../../utils/apiError";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const PAGE_SIZES = [10, 20, 50];
 const ACCENT = "#f97316";
 
@@ -133,15 +133,14 @@ export default function ExpenseV2() {
   const [pageSize, setPageSize] = useState(10);
   const [addOpen, setAddOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [expRes, cats] = await Promise.all([
         listExpenses(tenantId),
         fetchExpenseCategories(),
       ]);
 
-  usePageRefresh(load);
 
       setExpenses(asArray(expRes.data).map(mapApiExpense));
       setCategories(cats);
@@ -152,6 +151,8 @@ export default function ExpenseV2() {
       setLoading(false);
     }
   }, [addToast, tenantId]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();

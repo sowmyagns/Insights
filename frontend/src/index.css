@@ -4,37 +4,74 @@
 
 /* ========== Insights Iva Design System – User-friendly UI/UX ========== */
 :root {
-  --color-primary: #0f6d84;
-  --color-primary-dark: #0c5b6f;
-  --color-primary-light: #38bdf8;
-  --color-accent: #f97316;
-  --color-accent-dark: #ea580c;
-  --color-accent-light: #fb923c;
+  --color-bg: #f5f5f5;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3f3f6;
+  --color-surface-hover: #ececf0;
+  --color-surface-thead: #f5f5f5;
+
+  --color-border: #e4e4ea;
+  --color-border-soft: #e8e8ee;
+  --color-border-muted: #ececf0;
+  --color-border-strong: #e2e2e8;
+
+  --color-text: #1a1a1f;
+  --color-text-secondary: #4a4a55;
+  --color-text-muted: #6b6b76;
+  --color-text-faint: #8a8a96;
+  --color-text-icon: #9a9aa5;
+  --color-text-placeholder: #a0a0ab;
+
+  --color-cta: #f5c518;
+  --color-cta-hover: #e6b800;
+  --color-primary: #5b5bd6;
+  --color-primary-dark: #4a4ac4;
+  --color-primary-soft: #eef0ff;
+  --color-primary-light: #818cf8;
+  --color-accent: #f5c518;
+  --color-accent-dark: #e6b800;
+  --color-accent-light: #fff2b8;
+
+  --color-danger: #ef4444;
+  --color-danger-soft: #fde8e8;
+  --color-success: #15803d;
+  --color-success-soft: #e8f8ef;
+  --color-warning: #b45309;
+  --color-warning-soft: #fff6e5;
   --color-running: #22c55e;
   --color-stopped: #ef4444;
   --color-maintenance: #facc15;
-  --color-bg: #E4F0FD;
-  --color-surface: #ffffff;
-  --color-text: #0f172a;
-  --color-text-muted: #475569;
-  /* UX: comfortable reading & touch */
+
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
-  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-card-hover: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-full: 9999px;
+  --shadow-card: 0 1px 2px rgba(26, 26, 31, 0.06);
+  --shadow-card-hover: 0 2px 6px rgba(26, 26, 31, 0.08);
   --transition-fast: 150ms ease;
   --transition-base: 200ms ease;
+  --page-max: 1400px;
 }
 
 .dark {
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
-  --color-text: #f1f5f9;
-  --color-text-muted: #94a3b8;
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2);
-  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.25);
+  --color-bg: #0f1115;
+  --color-surface: #1a1d24;
+  --color-surface-muted: #23262e;
+  --color-surface-hover: #2a2e38;
+  --color-surface-thead: #1f232b;
+  --color-border: #2e3340;
+  --color-border-soft: #343a48;
+  --color-border-muted: #2e3340;
+  --color-border-strong: #3a4150;
+  --color-text: #f1f3f7;
+  --color-text-secondary: #c4c8d4;
+  --color-text-muted: #9aa0b0;
+  --color-text-faint: #7a8194;
+  --color-text-icon: #8b92a5;
+  --color-text-placeholder: #6b7285;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 /* Hide native number input spinner arrows */
@@ -70,6 +107,24 @@ input[type="number"] {
   }
 }
 
+/* Soft one-shot fade when the global Refresh button re-fetches page data. */
+@keyframes pageRefreshBlink {
+  0% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 0.62;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.page-refresh-blink {
+  animation: pageRefreshBlink 320ms ease-in-out 1;
+  will-change: opacity;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -97,9 +152,9 @@ body {
   background-color: var(--color-bg);
 }
 
-/* Selection – teal tint */
+/* Selection – primary tint */
 ::selection {
-  background-color: rgba(13, 148, 136, 0.2);
+  background-color: rgba(91, 91, 214, 0.18);
   color: inherit;
 }
 
@@ -124,69 +179,65 @@ textarea {
   min-height: 2.5rem;
 }
 
-/* Card surface – use class="ui-card" on panels */
+/* Card surface – Products language */
 .ui-card {
   border-radius: var(--radius-lg);
-  border: 1px solid rgb(226 232 240);
+  border: 1px solid var(--color-border);
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
-  transition: box-shadow var(--transition-base);
-}
-.dark .ui-card {
-  border-color: rgb(51 65 85);
-  background: rgb(30 41 59);
 }
 .ui-card:hover {
   box-shadow: var(--shadow-card-hover);
 }
 
-/* Primary button helper – consistent CTA */
+/* Primary CTA – Products yellow */
 .ui-btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
+  gap: 0.375rem;
+  padding: 0.625rem 0.875rem;
   border-radius: var(--radius-md);
+  border: none;
   font-weight: 600;
-  font-size: 0.875rem;
-  background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-  color: white;
-  box-shadow: 0 2px 8px rgba(15, 118, 150, 0.35);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  font-size: 0.8125rem;
+  background: var(--color-cta);
+  color: var(--color-text);
+  box-shadow: var(--shadow-card);
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+  cursor: pointer;
 }
 .ui-btn-primary:hover {
-  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.45);
+  background: var(--color-cta-hover);
 }
 .ui-btn-primary:active {
   transform: scale(0.98);
 }
 .ui-btn-primary:disabled {
-  opacity: 0.55;
+  opacity: 0.6;
   cursor: not-allowed;
   transform: none;
 }
 
-/* HR action button – matches the app's Logout button (yellow-gold accent) */
+/* HR / CTA alias – same Products yellow */
 .ui-btn-hr {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  border-radius: 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  background-color: #F5C518;
-  color: #1e293b;
-  box-shadow: 0 2px 8px rgba(245, 197, 24, 0.35);
-  transition: background-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
-  cursor: pointer;
+  gap: 0.375rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-md);
   border: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background-color: var(--color-cta);
+  color: var(--color-text);
+  box-shadow: var(--shadow-card);
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+  cursor: pointer;
 }
 .ui-btn-hr:hover {
-  background-color: #e6b800;
-  box-shadow: 0 4px 14px rgba(245, 197, 24, 0.5);
+  background-color: var(--color-cta-hover);
 }
 .ui-btn-hr:active {
   transform: scale(0.97);
@@ -197,45 +248,44 @@ textarea {
   transform: none;
 }
 
-/* Secondary / outline button */
+/* Secondary / outline button – Products Bulk Import / Export */
 .ui-btn-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
+  gap: 0.375rem;
+  padding: 0.625rem 0.875rem;
   border-radius: var(--radius-md);
   font-weight: 600;
-  font-size: 0.875rem;
-  border: 1px solid rgb(203 213 225);
-  background: var(--color-surface);
+  font-size: 0.8125rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
   color: var(--color-text);
-  transition: background var(--transition-fast), border-color var(--transition-fast);
-}
-.dark .ui-btn-secondary {
-  border-color: rgb(71 85 105);
-  background: rgb(30 41 59);
+  transition: background-color var(--transition-fast);
+  cursor: pointer;
 }
 .ui-btn-secondary:hover {
-  border-color: rgb(13 148 136);
-  background: rgb(240 253 250);
+  background: var(--color-surface-hover);
 }
-.dark .ui-btn-secondary:hover {
-  background: rgb(19 78 74 / 0.25);
-  border-color: rgb(45 212 191);
+.ui-btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-/* Standard form input */
+/* Standard form input – Products search/control language */
 .ui-input {
   width: 100%;
   min-height: 2.75rem;
-  border-radius: var(--radius-md);
-  border: 1px solid rgb(226 232 240);
-  background: var(--color-surface);
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-surface-muted);
+  padding: 0.625rem 1rem;
+  font-size: 0.8125rem;
   color: var(--color-text);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+.ui-input::placeholder {
+  color: var(--color-text-placeholder);
 }
 .ui-input.pl-10,
 .ui-input.pl-9,
@@ -243,32 +293,37 @@ input.pl-10,
 input.pl-9 {
   padding-left: 2.5rem !important;
 }
-.dark .ui-input {
-  border-color: rgb(71 85 105);
-  background: rgb(30 41 59);
-}
 .ui-input:focus {
-  border-color: rgb(13 148 136);
-  box-shadow: 0 0 0 3px rgb(13 148 136 / 0.15);
+  border-color: var(--color-border-strong);
+  background: var(--color-surface);
+  box-shadow: none;
   outline: none;
 }
 
-/* Page content rhythm */
+/* Page content rhythm – Products max width + padding */
 .ui-page {
   width: 100%;
-  max-width: 80rem;
+  max-width: var(--page-max);
   margin-left: auto;
   margin-right: auto;
+  padding: 1.25rem 1rem 6rem;
+}
+@media (min-width: 640px) {
+  .ui-page {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+@media (min-width: 1024px) {
+  .ui-page {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
 }
 .ui-stack {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-}
-@media (min-width: 640px) {
-  .ui-stack {
-    gap: 2rem;
-  }
+  gap: 1.25rem;
 }
 
 /* Muted helper text */
@@ -276,6 +331,45 @@ input.pl-9 {
   font-size: 0.8125rem;
   color: var(--color-text-muted);
   line-height: 1.45;
+}
+
+.ui-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.ui-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+@media (min-width: 640px) {
+  .ui-title {
+    font-size: 1.5rem;
+  }
+}
+
+.ui-subtitle {
+  margin-top: 0.25rem;
+  max-width: 42rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.ui-table-wrap {
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-muted);
+}
+.ui-empty {
+  padding: 4rem 1rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--color-text-faint);
 }
 
 /* Auth image slider */

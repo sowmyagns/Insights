@@ -287,7 +287,7 @@ export default function GoodsReceipt() {
       {storeMode ? <StoreManagerNav /> : null}
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-subtitle">
             Receive materials against purchase orders and post accepted quantity to inventory.
           </p>
         </div>

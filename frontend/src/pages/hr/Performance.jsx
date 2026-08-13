@@ -132,7 +132,7 @@ export default function Performance() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">Monitor employee review periods, rating logs, goals achieved, and manager feedback.</p>
+          <p className="ui-subtitle">Monitor employee review periods, rating logs, goals achieved, and manager feedback.</p>
         </div>
         <div className="flex gap-2">
           <button

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { getCompanySettings, updateCompanySettings } from "../api/settingsApi";
 import { useToast } from "../context/ToastContext";
+import usePageRefresh from "./usePageRefresh";
 
 /**
  * Loads and patches tenant company settings via `/settings/company`.
@@ -13,14 +14,17 @@ export function useCompanySettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await getCompanySettings();
       setSettings(res.data || {});
       return res.data;
     } catch (err) {
-      addToast(err.response?.data?.detail || "Failed to load company settings", "error");
+      if (!isRefresh) {
+        addToast(err.response?.data?.detail || "Failed to load company settings", "error");
+      }
+      if (isRefresh) throw err;
       return null;
     } finally {
       setLoading(false);
@@ -48,6 +52,8 @@ export function useCompanySettings() {
   useEffect(() => {
     load();
   }, [load]);
+
+  usePageRefresh(() => load(true));
 
   return { settings, loading, saving, save, reload: load, setSettings };
 }

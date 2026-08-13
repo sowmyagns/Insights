@@ -18,9 +18,9 @@ import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 
 function KpiCard({ label, value, icon: Icon, color }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
+    <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
       <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
+        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
         {Icon && (
           <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
             <Icon className="h-3.5 w-3.5 text-white" />
@@ -28,7 +28,7 @@ function KpiCard({ label, value, icon: Icon, color }) {
         )}
       </div>
       <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-slate-900 leading-none sm:text-2xl">{value ?? 0}</p>
+        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl">{value ?? 0}</p>
       </div>
     </div>
   );
@@ -186,7 +186,7 @@ export default function PurchaseOrders() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-subtitle">
             Approve Purchase Orders (POs) from material requests, then receive goods via Goods Receipt Note (GRN).
           </p>
         </div>

@@ -88,7 +88,15 @@ export default function CreateProduct() {
     };
   }, [id, isEdit, addToast]);
 
-  const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const set = (key, value) => {
+    let val = value;
+    if (["current_stock", "min_stock", "max_stock"].includes(key) && typeof val === "string") {
+      if (/^0+[1-9]/.test(val)) {
+        val = val.replace(/^0+/, "");
+      }
+    }
+    setForm((prev) => ({ ...prev, [key]: val }));
+  };
 
   const numericOk = (v) => v === "" || /^(0|[1-9]\d*)(\.\d+)?$/.test(String(v));
 

@@ -12,7 +12,7 @@ import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 import useTenantId from "../../hooks/useTenantId";
 
-const PAGE_BG = "#F5F5F5";
+const PAGE_BG = "var(--color-bg)";
 const YELLOW = "#F5C518";
 const PAGE_SIZES = [20, 50, 100];
 
@@ -198,7 +198,7 @@ export default function DailyReports() {
           <p className="mt-0.5 text-xs text-slate-500">{t("production.dailyReportsSubtitle")}</p>
         </div>
 
-        <div className="rounded-xl border border-[#e4e4ea] bg-white p-4 shadow-sm sm:p-5">
+        <div className="ui-card p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center gap-2.5">
             <div className="relative min-w-[220px] flex-1">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />

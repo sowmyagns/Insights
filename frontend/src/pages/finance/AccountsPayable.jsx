@@ -14,7 +14,7 @@ function KpiCard({ label, value, icon: Icon, color }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
-        <div><p className="text-xs font-medium text-slate-500">{label}</p><p className="mt-1 text-xl font-bold tabular-nums text-slate-900">{value}</p></div>
+        <div><p className="text-xs font-medium text-slate-500">{label}</p><p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value}</p></div>
         {Icon && <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}><Icon className="h-5 w-5 text-white" /></div>}
       </div>
     </div>
@@ -38,12 +38,11 @@ export default function AccountsPayable() {
   const [month, setMonth] = useState("All Months");
   const [branch, setBranch] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [sumRes, listRes] = await Promise.allSettled([getAPSummary(), getAPEnriched()]);
 
-  usePageRefresh(load);
 
       if (sumRes.status === "fulfilled" && sumRes.value?.data) {
         setSummary((prev) => ({ ...prev, ...sumRes.value.data }));
@@ -58,6 +57,8 @@ export default function AccountsPayable() {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => { load(); }, [load]);
 
@@ -98,7 +99,7 @@ export default function AccountsPayable() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">Vendor bills, payment scheduling, and outstanding payables management.</p>
+          <p className="ui-subtitle">Vendor bills, payment scheduling, and outstanding payables management.</p>
         </div>
         <div className="flex gap-2">
           <Link to="/purchases/payments-made/create" className="inline-flex items-center rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Record Payment</Link>

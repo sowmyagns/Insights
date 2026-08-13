@@ -46,11 +46,11 @@ function daysDiff(dueDateStr) {
 
 function KpiCard({ label, value, sub, icon: Icon, color, trend }) {
   return (
-    <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-md">
+    <div className="ui-card p-5 transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
-          <p className="mt-1.5 text-2xl font-bold tabular-nums text-slate-900 truncate">{value}</p>
+          <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
+          <p className="mt-1.5 text-xl font-bold tabular-nums text-[var(--color-text)] truncate">{value}</p>
           {sub && <p className="mt-0.5 text-xs text-slate-400">{sub}</p>}
         </div>
         {Icon && (
@@ -597,8 +597,8 @@ export default function AccountsPayable() {
   const [branch, setBranch] = useState("");
 
   // ── Data Loading ──
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [sumRes, apRes, vendorRes, payRes, billRes] = await Promise.allSettled([
         getAPSummary(),
@@ -608,7 +608,6 @@ export default function AccountsPayable() {
         getVendorBills(),
       ]);
 
-  usePageRefresh(load);
 
       if (sumRes.status === "fulfilled" && sumRes.value?.data) setSummary(sumRes.value.data);
 
@@ -635,6 +634,8 @@ export default function AccountsPayable() {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => { load(); }, [load]);
 
@@ -801,9 +802,9 @@ export default function AccountsPayable() {
         {/* ── Page Header ── */}
         <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">Finance</p>
-            <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Accounts Payable</h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="ui-eyebrow">Finance</p>
+            <h2 className="mt-0.5 ui-title">Accounts Payable</h2>
+            <p className="ui-subtitle">
               Manage vendor bills, supplier payments, and outstanding payables.
             </p>
           </div>
@@ -818,7 +819,7 @@ export default function AccountsPayable() {
         </header>
 
         {/* ── Finance Workflow Bar ── */}
-        <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200/90 bg-white px-4 py-3 text-[10px] font-medium text-slate-600 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:text-xs">
+        <div className="flex flex-wrap items-center gap-1 ui-card px-4 py-3 text-[10px] font-medium text-slate-600 sm:text-xs">
           {FINANCE_FLOW.map((s, i) => (
             <span key={s} className="flex items-center gap-1">
               <span className={`rounded-lg px-2.5 py-1 ${

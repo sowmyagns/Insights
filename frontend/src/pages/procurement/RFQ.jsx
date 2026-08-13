@@ -425,8 +425,8 @@ export default function RFQ() {
   const [suppliers, setSuppliers] = useState([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [sumRes, listRes, mrRes, supRes] = await Promise.allSettled([
         getRFQSummary(),
@@ -435,7 +435,6 @@ export default function RFQ() {
         getVendors(),
       ]);
 
-  usePageRefresh(load);
 
       if (sumRes.status === "fulfilled" && sumRes.value?.data) {
         setSummary(sumRes.value.data);
@@ -461,6 +460,8 @@ export default function RFQ() {
       setLoading(false);
     }
   }, []);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();
@@ -539,7 +540,7 @@ export default function RFQ() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-subtitle">
             Send Request for Quotation (RFQ)s to multiple vendors and automatically compare quotations.
           </p>
         </div>

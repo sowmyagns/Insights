@@ -13,11 +13,11 @@ import { formatInr, statusColor, agingColor } from "../../data/financeMasterData
 
 function KpiCard({ label, value, icon: Icon, color }) {
   return (
-    <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div className="ui-card p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="text-[11px] font-medium text-slate-500">{label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-slate-900">{value}</p>
+          <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value}</p>
         </div>
         {Icon && (
           <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}>
@@ -56,12 +56,11 @@ export default function AccountsReceivable() {
   const [month, setMonth] = useState("All Months");
   const [branch, setBranch] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [sumRes, listRes] = await Promise.allSettled([getARSummary(), getAREnriched()]);
 
-  usePageRefresh(load);
 
       if (sumRes.status === "fulfilled" && sumRes.value?.data) setSummary(sumRes.value.data);
       if (listRes.status === "fulfilled" && listRes.value?.data) setRows(listRes.value.data);
@@ -73,6 +72,8 @@ export default function AccountsReceivable() {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => { load(); }, [load]);
 
@@ -151,9 +152,9 @@ export default function AccountsReceivable() {
     <div className="space-y-5 pb-4">
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">Finance</p>
-          <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Accounts Receivable</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-eyebrow">Finance</p>
+          <h2 className="mt-0.5 ui-title">Accounts Receivable</h2>
+          <p className="ui-subtitle">
             Customer invoices, collections, and aging analysis for finance team.
           </p>
         </div>
@@ -168,7 +169,7 @@ export default function AccountsReceivable() {
       </div>
 
       {rows.length > 0 && (
-      <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="ui-card p-5">
         <h2 className="mb-4 text-sm font-bold text-slate-900">Customer Aging Report</h2>
         <div className="grid gap-4 sm:grid-cols-4">
           {agingData.map((a) => (
@@ -205,12 +206,12 @@ export default function AccountsReceivable() {
         searchPlaceholder="Search invoice, customer..."
       />
 
-      <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="ui-card p-4">
         {rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <FileText className="h-12 w-12 text-slate-300 mb-4" />
             <p className="text-lg font-semibold text-slate-700">No receivables yet</p>
-            <p className="mt-1 text-sm text-slate-500 max-w-sm">
+            <p className="ui-subtitle max-w-sm">
               Accounts receivable data is pulled from your sales invoices.
               Create an invoice in the Sales module to see it here.
             </p>

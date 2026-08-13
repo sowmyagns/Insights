@@ -6,7 +6,7 @@ import { useToast } from "../../context/ToastContext";
 import { getFeatureSetting, putFeatureSetting } from "../../api/bizDocumentsApi";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const SETTING_KEY = "sequence_reset";
 const ACCENT = "#0f6d84";
 

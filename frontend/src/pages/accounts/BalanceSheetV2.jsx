@@ -206,19 +206,24 @@ export default function BalanceSheetV2() {
   const [assets,      setAssets]      = useState([]);   // [{label, amount}]
 
   /* ── fetch from backend ── */
-  const load = () => {
-    setLoading(true);
-    getBalanceSheet()
+  const load = (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
+    return getBalanceSheet()
       .then((res) => {
         const d = res.data || {};
         setLiabilities(d.liabilities || []);
         setAssets(d.assets      || []);
       })
-      .catch(() => { setLiabilities([]); setAssets([]); })
+      .catch((err) => {
+        if (!isRefresh) { setLiabilities([]); setAssets([]); }
+        if (isRefresh) throw err;
+      })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
+
+  usePageRefresh(() => load(true));
 
   /* ── totals: sum only heading-row amounts (consistent with displayed data) ── */
   const totalLiab  = liabilities
@@ -321,8 +326,6 @@ export default function BalanceSheetV2() {
   function isHeading(row) {
     return row && HEADING_LABELS.has(row.label);
   }
-
-  usePageRefresh(load);
 
   return (
     <div style={{ background: "#fff", fontFamily: FONT, fontSize: 12, color: "#111",

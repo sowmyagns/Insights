@@ -16,7 +16,7 @@ function KpiCard({ label, value, icon: Icon, color }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-slate-900">{value}</p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value}</p>
         </div>
         {Icon && (
           <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
@@ -50,12 +50,11 @@ export default function AccountsReceivable() {
   const [month, setMonth] = useState("All Months");
   const [branch, setBranch] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [sumRes, listRes] = await Promise.allSettled([getARSummary(), getAREnriched()]);
 
-  usePageRefresh(load);
 
       if (sumRes.status === "fulfilled" && sumRes.value?.data) setSummary(sumRes.value.data);
       if (listRes.status === "fulfilled" && listRes.value?.data) setRows(listRes.value.data);
@@ -67,6 +66,8 @@ export default function AccountsReceivable() {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => { load(); }, [load]);
 
@@ -150,7 +151,7 @@ export default function AccountsReceivable() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-subtitle">
             Customer invoices, collections, and aging analysis for finance team.
           </p>
         </div>

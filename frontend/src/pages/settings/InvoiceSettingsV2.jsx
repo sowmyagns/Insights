@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const ROW_BG = "#DBE2F0";
 const TOGGLE_ON = "#3B82F6";
 const STORAGE_KEY = "gns_invoice_settings_v2";

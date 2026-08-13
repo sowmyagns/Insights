@@ -16,7 +16,7 @@ import {
 import { exportToPdf } from "../../utils/exportUtils";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const PAGE_BG = "#F5F5F5";
+const PAGE_BG = "var(--color-bg)";
 
 function todayLabel() {
   const d = new Date();
@@ -203,15 +203,14 @@ export default function InventoryItemDetailV2() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await getInventoryV2Item(id);
       const data = res.data || {};
       setItem(data);
       setTimeline(Array.isArray(data.timeline) ? data.timeline : []);
 
-  usePageRefresh(load);
 
     } catch (err) {
       addToast(apiErrorMessage(err, "Could not load item."), "error");
@@ -220,6 +219,8 @@ export default function InventoryItemDetailV2() {
       setLoading(false);
     }
   }, [id, addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();

@@ -41,9 +41,9 @@ export default function PaymentTracking() {
     <div className="space-y-5 pb-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">Sales</p>
-          <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Payment Tracking</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-eyebrow">Sales</p>
+          <h2 className="mt-0.5 ui-title">Payment Tracking</h2>
+          <p className="ui-subtitle">
             Payments update invoice balances, income, and AR journal entries.
           </p>
         </div>
@@ -56,7 +56,7 @@ export default function PaymentTracking() {
 
       <ManufacturingWorkflowBar currentStepId="payment" />
 
-      <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="ui-card p-4">
         <Table
           columns={[
             { key: "id", label: "Payment#" },

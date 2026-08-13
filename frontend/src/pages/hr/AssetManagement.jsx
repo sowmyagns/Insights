@@ -14,9 +14,9 @@ const inputClass =
 
 function KpiCard({ label, value, icon: Icon, color }) {
   return (
-    <div className="group rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md" title={typeof label === "string" ? label : undefined}>
+    <div className="group ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5" title={typeof label === "string" ? label : undefined}>
       <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
+        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
         {Icon && (
           <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-105 ${color}`}>
             <Icon className="h-3.5 w-3.5 text-white shrink-0" />
@@ -24,7 +24,7 @@ function KpiCard({ label, value, icon: Icon, color }) {
         )}
       </div>
       <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-slate-900 leading-none sm:text-2xl" title={String(value)}>
+        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl" title={String(value)}>
           {value}
         </p>
       </div>
@@ -186,7 +186,7 @@ export default function AssetManagement({ autoOpenCreate }) {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">Track company assets, IT gear, and tooling assigned to employees and operational locations.</p>
+          <p className="ui-subtitle">Track company assets, IT gear, and tooling assigned to employees and operational locations.</p>
         </div>
         <div className="flex gap-2">
           <button

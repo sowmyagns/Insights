@@ -1,15 +1,14 @@
-import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Search, X } from "lucide-react";
 
 const inputBase =
-  "w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 py-2.5 text-sm placeholder-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none transition-all";
+  "w-full rounded-full border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] py-2.5 text-[13px] text-[var(--color-text)] placeholder-[var(--color-text-placeholder)] outline-none transition-all focus:border-[var(--color-border-strong)] focus:bg-white";
 
 export function SearchBar({ value, onChange, placeholder = "Search...", onClear }) {
   const { t } = useTranslation();
   return (
-    <div className="relative flex-1 min-w-[200px] max-w-sm">
-      <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
+    <div className="relative min-w-[200px] max-w-sm flex-1">
+      <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[var(--color-text-icon)]" />
       <input
         type="search"
         value={value}
@@ -20,8 +19,11 @@ export function SearchBar({ value, onChange, placeholder = "Search...", onClear 
       {value && (
         <button
           type="button"
-          onClick={() => { onChange(""); onClear?.(); }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+          onClick={() => {
+            onChange("");
+            onClear?.();
+          }}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-icon)] hover:text-[var(--color-text)]"
           aria-label="Clear search"
         >
           <X className="h-4 w-4" />
@@ -34,13 +36,11 @@ export function SearchBar({ value, onChange, placeholder = "Search...", onClear 
 export function FilterSelect({ label, value, options, onChange, placeholder }) {
   return (
     <div className="flex items-center gap-2">
-      {label && (
-        <span className="text-sm text-slate-600 dark:text-slate-400">{label}</span>
-      )}
+      {label && <span className="text-sm text-[var(--color-text-muted)]">{label}</span>}
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
-        className={`${inputBase} py-2 min-w-[120px]`}
+        className="min-w-[120px] rounded-lg border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] px-3 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[var(--color-border-strong)] focus:bg-white"
       >
         <option value="">{placeholder ?? "All"}</option>
         {options.map((opt) => (
@@ -81,11 +81,9 @@ export default function SearchFilter({
           placeholder={f.placeholder}
         />
       ))}
-      {resultCount != null && (
-        <span className="text-sm text-slate-500 dark:text-slate-400">
-          {resultCount} results
-        </span>
-      )}
+      {typeof resultCount === "number" ? (
+        <span className="text-xs text-[var(--color-text-muted)]">{resultCount} results</span>
+      ) : null}
       {children}
     </div>
   );

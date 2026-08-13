@@ -93,7 +93,7 @@ logger = get_logger("gns_insights")
 
 # redoc_url=None — default FastAPI template points at redoc@next (404 on jsDelivr)
 app = FastAPI(
-    title="GNS Insights API",
+    title="Insights Iva API",
     version="1.0.0",
     redoc_url=None,
 )

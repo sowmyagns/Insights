@@ -1,4 +1,4 @@
-"""LLM integration for GNS Insights Operator Assistant."""
+"""LLM integration for Insights Iva Operator Assistant."""
 
 from app.llm.function_registry import TOOL_DEFINITIONS, execute_tool, format_tool_result
 from app.llm.intent_detector import detect_intent

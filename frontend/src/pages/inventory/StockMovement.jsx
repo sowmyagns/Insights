@@ -38,8 +38,8 @@ export default function StockMovement() {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [itemsRes, whRes] = await Promise.all([
         getInventoryDashboard(),
@@ -47,10 +47,13 @@ export default function StockMovement() {
       ]);
       setItems(itemsRes.data || []);
       setWarehouses(whRes.data || []);
-    } catch {
-      setItems([]);
-      setWarehouses([]);
-      addToast("Could not load stock data", "error");
+    } catch (err) {
+      if (!isRefresh) {
+        setItems([]);
+        setWarehouses([]);
+        addToast("Could not load stock data", "error");
+      }
+      if (isRefresh) throw err;
     } finally {
       setLoading(false);
     }
@@ -60,6 +63,8 @@ export default function StockMovement() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
+
+  usePageRefresh(() => load(true));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -91,7 +96,6 @@ export default function StockMovement() {
     );
   }
 
-  usePageRefresh(load);
 
   return (
     <div className="space-y-6 pb-8">
@@ -99,7 +103,7 @@ export default function StockMovement() {
 
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-subtitle">
             Issue material from a warehouse to production or another department.
           </p>
         </div>

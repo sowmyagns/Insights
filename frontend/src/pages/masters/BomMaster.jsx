@@ -20,7 +20,6 @@ import { useToast } from "../../context/ToastContext";
 import { addBomItem, deleteBomItem, getBillOfMaterials } from "../../api/bomApi";
 import { getProducts } from "../../api/productsApi";
 import useTenantId from "../../hooks/useTenantId";
-import usePageRefresh from "../../hooks/usePageRefresh";
 import {
   BOM_STATUSES,
   BOM_VERSIONS,
@@ -84,9 +83,6 @@ export default function BomMaster() {
     setLoading(true);
     try {
       const [bomRes, prodRes] = await Promise.all([getBillOfMaterials(), getProducts()]);
-
-  usePageRefresh(loadBoms);
-
       const apiRows = bomRes.data || [];
       const apiProducts = Array.isArray(prodRes) ? prodRes : (prodRes.data || []);
       const groupedApi = groupApiBomRows(apiRows);
@@ -243,12 +239,55 @@ export default function BomMaster() {
         const stored = localStorage.getItem(storedKey);
         let list = stored ? JSON.parse(stored) : [];
 
-        // Uniqueness check: reject if another BOM (different id) already has this bom_number
-        const duplicate = boms.find(
-          (b) => b.bom_number && b.bom_number === savedBom.bom_number && b.id !== savedBom.id
+        const sProdName = String(savedBom.product_name || savedBom.product || "").trim();
+        const sBomNo = String(savedBom.bom_number || "").trim();
+        const sProdCode = String(savedBom.product_code || "").trim();
+
+        if (!sProdName) {
+          addToast("Product Name is required and cannot be blank", "error");
+          return;
+        }
+        if (!sBomNo) {
+          addToast("BOM No is required and cannot be blank", "error");
+          return;
+        }
+        if (!sProdCode) {
+          addToast("Product Code is required and cannot be blank", "error");
+          return;
+        }
+
+        // Uniqueness check 1: reject if another BOM (different id) already has this bom_number
+        const dupBomNo = boms.find(
+          (b) => String(b.id) !== String(savedBom.id) &&
+                 b.bom_number &&
+                 String(b.bom_number).trim().toLowerCase() === String(savedBom.bom_number).trim().toLowerCase()
         );
-        if (duplicate) {
+        if (dupBomNo) {
           addToast(`BOM No "${savedBom.bom_number}" already exists. Please use a unique BOM No.`, "error");
+          return;
+        }
+
+        // Uniqueness check 2: reject if another BOM (different id) has same Product Name/Code and Version
+        const sProdNameLower = sProdName.toLowerCase();
+        const sProdCodeLower = sProdCode.toLowerCase();
+        const sVersion = String(savedBom.version || "V1.0").trim().toLowerCase();
+
+        const dupProdVer = boms.find((b) => {
+          if (String(b.id) === String(savedBom.id)) return false;
+          const bProdName = String(b.product_name || b.product || "").trim().toLowerCase();
+          const bProdCode = String(b.product_code || "").trim().toLowerCase();
+          const bVersion = String(b.version || "V1.0").trim().toLowerCase();
+
+          const matchProduct = (sProdNameLower && bProdName === sProdNameLower) || (sProdCodeLower && bProdCode === sProdCodeLower);
+          const matchVersion = bVersion === sVersion;
+          return matchProduct && matchVersion;
+        });
+
+        if (dupProdVer) {
+          addToast(
+            `A BOM for product "${savedBom.product_name}" with version "${savedBom.version || "V1.0"}" already exists. Duplicate BOMs for the same product and version are not allowed.`,
+            "error"
+          );
           return;
         }
 
@@ -303,6 +342,7 @@ export default function BomMaster() {
     <div className="space-y-6 pb-8">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
+          <h1 className="text-2xl font-bold text-slate-900">Bill of Materials (BOM)</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
             Manage product structures, components, production routing, and manufacturing costs.
           </p>

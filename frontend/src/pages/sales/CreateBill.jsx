@@ -147,7 +147,7 @@ export default function CreateBill() {
         <Link to="/sales/bills" className="mb-2 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
           <ArrowLeft className="h-4 w-4" /> Back to Bills
         </Link>
-        <p className="mt-1 text-sm text-slate-500">Fill in the details below to create a new bill.</p>
+        <p className="ui-subtitle">Fill in the details below to create a new bill.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">

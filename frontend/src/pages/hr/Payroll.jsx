@@ -311,7 +311,7 @@ export default function Payroll() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">Enterprise payroll with PF, ESI, tax, overtime, and salary slip generation.</p>
+          <p className="ui-subtitle">Enterprise payroll with PF, ESI, tax, overtime, and salary slip generation.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button

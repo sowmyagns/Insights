@@ -46,11 +46,11 @@ export default function FeatureSettingsPage({
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-6">
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">Settings</p>
-        <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">{title}</h2>
-        {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
+        <p className="ui-eyebrow">Settings</p>
+        <h2 className="mt-0.5 ui-title">{title}</h2>
+        {description ? <p className="ui-subtitle">{description}</p> : null}
       </div>
-      <form onSubmit={onSave} className="space-y-4 rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <form onSubmit={onSave} className="space-y-4 ui-card p-5">
         {fields.map((f) => (
           <label key={f.name} className="block">
             <span className="mb-1 block text-sm font-medium text-slate-700">{f.label}</span>

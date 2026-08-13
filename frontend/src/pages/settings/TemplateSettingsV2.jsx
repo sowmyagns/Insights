@@ -5,7 +5,7 @@ import { Check, Settings2 } from "lucide-react";
 
 import { useToast } from "../../context/ToastContext";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const ACCENT = "#0f6d84";
 const BTN_DARK = "#2f323a";
 const STORAGE_KEY = "gns_template_settings_v2";

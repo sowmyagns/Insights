@@ -19,14 +19,13 @@ export default function MultiBranchLedger() {
   const [branchData, setBranchData] = useState([]);
   const [summary, setSummary] = useState({ revenue: 0, expenses: 0 });
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await getExtendedReports(financialYear, month, branch);
       if (res.data) {
         setPostings(res.data.journal_entries || []);
 
-  usePageRefresh(load);
 
         
         // Calculate dynamic branch breakdowns
@@ -55,6 +54,8 @@ export default function MultiBranchLedger() {
     }
   }, [financialYear, month, branch, addToast]);
 
+  usePageRefresh(() => load(true));
+
   useEffect(() => { load(); }, [load]);
 
   const filtered = postings.filter((p) => {
@@ -75,7 +76,7 @@ export default function MultiBranchLedger() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">Consolidated posting logs and branch-level financial comparison dashboard.</p>
+          <p className="ui-subtitle">Consolidated posting logs and branch-level financial comparison dashboard.</p>
         </div>
       </header>
 

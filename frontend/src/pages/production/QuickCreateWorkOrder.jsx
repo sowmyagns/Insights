@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -55,72 +55,78 @@ export default function QuickCreateWorkOrder() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
+    try {
+      const [pRes, mRes, sRes, rmRes] = await Promise.all([
+        fetchProductsWithFallback().catch(() => []),
+        getMachines(tenantId).catch(() => ({ data: [] })),
+        getShifts(tenantId).catch(() => ({ data: [] })),
+        getRawMaterials().catch(() => ({ data: [] })),
+      ]);
+      const rawProducts = Array.isArray(pRes) ? pRes : (pRes?.data || []);
+      const sortedProducts = [...rawProducts].sort((a, b) => (b.id || 0) - (a.id || 0));
+      setProducts(sortedProducts);
+      if (sortedProducts.length > 0) {
+        setForm((prev) => ({
+          ...prev,
+          product_id: prev.product_id || prefilledProductId || sortedProducts[0].id,
+          planned_quantity: prev.planned_quantity || prefilledQty || "100",
+        }));
+      }
+      setMachines(mRes?.data || []);
+      setShifts(sRes?.data || []);
+
+      const rmApi = rmRes?.data || [];
+      const rmProducts = sortedProducts.filter(
+        (p) => p.category === "Raw Material" || p.product_type === "Raw Material" || String(p.name).toLowerCase().includes("raw") || String(p.sku).toLowerCase().startsWith("rm")
+      );
+
+      let localInv = [];
       try {
-        const [pRes, mRes, sRes, rmRes] = await Promise.all([
-          fetchProductsWithFallback().catch(() => []),
-          getMachines(tenantId).catch(() => ({ data: [] })),
-          getShifts(tenantId).catch(() => ({ data: [] })),
-          getRawMaterials().catch(() => ({ data: [] })),
-        ]);
-        const rawProducts = Array.isArray(pRes) ? pRes : (pRes?.data || []);
-        const sortedProducts = [...rawProducts].sort((a, b) => (b.id || 0) - (a.id || 0));
-        setProducts(sortedProducts);
-        if (sortedProducts.length > 0) {
-          setForm((prev) => ({
-            ...prev,
-            product_id: prev.product_id || prefilledProductId || sortedProducts[0].id,
-            planned_quantity: prev.planned_quantity || prefilledQty || "100",
-          }));
+        const stored = localStorage.getItem("smrt_raw_materials") || localStorage.getItem("smrt_inventory");
+        if (stored) localInv = JSON.parse(stored);
+      } catch { }
+
+      const rmMap = new Map();
+      [...rmApi, ...rmProducts, ...localInv].forEach((item) => {
+        if (!item) return;
+        const name = item.name || item.item_name || item.material_name;
+        const code = item.sku || item.item_code || item.product_code || item.id;
+        const cleanName = String(name || "").trim();
+        if (!cleanName) return;
+        const key = cleanName.toLowerCase();
+        if (!rmMap.has(key)) {
+          rmMap.set(key, {
+            id: item.id || code || cleanName,
+            name: cleanName,
+            code: code || "",
+            unit: item.unit || item.uom || "Pcs",
+            stock: item.current_stock ?? item.quantity ?? item.available_stock ?? null,
+          });
         }
-        setMachines(mRes?.data || []);
-        setShifts(sRes?.data || []);
+      });
 
-        const rmApi = rmRes?.data || [];
-        const rmProducts = sortedProducts.filter(
-          (p) => p.category === "Raw Material" || p.product_type === "Raw Material" || String(p.name).toLowerCase().includes("raw") || String(p.sku).toLowerCase().startsWith("rm")
-        );
-
-        let localInv = [];
-        try {
-          const stored = localStorage.getItem("smrt_raw_materials") || localStorage.getItem("smrt_inventory");
-          if (stored) localInv = JSON.parse(stored);
-        } catch { }
-
-        const rmMap = new Map();
-        [...rmApi, ...rmProducts, ...localInv].forEach((item) => {
-          if (!item) return;
-          const name = item.name || item.item_name || item.material_name;
-          const code = item.sku || item.item_code || item.product_code || item.id;
-          const cleanName = String(name || "").trim();
-          if (!cleanName) return;
-          const key = cleanName.toLowerCase();
-          if (!rmMap.has(key)) {
-            rmMap.set(key, {
-              id: item.id || code || cleanName,
-              name: cleanName,
-              code: code || "",
-              unit: item.unit || item.uom || "Pcs",
-              stock: item.current_stock ?? item.quantity ?? item.available_stock ?? null,
-            });
-          }
-        });
-
-        setRawMaterials(Array.from(rmMap.values()));
-      } catch (e) {
-        console.error(e);
+      setRawMaterials(Array.from(rmMap.values()));
+    } catch (e) {
+      console.error(e);
+      if (!isRefresh) {
         setProducts([]);
         setMachines([]);
         setShifts([]);
         setRawMaterials([]);
-      } finally {
-        setLoading(false);
       }
-    };
+      if (isRefresh) throw e;
+    } finally {
+      setLoading(false);
+    }
+  }, [tenantId, prefilledProductId, prefilledQty]);
+
+  useEffect(() => {
     load();
-  }, [tenantId]);
+  }, [load]);
+
+  usePageRefresh(() => load(true));
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -251,8 +257,6 @@ export default function QuickCreateWorkOrder() {
   }
 
   const isQuickAssign = Boolean(poId);
-
-  usePageRefresh(load);
 
   return (
     <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-6 shadow-sm">

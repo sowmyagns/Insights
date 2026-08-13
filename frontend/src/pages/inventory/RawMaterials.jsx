@@ -21,9 +21,9 @@ import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 
 function KpiCard({ label, value, icon: Icon, color }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
+    <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
       <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
+        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
         {Icon && (
           <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
             <Icon className="h-3.5 w-3.5 text-white" />
@@ -31,7 +31,7 @@ function KpiCard({ label, value, icon: Icon, color }) {
         )}
       </div>
       <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-slate-900 leading-none sm:text-2xl">{value ?? 0}</p>
+        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl">{value ?? 0}</p>
       </div>
     </div>
   );
@@ -166,9 +166,9 @@ export default function RawMaterials() {
     <div className="space-y-5 pb-4">
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">Inventory</p>
-          <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Raw Materials</h2>
-          <p className="mt-1 text-sm text-slate-500">Monitor raw material stock levels to prevent line stoppages.</p>
+          <p className="ui-eyebrow">Inventory</p>
+          <h2 className="mt-0.5 ui-title">Raw Materials</h2>
+          <p className="ui-subtitle">Monitor raw material stock levels to prevent line stoppages.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link to="/inventory/items/create?type=raw_material" className="ui-btn-primary"><Plus className="h-4 w-4" /> New Material</Link>
@@ -187,7 +187,7 @@ export default function RawMaterials() {
         <KpiCard label="Reorder Items" value={displaySummary.reorder_items} icon={RefreshCw} color="bg-orange-500" />
       </div>
 
-      <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="ui-card p-4">
         <form onSubmit={handleBarcode} className="mb-4 flex gap-2">
           <input value={barcodeInput} onChange={(e) => setBarcodeInput(e.target.value)} placeholder="Scan or enter barcode..." className="ui-input flex-1" />
           <button type="submit" className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">Lookup</button>

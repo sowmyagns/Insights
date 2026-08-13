@@ -12,9 +12,9 @@ import { DEMO_PROCESS_LIST, DEMO_PROCESS_SUMMARY, qcStatusColor } from "../../da
 
 function KpiCard({ label, value, icon: Icon, color }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
+    <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
       <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
+        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
         {Icon && (
           <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
             <Icon className="h-3.5 w-3.5 text-white" />
@@ -22,7 +22,7 @@ function KpiCard({ label, value, icon: Icon, color }) {
         )}
       </div>
       <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-slate-900 leading-none sm:text-2xl">{value}</p>
+        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl">{value}</p>
       </div>
     </div>
   );
@@ -36,10 +36,11 @@ export default function InProcessQC() {
   const [search, setSearch] = useState("");
   const [resultFilter, setResultFilter] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const emptySummary = { production_running: 0, active_inspections: 0, pending_samples: 0, first_piece_approved: 0, process_compliance: "0%" };
+      const [sumRes, listRes] = await Promise.allSettled([getProcessSummary(), getProcessEnriched()]);
       if (sumRes.status === "fulfilled" && sumRes.value?.data && Object.keys(sumRes.value.data).length > 0) {
         setSummary({ ...emptySummary, ...sumRes.value.data });
       } else {
@@ -50,7 +51,6 @@ export default function InProcessQC() {
       } else {
         setRows([]);
 
-  usePageRefresh(load);
 
       }
     } catch {
@@ -60,6 +60,8 @@ export default function InProcessQC() {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => { load(); }, [load]);
 
@@ -90,7 +92,7 @@ export default function InProcessQC() {
     <div className="min-h-full pb-8 print:p-0" style={{ background: "#F5F5F5" }}>
       <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
         <div>
-          <p className="mt-1 text-sm text-slate-500 print:hidden">Real-time quality checks during manufacturing — work order, machine, shift, operator.</p>
+          <p className="ui-subtitle print:hidden">Real-time quality checks during manufacturing — work order, machine, shift, operator.</p>
         </div>
 
         <div className="mb-0 flex flex-wrap items-center justify-between gap-2 print:hidden">
@@ -109,7 +111,7 @@ export default function InProcessQC() {
 
       <QualityFilters search={search} onSearchChange={setSearch} resultFilter={resultFilter} onResultFilterChange={setResultFilter} searchPlaceholder="Search work order, machine, operator..." />
 
-      <div className="rounded-xl border border-[#e4e4ea] bg-white p-4 shadow-sm sm:p-5">
+      <div className="ui-card p-4 sm:p-5">
         <DataTable columns={columns} data={filtered} searchPlaceholder="" searchKeys={[]} />
       </div>
       </div>

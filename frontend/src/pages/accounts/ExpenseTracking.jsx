@@ -60,7 +60,7 @@ export default function ExpenseTracking() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">All operational expenses posted to the ledger.</p>
+          <p className="ui-subtitle">All operational expenses posted to the ledger.</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <select

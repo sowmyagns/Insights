@@ -11,7 +11,7 @@ import {
 import { useToast } from "../../context/ToastContext";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 
 export default function ExpenseSettingsV2() {
   const { addToast } = useToast();

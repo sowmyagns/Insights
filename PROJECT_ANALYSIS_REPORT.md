@@ -1,7 +1,7 @@
-# GNS Insights ERP – Project Analysis Report
+# Insights Iva ERP – Project Analysis Report
 
 ## 1. Executive Summary
-GNS Insights is a multi-tenant manufacturing ERP with a React + Vite frontend and a FastAPI + SQLAlchemy backend using SQLite. The architecture is already substantial and modular, with dedicated areas for production, inventory, procurement, sales, finance, HR, analytics, alerts, documents, settings, and administration.
+Insights Iva is a multi-tenant manufacturing ERP with a React + Vite frontend and a FastAPI + SQLAlchemy backend using SQLite. The architecture is already substantial and modular, with dedicated areas for production, inventory, procurement, sales, finance, HR, analytics, alerts, documents, settings, and administration.
 
 The project is largely structured correctly, and the backend already exposes live dashboard and inventory APIs. The main issues identified were not architectural breakage, but the presence of UI fallbacks that still injected demo/sample content into pages that should display only live data.
 

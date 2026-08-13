@@ -153,7 +153,7 @@ export default function VendorDetail() {
               {v.status || "—"}
             </span>
           </div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-subtitle">
             {v.vendor_code}
             {v.vendor_type ? ` · ${v.vendor_type}` : ""}
             {v.city ? ` · ${v.city}` : ""}

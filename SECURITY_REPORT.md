@@ -1,7 +1,7 @@
 
-# GNS Insights Security Implementation Report
+# Insights Iva Security Implementation Report
 
-Generated after production-ready security hardening across the React + FastAPI GNS Insights application.
+Generated after production-ready security hardening across the React + FastAPI Insights Iva application.
 
 ## Executive Summary
 

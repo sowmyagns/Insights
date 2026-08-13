@@ -167,25 +167,39 @@ export default function App() {
     location.pathname === "/ledger" ||
     location.pathname.startsWith("/ledger/");
   const isEInvoiceLogin = location.pathname === "/sales/e-invoice";
-  const isProductionPlanning = location.pathname === "/production/planning";
-  const isFullBleedSales = isInvoiceEditor || isSalesDocList || isEInvoiceLogin;
+  /** Full-bleed editors keep their own chrome; list/dashboard surfaces use Products page surface. */
+  const isFullBleedSales = isInvoiceEditor || isSalesDocList || isEInvoiceLogin || normalizePath(location.pathname) === "/";
 
   if (isShellLessRoute(location.pathname)) {
-    const isAdminShell = location.pathname.startsWith("/gns-admin");
+    const path = normalizePath(location.pathname);
+    const isAdminShell = path.startsWith("/gns-admin");
+    const isAuthShell =
+      path === "/login" ||
+      path === "/register" ||
+      path === "/landing" ||
+      path === "/forgot-password" ||
+      path === "/reset-password" ||
+      path === "/verify-email" ||
+      path === "/gns-admin/login" ||
+      path === "/gns-admin/verify-otp";
+    const showRefresh = !isAuthShell && (isAdminShell || path === "/settings" || path.startsWith("/settings/"));
     return (
-      <div className={`min-h-screen ${isAdminShell ? "" : "bg-slate-50 dark:bg-slate-900"}`}>
-        <Suspense fallback={<RouteFallback />}>
-          <AppRoutes />
-        </Suspense>
+      <div className={`min-h-screen ${isAdminShell ? "" : "bg-[var(--color-bg)]"}`}>
+        <div data-page-refresh-root>
+          <Suspense fallback={<RouteFallback />}>
+            <AppRoutes />
+          </Suspense>
+        </div>
+        {showRefresh ? <GlobalRefreshButton /> : null}
       </div>
     );
   }
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-[#E4F0FD] dark:bg-slate-950">
+    <div className="relative flex h-screen overflow-hidden bg-[var(--color-bg)] dark:bg-slate-950">
       <a
         href="#main-content"
-        className="absolute left-4 top-4 z-[100] -translate-y-[200%] rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white shadow-lg outline-none ring-2 ring-teal-500 ring-offset-2 transition-transform focus:translate-y-0 dark:ring-offset-slate-900"
+        className="absolute left-4 top-4 z-[100] -translate-y-[200%] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white shadow-lg outline-none ring-2 ring-[var(--color-primary)]/40 ring-offset-2 transition-transform focus:translate-y-0 dark:ring-offset-slate-900"
       >
         Skip to main content
       </a>
@@ -210,17 +224,13 @@ export default function App() {
         <main
           id="main-content"
           tabIndex={-1}
-          className={`min-h-0 flex-1 outline-none ${
+          className={`min-h-0 flex-1 bg-[var(--color-bg)] outline-none ${
             isInvoiceEditor || isEInvoiceLogin
-              ? "overflow-hidden bg-[#F5F5F5]"
-              : isSalesDocList
-                ? "overflow-y-auto bg-[#F5F5F5]"
-                : isProductionPlanning
-                  ? "overflow-y-auto bg-[#EFF2FC] p-4 pb-24 sm:p-5 lg:p-6 dark:bg-slate-950"
-                  : "overflow-y-auto bg-[#E4F0FD] p-4 pb-24 sm:p-5 lg:p-6 dark:bg-slate-950"
+              ? "overflow-hidden"
+              : "overflow-y-auto"
           }`}
         >
-          {isFullBleedSales ? (
+          {isFullBleedSales || isInvoiceEditor || isEInvoiceLogin ? (
             <div className={isInvoiceEditor || isEInvoiceLogin ? "h-full min-h-0" : "min-h-full"}>
               <Suspense fallback={<RouteFallback />}>
                 <AppRoutes />

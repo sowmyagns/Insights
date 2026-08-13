@@ -6,7 +6,6 @@ import {
   FileSpreadsheet,
   Pencil,
   Plus,
-  RefreshCw,
   Search,
   Trash2,
   Upload,
@@ -16,12 +15,13 @@ import { createPortal } from "react-dom";
 import Loader from "../../components/common/Loader";
 import AddNewPartyModal from "../../components/sales/AddNewPartyModal";
 import { useToast } from "../../context/ToastContext";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { deleteCustomer, getCustomers } from "../../api/salesApi";
 import { enrichApiCustomer } from "../../data/customersMasterData";
 import { exportToExcel } from "../../utils/exportUtils";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const ACCENT = "#0f6d84";
 const PAGE_SIZES = [20, 50, 100];
 
@@ -86,19 +86,22 @@ export default function Customers() {
   const [deleting, setDeleting] = useState(null);
   const [deletingBusy, setDeletingBusy] = useState(false);
 
-  const loadCustomers = useCallback(async () => {
-    setLoading(true);
+  const loadCustomers = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await getCustomers();
       const rows = Array.isArray(res.data) ? res.data : [];
       setCustomers(rows.map((row) => enrichApiCustomer(row)));
-    } catch {
+    } catch (err) {
+      if (isRefresh) throw err;
       setCustomers([]);
       addToast("Could not load customers", "error");
     } finally {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => loadCustomers(true));
 
   useEffect(() => {
     loadCustomers();
@@ -186,7 +189,7 @@ export default function Customers() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="rounded-xl border border-[#e4e4ea] bg-white p-4 shadow-sm sm:p-5">
+        <div className="ui-card p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center gap-2.5">
             <div className="relative min-w-[220px] flex-1">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
@@ -336,16 +339,6 @@ export default function Customers() {
           </div>
         </div>
       </div>
-
-      <button
-        type="button"
-        onClick={loadCustomers}
-        className="fixed bottom-20 right-6 z-30 grid h-11 w-11 place-items-center rounded-xl border border-[#d0d0d8] bg-white shadow-lg hover:bg-[#f7f7f9] md:bottom-6"
-        aria-label="Refresh customers"
-        title="Refresh"
-      >
-        <RefreshCw className="h-5 w-5 text-[#2563eb]" />
-      </button>
 
       <AddNewPartyModal
         open={partyOpen}

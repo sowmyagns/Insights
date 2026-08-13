@@ -35,7 +35,7 @@ const DEFAULT_WAREHOUSES = [
   "Warehouse 1",
 ];
 
-const PAGE_BG = "#F5F5F5";
+const PAGE_BG = "var(--color-bg)";
 const YELLOW = "#F5C518";
 
 /* ─── Collapsible Section Component (matching Create Production) ─────────────── */
@@ -363,7 +363,12 @@ export default function CreateItem() {
                   min="0"
                   placeholder="0"
                   value={form.quantity}
-                  onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+                  onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (/^0+[1-9]/.test(val)) val = val.replace(/^0+/, "");
+                    setForm((f) => ({ ...f, quantity: val }));
+                  }}
                   className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
                 />
                 <p className="mt-1 text-[11px] text-slate-400">Initial physical stock count</p>
@@ -376,7 +381,12 @@ export default function CreateItem() {
                   min="0"
                   placeholder="0"
                   value={form.reserved}
-                  onChange={(e) => setForm((f) => ({ ...f, reserved: e.target.value }))}
+                  onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (/^0+[1-9]/.test(val)) val = val.replace(/^0+/, "");
+                    setForm((f) => ({ ...f, reserved: val }));
+                  }}
                   className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
                 />
                 <p className="mt-1 text-[11px] text-slate-400">Allocated or reserved stock</p>
@@ -409,7 +419,12 @@ export default function CreateItem() {
                   step="0.01"
                   placeholder="0.00"
                   value={form.unit_cost}
-                  onChange={(e) => setForm((f) => ({ ...f, unit_cost: e.target.value }))}
+                  onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (/^0+[1-9]/.test(val)) val = val.replace(/^0+/, "");
+                    setForm((f) => ({ ...f, unit_cost: val }));
+                  }}
                   className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
                 />
               </div>
@@ -421,7 +436,12 @@ export default function CreateItem() {
                   min="0"
                   placeholder="0"
                   value={form.reorder_level}
-                  onChange={(e) => setForm((f) => ({ ...f, reorder_level: e.target.value }))}
+                  onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    if (/^0+[1-9]/.test(val)) val = val.replace(/^0+/, "");
+                    setForm((f) => ({ ...f, reorder_level: val }));
+                  }}
                   className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
                 />
                 <p className="mt-1 text-[11px] text-slate-400">Alert when stock falls below this level</p>

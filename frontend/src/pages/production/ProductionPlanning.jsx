@@ -48,7 +48,7 @@ import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
 import QuickWorkOrderModal from "../../components/production/QuickWorkOrderModal";
 import IssueMaterialsModal from "../../components/production/IssueMaterialsModal";
 
-const PAGE_BG = "#EFF2FC";
+const PAGE_BG = "var(--color-bg)";
 const DECO_BG = "#EDF3FD";
 const NAVY = "#002C66";
 const PRIMARY_BLUE = "#0025D4";

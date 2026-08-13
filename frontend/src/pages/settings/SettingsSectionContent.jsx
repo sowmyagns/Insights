@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Check,
@@ -19,6 +19,7 @@ import { getUsers } from "../../api/adminApi";
 import { getCompanySettings, updateCompanySettings } from "../../api/settingsApi";
 import { CURRENCY_OPTIONS } from "../../data/currencies";
 import useAuth from "../../hooks/useAuth";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import useSettings from "../../context/SettingsContext";
 import { useToast } from "../../context/ToastContext";
 import CompanyAddressFields, {
@@ -71,53 +72,54 @@ function CompanySection() {
   const [baseline, setBaseline] = useState({});
   const [fieldErrors, setFieldErrors] = useState({});
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
+    try {
+      const res = await getCompanySettings();
+      let regional = {};
       try {
-        const res = await getCompanySettings();
-        if (!active) return;
-        let regional = {};
-        try {
-          regional = JSON.parse(localStorage.getItem("gns-company-regional") || "{}");
-        } catch {
-          regional = {};
-        }
-        const data = {
-          company_name: "",
-          legal_name: "",
-          gstin: "",
-          pan: "",
-          email: "",
-          phone: "",
-          website: "",
-          address_line1: "",
-          address_line2: "",
-          landmark: "",
-          city: "",
-          state: "",
-          state_code: "",
-          country: "India",
-          pincode: "",
-          ...(res.data || {}),
-        };
-        data.country = data.country || regional.country || "India";
-        data.landmark = data.landmark || "";
-        data.timezone = data.timezone || regional.timezone || "Asia/Kolkata";
-        data.currency = data.currency || regional.currency || currency || "INR";
-        data.language = data.language || regional.language || language || "English";
-        setForm(data);
-        setBaseline(data);
+        regional = JSON.parse(localStorage.getItem("gns-company-regional") || "{}");
       } catch {
-        if (active) addToast("Failed to load company profile", "error");
-      } finally {
-        if (active) setLoading(false);
+        regional = {};
       }
-    })();
-    return () => {
-      active = false;
-    };
+      const data = {
+        company_name: "",
+        legal_name: "",
+        gstin: "",
+        pan: "",
+        email: "",
+        phone: "",
+        website: "",
+        address_line1: "",
+        address_line2: "",
+        landmark: "",
+        city: "",
+        state: "",
+        state_code: "",
+        country: "India",
+        pincode: "",
+        ...(res.data || {}),
+      };
+      data.country = data.country || regional.country || "India";
+      data.landmark = data.landmark || "";
+      data.timezone = data.timezone || regional.timezone || "Asia/Kolkata";
+      data.currency = data.currency || regional.currency || currency || "INR";
+      data.language = data.language || regional.language || language || "English";
+      setForm(data);
+      setBaseline(data);
+    } catch (err) {
+      if (isRefresh) throw err;
+      addToast("Failed to load company profile", "error");
+    } finally {
+      setLoading(false);
+    }
   }, [addToast, currency, language]);
+
+  usePageRefresh(() => load(true));
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const set = (key) => (e) => {
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -845,7 +847,7 @@ function ProductionSection() {
             className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-teal-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800"
           >
             <h3 className="font-semibold text-slate-900 dark:text-slate-100">{item.title}</h3>
-            <p className="mt-1 text-sm text-slate-500">{item.desc}</p>
+            <p className="ui-subtitle">{item.desc}</p>
             <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-teal-600">
               Configure <ExternalLink className="h-3.5 w-3.5" />
             </span>
@@ -1096,7 +1098,7 @@ function HelpSection() {
             className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800"
           >
             <h3 className="font-semibold text-slate-900 dark:text-slate-100">{item.title}</h3>
-            <p className="mt-1 text-sm text-slate-500">{item.desc}</p>
+            <p className="ui-subtitle">{item.desc}</p>
           </div>
         ))}
       </div>

@@ -4,7 +4,7 @@ import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-rea
 import { useToast } from "../../context/ToastContext";
 import { BULK_EXPORT_DOCUMENTS } from "../../data/reportViews";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const ACCENT = "#0f6d84";
 const BTN_DARK = "#2f323a";
 const PAGE_SIZES = [10, 20, 50, 100];

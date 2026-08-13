@@ -189,14 +189,14 @@ export default function ExportInvoices() {
 
   if (loading && rows.length === 0) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center bg-[#F5F5F5]">
+      <div className="flex min-h-[50vh] items-center justify-center bg-[var(--color-bg)]">
         <Loader label="Loading export invoices…" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-full bg-[#F5F5F5] px-5 py-5 sm:px-6">
+    <div className="min-h-full bg-[var(--color-bg)] px-5 py-5 sm:px-6">
       {/* Title */}
 
       {/* KPI strip */}
@@ -317,7 +317,7 @@ export default function ExportInvoices() {
                       setSortId(opt.id);
                       setShowSort(false);
                     }}
-                    className={`block w-full px-4 py-2.5 text-left text-[13px] hover:bg-[#F5F5F5] ${
+                    className={`block w-full px-4 py-2.5 text-left text-[13px] hover:bg-[var(--color-bg)] ${
                       sortId === opt.id ? "font-semibold text-[#1a1a1f]" : "font-normal text-[#3a3a42]"
                     }`}
                   >

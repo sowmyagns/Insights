@@ -139,10 +139,10 @@ export default function SettingsHome() {
       <header className="space-y-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700 dark:text-teal-400">
+            <p className="ui-eyebrow">
               System
             </p>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <p className="ui-subtitle dark:text-slate-400">
               Company, users, security, and system preferences.
             </p>
           </div>
@@ -190,7 +190,7 @@ export default function SettingsHome() {
         <div className="space-y-7">
           {groups.map((group) => (
             <section key={group.id} className="space-y-3">
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-teal-700/80 dark:text-teal-400/80">
+              <h2 className="ui-eyebrow">
                 {group.title}
               </h2>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

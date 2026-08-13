@@ -133,7 +133,7 @@ export default function BudgetActual() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500 font-medium">Monitor departmental budget targets against real spending data.</p>
+          <p className="ui-subtitle font-medium">Monitor departmental budget targets against real spending data.</p>
         </div>
         <div className="flex gap-2">
         </div>

@@ -33,8 +33,8 @@ export default function CostAllocation() {
   const [allocations, setAllocations] = useState([]);
   const [localEntries, setLocalEntries] = useState(() => readStoredAllocations());
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await getExtendedReports(financialYear, month);
       const backendList = res?.data?.cost_allocations || res?.data?.data?.cost_allocations || [];
@@ -46,14 +46,14 @@ export default function CostAllocation() {
     } catch (error) {
       console.error("CostAllocation load failed", error);
       setAllocations(Array.isArray(localEntries) ? localEntries : []);
-
-  usePageRefresh(load);
-
-      addToast("Failed to load Cost Center Allocation data", "error");
+      if (!isRefresh) addToast("Failed to load Cost Center Allocation data", "error");
+      if (isRefresh) throw error;
     } finally {
       setLoading(false);
     }
   }, [financialYear, month, addToast, localEntries]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => { load(); }, [load]);
 
@@ -122,7 +122,7 @@ export default function CostAllocation() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500 font-medium">Allocate indirect overhead and general expense vouchers across organizational departments.</p>
+          <p className="ui-subtitle font-medium">Allocate indirect overhead and general expense vouchers across organizational departments.</p>
         </div>
         <div className="flex gap-2">
           <button

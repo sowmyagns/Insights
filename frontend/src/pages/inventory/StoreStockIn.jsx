@@ -41,8 +41,8 @@ export default function StoreStockIn() {
     notes: "",
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [itemsRes, whRes, supRes] = await Promise.allSettled([
         getInventoryDashboard(),
@@ -50,7 +50,6 @@ export default function StoreStockIn() {
         getSuppliers(),
       ]);
 
-  usePageRefresh(load);
 
       setItems(itemsRes.status === "fulfilled" ? itemsRes.value?.data || [] : []);
       setWarehouses(whRes.status === "fulfilled" ? whRes.value?.data || [] : []);
@@ -59,6 +58,8 @@ export default function StoreStockIn() {
       setLoading(false);
     }
   }, []);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();
@@ -105,7 +106,7 @@ export default function StoreStockIn() {
 
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-subtitle">
             Receive materials into a warehouse. Stock updates immediately.
           </p>
         </div>

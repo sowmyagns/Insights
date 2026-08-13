@@ -29,15 +29,14 @@ export default function MachineHistory() {
   const [statusFilter, setStatusFilter] = useState("");
   const [view, setView] = useState("timeline");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     setError(null);
     try {
       const res = await getMachineHistory();
       if (res.data?.length) setRows(res.data);
       else setRows([]);
 
-  usePageRefresh(load);
 
     } catch (e) {
       setError(e.message || "Network error");
@@ -46,6 +45,8 @@ export default function MachineHistory() {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => { load(); }, [load]);
 
@@ -100,7 +101,7 @@ export default function MachineHistory() {
       <MaintenanceFilters search={search} onSearchChange={setSearch} statusFilter={statusFilter} onStatusFilterChange={setStatusFilter} searchPlaceholder="Search machine, activity, engineer..." />
 
       {view === "timeline" ? (
-        <div className="rounded-xl border border-[#e4e4ea] bg-white p-6 shadow-sm">
+        <div className="ui-card p-6">
           <div className="relative space-y-0">
             {filtered.map((item, i) => (
               <div key={item.id} className="relative flex gap-4 pb-8 last:pb-0">
@@ -129,7 +130,7 @@ export default function MachineHistory() {
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-[#e4e4ea] bg-white p-4 shadow-sm sm:p-5 overflow-x-auto">
+        <div className="ui-card p-4 sm:p-5 overflow-x-auto">
           <DataTable columns={columns} data={filtered} searchPlaceholder="" searchKeys={[]} />
         </div>
       )}

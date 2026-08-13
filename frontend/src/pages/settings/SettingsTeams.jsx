@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import useAuth from "../../hooks/useAuth";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import { getRoles } from "../../api/adminApi";
 import { useToast } from "../../context/ToastContext";
 
@@ -31,12 +32,24 @@ export default function SettingsTeams() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(7);
 
-  useEffect(() => {
-    getRoles(tenantId)
-      .then((r) => setTeams(r.data || []))
-      .catch(() => setTeams([]))
-      .finally(() => setLoading(false));
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
+    try {
+      const r = await getRoles(tenantId);
+      setTeams(r.data || []);
+    } catch (err) {
+      if (!isRefresh) setTeams([]);
+      if (isRefresh) throw err;
+    } finally {
+      setLoading(false);
+    }
   }, [tenantId]);
+
+  usePageRefresh(() => load(true));
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const filtered = useMemo(() => {
     let list = [...teams];

@@ -4,7 +4,7 @@ import { useToast } from "../../context/ToastContext";
 import Loader from "../../components/common/Loader";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const SETTING_KEY = "inventory_settings";
 
 const DEFAULTS = {

@@ -1,7 +1,7 @@
 """System prompts for the AI Operator Assistant."""
 
 SYSTEM_PROMPT = """
-You are an expert AI Assistant for GNS Insights — a Production & Operations
+You are an expert AI Assistant for Insights Iva — a Production & Operations
 Management ERP system.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

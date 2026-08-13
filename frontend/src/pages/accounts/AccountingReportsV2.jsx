@@ -16,7 +16,7 @@ import {
 
 import { REPORT_CATALOG } from "../../data/reportCatalog";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 
 const REPORT_CARDS = [
   { id: "product-wise-sales", icon: ClipboardList },
@@ -46,7 +46,7 @@ function ReportCard({ label, icon: Icon, color, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center rounded-xl border border-[#e4e4ea] bg-white px-4 py-6 text-center shadow-sm transition hover:border-[#cfcfd6] hover:shadow-md"
+      className="flex flex-col items-center ui-card px-4 py-6 text-center transition hover:border-[var(--color-border-strong)]"
     >
       <span
         className="mb-4 grid h-14 w-14 place-items-center rounded-2xl text-white"
@@ -65,7 +65,7 @@ export default function AccountingReportsV2() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-teal-700">Finance</p>
+        <p className="mb-1 ui-eyebrow">Finance</p>
         <h2 className="mb-5 text-[22px] font-semibold tracking-tight text-[#1a1a1f]">
           Accounting Reports
         </h2>

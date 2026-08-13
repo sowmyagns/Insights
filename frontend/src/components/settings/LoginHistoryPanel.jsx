@@ -41,8 +41,8 @@ export default function LoginHistoryPanel() {
     setScope(isAdmin ? "company" : "me");
   }, [isAdmin]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res =
         scope === "company" && isAdmin
@@ -50,7 +50,6 @@ export default function LoginHistoryPanel() {
           : await getMyLoginHistory({ limit: 200 });
       setRows(Array.isArray(res.data) ? res.data : []);
 
-  usePageRefresh(load);
 
     } catch (err) {
       setRows([]);
@@ -59,6 +58,8 @@ export default function LoginHistoryPanel() {
       setLoading(false);
     }
   }, [scope, isAdmin, addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();

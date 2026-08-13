@@ -33,13 +33,14 @@ export default function LiveDashboard() {
   const [data, setData] = useState(emptyData);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await getLiveDashboard();
       if (res.data) setData({ ...emptyData, ...res.data });
-      else setData(emptyData);
-    } catch {
+      else if (!isRefresh) setData(emptyData);
+    } catch (err) {
+      if (isRefresh) throw err;
       setData(emptyData);
       addToast("Failed to load live dashboard", "error");
     } finally {
@@ -48,14 +49,14 @@ export default function LiveDashboard() {
   }, [addToast]);
 
   useEffect(() => { load(); }, [load]);
-  useManufacturingRefresh(load);
+  useManufacturingRefresh(() => load(true));
   useEffect(() => {
     if (!autoRefresh) return undefined;
-    const t = setInterval(load, 30000);
+    const t = setInterval(() => load(true), 30000);
     return () => clearInterval(t);
   }, [autoRefresh, load]);
 
-  if (loading && !data.production_pulse) return <Loader label="Loading live dashboard..." />;
+  if (loading && !data.production_pulse?.length) return <Loader label="Loading live dashboard..." />;
 
   const liveKpis = [
     { key: "prod", label: "Current Production", value: data.current_production, change_pct: 4.2, unit: "units/hr", format: "number" },

@@ -11,9 +11,9 @@ import { DEMO_INCOMING_LIST, DEMO_INCOMING_SUMMARY, QUALITY_FLOW, qcStatusColor 
 
 function KpiCard({ label, value, icon: Icon, color, suffix }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
+    <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
       <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
+        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
         {Icon && (
           <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
             <Icon className="h-3.5 w-3.5 text-white" />
@@ -21,7 +21,7 @@ function KpiCard({ label, value, icon: Icon, color, suffix }) {
         )}
       </div>
       <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-slate-900 leading-none sm:text-2xl">
+        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl">
           {value}{suffix || ""}
         </p>
       </div>
@@ -37,10 +37,11 @@ export default function IncomingInspection() {
   const [search, setSearch] = useState("");
   const [resultFilter, setResultFilter] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const emptySummary = { todays_inspections: 0, pending_grn: 0, passed: 0, rejected: 0, vendor_rejection_rate: "0%" };
+      const [sumRes, listRes] = await Promise.allSettled([getIncomingSummary(), getIncomingEnriched()]);
       if (sumRes.status === "fulfilled" && sumRes.value?.data && Object.keys(sumRes.value.data).length > 0) {
         setSummary({ ...emptySummary, ...sumRes.value.data });
       } else {
@@ -50,17 +51,17 @@ export default function IncomingInspection() {
         setRows(listRes.value.data);
       } else {
         setRows([]);
-
-  usePageRefresh(load);
-
       }
-    } catch {
+    } catch (err) {
+      if (isRefresh) throw err;
       setSummary({ todays_inspections: 0, pending_grn: 0, passed: 0, rejected: 0, vendor_rejection_rate: "0%" });
       setRows([]);
     } finally {
       setLoading(false);
     }
-  }, [addToast]);
+  }, []);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => { load(); }, [load]);
 
@@ -115,7 +116,7 @@ export default function IncomingInspection() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">IQC for raw materials — PO, vendor, batch verification before inventory receipt.</p>
+          <p className="ui-subtitle">IQC for raw materials — PO, vendor, batch verification before inventory receipt.</p>
         </div>
       </header>
 

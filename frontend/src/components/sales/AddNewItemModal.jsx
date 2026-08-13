@@ -378,6 +378,7 @@ export default function AddNewItemModal({
         tenant_id: tenantId,
         sku,
         name: form.name.trim(),
+        category: form.category || "Finished Goods",
         description: [
           form.description.trim(),
           form.item_type === "services" ? "Type: Service" : "Type: Goods",
@@ -744,11 +745,13 @@ export default function AddNewItemModal({
                     <span className="flex items-center pl-3 text-[13px] text-[#6b6b76]">₹</span>
                     <input
                       value={form.purchase_price}
+                      onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                       onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          purchase_price: e.target.value.replace(/[^\d.]/g, ""),
-                        }))
+                        setForm((f) => {
+                          let val = e.target.value.replace(/[^\d.]/g, "");
+                          if (/^0+[1-9]/.test(val)) val = val.replace(/^0+/, "");
+                          return { ...f, purchase_price: val };
+                        })
                       }
                       className="min-w-0 flex-1 bg-transparent px-2 py-2.5 text-[13px] outline-none"
                     />
@@ -779,11 +782,13 @@ export default function AddNewItemModal({
                     <SoftLabel>Opening Stock</SoftLabel>
                     <input
                       value={form.opening_stock}
+                      onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
                       onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          opening_stock: e.target.value.replace(/[^\d.]/g, ""),
-                        }))
+                        setForm((f) => {
+                          let val = e.target.value.replace(/[^\d.]/g, "");
+                          if (/^0+[1-9]/.test(val)) val = val.replace(/^0+/, "");
+                          return { ...f, opening_stock: val };
+                        })
                       }
                       placeholder="Enter stock quantity"
                       className={inputClass}

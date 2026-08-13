@@ -511,10 +511,10 @@ export default function TaxInvoiceCopy({ data }) {
               <div style={{ fontWeight:"bold", textDecoration:"underline", fontSize:"8px", marginBottom:"2px" }}>Declaration</div>
               <ol style={{ margin:0, paddingLeft:"13px", fontSize:"7.5px", lineHeight:"1.5" }}>
                 {[
-                  "Certified that the particulars given above are true and correct",
-                  "The amount indicated represents the price actually charged and that there is no flow of additional consideration directly or indirectly from the buyer.",
-                  "All disputes subject to Hyderabad jurisdiction.",
-                  "Goods once sold cannot be taken back or exchanged.",
+                  "1.Certified that the particulars given above are true and correct",
+                  "2.The amount indicated represents the price actually charged and that there is no flow of additional consideration directly or indirectly from the buyer.",
+                  "3.All disputes subject to Hyderabad jurisdiction.",
+                  "4.Goods once sold cannot be taken back or exchanged.",
                   "Cheques subject to realisation.",
                   "24% Interest per annum will be charged if the bills are not paid within due days.",
                   `Goods Return "As it is" shall be taken back, only within 7 days from the Date of Delivery & the same shall have to be intimated in "Writing" along with reasons for Goods Return.`,

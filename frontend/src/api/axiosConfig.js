@@ -1,5 +1,10 @@
 import axios from "axios";
 
+import {
+  getPageRefreshGeneration,
+  isPageRefreshInProgress,
+} from "../utils/pageRefresh";
+
 /** Resolve API base URL. Empty string = same-origin (Docker/nginx proxy). */
 export function getApiBaseURL() {
   if (import.meta.env.VITE_API_BASE_URL !== undefined) {
@@ -20,6 +25,20 @@ api.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${token}`;
     }
   } catch {}
+
+  // During global Refresh, force a network re-fetch (no stale cached responses).
+  if (isPageRefreshInProgress()) {
+    config.headers = config.headers || {};
+    config.headers["Cache-Control"] = "no-cache";
+    config.headers.Pragma = "no-cache";
+    const method = String(config.method || "get").toLowerCase();
+    if (method === "get" || method === "head") {
+      const params = { ...(config.params || {}) };
+      params._r = getPageRefreshGeneration();
+      config.params = params;
+    }
+  }
+
   return config;
 });
 

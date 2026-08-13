@@ -35,13 +35,12 @@ export default function SettingsDeliveryLocation() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await getWarehouses();
       setLocations(Array.isArray(res.data) ? res.data : []);
 
-  usePageRefresh(load);
 
     } catch (err) {
       addToast(err.response?.data?.detail || "Failed to load delivery locations", "error");
@@ -50,6 +49,8 @@ export default function SettingsDeliveryLocation() {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();

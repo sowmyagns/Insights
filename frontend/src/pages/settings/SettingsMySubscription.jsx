@@ -71,8 +71,8 @@ export default function SettingsMySubscription() {
   const [contactMessage, setContactMessage] = useState("");
   const [contactPlan, setContactPlan] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await getSubscription();
       const data = res.data;
@@ -83,14 +83,16 @@ export default function SettingsMySubscription() {
         }
       }
     } catch (e) {
-      addToast(e.response?.data?.detail || e.response?.data?.message || "Failed to load subscription", "error");
+      if (!isRefresh) {
+        addToast(e.response?.data?.detail || e.response?.data?.message || "Failed to load subscription", "error");
+      }
+      if (isRefresh) throw e;
     } finally {
       setLoading(false);
     }
   }, [addToast]);
 
-  usePageRefresh(load);
-
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();
@@ -294,7 +296,7 @@ export default function SettingsMySubscription() {
           <div className="space-y-4">
             <div>
               <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{viewPlan.price}</p>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="ui-subtitle">
                 {viewPlan.billing_label || viewPlan.billing || (viewPlan.billing_cycle === "forever" ? "Free forever" : viewPlan.billing_cycle)}
               </p>
             </div>

@@ -10,7 +10,7 @@ import { apiErrorMessage } from "../../utils/apiError";
 import { formatInr } from "../../data/salesMasterData";
 
 const YELLOW = "#F5C518";
-const PAGE_BG = "#F5F5F5";
+const PAGE_BG = "var(--color-bg)";
 const PAGE_SIZES = [10, 25, 50];
 
 const SORT_OPTIONS = [
@@ -160,8 +160,8 @@ export default function DebitNotes() {
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await getInvoicesV2({
         page: 1,
@@ -177,12 +177,13 @@ export default function DebitNotes() {
       addToast("Failed to load sales debit notes", "error");
       setRows([]);
 
-  usePageRefresh(load);
 
     } finally {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();

@@ -104,71 +104,71 @@ export const KPI_ICONS = {
 };
 
 const KPI_ACCENT = {
-  "total-orders": { iconBg: "bg-sky-50 text-sky-700", bar: "bg-sky-600" },
-  "today-production": { iconBg: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-600" },
-  "machines-running": { iconBg: "bg-violet-50 text-violet-700", bar: "bg-violet-600" },
-  "pending-orders": { iconBg: "bg-amber-50 text-amber-700", bar: "bg-amber-600" },
-  "pending-approvals": { iconBg: "bg-indigo-50 text-indigo-700", bar: "bg-indigo-600" },
-  "good-qty": { iconBg: "bg-teal-50 text-teal-700", bar: "bg-teal-600" },
-  "reject-qty": { iconBg: "bg-rose-50 text-rose-700", bar: "bg-rose-600" },
-  "inventory-value": { iconBg: "bg-sky-50 text-sky-700", bar: "bg-sky-600" },
-  "low-stock": { iconBg: "bg-rose-50 text-rose-700", bar: "bg-rose-600" },
-  "raw-materials": { iconBg: "bg-blue-50 text-blue-700", bar: "bg-blue-600" },
-  "finished-goods": { iconBg: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-600" },
-  warehouses: { iconBg: "bg-indigo-50 text-indigo-700", bar: "bg-indigo-600" },
-  "stock-movements": { iconBg: "bg-orange-50 text-orange-700", bar: "bg-orange-600" },
-  "total-users": { iconBg: "bg-sky-50 text-sky-700", bar: "bg-sky-600" },
-  "active-users": { iconBg: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-600" },
-  "total-employees": { iconBg: "bg-teal-50 text-teal-700", bar: "bg-teal-600" },
-  "active-alerts": { iconBg: "bg-rose-50 text-rose-700", bar: "bg-rose-600" },
-  "total-sales-orders": { iconBg: "bg-sky-50 text-sky-700", bar: "bg-sky-600" },
-  "pending-sales-orders": { iconBg: "bg-amber-50 text-amber-700", bar: "bg-amber-600" },
-  "todays-sales": { iconBg: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-600" },
-  "outstanding-receivables": { iconBg: "bg-violet-50 text-violet-700", bar: "bg-violet-600" },
-  "monthly-revenue": { iconBg: "bg-teal-50 text-teal-700", bar: "bg-teal-600" },
-  quotations: { iconBg: "bg-indigo-50 text-indigo-700", bar: "bg-indigo-600" },
-  "conversion-rate": { iconBg: "bg-sky-50 text-sky-700", bar: "bg-sky-600" },
-  "overdue-invoices": { iconBg: "bg-rose-50 text-rose-700", bar: "bg-rose-600" },
-  "total-production-orders": { iconBg: "bg-sky-50 text-sky-700", bar: "bg-sky-600" },
-  "planned-orders": { iconBg: "bg-amber-50 text-amber-700", bar: "bg-amber-600" },
-  "in-progress-orders": { iconBg: "bg-violet-50 text-violet-700", bar: "bg-violet-600" },
-  "completed-orders": { iconBg: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-600" },
-  "delayed-orders": { iconBg: "bg-rose-50 text-rose-700", bar: "bg-rose-600" },
-  "production-target": { iconBg: "bg-teal-50 text-teal-700", bar: "bg-teal-600" },
-  "production-efficiency": { iconBg: "bg-indigo-50 text-indigo-700", bar: "bg-indigo-600" },
-  "machine-utilization": { iconBg: "bg-violet-50 text-violet-700", bar: "bg-violet-600" },
-  "total-inventory-items": { iconBg: "bg-sky-50 text-sky-700", bar: "bg-sky-600" },
-  "out-of-stock": { iconBg: "bg-rose-50 text-rose-700", bar: "bg-rose-600" },
-  "pending-material-issues": { iconBg: "bg-amber-50 text-amber-700", bar: "bg-amber-600" },
-  "pending-goods-receipts": { iconBg: "bg-orange-50 text-orange-700", bar: "bg-orange-600" },
-  "present-today": { iconBg: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-600" },
-  "absent-today": { iconBg: "bg-rose-50 text-rose-700", bar: "bg-rose-600" },
-  "on-leave": { iconBg: "bg-amber-50 text-amber-700", bar: "bg-amber-600" },
-  "pending-leave-requests": { iconBg: "bg-indigo-50 text-indigo-700", bar: "bg-indigo-600" },
-  "new-employees": { iconBg: "bg-sky-50 text-sky-700", bar: "bg-sky-600" },
-  "attendance-rate": { iconBg: "bg-teal-50 text-teal-700", bar: "bg-teal-600" },
-  "pending-hr-requests": { iconBg: "bg-violet-50 text-violet-700", bar: "bg-violet-600" },
-  "total-receivables": { iconBg: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-600" },
-  "total-payables": { iconBg: "bg-amber-50 text-amber-700", bar: "bg-amber-600" },
-  "todays-revenue": { iconBg: "bg-sky-50 text-sky-700", bar: "bg-sky-600" },
-  "pending-invoices": { iconBg: "bg-indigo-50 text-indigo-700", bar: "bg-indigo-600" },
-  "overdue-payments": { iconBg: "bg-rose-50 text-rose-700", bar: "bg-rose-600" },
-  expenses: { iconBg: "bg-orange-50 text-orange-700", bar: "bg-orange-600" },
-  "gst-payable": { iconBg: "bg-violet-50 text-violet-700", bar: "bg-violet-600" },
-  "cash-bank-balance": { iconBg: "bg-teal-50 text-teal-700", bar: "bg-teal-600" },
-  "my-work-orders": { iconBg: "bg-sky-50 text-sky-700", bar: "bg-sky-600" },
-  "todays-target": { iconBg: "bg-teal-50 text-teal-700", bar: "bg-teal-600" },
-  "completed-today": { iconBg: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-600" },
-  "operator-in-progress": { iconBg: "bg-violet-50 text-violet-700", bar: "bg-violet-600" },
-  "pending-tasks": { iconBg: "bg-amber-50 text-amber-700", bar: "bg-amber-600" },
-  "assigned-machine": { iconBg: "bg-indigo-50 text-indigo-700", bar: "bg-indigo-600" },
-  "machine-status": { iconBg: "bg-sky-50 text-sky-700", bar: "bg-sky-600" },
-  "material-availability": { iconBg: "bg-blue-50 text-blue-700", bar: "bg-blue-600" },
-  "quality-checks-pending": { iconBg: "bg-rose-50 text-rose-700", bar: "bg-rose-600" },
+  "total-orders": { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "today-production": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]" },
+  "machines-running": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]" },
+  "pending-orders": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]" },
+  "pending-approvals": { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "good-qty": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]" },
+  "reject-qty": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]" },
+  "inventory-value": { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "low-stock": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]" },
+  "raw-materials": { iconBg: "bg-[#e8f1ff] text-[#2563eb]", bar: "bg-[#2563eb]" },
+  "finished-goods": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]" },
+  warehouses: { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "stock-movements": { iconBg: "bg-[#fff1e8] text-[#c2410c]", bar: "bg-[#c2410c]" },
+  "total-users": { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "active-users": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]" },
+  "total-employees": { iconBg: "bg-[#e8f8ef] text-[#0f766e]", bar: "bg-[#0f766e]" },
+  "active-alerts": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]" },
+  "total-sales-orders": { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "pending-sales-orders": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]" },
+  "todays-sales": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]" },
+  "outstanding-receivables": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]" },
+  "monthly-revenue": { iconBg: "bg-[#e8f8ef] text-[#0f766e]", bar: "bg-[#0f766e]" },
+  quotations: { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "conversion-rate": { iconBg: "bg-[#e8f1ff] text-[#2563eb]", bar: "bg-[#2563eb]" },
+  "overdue-invoices": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]" },
+  "total-production-orders": { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "planned-orders": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]" },
+  "in-progress-orders": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]" },
+  "completed-orders": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]" },
+  "delayed-orders": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]" },
+  "production-target": { iconBg: "bg-[#e8f8ef] text-[#0f766e]", bar: "bg-[#0f766e]" },
+  "production-efficiency": { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "machine-utilization": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]" },
+  "total-inventory-items": { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "out-of-stock": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]" },
+  "pending-material-issues": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]" },
+  "pending-goods-receipts": { iconBg: "bg-[#fff1e8] text-[#c2410c]", bar: "bg-[#c2410c]" },
+  "present-today": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]" },
+  "absent-today": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]" },
+  "on-leave": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]" },
+  "pending-leave-requests": { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "new-employees": { iconBg: "bg-[#e8f1ff] text-[#2563eb]", bar: "bg-[#2563eb]" },
+  "attendance-rate": { iconBg: "bg-[#e8f8ef] text-[#0f766e]", bar: "bg-[#0f766e]" },
+  "pending-hr-requests": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]" },
+  "total-receivables": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]" },
+  "total-payables": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]" },
+  "todays-revenue": { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "pending-invoices": { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "overdue-payments": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]" },
+  expenses: { iconBg: "bg-[#fff1e8] text-[#c2410c]", bar: "bg-[#c2410c]" },
+  "gst-payable": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]" },
+  "cash-bank-balance": { iconBg: "bg-[#e8f8ef] text-[#0f766e]", bar: "bg-[#0f766e]" },
+  "my-work-orders": { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "todays-target": { iconBg: "bg-[#e8f8ef] text-[#0f766e]", bar: "bg-[#0f766e]" },
+  "completed-today": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]" },
+  "operator-in-progress": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]" },
+  "pending-tasks": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]" },
+  "assigned-machine": { iconBg: "bg-[#eef0ff] text-[#5b5bd6]", bar: "bg-[#5b5bd6]" },
+  "machine-status": { iconBg: "bg-[#e8f1ff] text-[#2563eb]", bar: "bg-[#2563eb]" },
+  "material-availability": { iconBg: "bg-[#e8f1ff] text-[#2563eb]", bar: "bg-[#2563eb]" },
+  "quality-checks-pending": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]" },
 };
 
 export function getKpiAccent(id) {
-  return KPI_ACCENT[id] || { iconBg: "bg-slate-50 text-slate-700", bar: "bg-slate-600" };
+  return KPI_ACCENT[id] || { iconBg: "bg-[#f3f3f6] text-[#4a4a55]", bar: "bg-[#6b6b76]" };
 }
 
 export function KpiIcon({ id, className = "h-5 w-5" }) {
@@ -176,7 +176,7 @@ export function KpiIcon({ id, className = "h-5 w-5" }) {
   return <Icon className={className} strokeWidth={1.75} aria-hidden />;
 }
 
-/** Circular light icon well — shared look for dashboard KPI cards. */
+/** Circular light icon well — Products-page soft wells. */
 export function KpiIconWell({ id, className = "" }) {
   const accent = getKpiAccent(id);
   return (
@@ -196,7 +196,7 @@ function parseTrendPercent(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Enterprise light-theme trend line (Dynamics / Fiori style). */
+/** Trend line styled like Masters → Products muted typography. */
 export function TrendBadge({ up, value, label, mode = "change" }) {
   const pct = parseTrendPercent(value);
   const display = value == null || value === "" ? "—" : String(value);
@@ -204,24 +204,24 @@ export function TrendBadge({ up, value, label, mode = "change" }) {
 
   if (isInfo) {
     return (
-      <p className="flex min-w-0 items-center gap-1.5 text-[11px] leading-none text-slate-500">
+      <p className="flex min-w-0 items-center gap-1.5 text-[11px] leading-none text-[#6b6b76]">
         <span
           className={`shrink-0 font-semibold tabular-nums ${
-            mode === "utilization" ? "text-violet-700" : "text-slate-600"
+            mode === "utilization" ? "text-[#5b5bd6]" : "text-[#4a4a55]"
           }`}
         >
           {display}
         </span>
-        {label ? <span className="truncate font-medium text-slate-400">{label}</span> : null}
+        {label ? <span className="truncate font-medium text-[#9a9aa5]">{label}</span> : null}
       </p>
     );
   }
 
   if (pct === 0) {
     return (
-      <p className="flex min-w-0 items-center gap-1.5 text-[11px] leading-none text-slate-500">
+      <p className="flex min-w-0 items-center gap-1.5 text-[11px] leading-none text-[#6b6b76]">
         <span className="shrink-0 font-semibold tabular-nums">— {display}</span>
-        {label ? <span className="truncate font-medium text-slate-400">{label}</span> : null}
+        {label ? <span className="truncate font-medium text-[#9a9aa5]">{label}</span> : null}
       </p>
     );
   }
@@ -230,26 +230,25 @@ export function TrendBadge({ up, value, label, mode = "change" }) {
   return (
     <p
       className={`flex min-w-0 items-center gap-1.5 text-[11px] leading-none ${
-        positive ? "text-emerald-700" : "text-rose-600"
+        positive ? "text-[#15803d]" : "text-[#ef4444]"
       }`}
     >
       <span className="shrink-0 font-semibold tabular-nums">
         {positive ? "↑" : "↓"} {display}
       </span>
-      {label ? <span className="truncate font-medium text-slate-400">{label}</span> : null}
+      {label ? <span className="truncate font-medium text-[#9a9aa5]">{label}</span> : null}
     </p>
   );
 }
 
+/** Card shell matching Masters → Products tokens. */
 export function CardShell({ title, children, action, className = "", subtitle }) {
   return (
-    <section
-      className={`rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${className}`}
-    >
+    <section className={`ui-card p-4 sm:p-5 ${className}`}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold tracking-tight text-slate-900">{title}</h3>
-          {subtitle ? <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p> : null}
+          <h3 className="text-[13px] font-semibold tracking-tight text-[var(--color-text)] sm:text-sm">{title}</h3>
+          {subtitle ? <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{subtitle}</p> : null}
         </div>
         {action ? <div className="shrink-0">{action}</div> : null}
       </div>
@@ -261,10 +260,10 @@ export function CardShell({ title, children, action, className = "", subtitle })
 export function StatusBadge({ status }) {
   const { t } = useTranslation();
   const map = {
-    in_progress: "bg-sky-50 text-sky-800 ring-1 ring-inset ring-sky-200",
-    completed: "bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200",
-    planned: "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200",
-    on_hold: "bg-rose-50 text-rose-800 ring-1 ring-inset ring-rose-200",
+    in_progress: "bg-[#eef0ff] text-[#5b5bd6]",
+    completed: "bg-[#e8f8ef] text-[#15803d]",
+    planned: "bg-[#fff6e5] text-[#b45309]",
+    on_hold: "bg-[#fde8e8] text-[#ef4444]",
   };
   const labelKey = {
     in_progress: "refDashboard.statusInProgress",
@@ -275,7 +274,7 @@ export function StatusBadge({ status }) {
   const label = labelKey ? t(labelKey) : String(status || "").replace(/_/g, " ");
   return (
     <span
-      className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize ${map[status] || "bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-200"}`}
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${map[status] || "bg-[#f3f3f6] text-[#4a4a55]"}`}
     >
       {label}
     </span>

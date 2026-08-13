@@ -10,7 +10,7 @@ import {
 import { apiErrorMessage } from "../../utils/apiError";
 import { useToast } from "../../context/ToastContext";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const PAGE_SIZES = [10, 20, 50];
 
 function fyStartIso() {

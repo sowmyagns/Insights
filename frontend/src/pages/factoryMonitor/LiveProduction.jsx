@@ -51,8 +51,8 @@ export default function LiveProduction() {
   const [timeline, setTimeline] = useState(DEMO_SHOP_TIMELINE);
   const [layout, setLayout] = useState(DEMO_MACHINE_LAYOUT);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [sumRes, gridRes, alertRes, timeRes] = await Promise.allSettled([
         getShopFloorSummary(),
@@ -61,7 +61,6 @@ export default function LiveProduction() {
         getShopFloorTimeline(),
       ]);
 
-  usePageRefresh(load);
 
       if (sumRes.status === "fulfilled" && sumRes.value?.data) {
         setSummary({ ...DEMO_SHOP_SUMMARY, ...sumRes.value.data });
@@ -87,6 +86,8 @@ export default function LiveProduction() {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => { load(); }, [load]);
 

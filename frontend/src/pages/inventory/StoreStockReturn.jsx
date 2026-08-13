@@ -38,15 +38,14 @@ export default function StoreStockReturn() {
     notes: "",
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [itemsRes, whRes] = await Promise.allSettled([
         getInventoryDashboard(),
         getWarehouses(),
       ]);
 
-  usePageRefresh(load);
 
       setItems(itemsRes.status === "fulfilled" ? itemsRes.value?.data || [] : []);
       setWarehouses(whRes.status === "fulfilled" ? whRes.value?.data || [] : []);
@@ -54,6 +53,8 @@ export default function StoreStockReturn() {
       setLoading(false);
     }
   }, []);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();
@@ -97,7 +98,7 @@ export default function StoreStockReturn() {
       <StoreManagerNav />
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-subtitle">
             Return unused material to the warehouse. Stock increases automatically.
           </p>
         </div>

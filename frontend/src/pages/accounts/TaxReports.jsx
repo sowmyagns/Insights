@@ -87,7 +87,7 @@ export default function TaxReports() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">GSTR-1, GSTR-2B, GSTR-3B, GSTR-9, HSN & SAC summaries with trend analysis.</p>
+          <p className="ui-subtitle">GSTR-1, GSTR-2B, GSTR-3B, GSTR-9, HSN & SAC summaries with trend analysis.</p>
         </div>
         <div className="flex gap-2">
           <ExportButtons onExcel={exportExcel} onPdf={exportPdf} />

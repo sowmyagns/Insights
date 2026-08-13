@@ -52,7 +52,7 @@ function SummaryCard({ label, value, sub, icon: Icon, iconWrap = "bg-sky-50 text
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="text-xs font-medium text-slate-500">{label}</div>
-          <div className="mt-1 truncate text-xl font-bold tabular-nums text-slate-900 sm:text-2xl">{value}</div>
+          <div className="mt-1 truncate text-xl font-bold tabular-nums text-[var(--color-text)] sm:text-2xl">{value}</div>
           {sub && <div className="mt-0.5 text-[10px] text-slate-400">{sub}</div>}
         </div>
         {Icon ? (
@@ -494,8 +494,8 @@ export default function ProductionSchedule() {
   const [tableSearch, setTableSearch] = useState("");
   const [showNewModal, setShowNewModal] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [
         dashRes, timelineRes, shiftRes, liveRes, queueRes,
@@ -512,7 +512,6 @@ export default function ProductionSchedule() {
         getScheduleCalendar(),
       ]);
 
-  usePageRefresh(load);
 
       if (dashRes.status === "fulfilled" && dashRes.value?.data) {
         setDashboard({ ...DEMO_DASHBOARD, ...dashRes.value.data });
@@ -566,6 +565,8 @@ export default function ProductionSchedule() {
       setLoading(false);
     }
   }, []);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => { load(); }, [load]);
 
@@ -657,7 +658,7 @@ export default function ProductionSchedule() {
     addToast("Schedule exported to Excel", "success");
   };
 
-const PAGE_BG = "#F5F5F5";
+const PAGE_BG = "var(--color-bg)";
 const YELLOW = "#F5C518";
 
   if (loading) return <Loader />;

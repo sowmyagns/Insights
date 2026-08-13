@@ -4,7 +4,7 @@ import { ArrowDownWideNarrow, CalendarDays, ChevronLeft, ChevronRight, Filter, R
 
 import { useToast } from "../../context/ToastContext";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const ACCENT = "#0f6d84";
 
 const DOC_TYPES = [

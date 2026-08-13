@@ -20,9 +20,9 @@ import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
 
 function SummaryCard({ label, value, icon: Icon, color }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs dark:border-slate-700 dark:bg-slate-900 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden">
+    <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden">
       <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs min-w-0 flex-1">{label}</p>
+        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] dark:text-slate-400 sm:text-xs min-w-0 flex-1">{label}</p>
         {Icon && (
           <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
             <Icon className="h-3.5 w-3.5 text-white" />
@@ -30,7 +30,7 @@ function SummaryCard({ label, value, icon: Icon, color }) {
         )}
       </div>
       <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-slate-900 dark:text-slate-100 leading-none sm:text-2xl">{value}</p>
+        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] dark:text-slate-100 leading-none sm:text-2xl">{value}</p>
       </div>
     </div>
   );
@@ -197,7 +197,7 @@ export default function MaterialRequirementPlanning() {
     );
   }
 
-const PAGE_BG = "#F5F5F5";
+const PAGE_BG = "var(--color-bg)";
 const YELLOW = "#F5C518";
 
   return (

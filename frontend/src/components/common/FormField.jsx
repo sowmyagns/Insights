@@ -38,10 +38,22 @@ export function Input({
   const inputType = isPassword ? (visible ? "text" : "password") : type;
 
   const handleFocus = (e) => {
-    // Auto-select all text on focus so default values (e.g. '0') are instantly
-    // replaced when the user starts typing — no manual deletion needed.
-    e.target.select();
+    const target = e.target;
     onFocus?.(e);
+    setTimeout(() => {
+      try {
+        target.select();
+      } catch (err) {}
+    }, 0);
+  };
+
+  const handleChange = (e) => {
+    if (type === "number" && e.target.value) {
+      if (/^0+[1-9]/.test(e.target.value)) {
+        e.target.value = e.target.value.replace(/^0+/, "");
+      }
+    }
+    onChange?.(e);
   };
 
   return (
@@ -54,6 +66,7 @@ export function Input({
           type={inputType}
           className={`${inputBase} ${Icon ? "pl-10" : ""} ${isPassword ? "pr-11" : ""} ${error ? "border-red-500 dark:border-red-500" : ""} ${className}`}
           onFocus={handleFocus}
+          onChange={handleChange}
           {...props}
         />
         {isPassword ? (

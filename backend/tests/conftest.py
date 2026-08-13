@@ -1,4 +1,4 @@
-"""Pytest fixtures for the GNS Insights backend.
+"""Pytest fixtures for the Insights Iva backend.
 
 A throwaway SQLite database is configured *before* the application is imported
 so the app engine binds to it. Each test session gets a fresh file-based DB.

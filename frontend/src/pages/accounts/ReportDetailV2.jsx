@@ -9,7 +9,7 @@ import BulkExportReportV2 from "./BulkExportReportV2";
 import ProfitLossV2 from "./ProfitLossV2";
 import ReportViewerV2 from "./ReportViewerV2";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 
 function toTitle(id = "") {
   return id

@@ -5,6 +5,12 @@ export const MACHINE_TYPES = ["CNC", "Lathe", "Milling", "Injection Molding", "P
 export const DEPARTMENTS = ["Machining", "Assembly", "Fabrication", "Quality", "Packaging", "Maintenance"];
 export const PRODUCTION_LINES = ["Line A", "Line B", "Line C", "Line D", "Line E"];
 export const WORK_CENTERS = ["WC-01", "WC-02", "WC-03", "WC-04", "WC-05", "WC-06"];
+export const MACHINE_NAMES = [
+  "Jandu 1",
+  "Jandu 2",
+  "Jandu 3",
+  "Jandu 4",
+];
 export const SHIFTS = ["Shift A", "Shift B", "Shift C"];
 export const OPERATORS = [];
 export const STATUS_COLORS = {

@@ -83,15 +83,14 @@ export default function BankReconciliation() {
     [financialYear, month, branch]
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [repRes, prefRes] = await Promise.allSettled([
         getExtendedReports(financialYear, month, branch),
         getTenantPref(PREF_KEY),
       ]);
 
-  usePageRefresh(load);
 
       const pref =
         prefRes.status === "fulfilled" ? prefRes.value?.data?.value || {} : {};
@@ -118,6 +117,8 @@ export default function BankReconciliation() {
       setLoading(false);
     }
   }, [financialYear, month, branch, addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();
@@ -192,7 +193,7 @@ export default function BankReconciliation() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500 font-medium">
+          <p className="ui-subtitle font-medium">
             Verify company cash postings against monthly bank statements to ensure ledger integrity.
           </p>
         </div>

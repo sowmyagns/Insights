@@ -149,15 +149,14 @@ export default function PaymentReceipts() {
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [payRes, invRes] = await Promise.allSettled([
         getPayments(tenantId),
         getInvoicesV2({ page: 1, page_size: 500 }),
       ]);
 
-  usePageRefresh(load);
 
       const payments = payRes.status === "fulfilled" ? payRes.value?.data || [] : [];
       const invoices =
@@ -191,6 +190,8 @@ export default function PaymentReceipts() {
       setLoading(false);
     }
   }, [addToast, tenantId]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();
@@ -263,14 +264,14 @@ export default function PaymentReceipts() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center bg-[#F4F7FE]">
+      <div className="flex min-h-[50vh] items-center justify-center bg-[var(--color-bg)]">
         <Loader label="Loading payment receipts..." />
       </div>
     );
   }
 
   return (
-    <div className="min-h-full space-y-4 bg-[#F4F7FE] p-4 sm:p-6">
+    <div className="min-h-full space-y-4 bg-[var(--color-bg)] p-4 sm:p-6">
 
       <div className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-[#f7f7f9]">
         <div className="flex overflow-x-auto">

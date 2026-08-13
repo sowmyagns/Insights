@@ -10,23 +10,23 @@ export default function SettingsLayout() {
   const tenantName = user?.tenant_name || user?.company_name || companyName || "Company";
 
   return (
-    <div className="min-h-screen bg-[#F4F7FE] dark:bg-slate-950">
-      <header className="sticky top-0 z-30 border-b border-slate-200/90 bg-white/95 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95">
+    <div className="min-h-screen bg-[var(--color-bg)]">
+      <header className="sticky top-0 z-30 border-b border-[var(--color-border)] bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-700 text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary)] text-white">
               <Settings className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+              <p className="truncate text-sm font-semibold text-[var(--color-text)]">
                 Insights Iva Settings
               </p>
-              <p className="truncate text-xs text-slate-500">{tenantName}</p>
+              <p className="truncate text-xs text-[var(--color-text-muted)]">{tenantName}</p>
             </div>
           </div>
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="ui-btn-secondary"
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline">Back to App</span>

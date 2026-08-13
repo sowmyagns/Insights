@@ -47,8 +47,8 @@ export default function StockTransfer() {
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [trRes, whRes, itemsRes] = await Promise.allSettled([
         getStockTransfers(),
@@ -56,7 +56,6 @@ export default function StockTransfer() {
         getInventoryDashboard(),
       ]);
 
-  usePageRefresh(load);
 
       if (trRes.status === "fulfilled" && trRes.value?.data) {
         setTransfers(trRes.value.data);
@@ -69,6 +68,8 @@ export default function StockTransfer() {
       setLoading(false);
     }
   }, []);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();
@@ -213,15 +214,15 @@ export default function StockTransfer() {
   return (
     <div className="space-y-5 pb-4">
       <header>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">Inventory</p>
-        <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Stock Transfer</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="ui-eyebrow">Inventory</p>
+        <h2 className="mt-0.5 ui-title">Stock Transfer</h2>
+        <p className="ui-subtitle">
           Initiate or approve material transfers from Main Store to Shop Floor Store.
         </p>
       </header>
 
       <div className="grid gap-5 xl:grid-cols-2">
-        <section className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <section className="ui-card p-5">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-800">
             <Plus className="h-4 w-4 text-teal-700" /> Create Transfer
           </h2>
@@ -374,7 +375,7 @@ export default function StockTransfer() {
         </section>
       </div>
 
-      <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <section className="ui-card p-4">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-sm font-bold text-slate-800">
             <Truck className="h-4 w-4 text-teal-700" /> Transfer History

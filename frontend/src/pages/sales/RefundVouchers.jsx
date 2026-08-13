@@ -325,8 +325,8 @@ export default function RefundVouchers() {
   const [pageSize, setPageSize] = useState(25);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [custRes, payRes, docRes] = await Promise.allSettled([
         fetchCustomersWithFallback(),
@@ -339,7 +339,6 @@ export default function RefundVouchers() {
         }),
       ]);
 
-  usePageRefresh(load);
 
       setCustomers(custRes.status === "fulfilled" ? custRes.value || [] : []);
       const payments = payRes.status === "fulfilled" ? payRes.value?.data || [] : [];
@@ -374,6 +373,8 @@ export default function RefundVouchers() {
       setLoading(false);
     }
   }, [addToast, tenantId]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();
@@ -448,14 +449,14 @@ export default function RefundVouchers() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center bg-[#F5F5F5]">
+      <div className="flex min-h-[50vh] items-center justify-center bg-[var(--color-bg)]">
         <Loader label="Loading refund vouchers..." />
       </div>
     );
   }
 
   return (
-    <div className="min-h-full space-y-4 bg-[#F5F5F5] p-4 sm:p-6">
+    <div className="min-h-full space-y-4 bg-[var(--color-bg)] p-4 sm:p-6">
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative w-full max-w-xl">

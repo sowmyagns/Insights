@@ -17,15 +17,22 @@ export default function DigitalSignatureSetup() {
   const [form, setForm] = useState({ signatory_name: "", aadhaar_last4: "" });
   const [showForm, setShowForm] = useState(false);
 
-  const load = () =>
-    getDigitalSignatureStatus()
+  const load = (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
+    return getDigitalSignatureStatus()
       .then((r) => setStatus(r.data))
-      .catch(() => setStatus({ is_setup: false, promo_credits: 3 }))
+      .catch((err) => {
+        setStatus({ is_setup: false, promo_credits: 3 });
+        if (isRefresh) throw err;
+      })
       .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     load();
   }, []);
+
+  usePageRefresh(() => load(true));
 
   const onSetup = async (e) => {
     e.preventDefault();
@@ -44,7 +51,6 @@ export default function DigitalSignatureSetup() {
 
   if (loading) return <Loader label="Loading…" />;
 
-  usePageRefresh(load);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-[#fff8e1] via-white to-white px-4 py-6">

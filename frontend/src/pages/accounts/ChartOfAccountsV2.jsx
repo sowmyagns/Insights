@@ -15,7 +15,7 @@ import { exportToCsv } from "../../utils/exportUtils";
 import { useToast } from "../../context/ToastContext";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const PAGE_SIZES = [10, 20, 50];
 
 const SORT_OPTIONS = [
@@ -241,21 +241,21 @@ export default function ChartOfAccountsV2() {
   const [subParent, setSubParent] = useState(null);
   const [menuId, setMenuId] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const rows = await fetchChartOfAccounts();
       setAccounts(rows);
     } catch (err) {
       setAccounts([]);
-
-  usePageRefresh(load);
-
-      addToast(apiErrorMessage(err, "Failed to load chart of accounts"), "error");
+      if (!isRefresh) addToast(apiErrorMessage(err, "Failed to load chart of accounts"), "error");
+      if (isRefresh) throw err;
     } finally {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();

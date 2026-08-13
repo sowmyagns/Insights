@@ -42,7 +42,6 @@ export default function JournalEntries() {
       const list = res?.data?.journal_entries || res?.data?.data?.journal_entries || [];
       setEntries(Array.isArray(list) ? list : []);
 
-  usePageRefresh(load);
 
     } catch (error) {
       const detail = error?.response?.data?.detail || error?.message || "Failed to load Journal Entries data";
@@ -54,6 +53,8 @@ export default function JournalEntries() {
       setRefreshing(false);
     }
   }, [financialYear, month, branch, addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => { load(); }, [load]);
 
@@ -131,7 +132,7 @@ export default function JournalEntries() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">Record manual adjustments, accrued expenses, and general ledger corrections.</p>
+          <p className="ui-subtitle">Record manual adjustments, accrued expenses, and general ledger corrections.</p>
         </div>
         <div className="flex gap-2">
         </div>

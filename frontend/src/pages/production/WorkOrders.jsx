@@ -51,7 +51,7 @@ import {
 import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
 import { printWorkOrder } from "../../utils/printUtils";
 
-const PAGE_BG = "#F5F5F5";
+const PAGE_BG = "var(--color-bg)";
 const YELLOW = "#F5C518";
 const PAGE_SIZES = [20, 50, 100];
 
@@ -66,13 +66,13 @@ function SummaryCard({ label, value, icon: Icon, color, onClick }) {
   return (
     <div
       onClick={onClick}
-      className={`rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden ${
+      className={`ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden ${
         onClick ? "cursor-pointer hover:shadow-md transition-shadow" : ""
       }`}
       title={typeof label === "string" ? label : undefined}
     >
       <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
+        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
         {Icon && (
           <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
             <Icon className="h-3.5 w-3.5 text-white" />
@@ -80,7 +80,7 @@ function SummaryCard({ label, value, icon: Icon, color, onClick }) {
         )}
       </div>
       <div className="mt-2">
-        <p className="truncate text-xl font-extrabold tabular-nums text-slate-900 leading-none">{displayVal}</p>
+        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none">{displayVal}</p>
       </div>
     </div>
   );
@@ -571,7 +571,7 @@ export default function WorkOrders() {
         </div>
 
         {/* Card Container */}
-        <div className="rounded-xl border border-[#e4e4ea] bg-white p-4 shadow-sm sm:p-5">
+        <div className="ui-card p-4 sm:p-5">
           {/* Action Bar */}
           <div className="mb-4 flex flex-wrap items-center gap-2.5">
             <div className="relative min-w-[220px] flex-1">

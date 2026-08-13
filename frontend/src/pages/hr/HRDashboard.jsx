@@ -10,9 +10,9 @@ import { HR_FLOW, formatInr } from "../../data/hrMasterData";
 
 function KpiCard({ label, value, icon: Icon, color }) {
   return (
-    <div className="group rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md" title={typeof label === "string" ? label : undefined}>
+    <div className="group ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5" title={typeof label === "string" ? label : undefined}>
       <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
+        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
         {Icon && (
           <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-105 ${color}`}>
             <Icon className="h-3.5 w-3.5 text-white shrink-0" />
@@ -20,7 +20,7 @@ function KpiCard({ label, value, icon: Icon, color }) {
         )}
       </div>
       <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-slate-900 leading-none sm:text-2xl" title={String(value)}>
+        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl" title={String(value)}>
           {value}
         </p>
       </div>
@@ -35,26 +35,21 @@ export default function HRDashboard() {
   const [loading, setLoading] = useState(true);
   const [hub, setHub] = useState({});
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await getHRHub();
       if (res.data) setHub(res.data || {});
       else setHub({});
-    } catch {
+    } catch (err) {
+      if (isRefresh) throw err;
       setHub({});
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const handleRefresh = async () => {
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 350));
-    await load();
-  };
-
-  usePageRefresh(handleRefresh);
+  usePageRefresh(() => load(true));
 
   useEffect(() => { load(); }, [load]);
 
@@ -64,7 +59,7 @@ export default function HRDashboard() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex items-center justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">Workforce analytics, attendance, leave, payroll, and manufacturing HR insights.</p>
+          <p className="ui-subtitle">Workforce analytics, attendance, leave, payroll, and manufacturing HR insights.</p>
         </div>
       </header>
 

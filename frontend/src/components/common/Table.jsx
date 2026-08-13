@@ -46,19 +46,19 @@ export default function Table({ columns, data, emptyState, sortable }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 print:overflow-visible print:border-none print:rounded-none print:shadow-none">
-      <table className="w-full border-collapse">
+    <div className="ui-table-wrap overflow-x-auto print:overflow-visible print:rounded-none print:border-none print:shadow-none">
+      <table className="w-full border-collapse text-left text-[13px]">
         <thead>
-          <tr className="bg-slate-50 dark:bg-slate-800/50">
+          <tr className="border-b border-[var(--color-border-soft)] bg-[var(--color-surface-thead)] text-[12px] font-medium text-[var(--color-text-muted)]">
             {columns.map((col) => {
               const isActionsCol = col.key === "actions" || col.printHidden;
               return (
                 <th
                   key={col.key}
-                  className={`text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 ${
+                  className={`px-4 py-3 font-medium ${
                     isActionsCol ? "print:hidden" : ""
                   } ${
-                    sortable && col.sortable !== false ? "cursor-pointer select-none hover:bg-slate-100 dark:hover:bg-slate-700/50" : ""
+                    sortable && col.sortable !== false ? "cursor-pointer select-none hover:bg-[var(--color-surface-hover)]" : ""
                   }`}
                   onClick={() => (col.sortable !== false && sortable) && handleSort(col.key)}
                 >
@@ -70,18 +70,18 @@ export default function Table({ columns, data, emptyState, sortable }) {
             })}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+        <tbody>
           {sortedData.map((row, idx) => (
             <tr
               key={row.id ?? idx}
-              className="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors"
+              className="border-b border-[#f0f0f4] text-[var(--color-text)] last:border-b-0 hover:bg-[#fafafa] transition-colors"
             >
               {columns.map((col) => {
                 const isActionsCol = col.key === "actions" || col.printHidden;
                 return (
                   <td
                     key={col.key}
-                    className={`py-3 px-4 text-sm text-slate-700 dark:text-slate-300 ${
+                    className={`px-4 py-3.5 text-[13px] ${
                       isActionsCol ? "print:hidden" : ""
                     }`}
                   >
@@ -100,11 +100,9 @@ export default function Table({ columns, data, emptyState, sortable }) {
         </tbody>
       </table>
       {sortedData.length === 0 && (
-        <div className="p-8">
+        <div className="ui-empty">
           {emptyState || (
-            <p className="text-center text-sm text-slate-500 dark:text-slate-400">
-              No data available.
-            </p>
+            <p>No data available</p>
           )}
         </div>
       )}

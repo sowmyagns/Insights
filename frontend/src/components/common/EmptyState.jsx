@@ -44,10 +44,10 @@ export default function EmptyState({
 
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 px-8 py-16 text-center dark:border-slate-600 dark:bg-slate-800/30 ${className}`}
+      className={`flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--color-border)] bg-white px-8 py-16 text-center shadow-sm ${className}`}
       role="status"
     >
-      <div className="mb-4">{Icon}</div>
+      <div className="mb-4 text-[var(--color-text-icon)]">{Icon}</div>
       <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{title}</h3>
       {description ? (
         <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">{description}</p>

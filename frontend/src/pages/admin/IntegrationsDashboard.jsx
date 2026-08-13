@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
 import DataTable from "../../components/common/DataTable";
 import { useToast } from "../../context/ToastContext";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import {
   getBarcodeScanners,
   getAccountingSoftware,
@@ -19,24 +20,34 @@ export default function IntegrationsDashboard() {
   const [machines, setMachines] = useState([]);
   const [apiInfo, setApiInfo] = useState(null);
 
-  useEffect(() => {
-    Promise.all([
-      getBarcodeScanners(),
-      getAccountingSoftware(),
-      getIotMachineIntegrations(),
-      getApiIntegrations(),
-    ])
-      .then(([b, a, m, api]) => {
-        setBarcode(b.data);
-        setAccounting(a.data);
-        setMachines(m.data || []);
-        setApiInfo(api.data);
-      })
-      .catch((err) => {
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
+    try {
+      const [b, a, m, api] = await Promise.all([
+        getBarcodeScanners(),
+        getAccountingSoftware(),
+        getIotMachineIntegrations(),
+        getApiIntegrations(),
+      ]);
+      setBarcode(b.data);
+      setAccounting(a.data);
+      setMachines(m.data || []);
+      setApiInfo(api.data);
+    } catch (err) {
+      if (!isRefresh) {
         addToast(err.response?.data?.detail || "Failed to load integrations", "error");
-      })
-      .finally(() => setLoading(false));
+      }
+      if (isRefresh) throw err;
+    } finally {
+      setLoading(false);
+    }
   }, [addToast]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  usePageRefresh(() => load(true));
 
   if (loading) return <Loader label="Loading integrations..." />;
 
@@ -49,25 +60,25 @@ export default function IntegrationsDashboard() {
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800">
-          <p className="text-[11px] font-medium text-slate-500">Barcode coverage</p>
+        <div className="ui-card p-5">
+          <p className="text-[11px] font-medium text-[var(--color-text-muted)]">Barcode coverage</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{barcode?.coverage_pct ?? 0}%</p>
           <p className="text-xs text-slate-400">
             {barcode?.barcoded_items ?? 0} / {barcode?.total_items ?? 0} items
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800">
-          <p className="text-[11px] font-medium text-slate-500">IoT-ready machines</p>
+        <div className="ui-card p-5">
+          <p className="text-[11px] font-medium text-[var(--color-text-muted)]">IoT-ready machines</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{machines.length}</p>
         </div>
-        <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800">
-          <p className="text-[11px] font-medium text-slate-500">API modules</p>
+        <div className="ui-card p-5">
+          <p className="text-[11px] font-medium text-[var(--color-text-muted)]">API modules</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{apiInfo?.available_modules?.length ?? 0}</p>
           <p className="text-xs text-slate-400">{apiInfo?.auth}</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200/90 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800">
+      <div className="ui-card p-6">
         <h2 className="mb-4 text-sm font-bold text-slate-900">Accounting connectors</h2>
         <ul className="space-y-2">
           {(accounting?.connectors || []).map((c) => (
@@ -87,7 +98,7 @@ export default function IntegrationsDashboard() {
         )}
       </div>
 
-      <div className="rounded-xl border border-slate-200/90 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800">
+      <div className="ui-card p-6">
         <h2 className="mb-4 text-sm font-bold text-slate-900">IoT machine integrations</h2>
         <DataTable
           columns={[

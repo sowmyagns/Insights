@@ -49,15 +49,20 @@ export default function AccessLogs() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    getAccessLogs()
-      .then((r) => setLogs(r.data || []))
-      .catch(() => addToast("Failed to load activity logs", "error"))
-      .finally(() => setLoading(false));
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
+    try {
+      const r = await getAccessLogs();
+      setLogs(r.data || []);
+    } catch (err) {
+      if (!isRefresh) addToast("Failed to load activity logs", "error");
+      if (isRefresh) throw err;
+    } finally {
+      setLoading(false);
+    }
   }, [addToast]);
 
-  usePageRefresh(load);
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     if (isAdmin) load();
@@ -96,7 +101,7 @@ export default function AccessLogs() {
         subtitle="Audit trail of administrative actions across users, roles, and permissions."
       />
 
-      <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-800 sm:p-6">
+      <div className="ui-card p-4 sm:p-6">
         {loading ? (
           <p className="py-10 text-center text-sm text-slate-500">Loading activity…</p>
         ) : (

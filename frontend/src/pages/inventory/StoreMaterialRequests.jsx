@@ -69,8 +69,8 @@ export default function StoreMaterialRequests({ mode = "requests" }) {
     reason: "",
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const status = issueMode ? undefined : undefined;
       const [reqRes, itemsRes, whRes] = await Promise.allSettled([
@@ -79,7 +79,6 @@ export default function StoreMaterialRequests({ mode = "requests" }) {
         getWarehouses(),
       ]);
 
-  usePageRefresh(load);
 
       let list = reqRes.status === "fulfilled" ? reqRes.value?.data || [] : [];
       if (issueMode) {
@@ -92,6 +91,8 @@ export default function StoreMaterialRequests({ mode = "requests" }) {
       setLoading(false);
     }
   }, [issueMode]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();
@@ -261,7 +262,7 @@ export default function StoreMaterialRequests({ mode = "requests" }) {
 
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-subtitle">
             {issueMode
               ? "Approve and issue materials to production. Stock reduces automatically."
               : "Operators submit requests digitally — no paper notebooks."}

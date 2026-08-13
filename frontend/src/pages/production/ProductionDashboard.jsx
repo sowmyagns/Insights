@@ -33,10 +33,10 @@ function KpiCard({ label, value, accent = false, tone, icon: Icon, iconWrap = "b
       ? "text-emerald-700"
       : tone === "warning"
         ? "text-amber-700"
-        : "text-slate-900";
+        : "text-[var(--color-text)]";
   return (
     <div
-      className={`relative overflow-hidden rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
+      className={`relative overflow-hidden ui-card p-4 ${
         accent ? "ring-1 ring-teal-200" : ""
       }`}
     >
@@ -48,7 +48,7 @@ function KpiCard({ label, value, accent = false, tone, icon: Icon, iconWrap = "b
           </div>
         ) : null}
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-medium text-slate-500">{label}</p>
+          <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
           <p className={`mt-1 text-3xl font-bold tabular-nums ${valueClass}`}>{value ?? 0}</p>
         </div>
       </div>
@@ -58,7 +58,7 @@ function KpiCard({ label, value, accent = false, tone, icon: Icon, iconWrap = "b
 
 function StatusPanel({ title, items, icon: Icon }) {
   return (
-    <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <section className="ui-card p-4">
       <div className="mb-3 flex items-center gap-2">
         {Icon ? (
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-teal-800">
@@ -96,15 +96,18 @@ export default function ProductionDashboard() {
   const [loading, setLoading] = useState(true);
   const [hub, setHub] = useState({});
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await getProductionHub();
       if (res?.data) setHub(res.data);
       else setHub({});
-    } catch {
-      addToast("Failed to load production hub", "error");
-      setHub({});
+    } catch (err) {
+      if (!isRefresh) {
+        addToast("Failed to load production hub", "error");
+        setHub({});
+      }
+      if (isRefresh) throw err;
     } finally {
       setLoading(false);
     }
@@ -113,7 +116,7 @@ export default function ProductionDashboard() {
   useEffect(() => {
     load();
   }, [load]);
-  useManufacturingRefresh(load);
+  useManufacturingRefresh(() => load(true));
 
   if (loading) {
     return (
@@ -134,9 +137,9 @@ export default function ProductionDashboard() {
 
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">Operations</p>
-          <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Production Hub</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-eyebrow">Operations</p>
+          <h2 className="mt-0.5 ui-title">Production Hub</h2>
+          <p className="ui-subtitle">
             Planning, schedule, allocation, shop floor, batches, and quality in one control center.
           </p>
         </div>
@@ -194,7 +197,7 @@ export default function ProductionDashboard() {
             ["Failed", hub.quality_failed, "warning"],
           ]}
         />
-        <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <section className="ui-card p-4">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
             <AlertTriangle className="h-4 w-4 text-amber-500" />
             Quick Module Access
@@ -208,7 +211,7 @@ export default function ProductionDashboard() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <section className="ui-card p-4">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-800">Running Jobs</h3>
             <Link to="/production/work-orders" className="text-xs font-semibold text-teal-700 hover:underline">
@@ -240,7 +243,7 @@ export default function ProductionDashboard() {
           )}
         </section>
 
-        <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <section className="ui-card p-4">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-800">Machine Status</h3>
             <Link to="/production/machines" className="text-xs font-semibold text-teal-700 hover:underline">

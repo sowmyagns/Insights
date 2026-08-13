@@ -32,7 +32,7 @@ import {
 import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const PAGE_SIZES = [10, 20, 50];
 
 const SORT_OPTIONS = [
@@ -278,15 +278,14 @@ export default function InventoryV2() {
   const [deleting, setDeleting] = useState(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [itemsRes, catsRes] = await Promise.all([
         listInventoryV2Items(),
         listInventoryV2Categories(),
       ]);
 
-  usePageRefresh(load);
 
       const rows = Array.isArray(itemsRes.data) ? itemsRes.data : [];
       setProducts(rows);
@@ -300,6 +299,8 @@ export default function InventoryV2() {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();

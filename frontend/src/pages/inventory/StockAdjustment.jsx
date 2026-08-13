@@ -43,8 +43,8 @@ export default function StockAdjustment() {
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [adjRes, whRes, itemsRes] = await Promise.allSettled([
         getStockAdjustments(),
@@ -52,7 +52,6 @@ export default function StockAdjustment() {
         getInventoryDashboard(),
       ]);
 
-  usePageRefresh(load);
 
       if (adjRes.status === "fulfilled" && adjRes.value?.data) {
         setAdjustments(adjRes.value.data);
@@ -65,6 +64,8 @@ export default function StockAdjustment() {
       setLoading(false);
     }
   }, []);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();
@@ -192,7 +193,7 @@ export default function StockAdjustment() {
     <div className="space-y-6 p-4 sm:p-6">
       {storeMode ? <StoreManagerNav /> : null}
       <header>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="ui-subtitle">
           Audit-ready stock corrections with multi-level approval workflow.
         </p>
       </header>

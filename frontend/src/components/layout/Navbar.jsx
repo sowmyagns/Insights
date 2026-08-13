@@ -99,7 +99,7 @@ export default function Navbar({ onMenuClick }) {
   const weekdayLabel = now.toLocaleDateString(undefined, { weekday: "short" });
 
   const iconBtn =
-    "flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-[#E4F0FD] dark:text-slate-300 dark:hover:bg-slate-800";
+    "flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] dark:text-slate-300 dark:hover:bg-slate-800";
 
   return (
     <header className="sticky top-0 z-20 shrink-0 border-b border-[#d7e6f8] bg-white/95 shadow-[0_1px_0_rgba(25,92,207,0.06)] backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95 print:hidden">
@@ -167,7 +167,7 @@ export default function Navbar({ onMenuClick }) {
             <button
               type="button"
               onClick={() => setShowProfile(!showProfile)}
-              className="flex items-center gap-2 rounded-lg border border-[#d7e6f8] bg-[#F5F9FF] px-2 py-1.5 transition-colors hover:bg-[#E4F0FD] dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 sm:px-2.5"
+              className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-2 py-1.5 transition-colors hover:bg-[var(--color-surface-hover)] dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 sm:px-2.5"
               aria-expanded={showProfile}
               aria-haspopup="menu"
             >

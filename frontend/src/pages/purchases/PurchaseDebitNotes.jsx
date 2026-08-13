@@ -132,8 +132,8 @@ export default function PurchaseDebitNotes() {
   const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await listBizDocuments({
         module: "purchases",
@@ -144,7 +144,6 @@ export default function PurchaseDebitNotes() {
       const items = res?.data?.items || res?.data || [];
       setRows(Array.isArray(items) ? items : []);
 
-  usePageRefresh(load);
 
     } catch {
       addToast("Failed to load debit notes", "error");
@@ -153,6 +152,8 @@ export default function PurchaseDebitNotes() {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();

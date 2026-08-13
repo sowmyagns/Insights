@@ -93,8 +93,8 @@ export default function PaymentsMade() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await listBizDocuments({
         module: "purchases",
@@ -121,12 +121,13 @@ export default function PaymentsMade() {
       addToast("Failed to load payments made", "error");
       setRows([]);
 
-  usePageRefresh(load);
 
     } finally {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();

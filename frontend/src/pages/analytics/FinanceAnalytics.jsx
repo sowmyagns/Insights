@@ -69,18 +69,19 @@ export default function FinanceAnalytics() {
     plant: "All Plants", dateFrom: "", dateTo: "",
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await getFinanceAnalytics();
       if (res.data) {
         setData({ ...emptyData, ...res.data });
         setDrillTrail(res.data.drill_revenue || []);
-      } else {
+      } else if (!isRefresh) {
         setData(emptyData);
         setDrillTrail([]);
       }
-    } catch {
+    } catch (err) {
+      if (isRefresh) throw err;
       setData(emptyData);
       setDrillTrail([]);
       addToast("Failed to load finance analytics", "error");
@@ -90,10 +91,10 @@ export default function FinanceAnalytics() {
   }, [addToast]);
 
   useEffect(() => { load(); }, [load]);
-  useManufacturingRefresh(load);
+  useManufacturingRefresh(() => load(true));
   useEffect(() => {
     if (!autoRefresh) return undefined;
-    const t = setInterval(load, 60000);
+    const t = setInterval(() => load(true), 60000);
     return () => clearInterval(t);
   }, [autoRefresh, load]);
 

@@ -1,6 +1,6 @@
-# GNS Insights
+# Insights Iva
 
-**GNS Insights** is a full-stack manufacturing ERP and business intelligence platform. It unifies production, inventory, procurement, sales, finance/accounting, HR, quality, maintenance, alerts, documents, and analytics in a multi-tenant SaaS application.
+**Insights Iva** is a full-stack manufacturing ERP and business intelligence platform. It unifies production, inventory, procurement, sales, finance/accounting, HR, quality, maintenance, alerts, documents, and analytics in a multi-tenant SaaS application.
 
 **Tagline:** Business Intelligence • Analytics • AI
 
@@ -10,7 +10,7 @@ Security hardening (auth lockout, email verification, refresh tokens, RBAC, tena
 
 | Item | Location | Usage |
 |------|----------|--------|
-| **Product name** | — | **GNS Insights** (browser title, sidebar, login, landing, i18n) |
+| **Product name** | — | **Insights Iva** (browser title, sidebar, login, landing, i18n) |
 | **Tagline** | `frontend/src/locales/en.json` → `nav.tagline` | Business Intelligence • Analytics • AI |
 | **Logo** | `frontend/public/logo.png` | Favicon + UI branding |
 | **Auth hero image** | `frontend/public/auth/slide-1.png` | Login/Register slider + landing hero background |
@@ -30,7 +30,7 @@ The sign-in / sign-up right panel (`AuthSlider.jsx`) rotates background slides:
 
 | File | Slide | Fallback |
 |------|-------|----------|
-| `frontend/public/auth/slide-1.png` | GNS Insights (installed) | — |
+| `frontend/public/auth/slide-1.png` | Insights Iva (installed) | — |
 | `frontend/public/auth/slide-2.png` | Analytics | Themed gradient if missing |
 | `frontend/public/auth/slide-3.png` | Inventory | Themed gradient if missing |
 
@@ -150,7 +150,7 @@ To add or replace slides, drop PNG/JPG files into `frontend/public/auth/` using 
 
 All flows follow the pattern: **Select → Enter → Save → View**. Tasks complete in **3 steps max**.
 
-### 1. Overall GNS Insights Flow
+### 1. Overall Insights Iva Flow
 Login → Dashboard → Choose Module → Perform Action → Save Data → View Reports
 
 ### 2. Production Management
@@ -182,7 +182,7 @@ Login → Admin Panel → Create User → Assign Role → Set Permissions
 ## Project Structure
 
 ```
-GNS Insights/
+Insights Iva/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI app, CORS, router registration, DB init
@@ -198,7 +198,7 @@ GNS Insights/
 │
 ├── frontend/
 │   ├── public/
-│   │   ├── logo.png             # GNS Insights product logo (favicon + UI)
+│   │   ├── logo.png             # Insights Iva product logo (favicon + UI)
 │   │   └── auth/
 │   │       ├── slide-1.png      # Auth slider / landing hero background
 │   │       ├── slide-2.png      # Optional (gradient fallback if missing)
@@ -448,7 +448,7 @@ Run the backend:
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-API docs: http://localhost:8000/docs (title: **GNS Insights API**)
+API docs: http://localhost:8000/docs (title: **Insights Iva API**)
 
 ### 2. Frontend
 
@@ -469,7 +469,7 @@ Run the frontend:
 npm run dev
 ```
 
-App: http://localhost:5173 (title: **GNS Insights**)
+App: http://localhost:5173 (title: **Insights Iva**)
 
 ### Docker (optional)
 

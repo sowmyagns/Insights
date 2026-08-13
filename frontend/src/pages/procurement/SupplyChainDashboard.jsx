@@ -13,7 +13,7 @@ function KpiCard({ label, value, icon: Icon, color }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
-        <div><p className="text-xs font-medium text-slate-500">{label}</p><p className="mt-1 text-xl font-bold tabular-nums text-slate-900">{value ?? 0}</p></div>
+        <div><p className="text-xs font-medium text-slate-500">{label}</p><p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value ?? 0}</p></div>
         {Icon && <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}><Icon className="h-5 w-5 text-white" /></div>}
       </div>
     </div>
@@ -54,7 +54,7 @@ export default function SupplyChainDashboard() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">Purchase spend, vendor performance, pending orders, and procurement alerts.</p>
+          <p className="ui-subtitle">Purchase spend, vendor performance, pending orders, and procurement alerts.</p>
         </div>
       </header>
 

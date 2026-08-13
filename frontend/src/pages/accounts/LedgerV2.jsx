@@ -29,7 +29,7 @@ import {
 import { exportToCsv, exportToExcel, exportToPdf } from "../../utils/exportUtils";
 import { apiErrorMessage, asArray } from "../../utils/apiError";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const PAGE_SIZES = [10, 20, 50];
 
 const TABS = [
@@ -215,8 +215,8 @@ export default function LedgerV2() {
   const [editOtherAccount, setEditOtherAccount] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [cRes, vRes, cashRes, otherRes] = await Promise.allSettled([
         getCustomers(),
@@ -225,7 +225,6 @@ export default function LedgerV2() {
         fetchLedgerOtherAccounts(),
       ]);
 
-  usePageRefresh(load);
 
       const cData = cRes.status === "fulfilled" ? cRes.value?.data : [];
       const vData = vRes.status === "fulfilled" ? vRes.value?.data : [];
@@ -243,6 +242,8 @@ export default function LedgerV2() {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();

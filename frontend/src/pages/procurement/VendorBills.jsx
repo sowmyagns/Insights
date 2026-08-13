@@ -241,8 +241,8 @@ export default function VendorBills() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [sumRes, listRes, supRes, poRes, grnRes] = await Promise.allSettled([
         getVendorBillSummary(),
@@ -252,7 +252,6 @@ export default function VendorBills() {
         getGRNEnriched(),
       ]);
 
-  usePageRefresh(load);
 
       if (sumRes.status === "fulfilled" && sumRes.value?.data) {
         setSummary(sumRes.value.data);
@@ -269,6 +268,8 @@ export default function VendorBills() {
       setLoading(false);
     }
   }, []);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();
@@ -384,7 +385,7 @@ export default function VendorBills() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-subtitle">
             Invoice module with three-way matching (Purchase Order (PO) ↔ Goods Receipt Note (GRN) ↔ Vendor Invoice) and finance approval.
           </p>
         </div>

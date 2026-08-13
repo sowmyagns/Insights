@@ -38,7 +38,7 @@ function SummaryCard({ label, value, icon: Icon, color, format }) {
       <div className="flex items-center justify-between">
         <div className="min-w-0">
           <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="mt-1 truncate text-xl font-bold tabular-nums text-slate-900 sm:text-2xl">{display}</p>
+          <p className="mt-1 truncate text-xl font-bold tabular-nums text-[var(--color-text)] sm:text-2xl">{display}</p>
         </div>
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${color}`}>
           <Icon className="h-5 w-5 text-white" />
@@ -330,7 +330,7 @@ export default function VendorManagement() {
     <div className="space-y-6 pb-8">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-subtitle">
             Manage vendors, purchase history, outstanding payables, and performance ratings.
           </p>
         </div>

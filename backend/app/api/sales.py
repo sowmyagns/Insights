@@ -663,7 +663,7 @@ async def email_invoice_endpoint(
         raise HTTPException(400, "Recipient email is required")
 
     inv_no = doc.get("meta", {}).get("invoice_no", str(invoice_id))
-    seller = doc.get("seller", {}).get("name", "GNS Insights")
+    seller = doc.get("seller", {}).get("name", "Insights Iva")
     subject = payload.subject or f"Tax Invoice {inv_no} from {seller}"
     message = payload.message or f"Please find attached tax invoice {inv_no}."
     pdf_bytes = generate_invoice_pdf(doc)

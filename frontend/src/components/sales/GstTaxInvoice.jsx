@@ -69,7 +69,7 @@ export default function GstTaxInvoice({ data }) {
     "Goods once sold cannot be taken back or exchanged.",
     "Cheques subject to realisation.",
     "24% Interest per annum will be charged if the bills are not paid within due days.",
-    "Goods Return "As it is" shall be taken back, only within 7 days from the Date of Delivery & the same shall have to be intimated in "Writing" along with reasons for Goods Return.",
+    "Goods Return "As it is" shall be taken back, only within 7 days from the Date of Delivery & the same shall have to be intimated in "Writing" along with reasons for Goods Return."
   ];
 
   const rejection = (data.rejection_policy || "").split("\n").filter(Boolean);

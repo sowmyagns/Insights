@@ -34,7 +34,7 @@ function KpiCard({ label, value, icon: Icon, color }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-slate-900">{value ?? 0}</p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value ?? 0}</p>
         </div>
         {Icon && (
           <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
@@ -470,7 +470,7 @@ export default function MaterialRequests() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-subtitle">
             MRP shortages become purchase requests, then purchase orders.
           </p>
         </div>

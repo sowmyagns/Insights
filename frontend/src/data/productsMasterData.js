@@ -59,7 +59,19 @@ export function guessCategory(sku = "", name = "") {
 }
 
 export function enrichApiProduct(apiRow) {
-  const category = apiRow.category || "Finished Goods";
+  let category = apiRow.category;
+  if (!category || category === "Finished Goods" || category === "No Category") {
+    const descMatch = apiRow.description?.match(/Category:\s*([^|]+)/i);
+    if (descMatch && descMatch[1]?.trim()) {
+      category = descMatch[1].trim();
+    }
+  }
+  if (!category || category === "No Category") {
+    category = "Finished Goods";
+  }
+  if (category === "Work in Progress (WIP)" || category === "Work In Progress") {
+    category = "WIP";
+  }
   const stock = apiRow.current_stock != null ? Number(apiRow.current_stock) : 0;
   const minStock = apiRow.min_stock != null ? Number(apiRow.min_stock) : 0;
   const maxStock = apiRow.max_stock != null ? Number(apiRow.max_stock) : 0;

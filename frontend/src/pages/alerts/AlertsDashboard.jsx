@@ -61,9 +61,9 @@ function KpiCard({ label, value, icon: Icon, color }) {
       : String(value);
 
   return (
-    <div className="group rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md" title={typeof label === "string" ? label : undefined}>
+    <div className="group ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden transition-all duration-200 hover:-translate-y-0.5" title={typeof label === "string" ? label : undefined}>
       <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-slate-500 leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
+        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
         {Icon && (
           <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-transform duration-200 group-hover:scale-105 ${color}`}>
             <Icon className="h-3.5 w-3.5 text-white shrink-0" />
@@ -71,7 +71,7 @@ function KpiCard({ label, value, icon: Icon, color }) {
         )}
       </div>
       <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-slate-900 leading-none sm:text-2xl" title={displayVal}>
+        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none sm:text-2xl" title={displayVal}>
           {displayVal}
         </p>
       </div>
@@ -170,8 +170,8 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
     triggered_at: getNowLocalISO(),
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     setError(null);
     markRequestStart();
     try {
@@ -183,7 +183,6 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
         getEmployees(),
       ]);
 
-  usePageRefresh(load);
 
       let apiAlerts = [];
       if (alertsRes.status === "fulfilled") {
@@ -216,6 +215,8 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
       setLoading(false);
     }
   }, [initialAlertType, markRequestStart, markRequestEnd]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();

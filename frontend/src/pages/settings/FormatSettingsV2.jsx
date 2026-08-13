@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import useSettings from "../../context/SettingsContext";
 
 const ACCENT = "#0f6d84";
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const SECTION_BG = "#DBE2F0";
 const LABEL_GREEN = "#2D6A4F";
 const STORAGE_KEY = "gns_format_settings_v2";

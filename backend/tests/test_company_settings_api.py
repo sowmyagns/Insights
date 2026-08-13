@@ -13,7 +13,7 @@ def test_company_settings_get_and_update(client, register_admin):
     put_resp = client.put(
         "/settings/company",
         headers=headers,
-        json={"company_name": "GNS Insights"},
+        json={"company_name": "Insights Iva"},
     )
     assert put_resp.status_code == 200, put_resp.text
-    assert put_resp.json()["company_name"] == "GNS Insights"
+    assert put_resp.json()["company_name"] == "Insights Iva"

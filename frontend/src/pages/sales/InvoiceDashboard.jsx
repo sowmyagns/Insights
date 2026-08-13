@@ -208,7 +208,7 @@ export default function InvoiceDashboard() {
   if (loading && rows.length === 0) return <Loader label="Loading invoicesΓÇª" />;
 
   return (
-    <div className="min-h-full bg-[#F5F5F5] px-5 py-5 sm:px-6">
+    <div className="min-h-full bg-[var(--color-bg)] px-5 py-5 sm:px-6">
       {/* Toolbar row 1: calendar + create */}
       <div className="mb-4 flex justify-end gap-3">
         <div className="inline-flex items-center gap-3 rounded-full bg-white px-4 py-3 text-[13px] text-[#4a4a55] shadow-sm shadow-[#00000010]">

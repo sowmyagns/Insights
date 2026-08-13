@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
@@ -18,30 +18,32 @@ export default function Suppliers() {
   const [suppliers, setSuppliers] = useState([]);
   const [loadError, setLoadError] = useState("");
 
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
+    setLoadError("");
+    try {
+      const res = await getSuppliers(tenantId);
+      const apiSuppliers = res.data || [];
+      const local = JSON.parse(localStorage.getItem("smrt_suppliers") || "[]");
+      const map = new Map();
+      apiSuppliers.forEach((s) => map.set(String(s.name).toLowerCase(), s));
+      local.forEach((s) => map.set(String(s.name).toLowerCase(), s));
+      setSuppliers(Array.from(map.values()));
+    } catch (err) {
+      const local = JSON.parse(localStorage.getItem("smrt_suppliers") || "[]");
+      setSuppliers(local);
+      if (local.length === 0) setLoadError("Could not load suppliers. Is the API running?");
+      if (isRefresh) throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [tenantId]);
+
+  usePageRefresh(() => load(true));
+
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setLoadError("");
-      try {
-        const res = await getSuppliers(tenantId);
-        const apiSuppliers = res.data || [];
-        const local = JSON.parse(localStorage.getItem("smrt_suppliers") || "[]");
-        // Merge: local overwrites API by name
-        const map = new Map();
-        apiSuppliers.forEach((s) => map.set(String(s.name).toLowerCase(), s));
-        local.forEach((s) => map.set(String(s.name).toLowerCase(), s));
-        setSuppliers(Array.from(map.values()));
-      } catch {
-        // API failed — show localStorage only
-        const local = JSON.parse(localStorage.getItem("smrt_suppliers") || "[]");
-        setSuppliers(local);
-        if (local.length === 0) setLoadError("Could not load suppliers. Is the API running?");
-      } finally {
-        setLoading(false);
-      }
-    };
     load();
-  }, []);
+  }, [load]);
 
   if (loading) return <Loader label="Loading suppliers..." />;
 
@@ -68,8 +70,6 @@ export default function Suppliers() {
       Create supplier
     </Link>
   );
-
-  usePageRefresh(load);
 
   return (
     <div className="space-y-6">

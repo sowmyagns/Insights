@@ -60,13 +60,14 @@ export default function ExecutiveDashboard() {
   const [data, setData] = useState(emptyData);
   const [autoRefresh, setAutoRefresh] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await getExecutiveHub();
       if (res.data) setData({ ...emptyData, ...res.data });
-      else setData(emptyData);
-    } catch {
+      else if (!isRefresh) setData(emptyData);
+    } catch (err) {
+      if (isRefresh) throw err;
       setData(emptyData);
       addToast("Failed to load executive hub", "error");
     } finally {
@@ -75,10 +76,10 @@ export default function ExecutiveDashboard() {
   }, [addToast]);
 
   useEffect(() => { load(); }, [load]);
-  useManufacturingRefresh(load);
+  useManufacturingRefresh(() => load(true));
   useEffect(() => {
     if (!autoRefresh) return undefined;
-    const t = setInterval(load, 60000);
+    const t = setInterval(() => load(true), 60000);
     return () => clearInterval(t);
   }, [autoRefresh, load]);
 

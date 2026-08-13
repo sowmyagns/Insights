@@ -79,7 +79,7 @@ export function StartCheckModal({ order, checks, onClose, onConfirm, loading }) 
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <h3 className="text-lg font-bold text-slate-900">Pre-Start Checks</h3>
-        <p className="mt-1 text-sm text-slate-500">{order.order_number} — {order.product_name}</p>
+        <p className="ui-subtitle">{order.order_number} — {order.product_name}</p>
         <ul className="mt-4 space-y-2">
           {(checks || []).map((c) => (
             <li key={c.check_type} className={`flex items-start gap-2 rounded-lg px-3 py-2 text-sm ${c.ready ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}>
@@ -113,7 +113,7 @@ export function CompleteWorkflowModal({ order, steps, onClose }) {
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <h3 className="text-lg font-bold text-green-700">Completion Workflow</h3>
-        <p className="mt-1 text-sm text-slate-500">{order.order_number} completed</p>
+        <p className="ui-subtitle">{order.order_number} completed</p>
         <ol className="mt-4 space-y-2">
           {(steps || []).map((step, i) => (
             <li key={i} className="flex items-center gap-2 text-sm text-slate-700">

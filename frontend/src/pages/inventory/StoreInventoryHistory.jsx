@@ -93,7 +93,7 @@ export default function StoreInventoryHistory() {
       <StoreManagerNav />
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="ui-subtitle">
             Complete movement trail for every stock in, issue, return, transfer, and adjustment.
           </p>
         </div>

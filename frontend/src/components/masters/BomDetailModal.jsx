@@ -473,34 +473,82 @@ export function BomFormModal({ bom, onClose, onSave }) {
     }
   };
 
+  const [allExistingBoms, setAllExistingBoms] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    getBillOfMaterials()
+      .then((res) => {
+        const rows = res?.data || [];
+        if (mounted) setAllExistingBoms(rows);
+      })
+      .catch(() => {});
+    return () => (mounted = false);
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Validate mandatory fields
+    // Validate mandatory fields (strictly reject empty strings or whitespace-only inputs)
     const bomNo = String(form.bom_number || "").trim();
     const prodCode = String(form.product_code || "").trim();
     const prodName = String(form.product_name || "").trim();
+    const version = String(form.version || "V1.0").trim();
 
     if (!bomNo) {
-      addToast("Please enter BOM No", "error");
+      addToast("Please enter a valid BOM No (cannot be blank)", "error");
       return;
     }
     if (!prodCode) {
-      addToast("Please enter Product Code", "error");
+      addToast("Please enter a valid Product Code (cannot be blank)", "error");
       return;
     }
     if (!prodName) {
-      addToast("Please enter Product Name", "error");
+      addToast("Please enter a valid Product Name (cannot be blank)", "error");
       return;
     }
+    if (!version) {
+      addToast("Please enter a valid Version (cannot be blank)", "error");
+      return;
+    }
+
+    const existingList = [
+      ...(bom?._existingBoms || []),
+      ...allExistingBoms,
+    ];
+
     // Validate BOM number uniqueness
     const entered = bomNo;
-    if (entered) {
-      const exists = existingBomNumbers.some((n) => String(n || "").toLowerCase() === entered.toLowerCase());
-      const isSameAsEditing = bom?.bom_number && String(bom.bom_number).toLowerCase() === entered.toLowerCase();
-      if (exists && !isSameAsEditing) {
-        addToast("BOM No already exists — please choose a unique BOM No", "error");
-        return;
-      }
+    const dupBomNo = existingList.find(
+      (b) => String(b.id) !== String(bom?.id) &&
+             b.bom_number &&
+             String(b.bom_number).trim().toLowerCase() === entered.toLowerCase()
+    );
+    if (dupBomNo) {
+      addToast("BOM No already exists — please choose a unique BOM No", "error");
+      return;
+    }
+
+    // Validate Product + Version uniqueness
+    const dupProdVer = existingList.find((b) => {
+      if (String(b.id) === String(bom?.id)) return false;
+      const bProdName = String(b.product_name || b.product || "").trim().toLowerCase();
+      const bProdCode = String(b.product_code || "").trim().toLowerCase();
+      const bVersion = String(b.version || "V1.0").trim().toLowerCase();
+
+      const matchProduct =
+        (prodName && bProdName === prodName.toLowerCase()) ||
+        (prodCode && bProdCode === prodCode.toLowerCase());
+      const matchVersion = bVersion === version.toLowerCase();
+
+      return matchProduct && matchVersion;
+    });
+
+    if (dupProdVer) {
+      addToast(
+        `A BOM for product "${prodName}" with version "${version}" already exists. Duplicate BOMs for the same product and version are not allowed.`,
+        "error"
+      );
+      return;
     }
 
     setSaving(true);
@@ -512,7 +560,7 @@ export function BomFormModal({ bom, onClose, onSave }) {
       product_name: prodName,
       product: prodName,
       product_code: prodCode || `PRD-${String(Date.now()).slice(-4)}`,
-      version: form.version || "V1.0",
+      version: version || "V1.0",
       status: form.status || "active",
       category: bom?.category || "Finished Goods",
       warehouse: bom?.warehouse || "Main Store",
@@ -622,17 +670,31 @@ export function BomFormModal({ bom, onClose, onSave }) {
           </div>
         </div>
 
-        {/* Row 3: Product Name * */}
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">
-            Product Name *
-          </label>
-          <input
-            required
-            value={form.product_name}
-            onChange={(e) => setField("product_name", e.target.value)}
-            className="w-full rounded-2xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
-          />
+        {/* Row 3: Product Name & Version */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2">
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Product Name *
+            </label>
+            <input
+              required
+              value={form.product_name}
+              onChange={(e) => setField("product_name", e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Version *
+            </label>
+            <input
+              required
+              value={form.version}
+              onChange={(e) => setField("version", e.target.value)}
+              placeholder="e.g. V1.0"
+              className="w-full rounded-2xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all placeholder:text-slate-400"
+            />
+          </div>
         </div>
 
         {/* Row 4: Cost (₹) & Status */}

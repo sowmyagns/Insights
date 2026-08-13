@@ -78,8 +78,8 @@ export default function Purchases() {
   const [draftDocUpload, setDraftDocUpload] = useState("all");
   const [docUpload, setDocUpload] = useState("all");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await listBizDocuments({
         module: "purchases",
@@ -90,7 +90,6 @@ export default function Purchases() {
       const items = res?.data?.items || res?.data || [];
       setRows(Array.isArray(items) ? items : []);
 
-  usePageRefresh(load);
 
     } catch {
       addToast("Failed to load purchases", "error");
@@ -99,6 +98,8 @@ export default function Purchases() {
       setLoading(false);
     }
   }, [addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();

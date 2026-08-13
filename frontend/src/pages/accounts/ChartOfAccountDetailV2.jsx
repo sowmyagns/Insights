@@ -14,7 +14,7 @@ import { fetchManualJournals } from "../../api/manualJournalSync";
 import { useToast } from "../../context/ToastContext";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const PAGE_BG = "#F4F7FE";
+const PAGE_BG = "var(--color-bg)";
 const PAGE_SIZES = [10, 20, 50];
 
 function formatInr(amount) {
@@ -176,8 +176,8 @@ export default function ChartOfAccountDetailV2() {
   const [fromDate, setFromDate] = useState(fyStartIso);
   const [toDate, setToDate] = useState(todayIso);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const [mains, children, allJournals] = await Promise.all([
         fetchChartOfAccounts(),
@@ -185,7 +185,6 @@ export default function ChartOfAccountDetailV2() {
         fetchManualJournals(),
       ]);
 
-  usePageRefresh(load);
 
       const found = mains.find((a) => String(a.id) === String(accountId) || String(a.code) === String(accountId));
       setAccount(found || null);
@@ -209,6 +208,8 @@ export default function ChartOfAccountDetailV2() {
       setLoading(false);
     }
   }, [accountId, addToast]);
+
+  usePageRefresh(() => load(true));
 
   useEffect(() => {
     load();

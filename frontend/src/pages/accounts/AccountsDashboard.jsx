@@ -39,11 +39,11 @@ const INITIAL_FINANCE_HUB = {
 
 function KpiCard({ label, value, icon: Icon, color, sub }) {
   return (
-    <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div className="ui-card p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="text-[11px] font-medium text-slate-500">{label}</p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-slate-900">{value}</p>
+          <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
+          <p className="mt-1 text-xl font-bold tabular-nums text-[var(--color-text)]">{value}</p>
           {sub && <p className="mt-0.5 text-xs text-slate-400">{sub}</p>}
         </div>
         {Icon && (
@@ -66,8 +66,8 @@ export default function AccountsDashboard() {
   const [showRecordExpense, setShowRecordExpense] = useState(false);
   const [error, setError] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     setError(null);
 
     const MN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -81,8 +81,6 @@ export default function AccountsDashboard() {
         getInvoices(),
         getPayments(),
       ]);
-
-  usePageRefresh(load);
 
       if (invRes.status === "fulfilled") {
         const d = invRes.value?.data ?? invRes.value ?? [];
@@ -161,12 +159,15 @@ export default function AccountsDashboard() {
       } else {
         setHub(computed);
       }
-    } catch {
+    } catch (err) {
+      if (isRefresh) throw err;
       setHub(computed);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  usePageRefresh(() => load(true));
 
   // reload on every visit (catches navigate-back after record create)
   useEffect(() => { load(); }, [load, location.key]);
@@ -182,9 +183,9 @@ export default function AccountsDashboard() {
       )}
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">Finance</p>
-          <h2 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Finance Dashboard</h2>
-          <p className="mt-1 text-sm text-slate-500">Enterprise finance hub — cash flow, revenue, expenses, GST, and manufacturing cost insights.</p>
+          <p className="ui-eyebrow">Finance</p>
+          <h2 className="mt-0.5 ui-title">Finance Dashboard</h2>
+          <p className="ui-subtitle">Enterprise finance hub — cash flow, revenue, expenses, GST, and manufacturing cost insights.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => setShowRecordIncome(true)} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700">+ Record Income</button>
@@ -203,7 +204,7 @@ export default function AccountsDashboard() {
         <KpiCard label="Net Profit" value={formatInr(hub.net_profit)} icon={IndianRupee} color="bg-cyan-600" sub={`GST Payable: ${formatInr(hub.gst_payable)}`} />
       </div>
 
-      <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200/90 bg-white px-4 py-3 text-[10px] font-medium text-slate-600 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:text-xs">
+      <div className="flex flex-wrap items-center gap-1 ui-card px-4 py-3 text-[10px] font-medium text-slate-600 sm:text-xs">
         {FINANCE_FLOW.map((s, i) => (
           <span key={s} className="flex items-center gap-1">
             <span className="rounded bg-slate-50 px-1.5 py-0.5 ring-1 ring-slate-200/80">{s}</span>
@@ -224,7 +225,7 @@ export default function AccountsDashboard() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <div className="ui-card p-5">
           <h2 className="mb-4 text-sm font-bold text-slate-900">Department Cost</h2>
           <ul className="space-y-2">
             {(hub.department_cost || []).map((d) => (
@@ -235,7 +236,7 @@ export default function AccountsDashboard() {
             ))}
           </ul>
         </div>
-        <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <div className="ui-card p-5">
           <h2 className="mb-4 text-sm font-bold text-slate-900">Manufacturing Cost</h2>
           <ul className="space-y-2">
             {(hub.manufacturing_cost || []).map((d) => (
@@ -248,7 +249,7 @@ export default function AccountsDashboard() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="ui-card p-5">
         <h2 className="mb-4 text-sm font-bold text-slate-900">Accounts Aging</h2>
         <div className="h-48">
           <ResponsiveContainer width="100%" height="100%">
@@ -263,7 +264,7 @@ export default function AccountsDashboard() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="ui-card p-5">
         <h2 className="mb-4 text-sm font-bold text-slate-900">Alerts</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {(hub.alerts || []).map((a, i) => {
@@ -307,7 +308,7 @@ export default function AccountsDashboard() {
 
 function ChartCard({ title, data, lines, bars }) {
   return (
-    <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div className="ui-card p-5">
       <h2 className="mb-4 text-sm font-semibold text-slate-900">{title}</h2>
       <div className="h-44">
         <ResponsiveContainer width="100%" height="100%">
@@ -340,7 +341,7 @@ function QuickLink({ to, label }) {
   return (
     <Link
       to={to}
-      className="rounded-xl border border-slate-200/90 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-teal-200 hover:bg-teal-50/40 hover:text-teal-800"
+      className="ui-card px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary)]"
     >
       {label} →
     </Link>

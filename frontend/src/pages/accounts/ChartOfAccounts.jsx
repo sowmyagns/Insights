@@ -104,7 +104,7 @@ export default function ChartOfAccounts() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">Configure and manage General Ledger account structure codes and classifications.</p>
+          <p className="ui-subtitle">Configure and manage General Ledger account structure codes and classifications.</p>
         </div>
         <div className="flex gap-2">
         </div>

@@ -359,6 +359,8 @@ export default function ProfitLossV2() {
 
   useEffect(() => { load(year); }, [year]);
 
+  usePageRefresh(() => load(year));
+
   const handleGenerate = ({ reportName, from, to }) => {
     if (!reportName) { addToast("Report name is required", "error"); return; }
     if (!from || !to) { addToast("Select a date range", "error"); return; }
@@ -460,8 +462,6 @@ export default function ProfitLossV2() {
     const v = getAmt(row.amtKey);
     return v ? fmt(v) : "";
   }
-
-  usePageRefresh(load);
 
   return (
     <div style={{ background: "#fff", fontFamily: FONT, fontSize: 12, color: "#111",

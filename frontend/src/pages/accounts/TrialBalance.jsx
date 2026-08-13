@@ -49,7 +49,7 @@ export default function TrialBalance() {
     <div className="space-y-6 p-4 sm:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="mt-1 text-sm text-slate-500">Unadjusted closing balances consolidated across assets, liabilities, equity, and operations.</p>
+          <p className="ui-subtitle">Unadjusted closing balances consolidated across assets, liabilities, equity, and operations.</p>
         </div>
       </header>
 
