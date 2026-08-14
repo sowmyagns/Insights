@@ -69,7 +69,7 @@ export default function GstTaxInvoice({ data }) {
     "Goods once sold cannot be taken back or exchanged.",
     "Cheques subject to realisation.",
     "24% Interest per annum will be charged if the bills are not paid within due days.",
-    "Goods Return "As it is" shall be taken back, only within 7 days from the Date of Delivery & the same shall have to be intimated in "Writing" along with reasons for Goods Return."
+    "Goods Return \"As it is\" shall be taken back, only within 7 days from the Date of Delivery & the same shall have to be intimated in \"Writing\" along with reasons for Goods Return."
   ];
 
   const rejection = (data.rejection_policy || "").split("\n").filter(Boolean);
@@ -436,7 +436,7 @@ export default function GstTaxInvoice({ data }) {
             </td>
             <td className="gti-decl-cell" style={{verticalAlign:"top"}}>
               <ol className="gti-decl-list">
-                {rejLines.map((r, i) => <li key={i}>{r.replace(/^\d+\.\s*/, "")}</li>)}
+                {[1, 2, 3, 4, 5].map((num) => <li key={num}><span>{num}.</span></li>)}
               </ol>
             </td>
           </tr>
@@ -449,15 +449,16 @@ export default function GstTaxInvoice({ data }) {
           <tr>
             <td className="gti-sig-cell" style={{width:"33%"}}>
               <span className="gti-sig-label">Prepared by</span>
-              <span className="gti-sig-line">{data.prepared_by || data.preparedBy || ""}</span>
+              <div style={{borderTop:"1px solid #000", marginTop:"30px", height:"16px"}}>&nbsp;</div>
             </td>
             <td className="gti-sig-cell" style={{width:"33%"}}>
               <span className="gti-sig-label">Verified by</span>
-              <span className="gti-sig-line">{data.verified_by || data.verifiedBy || ""}</span>
+              <div style={{borderTop:"1px solid #000", marginTop:"30px", height:"16px"}}>&nbsp;</div>
             </td>
             <td className="gti-sig-cell gti-right" style={{width:"34%"}}>
-              <span className="gti-sig-company">for {seller.name || "Company"}</span>
               <span className="gti-sig-auth">Authorised Signatory</span>
+              <div style={{borderTop:"1px solid #000", marginTop:"30px", height:"16px"}}>&nbsp;</div>
+              <span style={{fontSize:"7.5px"}}>Company Name</span>
             </td>
           </tr>
         </tbody>

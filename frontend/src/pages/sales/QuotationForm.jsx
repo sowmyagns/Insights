@@ -433,7 +433,8 @@ export default function QuotationForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.customer_id) {
+    const buyerId = form.customer_id;
+    if (!buyerId && buyerId !== 0) {
       addToast("Please select a buyer", "error");
       setShowBuyerPicker(true);
       return;
@@ -444,7 +445,7 @@ export default function QuotationForm() {
     }
     setSaving(true);
     try {
-      const customerId = await resolveCustomerId(form.customer_id, customers, tenantId);
+      const customerId = Number(buyerId) || await resolveCustomerId(buyerId, customers, tenantId);
       const buyer = customers.find((c) => String(c.id) === String(customerId));
       const quoteNumber = [form.invoice_prefix, form.invoice_number]
         .filter(Boolean)
@@ -1386,7 +1387,7 @@ export default function QuotationForm() {
         open={addBuyerOpen}
         onClose={() => setAddBuyerOpen(false)}
         onSaved={(buyer) => {
-          if (!buyer) return;
+          if (!buyer?.id) return;
           setCustomers((rows) => [buyer, ...rows.filter((c) => c.id !== buyer.id)]);
           setForm((f) => ({
             ...f,
@@ -1394,6 +1395,7 @@ export default function QuotationForm() {
             ...customerToConsigneeFields(buyer),
           }));
           setShowBuyerPicker(false);
+          setAddBuyerOpen(false);
         }}
       />
       <AddNewItemModal

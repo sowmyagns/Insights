@@ -18,7 +18,7 @@ export function numberToWordsInr(amount) {
   const rupees = Math.floor(n);
   const paise = Math.round((n - rupees) * 100);
 
-  if (rupees === 0 && paise === 0) return "Indian Rupees Zero Only";
+  if (rupees === 0 && paise === 0) return "INR Zero Only";
 
   const crore = Math.floor(rupees / 10000000);
   const lakh = Math.floor((rupees % 10000000) / 100000);
@@ -31,7 +31,7 @@ export function numberToWordsInr(amount) {
   if (thousand) parts.push(`${twoDigits(thousand)} Thousand`);
   if (rest) parts.push(threeDigits(rest));
 
-  let words = `Indian Rupees ${parts.join(" ")}`.trim();
+  let words = `INR ${parts.join(" ")}`.trim();
   if (paise) words += ` and ${twoDigits(paise)} Paise`;
   return `${words} Only`;
 }

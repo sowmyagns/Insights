@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import QRCode from "qrcode";
 import { numberToWordsInr } from "../../utils/invoiceCopyData";
 
@@ -14,23 +14,23 @@ function QRCanvas({ value }) {
 
 /* ─── Shared border / font constants ─── */
 const BD  = "1px solid #000";
-const FF  = "Arial, Helvetica, sans-serif";
-const TBL = { width: "100%", borderCollapse: "collapse" };
+const FF  = '"Arial", "Helvetica Neue", Helvetica, sans-serif';
+const TBL = { width:"100%", borderCollapse:"collapse", boxSizing:"border-box" };
 
 /* Standard data cell */
 function dc(extra = {}) {
-  return { border: BD, padding: "2px 4px", fontSize: "8px", fontFamily: FF, verticalAlign: "top", lineHeight: "1.35", color: "#000", ...extra };
+  return { border:BD, padding:"3px 6px", fontSize:"10px", fontFamily:FF, verticalAlign:"top", lineHeight:"1.25", color:"#000", boxSizing:"border-box", ...extra };
 }
-/* Bold header label cell */
+/* Bold label cell */
 function lc(extra = {}) {
-  return { border: BD, padding: "2px 4px", fontSize: "7.5px", fontWeight: "bold", fontFamily: FF, verticalAlign: "top", lineHeight: "1.35", color: "#000", ...extra };
+  return { border:BD, padding:"3px 6px", fontSize:"10px", fontWeight:"bold", fontFamily:FF, verticalAlign:"top", lineHeight:"1.25", color:"#000", boxSizing:"border-box", ...extra };
 }
-/* Centred column header (items table) */
+/* Column header cell */
 function hc(extra = {}) {
-  return { border: BD, padding: "4px 3px", fontSize: "8px", fontWeight: "bold", fontFamily: FF, background: "#fff", textAlign: "center", verticalAlign: "middle", color: "#000", ...extra };
+  return { border:BD, padding:"4px 4px", fontSize:"10px", fontWeight:"bold", fontFamily:FF, background:"#fff", textAlign:"center", verticalAlign:"middle", color:"#000", boxSizing:"border-box", ...extra };
 }
 
-export default function TaxInvoiceCopy({ data }) {
+export default function TaxInvoiceCopy({ data, innerRef }) {
   if (!data) return null;
 
   const items     = Array.isArray(data.items) ? data.items : [];
@@ -71,7 +71,11 @@ export default function TaxInvoiceCopy({ data }) {
   const dispatchDt  = dispatch.delivery_note_date || dispatch.dispatch_date || "";
   const dispThrough = dispatch.dispatch_through || dispatch.transport_name || dispatch.transporter_name || "";
   const destination = dispatch.destination || buyer.city || buyer.state || "";
-  const delivTerms  = dispatch.delivery_terms || dispatch.terms || data.terms || "";
+  const delivTerms  = (dispatch.delivery_terms || dispatch.terms || data.terms || "")
+    .split("\n")
+    .filter(l => !/electronically generated/i.test(l) && !/disputes are subject to seller/i.test(l))
+    .join("\n")
+    .trim();
 
   /* ── e-Invoice – always render; "—" when empty ── */
   const irn     = data.irn     || data.irn_no    || "";
@@ -95,18 +99,15 @@ export default function TaxInvoiceCopy({ data }) {
   const f2 = n => (+n||0).toFixed(2);
   const f3 = n => (+n||0).toFixed(3);
 
-  const fillerRows = Math.max(0, 8 - items.length);
-
-  /* ── meta cell helpers: full borders so grid is visible like reference image ── */
-  const mLabel = (extra={}) => ({ ...lc(), ...extra });
-  const mVal   = (extra={}) => ({ ...dc(), ...extra });
+  const fillerRows = Math.max(0, 2 - items.length);
 
   return (
     <div
+      ref={innerRef}
       className="tax-invoice-copy"
       style={{
         fontFamily: FF,
-        fontSize: "8px",
+        fontSize: "10px",
         color: "#000",
         background: "#fff",
         width: "210mm",
@@ -114,188 +115,123 @@ export default function TaxInvoiceCopy({ data }) {
         margin: "0 auto",
         padding: "5mm 6mm 4mm",
         boxSizing: "border-box",
-        border: "none",
-        lineHeight: 1.35,
+        border: BD,
+        lineHeight: 1.25,
       }}
     >
 
-      {/* ════════════════════════════════════════════════════
-          PRE-HEADER  (no border — exact copy of reference image)
+      {/* ── TOP HEADER: Title (center) | IRN block (left) | e-Invoice QR (right) ── */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"4px", paddingBottom:"4px" }}>
 
-             Tax Invoice          e-Invoice
-                                  [QR – small]
-          IRN      : xxxx...
-          Ack No.  : 112631145034957
-          Ack Date : 27-Jun-26
-      ════════════════════════════════════════════════════ */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"2px" }}>
-
-        {/* LEFT — title + IRN block */}
-        <div style={{ flex:1, paddingRight:"8px" }}>
-
-          {/* "Tax Invoice" — centered */}
-          <div style={{
-            textAlign:"center", fontSize:"13px", fontWeight:"bold",
-            fontFamily:FF, marginBottom:"6px",
-          }}>Tax Invoice</div>
-
-          {/* IRN / Ack — table for perfect colon alignment */}
+        {/* LEFT — IRN / Ack block */}
+        <div style={{ flex:1, paddingRight:"8px", paddingTop:"55px" }}>
           <table style={{ borderCollapse:"collapse", width:"auto" }}>
             <tbody>
-              <tr>
-                <td style={{ fontFamily:FF, fontWeight:"bold", fontSize:"8px", paddingRight:"3px", verticalAlign:"top", whiteSpace:"nowrap" }}>IRN</td>
-                <td style={{ fontFamily:FF, fontWeight:"bold", fontSize:"8px", paddingRight:"5px", verticalAlign:"top" }}>:</td>
-                <td style={{ fontFamily:"monospace", fontSize:"7px", lineHeight:"1.35", wordBreak:"break-all", maxWidth:"370px", verticalAlign:"top" }}>{irn || "—"}</td>
-              </tr>
-              <tr>
-                <td style={{ fontFamily:FF, fontWeight:"bold", fontSize:"8px", paddingRight:"3px", whiteSpace:"nowrap" }}>Ack No.</td>
-                <td style={{ fontFamily:FF, fontWeight:"bold", fontSize:"8px", paddingRight:"5px" }}>:</td>
-                <td style={{ fontFamily:FF, fontSize:"8px" }}>{ackNo || "—"}</td>
-              </tr>
-              <tr>
-                <td style={{ fontFamily:FF, fontWeight:"bold", fontSize:"8px", paddingRight:"3px", whiteSpace:"nowrap" }}>Ack Date</td>
-                <td style={{ fontFamily:FF, fontWeight:"bold", fontSize:"8px", paddingRight:"5px" }}>:</td>
-                <td style={{ fontFamily:FF, fontSize:"8px" }}>{ackDate || "—"}</td>
-              </tr>
+              {[
+                ["IRN", irn || "—"],
+                ["Ack No.", ackNo || "—"],
+                ["Ack Date", ackDate || "—"],
+              ].map(([label, val]) => (
+                <tr key={label}>
+                  <td style={{ fontFamily:FF, fontWeight:"bold", fontSize:"10px", paddingRight:"4px", verticalAlign:"top", whiteSpace:"nowrap", lineHeight:"1.4" }}>{label}</td>
+                  <td style={{ fontFamily:FF, fontWeight:"bold", fontSize:"10px", paddingRight:"6px", verticalAlign:"top", lineHeight:"1.4" }}>:</td>
+                  <td style={{ fontFamily:"monospace", fontSize:"9px", lineHeight:"1.4", wordBreak:"break-all", maxWidth:"340px", verticalAlign:"top" }}>{val}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
-        {/* RIGHT — e-Invoice label + small QR */}
-        <div style={{ flexShrink:0, display:"flex", flexDirection:"column", alignItems:"center", gap:"2px" }}>
-          <span style={{ fontFamily:FF, fontSize:"8.5px", fontWeight:"bold" }}>e-Invoice</span>
+        {/* CENTER — Tax Invoice title */}
+        <div style={{ flex:1, textAlign:"center" }}>
+          <div style={{ fontSize:"15px", fontWeight:"bold", fontFamily:FF, letterSpacing:"0.5px" }}>Tax Invoice</div>
+        </div>
+
+        {/* RIGHT — e-Invoice label + QR */}
+        <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"flex-end", gap:"2px" }}>
+          <span style={{ fontFamily:FF, fontSize:"10px", fontWeight:"bold" }}>e-Invoice</span>
           <QRCanvas value={qrValue} />
         </div>
 
       </div>
 
-      {/* ════════════════════════════════════════════════════
-          SELLER + META TABLE (main bordered section)
-      ════════════════════════════════════════════════════ */}
-      <table style={{ ...TBL, border: BD }}>
+      {/* ── SELLER + META TABLE ── */}
+      <table style={{ ...TBL, border:BD }}>
         <tbody>
           <tr>
 
-            {/* ── LEFT: Seller, Consignee, Buyer ── */}
-            <td style={{ ...dc(), width:"40%", border: BD, padding:"3px 4px", verticalAlign:"top" }}>
+            {/* LEFT: Seller info + Consignee + Buyer */}
+            <td style={{ width:"42%", border:BD, padding:0, verticalAlign:"top", boxSizing:"border-box" }}>
 
-              {/* Seller row: logo + info */}
-              <div style={{ display:"flex", gap:"4px", alignItems:"flex-start", marginBottom:"3px" }}>
+              {/* Seller */}
+              <div style={{ display:"flex", gap:"6px", alignItems:"flex-start", padding:"4px 6px", borderBottom:BD }}>
                 {seller.logo
-                  ? <img src={seller.logo} alt="" style={{ width:"44px", height:"44px", objectFit:"contain", border:BD, flexShrink:0 }} />
-                  : <div style={{ width:"44px", height:"44px", border:BD, background:"#1e293b", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"7px", fontWeight:"900", flexShrink:0, textAlign:"center" }}>
+                  ? <img src={seller.logo} alt="" style={{ width:"48px", height:"48px", objectFit:"contain", border:BD, flexShrink:0 }} />
+                  : <div style={{ width:"48px", height:"48px", border:BD, background:"#1e293b", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"9px", fontWeight:"900", flexShrink:0, textAlign:"center" }}>
                       {sName.split(" ").slice(0,3).map(w=>w[0]).join("").toUpperCase()}
                     </div>
                 }
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontWeight:"bold", fontSize:"8.5px", textTransform:"uppercase", lineHeight:"1.3", marginBottom:"1px" }}>{sName}</div>
-                  {sAddr  && <div style={{ fontSize:"7.5px", lineHeight:"1.3" }}>{sAddr}</div>}
-                  {sGstin && <div style={{ fontSize:"7.5px" }}>GSTIN/UIN: {sGstin}</div>}
-                  {sUdyam && <div style={{ fontSize:"7.5px" }}>UDYAM: {sUdyam}</div>}
-                  {sState && <div style={{ fontSize:"7.5px" }}>State Name : {sState}</div>}
-                  {sCin   && <div style={{ fontSize:"7.5px" }}>CIN: {sCin}</div>}
-                  {sEmail && <div style={{ fontSize:"7.5px" }}>E-Mail : {sEmail}</div>}
+                  <div style={{ fontWeight:"bold", fontSize:"11px", textTransform:"uppercase", lineHeight:"1.3", marginBottom:"2px" }}>{sName}</div>
+                  {sAddr  && <div style={{ fontSize:"10px", lineHeight:"1.3" }}>{sAddr}</div>}
+                  {sGstin && <div style={{ fontSize:"10px" }}><b>GSTIN/UIN:</b> {sGstin}</div>}
+                  {sUdyam && <div style={{ fontSize:"10px" }}><b>UDYAM:</b> {sUdyam}</div>}
+                  {sState && <div style={{ fontSize:"10px" }}><b>State Name :</b> {sState}</div>}
+                  {sCin   && <div style={{ fontSize:"10px" }}><b>CIN:</b> {sCin}</div>}
+                  {sEmail && <div style={{ fontSize:"10px" }}><b>E-Mail :</b> {sEmail}</div>}
                 </div>
               </div>
 
               {/* Consignee */}
-              <div style={{ borderTop: BD, paddingTop:"2px", marginBottom:"3px" }}>
-                <div style={{ fontSize:"7.5px", marginBottom:"1px" }}>Consignee (Ship to)</div>
-                <div style={{ fontWeight:"bold", fontSize:"8px" }}>{consignee.name || buyer.name || "—"}</div>
-                <div style={{ fontSize:"7.5px", lineHeight:"1.3", whiteSpace:"pre-wrap" }}>{consignee.address||buyer.shipping_address||buyer.address||""}</div>
-                {(consignee.phone||buyer.phone)  && <div style={{ fontSize:"7.5px" }}>Mob: {consignee.phone||buyer.phone}</div>}
-                {(consignee.gstin||buyer.gstin)  && <div style={{ fontSize:"7.5px" }}>GSTIN/UIN&nbsp;&nbsp;: {consignee.gstin||buyer.gstin}</div>}
-                {(consignee.state||buyer.state)  && <div style={{ fontSize:"7.5px" }}>State Name&nbsp;: {consignee.state||buyer.state}</div>}
+              <div style={{ padding:"4px 6px", borderBottom:BD }}>
+                <div style={{ fontSize:"9px", fontWeight:"bold", color:"#444", marginBottom:"2px" }}>Consignee (Ship to)</div>
+                <div style={{ fontWeight:"bold", fontSize:"10px" }}>{consignee.name || buyer.name || "—"}</div>
+                <div style={{ fontSize:"10px", lineHeight:"1.3", whiteSpace:"pre-wrap" }}>{consignee.address||buyer.shipping_address||buyer.address||""}</div>
+                {(consignee.phone||buyer.phone) && <div style={{ fontSize:"10px" }}>Mob: {consignee.phone||buyer.phone}</div>}
+                {(consignee.gstin||buyer.gstin) && <div style={{ fontSize:"10px" }}><b>GSTIN/UIN :</b> {consignee.gstin||buyer.gstin}</div>}
+                {(consignee.state||buyer.state) && <div style={{ fontSize:"10px" }}><b>State Name :</b> {consignee.state||buyer.state}</div>}
               </div>
 
               {/* Buyer */}
-              <div style={{ borderTop: BD, paddingTop:"2px" }}>
-                <div style={{ fontSize:"7.5px", marginBottom:"1px" }}>Buyer (Bill to)</div>
-                <div style={{ fontWeight:"bold", fontSize:"8px" }}>{buyer.name || "—"}</div>
-                <div style={{ fontSize:"7.5px", lineHeight:"1.3", whiteSpace:"pre-wrap" }}>{buyer.billing_address||buyer.address||""}</div>
-                {buyer.phone  && <div style={{ fontSize:"7.5px" }}>Mob: {buyer.phone}</div>}
-                {buyer.gstin  && <div style={{ fontSize:"7.5px" }}>GSTIN/UIN&nbsp;&nbsp;: {buyer.gstin}</div>}
-                {buyer.state  && <div style={{ fontSize:"7.5px" }}>State Name&nbsp;: {buyer.state}</div>}
-                {(buyer.place_of_supply||data.placeOfSupply) && <div style={{ fontSize:"7.5px" }}>Place of Supply&nbsp;: {buyer.place_of_supply||data.placeOfSupply}</div>}
+              <div style={{ padding:"4px 6px" }}>
+                <div style={{ fontSize:"9px", fontWeight:"bold", color:"#444", marginBottom:"2px" }}>Buyer (Bill to)</div>
+                <div style={{ fontWeight:"bold", fontSize:"10px" }}>{buyer.name || "—"}</div>
+                <div style={{ fontSize:"10px", lineHeight:"1.3", whiteSpace:"pre-wrap" }}>{buyer.billing_address||buyer.address||""}</div>
+                {buyer.phone  && <div style={{ fontSize:"10px" }}>Mob: {buyer.phone}</div>}
+                {buyer.gstin  && <div style={{ fontSize:"10px" }}><b>GSTIN/UIN :</b> {buyer.gstin}</div>}
+                {buyer.state  && <div style={{ fontSize:"10px" }}><b>State Name :</b> {buyer.state}</div>}
+                {(buyer.place_of_supply||data.placeOfSupply) && <div style={{ fontSize:"10px" }}><b>Place of Supply :</b> {buyer.place_of_supply||data.placeOfSupply}</div>}
               </div>
             </td>
 
-            {/* ── RIGHT: Invoice meta (nested table) ── */}
-            <td style={{ width:"60%", padding:0, verticalAlign:"top", border: BD, borderLeft:"none" }}>
-              <table style={{ ...TBL, borderCollapse:"collapse" }}>
+            {/* RIGHT: Invoice meta grid */}
+            <td style={{ width:"58%", padding:0, verticalAlign:"top", borderLeft:BD, boxSizing:"border-box" }}>
+              <table style={{ ...TBL }}>
                 <tbody>
-
-                  {/* Invoice No. | e-Way Bill No. | Dated — label row (first row: no top border to avoid double with outer td) */}
+                  {[
+                    [["Invoice No.", invoiceNo, true], ["e-Way Bill No.", eWayBill, false], ["Dated", date, true]],
+                    [["Delivery Note", delivNote, false, 1], ["Mode/Terms of Payment", payTerms, true, 2]],
+                    [["Reference No. & Date.", refNo, false, 1], ["Other References", otherRefs, false, 2]],
+                    [["Buyer's Order No.", buyerOrderNo, false, 1], ["Dated", buyerOrderDt, false, 2]],
+                    [["Dispatch Doc No.", dispatchDoc, false, 1], ["Delivery Note Date", dispatchDt, false, 2]],
+                    [["Dispatched through", dispThrough, true, 1], ["Destination", destination, true, 2]],
+                  ].map((row, ri) => (
+                    <tr key={ri}>
+                      {row.map(([label, val, bold], ci) => (
+                        <td key={ci} colSpan={ci === 1 && row.length === 2 ? 2 : 1}
+                          style={{ ...lc(), borderTop: ri===0 ? "none":BD, borderLeft: ci===0 ? "none":BD, borderRight:"none", borderBottom:BD, fontSize:"10px" }}>
+                          <div style={{ fontSize:"9px", color:"#555" }}>{label}</div>
+                          <div style={{ fontWeight: bold ? "bold":"normal", fontSize:"10px" }}>{val}</div>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
                   <tr>
-                    <td style={{ ...mLabel(), width:"35%", borderTop:"none", borderLeft:"none" }}>Invoice No.</td>
-                    <td style={{ ...mLabel(), width:"30%", borderTop:"none" }}>e-Way Bill No.</td>
-                    <td style={{ ...mLabel(), width:"35%", borderTop:"none", borderRight:"none" }}>Dated</td>
+                    <td colSpan={3} style={{ ...lc(), borderLeft:"none", borderRight:"none", borderBottom:"none", fontSize:"10px" }}>
+                      <div style={{ fontSize:"9px", color:"#555" }}>Terms of Delivery</div>
+                      <div>{delivTerms}</div>
+                    </td>
                   </tr>
-                  {/* Values */}
-                  <tr>
-                    <td style={{ ...mVal(), fontWeight:"bold", fontSize:"8.5px", borderLeft:"none" }}>{invoiceNo}</td>
-                    <td style={{ ...mVal() }}>{eWayBill}</td>
-                    <td style={{ ...mVal(), fontWeight:"bold", fontSize:"8.5px", borderRight:"none" }}>{date}</td>
-                  </tr>
-
-                  {/* Delivery Note | Mode/Terms of Payment */}
-                  <tr>
-                    <td style={{ ...mLabel(), borderLeft:"none" }}>Delivery Note</td>
-                    <td colSpan={2} style={{ ...mLabel(), borderRight:"none" }}>Mode/Terms of Payment</td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...mVal(), borderLeft:"none" }}>{delivNote}</td>
-                    <td colSpan={2} style={{ ...mVal(), fontWeight:"bold", borderRight:"none" }}>{payTerms}</td>
-                  </tr>
-
-                  {/* Reference No. & Date | Other References */}
-                  <tr>
-                    <td style={{ ...mLabel(), borderLeft:"none" }}>Reference No. &amp; Date.</td>
-                    <td colSpan={2} style={{ ...mLabel(), borderRight:"none" }}>Other References</td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...mVal(), borderLeft:"none" }}>{refNo}</td>
-                    <td colSpan={2} style={{ ...mVal(), borderRight:"none" }}>{otherRefs}</td>
-                  </tr>
-
-                  {/* Buyer's Order No. | Dated */}
-                  <tr>
-                    <td style={{ ...mLabel(), borderLeft:"none" }}>Buyer's Order No.</td>
-                    <td colSpan={2} style={{ ...mLabel(), borderRight:"none" }}>Dated</td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...mVal(), borderLeft:"none" }}>{buyerOrderNo}</td>
-                    <td colSpan={2} style={{ ...mVal(), borderRight:"none" }}>{buyerOrderDt}</td>
-                  </tr>
-
-                  {/* Dispatch Doc No. | Delivery Note Date */}
-                  <tr>
-                    <td style={{ ...mLabel(), borderLeft:"none" }}>Dispatch Doc No.</td>
-                    <td colSpan={2} style={{ ...mLabel(), borderRight:"none" }}>Delivery Note Date</td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...mVal(), borderLeft:"none" }}>{dispatchDoc}</td>
-                    <td colSpan={2} style={{ ...mVal(), borderRight:"none" }}>{dispatchDt}</td>
-                  </tr>
-
-                  {/* Dispatched through | Destination */}
-                  <tr>
-                    <td style={{ ...mLabel(), borderLeft:"none" }}>Dispatched through</td>
-                    <td colSpan={2} style={{ ...mLabel(), borderRight:"none" }}>Destination</td>
-                  </tr>
-                  <tr>
-                    <td style={{ ...mVal(), fontWeight:"bold", borderLeft:"none" }}>{dispThrough}</td>
-                    <td colSpan={2} style={{ ...mVal(), fontWeight:"bold", borderRight:"none" }}>{destination}</td>
-                  </tr>
-
-                  {/* Terms of Delivery */}
-                  <tr>
-                    <td colSpan={3} style={{ ...mLabel(), borderLeft:"none", borderRight:"none" }}>Terms of Delivery</td>
-                  </tr>
-                  <tr>
-                    <td colSpan={3} style={{ ...mVal(), borderBottom:"none", borderLeft:"none", borderRight:"none" }}>{delivTerms}</td>
-                  </tr>
-
                 </tbody>
               </table>
             </td>
@@ -304,20 +240,17 @@ export default function TaxInvoiceCopy({ data }) {
         </tbody>
       </table>
 
-      {/* ════════════════════════════════════════════════════
-          ITEMS TABLE
-          Sl No | Description of Goods | HSN/SAC | Quantity | Rate | per | Amount
-      ════════════════════════════════════════════════════ */}
+      {/* ── ITEMS TABLE ── */}
       <table style={{ ...TBL, marginTop:"-1px" }}>
         <thead>
           <tr>
-            <th style={{ ...hc(), width:"4%",  padding:"4px 2px" }}>Sl<br/>No.</th>
-            <th style={{ ...hc(), width:"35%", textAlign:"left", padding:"4px 5px" }}>Description of Goods</th>
-            <th style={{ ...hc(), width:"9%",  padding:"4px 2px" }}>HSN/<br/>SAC</th>
-            <th style={{ ...hc(), width:"11%", padding:"4px 2px" }}>Quantity</th>
-            <th style={{ ...hc(), width:"11%", padding:"4px 2px" }}>Rate</th>
-            <th style={{ ...hc(), width:"6%",  padding:"4px 2px" }}>per</th>
-            <th style={{ ...hc(), width:"14%", textAlign:"right", padding:"4px 5px" }}>Amount</th>
+            <th style={{ ...hc(), width:"5%"  }}>Sl<br/>No.</th>
+            <th style={{ ...hc(), width:"40%", textAlign:"left", padding:"4px 6px" }}>Description of Goods</th>
+            <th style={{ ...hc(), width:"10%" }}>HSN/<br/>SAC</th>
+            <th style={{ ...hc(), width:"12%", textAlign:"right", padding:"4px 6px" }}>Quantity</th>
+            <th style={{ ...hc(), width:"12%", textAlign:"right", padding:"4px 6px" }}>Rate</th>
+            <th style={{ ...hc(), width:"6%"  }}>per</th>
+            <th style={{ ...hc(), width:"15%", textAlign:"right", padding:"4px 6px" }}>Amount</th>
           </tr>
         </thead>
         <tbody>
@@ -325,16 +258,18 @@ export default function TaxInvoiceCopy({ data }) {
           {/* ── items ── */}
           {items.map((item, idx) => (
             <tr key={item.si||idx}>
-              <td style={{ ...dc(), textAlign:"center", fontWeight:"bold", verticalAlign:"middle", padding:"4px 2px" }}>{item.si||idx+1}</td>
-              <td style={{ ...dc(), padding:"5px", lineHeight:"1.5", verticalAlign:"top" }}>
-                <div style={{ fontWeight:"bold", fontSize:"8.5px" }}>{item.description||item.item_description||item.product_name||""}</div>
-                {item.product_code && <div style={{ fontSize:"7px", color:"#555", marginTop:"2px", fontFamily:"monospace" }}>{item.product_code}</div>}
+              <td style={{ ...dc(), textAlign:"center", verticalAlign:"top", padding:"4px 2px", borderTop:"none", borderBottom:"none" }}>{item.si||idx+1}</td>
+              <td style={{ ...dc(), padding:"4px 6px", verticalAlign:"top", borderTop:"none", borderBottom:"none" }}>
+                <div style={{ fontWeight:"bold", fontSize:"10.5px", textTransform:"uppercase", lineHeight:"1.3" }}>{item.description||item.item_description||item.product_name||""}</div>
+                {(item.product_code||item.sub_description||item.specs) && (
+                  <div style={{ fontSize:"9.5px", fontStyle:"italic", lineHeight:"1.3", marginTop:"1px", paddingLeft:"2px" }}>{item.sub_description||item.specs||item.product_code}</div>
+                )}
               </td>
-              <td style={{ ...dc(), textAlign:"center", fontFamily:"monospace", verticalAlign:"middle", padding:"4px 2px" }}>{item.hsn||""}</td>
-              <td style={{ ...dc(), textAlign:"right", fontWeight:"bold", fontFamily:"monospace", verticalAlign:"middle", padding:"4px 2px" }}>{f2(item.qty)}&nbsp;{item.unit||unit0}</td>
-              <td style={{ ...dc(), textAlign:"right", fontFamily:"monospace", verticalAlign:"middle", padding:"4px 2px" }}>{f3(item.rate)}</td>
-              <td style={{ ...dc(), textAlign:"center", verticalAlign:"middle", padding:"4px 2px" }}>{item.unit||unit0}</td>
-              <td style={{ ...dc(), textAlign:"right", fontWeight:"bold", fontFamily:"monospace", verticalAlign:"middle", padding:"4px 5px" }}>{f2(item.taxable_amount??item.amount)}</td>
+              <td style={{ ...dc(), textAlign:"center", verticalAlign:"top", padding:"4px 2px", borderTop:"none", borderBottom:"none" }}>{item.hsn||""}</td>
+              <td style={{ ...dc(), textAlign:"right", fontWeight:"bold", fontFamily:"monospace", verticalAlign:"top", padding:"4px 6px", borderTop:"none", borderBottom:"none" }}>{f2(item.qty)}&nbsp;{item.unit||unit0}</td>
+              <td style={{ ...dc(), textAlign:"right", fontFamily:"monospace", verticalAlign:"top", padding:"4px 6px", borderTop:"none", borderBottom:"none" }}>{f3(item.rate)}</td>
+              <td style={{ ...dc(), textAlign:"center", verticalAlign:"top", padding:"4px 2px", borderTop:"none", borderBottom:"none" }}>{item.unit||unit0}</td>
+              <td style={{ ...dc(), textAlign:"right", fontWeight:"bold", fontFamily:"monospace", verticalAlign:"top", padding:"4px 6px", borderTop:"none", borderBottom:"none" }}>{f2(item.taxable_amount??item.amount)}</td>
             </tr>
           ))}
 
@@ -347,43 +282,46 @@ export default function TaxInvoiceCopy({ data }) {
             </tr>
           ))}
 
-          {/* ── Less row ── */}
-          <tr>
-            <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
-            <td style={{ ...dc(), borderTop:"none", borderBottom:"none", fontStyle:"italic", fontWeight:"bold", textAlign:"right", padding:"3px 5px" }}>Less :</td>
-            {[0,1,2,3,4].map(i=><td key={i} style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>)}
-          </tr>
-
-          {/* ── Tax rows ── */}
+          {/* ── Tax rows (col layout: 1=sl, 2=desc/label, 3=hsn, 4=qty, 5=rate%, 6=per, 7=amount) ── */}
           {isIgst ? (
             <tr>
               <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
-              <td style={{ ...dc(), borderTop:"none", borderBottom:"none", fontStyle:"italic", fontWeight:"bold", textAlign:"right", padding:"3px 5px" }}>IGST</td>
+              <td style={{ ...dc(), borderTop:"none", borderBottom:"none", fontWeight:"bold", fontSize:"10px", padding:"3px 6px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between" }}>
+                  <span style={{ fontStyle:"italic", fontWeight:"normal" }}>Less :</span>
+                  <span style={{ textTransform:"uppercase" }}>IGST</span>
+                </div>
+              </td>
               <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
               <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
-              <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"right", fontFamily:"monospace" }}>{igstPct} %</td>
               <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
-              <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"right", fontFamily:"monospace", fontWeight:"bold" }}>{f3(igstAmt)}</td>
+              <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"center", fontFamily:"monospace", fontSize:"10px" }}>{igstPct}%</td>
+              <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"right", fontFamily:"monospace", fontWeight:"bold", fontSize:"10px" }}>{f3(igstAmt)}</td>
             </tr>
           ) : (
             <>
               <tr>
                 <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
-                <td style={{ ...dc(), borderTop:"none", borderBottom:"none", fontStyle:"italic", fontWeight:"bold", textAlign:"right", padding:"3px 5px" }}>CGST</td>
+                <td style={{ ...dc(), borderTop:"none", borderBottom:"none", fontWeight:"bold", fontSize:"10px", padding:"3px 6px" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between" }}>
+                    <span style={{ fontStyle:"italic", fontWeight:"normal" }}>Less :</span>
+                    <span style={{ textTransform:"uppercase" }}>CGST</span>
+                  </div>
+                </td>
                 <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
                 <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
-                <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"right", fontFamily:"monospace" }}>{cgstPct} %</td>
                 <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
-                <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"right", fontFamily:"monospace", fontWeight:"bold" }}>{f2(cgstAmt)}</td>
+                <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"center", fontFamily:"monospace", fontSize:"10px" }}>{cgstPct}%</td>
+                <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"right", fontFamily:"monospace", fontWeight:"bold", fontSize:"10px" }}>{f2(cgstAmt)}</td>
               </tr>
               <tr>
                 <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
-                <td style={{ ...dc(), borderTop:"none", borderBottom:"none", fontStyle:"italic", fontWeight:"bold", textAlign:"right", padding:"3px 5px" }}>SGST</td>
+                <td style={{ ...dc(), borderTop:"none", borderBottom:"none", fontWeight:"bold", fontSize:"10px", textTransform:"uppercase", textAlign:"right", padding:"3px 6px" }}>SGST</td>
                 <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
                 <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
-                <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"right", fontFamily:"monospace" }}>{sgstPct} %</td>
                 <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
-                <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"right", fontFamily:"monospace", fontWeight:"bold" }}>{f2(sgstAmt)}</td>
+                <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"center", fontFamily:"monospace", fontSize:"10px" }}>{sgstPct}%</td>
+                <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"right", fontFamily:"monospace", fontWeight:"bold", fontSize:"10px" }}>{f2(sgstAmt)}</td>
               </tr>
             </>
           )}
@@ -392,23 +330,26 @@ export default function TaxInvoiceCopy({ data }) {
           {roundOff !== 0 && (
             <tr>
               <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
-              <td style={{ ...dc(), borderTop:"none", borderBottom:"none", fontStyle:"italic", fontWeight:"bold", textAlign:"right", padding:"3px 5px" }}>ROUNDED OFF</td>
-              {[0,1,2,3].map(i=><td key={i} style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>)}
-              <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"right", fontFamily:"monospace", fontWeight:"bold" }}>
-                {roundOff>0?"":"(-)"}{f3(Math.abs(roundOff))}
+              <td style={{ ...dc(), borderTop:"none", borderBottom:"none", fontWeight:"bold", fontSize:"10px", textTransform:"uppercase", textAlign:"right", padding:"3px 6px" }}>ROUNDED OFF</td>
+              <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
+              <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
+              <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
+              <td style={{ ...dc(), borderTop:"none", borderBottom:"none" }}></td>
+              <td style={{ ...dc(), borderTop:"none", borderBottom:"none", textAlign:"right", fontFamily:"monospace", fontWeight:"bold", fontSize:"10px" }}>
+                {roundOff > 0 ? "+" : "(-)"}{f3(Math.abs(roundOff))}
               </td>
             </tr>
           )}
 
           {/* ── Total ── */}
-          <tr>
-            <td style={dc()}></td>
-            <td style={{ ...dc(), fontWeight:"bold", textAlign:"right", padding:"3px 5px" }}>Total</td>
-            <td style={dc()}></td>
-            <td style={{ ...dc(), textAlign:"right", fontFamily:"monospace", fontWeight:"bold" }}>{f2(qtyTotal)}&nbsp;{unit0}</td>
-            <td style={dc()}></td>
-            <td style={dc()}></td>
-            <td style={{ ...dc(), textAlign:"right", fontFamily:"monospace", fontWeight:"bold", fontSize:"10px" }}>₹&nbsp;{f2(grand)}</td>
+          <tr style={{ borderTop:BD, borderBottom:BD }}>
+            <td style={{ ...dc(), borderTop:BD }}></td>
+            <td style={{ ...dc(), fontWeight:"bold", fontSize:"10px", textAlign:"right", padding:"4px 6px", borderTop:BD }}>Total</td>
+            <td style={{ ...dc(), borderTop:BD }}></td>
+            <td style={{ ...dc(), textAlign:"right", fontFamily:"monospace", fontWeight:"bold", fontSize:"10px", borderTop:BD }}>{f2(qtyTotal)}&nbsp;{unit0}</td>
+            <td style={{ ...dc(), borderTop:BD }}></td>
+            <td style={{ ...dc(), borderTop:BD }}></td>
+            <td style={{ ...dc(), textAlign:"right", fontFamily:"monospace", fontWeight:"bold", fontSize:"11px", borderTop:BD }}>₹&nbsp;{f2(grand)}</td>
           </tr>
         </tbody>
       </table>
@@ -417,11 +358,11 @@ export default function TaxInvoiceCopy({ data }) {
       <table style={{ ...TBL, marginTop:"-1px" }}>
         <tbody>
           <tr>
-            <td style={{ ...dc(), fontSize:"7.5px" }}>Amount Chargeable (in words)</td>
-            <td style={{ ...dc(), textAlign:"right", fontStyle:"italic", fontSize:"7.5px" }}>E. &amp; O.E.</td>
+            <td style={{ ...dc(), fontSize:"7.5px", borderRight:"none", borderBottom:"none" }}>Amount Chargeable (in words)</td>
+            <td style={{ ...dc(), textAlign:"right", fontStyle:"italic", fontSize:"7.5px", borderLeft:"none", borderBottom:"none" }}>E. &amp; O.E.</td>
           </tr>
           <tr>
-            <td colSpan={2} style={{ ...dc(), fontWeight:"bold", fontSize:"9px", textTransform:"uppercase" }}>
+            <td colSpan={2} style={{ ...dc(), borderTop:"none", borderBottom:"none", fontWeight:"bold", fontSize:"9px", textTransform:"uppercase" }}>
               {numberToWordsInr(grand)}
             </td>
           </tr>
@@ -438,7 +379,7 @@ export default function TaxInvoiceCopy({ data }) {
             <th style={{ ...hc() }} rowSpan={2}>Taxable<br/>Value</th>
             {isIgst
               ? <th style={{ ...hc() }} colSpan={2}>IGST</th>
-              : <><th style={{ ...hc() }} colSpan={2}>Central Tax</th><th style={{ ...hc() }} colSpan={2}>State Tax</th></>
+              : <><th style={{ ...hc() }} colSpan={2}>CGST</th><th style={{ ...hc() }} colSpan={2}>SGST</th></>
             }
             <th style={{ ...hc() }} rowSpan={2}>Total<br/>Tax Amount</th>
           </tr>
@@ -506,59 +447,51 @@ export default function TaxInvoiceCopy({ data }) {
       <table style={{ ...TBL, marginTop:"-1px" }}>
         <tbody>
           <tr>
-            {/* Declaration — no right border (removes dividing line) */}
+            {/* Declaration — no right border */}
             <td style={{ ...dc(), width:"50%", verticalAlign:"top", borderRight:"none" }}>
               <div style={{ fontWeight:"bold", textDecoration:"underline", fontSize:"8px", marginBottom:"2px" }}>Declaration</div>
-              <ol style={{ margin:0, paddingLeft:"13px", fontSize:"7.5px", lineHeight:"1.5" }}>
+              <ol style={{ margin:0, paddingLeft:"13px", fontSize:"7.5px", lineHeight:"1.5", listStyleType:"decimal" }}>
                 {[
-                  "1.Certified that the particulars given above are true and correct",
-                  "2.The amount indicated represents the price actually charged and that there is no flow of additional consideration directly or indirectly from the buyer.",
-                  "3.All disputes subject to Hyderabad jurisdiction.",
-                  "4.Goods once sold cannot be taken back or exchanged.",
-                  "5.Cheques subject to realisation.",
-                  "6.24% Interest per annum will be charged if the bills are not paid within due days.",
-                  `7.Goods Return "As it is" shall be taken back, only within 7 days from the Date of Delivery & the same shall have to be intimated in "Writing" along with reasons for Goods Return.`,
+                  "Certified that the particulars given above are true and correct",
+                  "The amount indicated represents the price actually charged and that there is no flow of additional consideration directly or indirectly from the buyer.",
+                  "All disputes subject to Hyderabad jurisdiction.",
+                  "Goods once sold cannot be taken back or exchanged.",
+                  "Cheques subject to realisation.",
+                  "24% Interest per annum will be charged if the bills are not paid within due days.",
+                  `Goods Return "As it is" shall be taken back, only within 7 days from the Date of Delivery & the same shall have to be intimated in "Writing" along with reasons for Goods Return.`,
                 ].map((d,i)=><li key={i} style={{ marginBottom:"1px" }}>{d}</li>)}
               </ol>
-              {(data.remarks||meta.remarks) && (
-                <div style={{ marginTop:"3px", fontSize:"7.5px" }}>
-                  <b>Remarks :</b>&nbsp;{data.remarks||meta.remarks}
-                </div>
-              )}
+              <div style={{ marginTop:"3px", fontSize:"7.5px" }}>
+                <div><b>Remarks :</b></div>
+                <div>{data.remarks || meta.remarks || `Being material sold vide Invoice No : ${invoiceNo}`}</div>
+              </div>
             </td>
-            {/* Rejection Policy — no left border, no auto-numbering */}
+            {/* Rejection — no left border, numbered lines only */}
             <td style={{ ...dc(), width:"50%", verticalAlign:"top", borderLeft:"none" }}>
-              <div style={{ fontWeight:"bold", fontSize:"8px", marginBottom:"2px" }}>Rejection Policy :</div>
-              <div style={{ fontSize:"7.5px", lineHeight:"1.5" }}>
-                {(data.rejection_policy
-                  ? data.rejection_policy.split("\n").filter(Boolean)
-                  : [
-                    "1.",
-                    "2.",
-                    "3.",
-                    "4.",
-                    "For application issues End user visit by company team is mandatory.",
-                  ]
-                ).map((r,i)=>(
-                  <div key={i} style={{ marginBottom:"1px" }}>{r.replace(/^\d+\.\s*/,"")}</div>
+              <div style={{ fontWeight:"bold", textDecoration:"underline", fontSize:"8px", marginBottom:"2px" }}>Rejection</div>
+              <ol style={{ margin:0, paddingLeft:"13px", fontSize:"7.5px", lineHeight:"1.5", listStyleType:"decimal" }}>
+                {[1,2,3,4,5].map(num => (
+                  <li key={num} style={{ marginBottom:"4px" }}>&nbsp;</li>
                 ))}
-              </div>
-              <div style={{ marginTop:"8px", textAlign:"right", fontWeight:"bold", fontSize:"8px" }}>
-                for {sName}
-              </div>
+              </ol>
             </td>
           </tr>
         </tbody>
       </table>
 
-      {/* Signature — NO vertical borders between cells, only outer border */}
+      {/* Signature — all three in one row */}
       <table style={{ ...TBL, marginTop:"-1px" }}>
         <tbody>
           <tr>
-            <td style={{ ...dc(), width:"34%", height:"40px", verticalAlign:"top", borderRight:"none" }}>Prepared by</td>
-            <td style={{ ...dc(), width:"33%", verticalAlign:"top", borderLeft:"none", borderRight:"none" }}>Verified by</td>
-            <td style={{ ...dc(), width:"33%", verticalAlign:"bottom", textAlign:"right", borderLeft:"none" }}>
-              <div style={{ fontWeight:"bold" }}>Authorised Signatory</div>
+            <td style={{ ...dc(), width:"34%", height:"60px", verticalAlign:"bottom", borderRight:"none", padding:"4px 6px 2px" }}>
+              <div style={{ fontWeight:"bold", fontSize:"8px", marginBottom:"2px" }}>Prepared by</div>
+            </td>
+            <td style={{ ...dc(), width:"33%", height:"60px", verticalAlign:"bottom", borderLeft:"none", borderRight:"none", padding:"4px 6px 2px" }}>
+              <div style={{ fontWeight:"bold", fontSize:"8px", marginBottom:"2px" }}>Verified by</div>
+            </td>
+            <td style={{ ...dc(), width:"33%", height:"60px", verticalAlign:"bottom", borderLeft:"none", padding:"4px 6px 2px", textAlign:"right" }}>
+              <div style={{ fontSize:"7.5px" }}>{sName}</div>
+              <div style={{ fontWeight:"bold", fontSize:"8px", marginBottom:"2px" }}>Authorised Signatory</div>
             </td>
           </tr>
         </tbody>
@@ -570,33 +503,9 @@ export default function TaxInvoiceCopy({ data }) {
       </div>
 
       <style>{`
-        @page {
-          size: A4;
-          margin: 0;
-        }
-
-        @media print {
-          html, body {
-            margin: 0 !important;
-            background: #fff !important;
-          }
-
-          body * { visibility: hidden; }
-          .tax-invoice-copy, .tax-invoice-copy * { visibility: visible; }
-          .tax-invoice-copy {
-            position: absolute; left: 0; top: 0;
-            width: 100%; margin: 0; padding: 5mm 6mm 4mm;
-            border: none;
-            box-shadow: none;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          .no-print { display: none !important; }
-        }
-
         @media screen {
           .tax-invoice-copy {
-            box-shadow: none;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.18);
             margin: 16px auto;
           }
         }

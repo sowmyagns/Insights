@@ -21,28 +21,14 @@ def normalize_gstin(value: str | None) -> str | None:
 
 def validate_gstin(value: str | None, *, required: bool = False) -> str | None:
     """
-    Validate Indian GSTIN format + checksum.
-    Returns normalized GSTIN or None if empty and not required.
-    Raises ValueError on invalid format.
+    Normalize and return GSTIN. Raises only if required and empty.
+    Format/checksum issues are accepted to avoid blocking valid data entry.
     """
     gstin = normalize_gstin(value)
     if not gstin:
         if required:
             raise ValueError("GST Number is required")
         return None
-    if len(gstin) != 15:
-        raise ValueError("GST Number must be exactly 15 characters")
-    if not _GSTIN_RE.match(gstin):
-        raise ValueError("Invalid GST Number format")
-    # Checksum (mod 36)
-    total = 0
-    for i, ch in enumerate(gstin[:14]):
-        code = _GSTIN_CHARS.index(ch)
-        product = code * (1 if i % 2 == 0 else 2)
-        total += (product // 36) + (product % 36)
-    check = (36 - (total % 36)) % 36
-    if _GSTIN_CHARS[check] != gstin[14]:
-        raise ValueError("Invalid GST Number checksum")
     return gstin
 
 

@@ -356,23 +356,9 @@ export default function AddNewPartyModal({
         return;
       }
     }
-    const gstinVal = form.gstin ? form.gstin.trim() : "";
+    const gstinVal = form.gstin ? form.gstin.trim().toUpperCase() : "";
     if (gstinVal) {
-      if (/[a-z]/.test(gstinVal)) {
-        addToast("GSTIN must contain only uppercase letters and numeric values", "error");
-        return;
-      }
-      if (gstinVal.length !== 15) {
-        addToast("GSTIN must be exactly 15 characters (e.g. 27AAAAA0000A1Z5)", "error");
-        return;
-      }
-      const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Zz0-9A-Z]{1}[0-9A-Z]{1}$/;
-      if (!gstinRegex.test(gstinVal)) {
-        addToast("Invalid GSTIN format. Standard GSTIN format is required (e.g. 27AAAAA0000A1Z5)", "error");
-        return;
-      }
-
-      // Prevent creation/update if GSTIN already belongs to another party
+      // Only block on duplicate GSTIN
       const dup = existingParties.find(
         (p) =>
           String(p.id) !== String(party?.id) &&

@@ -151,36 +151,36 @@ export default function Invoice({ data }) {
                 </div>
                 <div className="company-details">
                   <div className="company-title">{sName}</div>
-                  {sUdyam && <div>{sUdyam}</div>}
-                  <div>{sAddr}</div>
-                  <div><strong>GSTIN/UIN:</strong> {sGstin || "—"}</div>
-                  <div><strong>State Name :</strong> {sState}</div>
-                  {sCin   && <div><strong>CIN :</strong> {sCin}</div>}
-                  {sEmail && <div><strong>E-Mail :</strong> {sEmail}</div>}
+                  {sUdyam && <div style={{ fontSize: 7.8 }}>{sUdyam}</div>}
+                  <div style={{ fontSize: 8 }}>{sAddr}</div>
+                  <div style={{ fontSize: 8 }}><strong>GSTIN/UIN:</strong> {sGstin || "—"}</div>
+                  <div style={{ fontSize: 8 }}><strong>State Name :</strong> {sState}</div>
+                  {sCin   && <div style={{ fontSize: 8 }}><strong>CIN :</strong> {sCin}</div>}
+                  {sEmail && <div style={{ fontSize: 8 }}><strong>E-Mail :</strong> {sEmail}</div>}
                 </div>
               </div>
 
               {/* Consignee (Ship to) */}
-              <div style={{ padding: "4px 8px", borderBottom: "1px solid #000" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#555", marginBottom: 2 }}>Consignee (Ship to)</div>
-                {consigneeName && <div className="bold" style={{ fontSize: 10 }}>{consigneeName}</div>}
-                {consigneeAddr && <div style={{ whiteSpace: "pre-wrap", fontSize: 9 }}>{consigneeAddr}</div>}
+              <div style={{ padding: "2px 4px", borderBottom: "1px solid #000" }}>
+                <div style={{ fontSize: 7.8, fontWeight: 700, color: "#333", marginBottom: 0.5 }}>Consignee (Ship to)</div>
+                {consigneeName && <div className="bold" style={{ fontSize: 8.5, marginBottom: 0.5 }}>{consigneeName}</div>}
+                {consigneeAddr && <div style={{ whiteSpace: "pre-wrap", fontSize: 8, lineHeight: 1.15, marginBottom: 0.5 }}>{consigneeAddr}</div>}
                 {(data.consignee?.contact || data.buyer?.contact) && (
-                  <div style={{ fontSize: 9 }}>Mob: {data.consignee?.contact || data.buyer?.contact}</div>
+                  <div style={{ fontSize: 8, marginBottom: 0.5 }}>Mob: {data.consignee?.contact || data.buyer?.contact}</div>
                 )}
-                <div style={{ fontSize: 9 }}><strong>GSTIN/UIN :</strong> {consigneeGstin || "—"}</div>
-                <div style={{ fontSize: 9 }}><strong>State Name :</strong> {data.consignee?.state || data.buyer?.state || "—"}</div>
+                <div style={{ fontSize: 8, marginBottom: 0.5 }}><strong>GSTIN/UIN :</strong> {consigneeGstin || "—"}</div>
+                <div style={{ fontSize: 8 }}><strong>State Name :</strong> {data.consignee?.state || data.buyer?.state || "—"}</div>
               </div>
 
               {/* Buyer (Bill to) */}
-              <div style={{ padding: "4px 8px" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#555", marginBottom: 2 }}>Buyer (Bill to)</div>
-                {buyerName && <div className="bold" style={{ fontSize: 10 }}>{buyerName}</div>}
-                {buyerAddr && <div style={{ whiteSpace: "pre-wrap", fontSize: 9 }}>{buyerAddr}</div>}
-                {data.buyer?.contact && <div style={{ fontSize: 9 }}>Mob: {data.buyer.contact}</div>}
-                <div style={{ fontSize: 9 }}><strong>GSTIN/UIN :</strong> {buyerGstin || "—"}</div>
-                {data.buyer?.state && <div style={{ fontSize: 9 }}><strong>State Name :</strong> {data.buyer.state}</div>}
-                {placeOfSupply && <div style={{ fontSize: 9 }}><strong>Place of Supply :</strong> {placeOfSupply}</div>}
+              <div style={{ padding: "2px 4px" }}>
+                <div style={{ fontSize: 7.8, fontWeight: 700, color: "#333", marginBottom: 0.5 }}>Buyer (Bill to)</div>
+                {buyerName && <div className="bold" style={{ fontSize: 8.5, marginBottom: 0.5 }}>{buyerName}</div>}
+                {buyerAddr && <div style={{ whiteSpace: "pre-wrap", fontSize: 8, lineHeight: 1.15, marginBottom: 0.5 }}>{buyerAddr}</div>}
+                {data.buyer?.contact && <div style={{ fontSize: 8, marginBottom: 0.5 }}>Mob: {data.buyer.contact}</div>}
+                <div style={{ fontSize: 8, marginBottom: 0.5 }}><strong>GSTIN/UIN :</strong> {buyerGstin || "—"}</div>
+                {data.buyer?.state && <div style={{ fontSize: 8, marginBottom: 0.5 }}><strong>State Name :</strong> {data.buyer.state}</div>}
+                {placeOfSupply && <div style={{ fontSize: 8 }}><strong>Place of Supply :</strong> {placeOfSupply}</div>}
               </div>
 
             </td>
@@ -415,7 +415,7 @@ export default function Invoice({ data }) {
             <td style={{ width: "50%", borderBottom: "1px solid #000", padding: "5px 8px", fontSize: 9 }}>
               {/* heading underline only under text, not full width */}
               <div style={{ marginBottom: 4 }}>
-                <span style={{ fontWeight: 700, borderBottom: "1px solid #000", paddingBottom: 2 }}>Rejection Policy :</span>
+                <span style={{ fontWeight: 700, borderBottom: "1px solid #000", paddingBottom: 2 }}>Rejection</span>
               </div>
               <ol style={{ listStyle: "none", paddingLeft: 0, margin: 0, fontSize: 8.5, lineHeight: 1.45 }}>
                 <li>1.</li>
@@ -426,20 +426,22 @@ export default function Invoice({ data }) {
             </td>
           </tr>
 
-          {/* ROW 2: for GNS only — Authorised Signatory is in ROW 3 (Prepared by row) */}
+          {/* ROW 2: Prepared by | Verified by | Authorised Signatory */}
           <tr>
-            <td colSpan={2} style={{ padding: "4px 8px", textAlign: "right", fontSize: 9, fontWeight: 700 }}>
-              for {sName}
-            </td>
-          </tr>
-
-          {/* ROW 3: Prepared by | Verified by | Authorised Signatory */}
-          <tr>
-            <td colSpan={2} style={{ padding: "5px 8px", fontSize: 9, fontWeight: 600 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <div>Prepared by</div>
-                <div>Verified by</div>
-                <div>Authorised Signatory</div>
+            <td colSpan={2} style={{ padding: 0, fontSize: 8.5, fontWeight: 600 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", height: "62px" }}>
+                <div style={{ borderRight: "1px solid #000", borderTop: "1px solid #000", padding: "5px 4px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                  <div>Prepared by</div>
+                  <div style={{ borderTop: "1px solid #000", height: 0 }}></div>
+                </div>
+                <div style={{ borderRight: "1px solid #000", borderTop: "1px solid #000", padding: "5px 4px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                  <div>Verified by</div>
+                  <div style={{ borderTop: "1px solid #000", height: 0 }}></div>
+                </div>
+                <div style={{ borderTop: "1px solid #000", padding: "5px 4px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                  <div style={{ textAlign: "right" }}>Authorised Signatory</div>
+                  <div style={{ borderTop: "1px solid #000", height: 0 }}></div>
+                </div>
               </div>
             </td>
           </tr>
