@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, MoreVertical, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, MapPin, MoreVertical, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import AddBasicDetailsModal from "./AddBasicDetailsModal";
 import AddCustomFieldModal from "./AddCustomFieldModal";
@@ -541,31 +541,60 @@ export default function AddNewPartyModal({
               </SoftField>
             </div>
 
-            {addressText ? (
-              <div className="rounded-lg border border-[#ececf0] bg-white px-4 py-3">
-                <div className="mb-1 text-[13px] font-semibold text-[#1a1a1f]">Billing Address</div>
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-[13px] text-[#4a4a55]">{addressText}</p>
-                  <div className="flex items-center gap-3 text-[#1a1a1f]">
-                    <button type="button" onClick={() => setAddressOpen(true)}>
-                      <Pencil className="h-4 w-4 text-[#4f46e5]" />
-                    </button>
-                    <button type="button">
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-                  </div>
+            <div className="rounded-lg border border-[#e4e4ea] bg-[#fafafa] px-4 py-3.5">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[13px] font-semibold text-[#1a1a1f]">
+                  <MapPin className="h-4 w-4 text-[#6b4eff]" />
+                  Billing Address
                 </div>
+                {addressText ? (
+                  <button
+                    type="button"
+                    onClick={() => setAddressOpen(true)}
+                    className="inline-flex items-center gap-1 text-[12px] font-medium text-[#6b4eff] hover:underline"
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  </button>
+                ) : null}
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setAddressOpen(true)}
-                className="inline-flex items-center gap-1 rounded-full border border-[#f4c116] bg-[#fff2b8] px-3 py-1.5 text-[12px] font-semibold text-[#1a1a1f]"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Add Billing Address
-              </button>
-            )}
+              <div className="space-y-2.5">
+                <input
+                  value={address.address_line1}
+                  onChange={(e) => setAddress((p) => ({ ...p, address_line1: e.target.value }))}
+                  placeholder="Street / Address Line"
+                  className={inputClass}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    value={address.pincode}
+                    onChange={(e) =>
+                      setAddress((p) => ({
+                        ...p,
+                        pincode: e.target.value.replace(/\D/g, "").slice(0, 6),
+                      }))
+                    }
+                    placeholder="Pincode"
+                    className={inputClass}
+                  />
+                  <input
+                    value={address.city}
+                    onChange={(e) => setAddress((p) => ({ ...p, city: e.target.value }))}
+                    placeholder="City"
+                    className={inputClass}
+                  />
+                </div>
+                <select
+                  value={address.state}
+                  onChange={(e) => setAddress((p) => ({ ...p, state: e.target.value }))}
+                  className={inputClass}
+                >
+                  <option value="">Select State</option>
+                  {INDIAN_STATES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="mt-4 border-t border-[#ececf0] pt-3.5">
@@ -579,8 +608,7 @@ export default function AddNewPartyModal({
               <button
                 type="button"
                 onClick={() => setBasicOpen(true)}
-                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#f4c116] px-3 py-1.5 text-[12px] font-semibold text-[#1a1a1f]"
-                style={{ background: "#fff2b8" }}
+                className="ui-btn-secondary inline-flex shrink-0 items-center gap-1 !py-1.5 !text-[12px]"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Add
@@ -597,8 +625,7 @@ export default function AddNewPartyModal({
               <button
                 type="button"
                 onClick={() => setOtherOpen(true)}
-                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#f4c116] px-3 py-1.5 text-[12px] font-semibold text-[#1a1a1f]"
-                style={{ background: "#fff2b8" }}
+                className="ui-btn-secondary inline-flex shrink-0 items-center gap-1 !py-1.5 !text-[12px]"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Add
@@ -644,15 +671,14 @@ export default function AddNewPartyModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-[#d8d8e0] bg-[#e8e8ee] py-3 text-[14px] font-semibold text-[#1a1a1f]"
+            className="ui-btn-secondary py-3 text-[14px]"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="rounded-xl py-3 text-[14px] font-semibold text-white disabled:opacity-60"
-            style={{ background: YELLOW }}
+            className="ui-btn-primary py-3 text-[14px] disabled:opacity-60"
           >
             {saving ? "Saving…" : "Submit"}
           </button>

@@ -19,7 +19,7 @@ import {
 } from "../../utils/customerOptions";
 import { formatInr } from "../../data/salesMasterData";
 
-const YELLOW = "var(--color-primary)";
+const YELLOW = "#0025D4";
 const PAGE_SIZES = [10, 25, 50];
 
 function mapDocToRow(doc) {

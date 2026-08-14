@@ -733,8 +733,9 @@ input.pl-9 {
   cursor: not-allowed;
 }
 .ui-page-btn--active {
-  border-color: var(--color-primary-light);
-  color: var(--color-primary-dark);
+  border-color: #0751b2;
+  color: #0751b2;
+  background: white;
   font-weight: 600;
 }
 

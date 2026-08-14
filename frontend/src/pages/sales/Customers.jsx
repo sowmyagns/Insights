@@ -186,9 +186,23 @@ export default function Customers() {
 
   if (loading) return <Loader label="Loading customers..." />;
 
+  const withGstin = customers.filter((c) => c.gstin && c.gstin !== "—").length;
+
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
+        <div className="mb-4 grid grid-cols-3 gap-3">
+          {[
+            { label: "Total Customers", value: customers.length, color: "#0f6d84" },
+            { label: "Filtered", value: filtered.length, color: "#6b4eff" },
+            { label: "With GSTIN", value: withGstin, color: "#16a34a" },
+          ].map((k) => (
+            <div key={k.label} className="rounded-xl border border-[#e4e4ea] bg-white px-4 py-3">
+              <p className="text-[11px] font-medium text-[#6b6b76]">{k.label}</p>
+              <p className="mt-0.5 text-[22px] font-bold tabular-nums" style={{ color: k.color }}>{k.value}</p>
+            </div>
+          ))}
+        </div>
         <div className="ui-card p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center gap-2.5">
             <div className="relative min-w-[220px] flex-1">

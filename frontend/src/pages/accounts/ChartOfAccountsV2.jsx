@@ -165,7 +165,7 @@ function Pagination({ page, pageSize, total, onPage, onPageSize }) {
                   ? "border border-[#e0b400] text-[#1a1a1f]"
                   : "border border-[#cfcfd6] bg-white text-[#1a1a1f] hover:bg-[#f7f7f9]"
               }`}
-              style={p === page ? { background: "#0f6d84" } : undefined}
+              style={p === page ? { background: "#0025D4" } : undefined}
             >
               {p}
             </button>
@@ -389,8 +389,8 @@ export default function ChartOfAccountsV2() {
                 setSubParent(null);
                 setModalOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e0b400] px-4 py-2.5 text-[13px] font-semibold text-[#1a1a1f]"
-              style={{ background: "#0f6d84" }}
+              className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[13px] font-semibold text-white"
+              style={{ background: "#0025D4" }}
             >
               + Create Account
             </button>

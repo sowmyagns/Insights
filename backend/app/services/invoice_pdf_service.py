@@ -287,10 +287,10 @@ def generate_invoice_pdf(doc: dict[str, Any]) -> bytes:
     outer_rows.append([_p(f"<b>Remarks</b> : {remarks_text}", body), "", ""])
 
     sign_row = Table(
-        [[_p("<b>Prepared by</b><br/><br/>" + (doc.get("prepared_by", "") or ""), body), _p("<b>Verified by</b>", body), _p(f"for {seller.get('name', '')}<br/><br/><b>Authorised Signatory</b>", right)]],
+        [[_p("<b>Prepared by</b><br/><br/>" + (doc.get("prepared_by", "") or ""), body), _p("<b>Verified by</b>", body), _p(f"<b>For {seller.get('name', '')}</b><br/><b>Authorised Signatory</b>", right)]],
         colWidths=[50 * mm, 50 * mm, 90 * mm],
     )
-    sign_row.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.7, colors.black), ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.black), ("VALIGN", (0, 0), (-1, -1), "BOTTOM"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
+    sign_row.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.7, colors.black), ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.black), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
     outer_rows.append([sign_row, "", ""])
     outer_rows.append([_p("This is a Computer Generated Invoice", ParagraphStyle("Foot", parent=tiny, alignment=TA_CENTER)), "", ""])
 

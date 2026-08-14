@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 
 const YELLOW = "var(--color-primary)";
 const PURPLE = "#6b4eff";
@@ -89,20 +89,23 @@ export default function AddBasicDetailsModal({ open, onClose, initial, onSave })
               <p className="text-[13px] font-bold text-[#1a1a1f]">Payment Terms</p>
               <p className="mt-0.5 text-[12px] text-[#9a9aa5]">Credit Period (Days)</p>
             </div>
-            <select
-              value={form.payment_terms_days}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, payment_terms_days: e.target.value }))
-              }
-              className={`${inputClass} ${!form.payment_terms_days ? "text-[#a0a0ab]" : ""}`}
-            >
-              <option value="">Select Days</option>
-              {CREDIT_DAYS.map((d) => (
-                <option key={d} value={d}>
-                  {d} Days
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={form.payment_terms_days}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, payment_terms_days: e.target.value }))
+                }
+                className={`${inputClass} appearance-none pr-9 ${!form.payment_terms_days ? "text-[#a0a0ab]" : ""}`}
+              >
+                <option value="">Select Days</option>
+                {CREDIT_DAYS.map((d) => (
+                  <option key={d} value={d}>
+                    {d} Days
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b6b76]" />
+            </div>
           </div>
 
           <div>

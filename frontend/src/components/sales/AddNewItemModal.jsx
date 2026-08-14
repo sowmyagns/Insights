@@ -26,7 +26,7 @@ const TAX_TYPES = ["Exclusive", "Inclusive"];
 const CESS_MODES = ["Percent Wise", "Amount Wise"];
 
 const inputClass =
-  "w-full rounded-lg border border-[#dcdce3] bg-[#f3f3f6] px-3 py-2.5 text-[13px] text-[#1a1a1f] placeholder:text-[#a0a0ab] focus:border-[#c4b5fd] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#c4b5fd]";
+  "w-full rounded-lg border border-[#dcdce3] bg-[#f3f3f6] px-3 py-2.5 text-[13px] text-[#1a1a1f] placeholder:text-[#a0a0ab] focus:outline-none";
 
 const EMPTY = {
   item_type: "goods",
@@ -651,46 +651,52 @@ export default function AddNewItemModal({
               </label>
               <label className="block">
                 <SoftLabel>Unit</SoftLabel>
-                <select
-                  value={form.unit}
-                  onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
-                  className={inputClass}
-                >
-                  <option value="">Select Unit</option>
-                  {PRODUCT_UNITS.map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={form.unit}
+                    onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+                    className={`${inputClass} appearance-none pr-9`}
+                  >
+                    <option value="">Select Unit</option>
+                    {PRODUCT_UNITS.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b6b76]" />
+                </div>
               </label>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
                 <SoftLabel>GST %</SoftLabel>
-                <select
-                  value={form.gst_pct}
-                  onChange={(e) => {
-                    const g = e.target.value;
-                    const half = g ? Number(g) / 2 : "";
-                    setForm((f) => ({
-                      ...f,
-                      gst_pct: g,
-                      cgst_pct: half,
-                      sgst_pct: half,
-                      igst_pct: g ? Number(g) : "",
-                    }));
-                  }}
-                  className={inputClass}
-                >
-                  <option value="">Select GST</option>
-                  {GST_OPTIONS.map((g) => (
-                    <option key={g} value={g}>
-                      {g}%
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={form.gst_pct}
+                    onChange={(e) => {
+                      const g = e.target.value;
+                      const half = g ? Number(g) / 2 : "";
+                      setForm((f) => ({
+                        ...f,
+                        gst_pct: g,
+                        cgst_pct: half,
+                        sgst_pct: half,
+                        igst_pct: g ? Number(g) : "",
+                      }));
+                    }}
+                    className={`${inputClass} appearance-none pr-9`}
+                  >
+                    <option value="">Select GST</option>
+                    {GST_OPTIONS.map((g) => (
+                      <option key={g} value={g}>
+                        {g}%
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b6b76]" />
+                </div>
               </label>
               <label className="block">
                 <SoftLabel>{isGoods ? "HSN" : "SAC"}</SoftLabel>
@@ -753,25 +759,28 @@ export default function AddNewItemModal({
               </label>
               <label className="block">
                 <SoftLabel>Category</SoftLabel>
-                <select
-                  value={form.category}
-                  onChange={(e) => {
-                    if (e.target.value === "__add_category__") {
-                      onAddCategory?.();
-                      return;
-                    }
-                    setForm((f) => ({ ...f, category: e.target.value }));
-                  }}
-                  className={inputClass}
-                >
-                  <option value="">Select Category</option>
-                  {categoryOptions.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                  {onAddCategory ? <option value="__add_category__">+ Add New Category</option> : null}
-                </select>
+                <div className="relative">
+                  <select
+                    value={form.category}
+                    onChange={(e) => {
+                      if (e.target.value === "__add_category__") {
+                        onAddCategory?.();
+                        return;
+                      }
+                      setForm((f) => ({ ...f, category: e.target.value }));
+                    }}
+                    className={`${inputClass} appearance-none pr-9`}
+                  >
+                    <option value="">Select Category</option>
+                    {categoryOptions.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                    {onAddCategory ? <option value="__add_category__">+ Add New Category</option> : null}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b6b76]" />
+                </div>
                 {onAddCategory ? (
                   <button
                     type="button"
@@ -1001,37 +1010,43 @@ export default function AddNewItemModal({
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block">
                     <SoftLabel>Primary Unit</SoftLabel>
-                    <select
-                      value={form.primary_unit}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, primary_unit: e.target.value }))
-                      }
-                      className={inputClass}
-                    >
-                      <option value="">Select Primary Unit</option>
-                      {PRODUCT_UNITS.map((u) => (
-                        <option key={u} value={u}>
-                          {u}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={form.primary_unit}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, primary_unit: e.target.value }))
+                        }
+                        className={`${inputClass} appearance-none pr-9`}
+                      >
+                        <option value="">Select Primary Unit</option>
+                        {PRODUCT_UNITS.map((u) => (
+                          <option key={u} value={u}>
+                            {u}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b6b76]" />
+                    </div>
                   </label>
                   <label className="block">
                     <SoftLabel>Secondary Unit</SoftLabel>
-                    <select
-                      value={form.secondary_unit}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, secondary_unit: e.target.value }))
-                      }
-                      className={inputClass}
-                    >
-                      <option value="">Select Secondary Unit</option>
-                      {PRODUCT_UNITS.map((u) => (
-                        <option key={u} value={u}>
-                          {u}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={form.secondary_unit}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, secondary_unit: e.target.value }))
+                        }
+                        className={`${inputClass} appearance-none pr-9`}
+                      >
+                        <option value="">Select Secondary Unit</option>
+                        {PRODUCT_UNITS.map((u) => (
+                          <option key={u} value={u}>
+                            {u}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b6b76]" />
+                    </div>
                   </label>
                 </div>
                 <div className="grid grid-cols-2 gap-3">

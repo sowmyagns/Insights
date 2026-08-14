@@ -10,7 +10,7 @@ import { deletePayment, getInvoicesV2, getPayments } from "../../api/salesApi";
 import { formatInr } from "../../data/salesMasterData";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const ACCENT = "var(--color-action-teal)"; /* #0F6D84 */
+const ACCENT = "#0025D4";
 const PAGE_SIZES = [10, 20, 50];
 
 const SORT_OPTIONS = [

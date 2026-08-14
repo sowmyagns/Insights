@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Banknote, Bookmark, Building2, ChevronDown, MoreVertical, Pencil, Search, Star, Trash2, CircleMinus } from "lucide-react";
+import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
+import { ArrowLeft, Banknote, Bookmark, Building2, ChevronDown, MoreVertical, Pencil, Search, Star, Trash2, CircleMinus, AlertTriangle } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
+import PageHeader from "../../components/common/PageHeader";
 import AddNewPartyModal from "../../components/sales/AddNewPartyModal";
 import AddPaymentModeModal from "../../components/sales/AddPaymentModeModal";
 import AddPrefixModal from "../../components/sales/AddPrefixModal";
@@ -84,17 +85,7 @@ function parseReceiptMeta(notes) {
   return {};
 }
 
-function SoftLabel({ children, required }) {
-  return (
-    <span className="mb-1.5 block text-[12px] font-semibold text-[#6b6b76]">
-      {children}
-      {required ? <span className="text-[#e11d48]"> *</span> : null}
-    </span>
-  );
-}
-
-const inputClass =
-  "w-full rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-3 py-2.5 text-[13px] text-[#1a1a1f] placeholder:text-[#a0a0ab] focus:border-[#6b4eff] focus:outline-none focus:ring-1 focus:ring-[#c4b5fd]";
+const inputClass = "ui-input mt-1.5";
 
 export default function PaymentReceiptForm() {
   const tenantId = useTenantId();

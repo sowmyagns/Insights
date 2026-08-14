@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 
 const YELLOW = "var(--color-primary)";
 
@@ -92,50 +92,59 @@ export default function AddOtherDetailsModal({ open, onClose, initial, onSave })
 
         <div className="space-y-4 bg-[#f3f3f6] px-5 py-5">
           <Row label="Party Type">
-            <select
-              value={form.party_type}
-              onChange={(e) => setForm((f) => ({ ...f, party_type: e.target.value }))}
-              className={selectClass}
-            >
-              {PARTY_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={form.party_type}
+                onChange={(e) => setForm((f) => ({ ...f, party_type: e.target.value }))}
+                className={`${selectClass} appearance-none pr-9`}
+              >
+                {PARTY_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b6b76]" />
+            </div>
           </Row>
 
           <Row label="GST Treatment Type">
-            <select
-              value={form.gst_treatment}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, gst_treatment: e.target.value }))
-              }
-              className={`${selectClass} ${!form.gst_treatment ? "text-[#a0a0ab]" : ""}`}
-            >
-              <option value="">Select GST Treatment</option>
-              {GST_TREATMENTS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={form.gst_treatment}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, gst_treatment: e.target.value }))
+                }
+                className={`${selectClass} appearance-none pr-9 ${!form.gst_treatment ? "text-[#a0a0ab]" : ""}`}
+              >
+                <option value="">Select GST Treatment</option>
+                {GST_TREATMENTS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b6b76]" />
+            </div>
           </Row>
 
           <Row label="Tax Preference">
-            <select
-              value={form.tax_preference}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, tax_preference: e.target.value }))
-              }
-              className={selectClass}
-            >
-              {TAX_PREFERENCES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={form.tax_preference}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, tax_preference: e.target.value }))
+                }
+                className={`${selectClass} appearance-none pr-9`}
+              >
+                {TAX_PREFERENCES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b6b76]" />
+            </div>
           </Row>
 
           <Row label="TDS">

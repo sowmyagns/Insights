@@ -30,7 +30,7 @@ function hc(extra = {}) {
   return { border:BD, padding:"4px 4px", fontSize:"10px", fontWeight:"bold", fontFamily:FF, background:"#fff", textAlign:"center", verticalAlign:"middle", color:"#000", boxSizing:"border-box", ...extra };
 }
 
-export default function TaxInvoiceCopy({ data, innerRef }) {
+export default function TaxInvoiceCopy({ data, innerRef, title: titleProp }) {
   if (!data) return null;
 
   const items     = Array.isArray(data.items) ? data.items : [];
@@ -56,7 +56,10 @@ export default function TaxInvoiceCopy({ data, innerRef }) {
     : "";
 
   /* ── meta ── */
-  const invoiceNo    = meta.invoice_no   || meta.invoiceNo   || "";
+  const isQuotation = titleProp === "Quotation";
+  const docNo       = meta.invoice_no || meta.invoiceNo || meta.document_no || meta.quote_number || "";
+  const invoiceNo   = docNo;
+  const docNoLabel  = isQuotation ? "Quotation No." : "Invoice No.";
   const date         = meta.date         || "";
   const eWayBill     = meta.eway_bill_no || meta.eWayBillNo  || "";
   const payTerms     = payment.terms || meta.payment_terms || meta.modeTerms || "Advance";
@@ -111,7 +114,7 @@ export default function TaxInvoiceCopy({ data, innerRef }) {
         color: "#000",
         background: "#fff",
         width: "210mm",
-        minHeight: "297mm",
+        minHeight: "auto",
         margin: "0 auto",
         padding: "5mm 6mm 4mm",
         boxSizing: "border-box",
@@ -144,7 +147,7 @@ export default function TaxInvoiceCopy({ data, innerRef }) {
 
         {/* CENTER — Tax Invoice title */}
         <div style={{ flex:1, textAlign:"center" }}>
-          <div style={{ fontSize:"15px", fontWeight:"bold", fontFamily:FF, letterSpacing:"0.5px" }}>Tax Invoice</div>
+          <div style={{ fontSize:"15px", fontWeight:"bold", fontFamily:FF, letterSpacing:"0.5px" }}>{titleProp || "Tax Invoice"}</div>
         </div>
 
         {/* RIGHT — e-Invoice label + QR */}
@@ -209,7 +212,7 @@ export default function TaxInvoiceCopy({ data, innerRef }) {
               <table style={{ ...TBL }}>
                 <tbody>
                   {[
-                    [["Invoice No.", invoiceNo, true], ["e-Way Bill No.", eWayBill, false], ["Dated", date, true]],
+                    [[docNoLabel, invoiceNo, true], ["e-Way Bill No.", eWayBill, false], ["Dated", date, true]],
                     [["Delivery Note", delivNote, false, 1], ["Mode/Terms of Payment", payTerms, true, 2]],
                     [["Reference No. & Date.", refNo, false, 1], ["Other References", otherRefs, false, 2]],
                     [["Buyer's Order No.", buyerOrderNo, false, 1], ["Dated", buyerOrderDt, false, 2]],
@@ -463,7 +466,7 @@ export default function TaxInvoiceCopy({ data, innerRef }) {
               </ol>
               <div style={{ marginTop:"3px", fontSize:"7.5px" }}>
                 <div><b>Remarks :</b></div>
-                <div>{data.remarks || meta.remarks || `Being material sold vide Invoice No : ${invoiceNo}`}</div>
+                <div>{data.remarks || meta.remarks || (isQuotation ? `Quotation No : ${invoiceNo}` : `Being material sold vide Invoice No : ${invoiceNo}`)}</div>
               </div>
             </td>
             {/* Rejection — no left border, numbered lines only */}
@@ -489,9 +492,9 @@ export default function TaxInvoiceCopy({ data, innerRef }) {
             <td style={{ ...dc(), width:"33%", height:"60px", verticalAlign:"bottom", borderLeft:"none", borderRight:"none", padding:"4px 6px 2px" }}>
               <div style={{ fontWeight:"bold", fontSize:"8px", marginBottom:"2px" }}>Verified by</div>
             </td>
-            <td style={{ ...dc(), width:"33%", height:"60px", verticalAlign:"bottom", borderLeft:"none", padding:"4px 6px 2px", textAlign:"right" }}>
-              <div style={{ fontSize:"7.5px" }}>{sName}</div>
-              <div style={{ fontWeight:"bold", fontSize:"8px", marginBottom:"2px" }}>Authorised Signatory</div>
+            <td style={{ ...dc(), width:"33%", height:"60px", verticalAlign:"top", borderLeft:"none", padding:"4px 6px 2px", textAlign:"right" }}>
+              <div style={{ fontSize:"7.5px", fontWeight:"bold", marginBottom:"auto" }}>{sName}</div>
+              <div style={{ fontWeight:"bold", fontSize:"8px", marginTop:"32px" }}>Authorised Signatory</div>
             </td>
           </tr>
         </tbody>

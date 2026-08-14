@@ -316,17 +316,18 @@
 
 .erp-doc__for-company {
   font-size: 7.5px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  text-align: right;
 }
 
 .erp-doc__auth-sign {
   font-weight: 700;
   margin-top: 4px;
   border-top: 1px solid #000;
-  display: inline-block;
+  display: block;
   padding-top: 2px;
   min-width: 120px;
-  text-align: center;
+  text-align: right;
 }
 
 .erp-doc__footer-cell {

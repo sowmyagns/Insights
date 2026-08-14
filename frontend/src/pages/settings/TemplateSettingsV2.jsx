@@ -930,13 +930,13 @@ function QuotationPreview({ accent }) {
             <div className="text-[2.5px] leading-tight text-[#444]">
               Certified that the particulars given above are true and correct.
             </div>
-            <div className="mt-0.5 font-bold">For Gujarat Freight Tools</div>
+            <div className="mt-0.5 text-right font-bold">For Gujarat Freight Tools</div>
             <div
               className="pointer-events-none absolute left-1/2 top-1/2 w-[90%] -translate-x-1/2 -translate-y-1/2 -rotate-12 text-center text-[2.4px] font-semibold text-[#c44] opacity-70"
             >
               This is computer generated invoice no signature required.
             </div>
-            <div className="mt-5 text-right font-semibold">Authorised Signatory</div>
+            <div className="mt-2 border-t border-black pt-1 text-right font-semibold">Authorised Signatory</div>
           </div>
         </div>
       </div>
@@ -1291,11 +1291,11 @@ function PurchaseClassicPreview({ accent }) {
             <div className="text-[2.5px] leading-tight text-[#444]">
               Certified that the particulars given above are true and correct.
             </div>
-            <div className="mt-0.5 font-bold">For Gujarat Freight Tools</div>
+            <div className="mt-0.5 text-right font-bold">For Gujarat Freight Tools</div>
             <div className="pointer-events-none absolute left-1/2 top-1/2 w-[90%] -translate-x-1/2 -translate-y-1/2 -rotate-12 text-center text-[2.4px] font-semibold text-[#888] opacity-80">
               This is computer generated invoice no signature required.
             </div>
-            <div className="mt-5 text-right font-semibold">Authorised Signatory</div>
+            <div className="mt-2 border-t border-black pt-1 text-right font-semibold">Authorised Signatory</div>
           </div>
         </div>
       </div>

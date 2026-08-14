@@ -102,7 +102,7 @@ function Pagination({ page, pageSize, total, onPage, onPageSize }) {
         <button
           type="button"
           className="grid h-8 min-w-8 place-items-center rounded px-2 text-[13px] font-semibold text-[#1a1a1f]"
-          style={{ background: "#0f6d84" }}
+          style={{ background: "#0025D4" }}
         >
           {page}
         </button>
@@ -275,6 +275,8 @@ export default function ExpenseV2() {
 
   const chartMax = Math.max(...categoryRows.map((r) => r.amount), 1);
 
+  const totalAmount = filtered.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
   if (loading) {
     return (
       <div className="grid min-h-[40vh] place-items-center text-sm text-[#6b6b76]" style={{ background: PAGE_BG }}>
@@ -288,10 +290,25 @@ export default function ExpenseV2() {
       <div className="flex items-center justify-between gap-3 px-4 pt-4 sm:px-6 sm:pt-6">
         <Link
           to="/accounts/expenses/settings"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[#0f6d84] px-4 py-2.5 text-[13px] font-bold text-white hover:bg-[#1a1a1f]"
+          className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[13px] font-bold text-white hover:opacity-90"
+          style={{ background: "#0025D4" }}
         >
           <Settings className="h-4 w-4" /> Settings
         </Link>
+      </div>
+
+      <div className="mx-4 mt-4 grid grid-cols-2 gap-3 sm:mx-6 sm:grid-cols-4">
+        {[
+          { label: "Total Expenses", value: filtered.length, color: "#f97316" },
+          { label: "Total Amount", value: `₹${totalAmount.toFixed(2)}`, color: "#0025D4" },
+          { label: "Categories", value: categoryRows.length, color: "#6b4eff" },
+          { label: "In Range", value: filtered.length, color: "#16a34a" },
+        ].map((k) => (
+          <div key={k.label} className="rounded-xl border border-[#e4e4ea] bg-white px-4 py-3">
+            <p className="text-[11px] font-medium text-[#6b6b76]">{k.label}</p>
+            <p className="mt-0.5 text-[20px] font-bold tabular-nums" style={{ color: k.color }}>{k.value}</p>
+          </div>
+        ))}
       </div>
 
       <div className="mx-4 mt-4 overflow-hidden rounded-t-2xl border border-b-0 border-[#e4e4ea] bg-white sm:mx-6">
@@ -364,7 +381,8 @@ export default function ExpenseV2() {
             <button
               type="button"
               onClick={() => setAddOpen(true)}
-              className="rounded-lg bg-[#0f6d84] px-4 py-2.5 text-[13px] font-bold text-white"
+              className="rounded-lg px-4 py-2.5 text-[13px] font-bold text-white"
+              style={{ background: "#0025D4" }}
             >
               + Add Expense
             </button>

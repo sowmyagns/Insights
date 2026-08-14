@@ -57,7 +57,7 @@ export default function SearchableSelect({
     }
   }, [open]);
 
-  const baseClass = `flex w-full items-center justify-between gap-2 rounded-xl border bg-white px-3.5 py-2.5 text-left text-sm shadow-sm transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 dark:bg-slate-800 dark:text-slate-100 ${
+  const baseClass = `relative flex w-full items-center justify-between gap-2 rounded-xl border bg-white px-3.5 py-2.5 pr-10 text-left text-sm shadow-sm transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 dark:bg-slate-800 dark:text-slate-100 ${
     error
       ? "border-red-400 focus:ring-red-400/30"
       : "border-slate-300/80 focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]/20 dark:border-slate-600"
@@ -82,7 +82,9 @@ export default function SearchableSelect({
         <span className={selectedLabel ? "truncate text-slate-800 dark:text-slate-100" : "truncate text-slate-400"}>
           {selectedLabel || placeholder}
         </span>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? "rotate-180" : ""}`} aria-hidden />
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+          <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? "rotate-180" : ""}`} aria-hidden />
+        </span>
       </button>
 
       {open ? (

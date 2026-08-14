@@ -77,9 +77,10 @@ function FilterSection({ label, children }) {
 function SummaryTab({ label, count, amount, active, tone, onClick }) {
   const activeStyles = {
     blue: "border-[#2563eb] text-[#2563eb]",
-    purple: "border-[#4c1d95] text-[#4c1d95]",
+    purple: "border-[#a855f7] text-[#a855f7]",
     green: "border-[#16a34a] text-[#16a34a]",
     orange: "border-[#ea580c] text-[#ea580c]",
+    amber: "border-[#ca8a04] text-[#ca8a04]",
   };
   return (
     <button
@@ -269,7 +270,8 @@ export default function ExportInvoices() {
           </div>
           <Link
             to="/sales/export-invoices/create"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm hover:bg-[var(--color-primary-hover)]"
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm hover:opacity-90"
+            style={{ background: "#0025D4" }}
           >
             <Plus className="h-4 w-4" strokeWidth={2.5} />
             Export Invoice
@@ -358,7 +360,8 @@ export default function ExportInvoices() {
                     </p>
                     <Link
                       to="/sales/export-invoices/create"
-                      className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-[14px] font-semibold text-white"
+                      className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
+                      style={{ background: "#0025D4" }}
                     >
                       <Plus className="h-4 w-4" /> Export Invoice
                     </Link>
@@ -671,8 +674,8 @@ export default function ExportInvoices() {
                   setFilters(draftFilters);
                   setShowFilters(false);
                 }}
-                className="rounded-xl py-3 text-[14px] font-semibold text-[#1a1a1f]"
-                style={{ background: "#EAE5B3" }}
+                className="rounded-xl py-3 text-[14px] font-semibold text-white"
+                style={{ background: "#0025D4" }}
               >
                 Apply Filter
               </button>

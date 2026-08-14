@@ -9,7 +9,7 @@ import { cancelInvoice, getInvoicesV2 } from "../../api/salesApi";
 import { apiErrorMessage } from "../../utils/apiError";
 import { formatInr } from "../../data/salesMasterData";
 
-const YELLOW = "var(--color-primary)";
+const YELLOW = "#0025D4";
 const PAGE_BG = "var(--color-bg)";
 const PAGE_SIZES = [10, 20, 50];
 
@@ -515,8 +515,8 @@ export default function ProformaInvoices() {
                   setFilters(draftFilters);
                   setShowFilters(false);
                 }}
-                className="rounded-xl py-3 text-[14px] font-semibold text-[#1a1a1f]"
-                style={{ background: "#EAE5B3" }}
+                className="rounded-xl py-3 text-[14px] font-semibold text-white"
+                style={{ background: "#0025D4" }}
               >
                 Apply Filter
               </button>

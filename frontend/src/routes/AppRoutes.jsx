@@ -531,6 +531,22 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/sales/invoices/create"
+        element={
+          <ProtectedRoute>
+            <P.TaxInvoiceForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sales/invoices/:id/edit"
+        element={
+          <ProtectedRoute>
+            <P.TaxInvoiceForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/sales/invoices/:id"
         element={
           <ProtectedRoute>
@@ -546,22 +562,6 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
-        <Route
-          path="/sales/invoices/:id/edit"
-          element={
-            <ProtectedRoute>
-              <P.TaxInvoiceForm />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/sales/invoices/create"
-          element={
-            <ProtectedRoute>
-              <P.TaxInvoiceForm />
-            </ProtectedRoute>
-          }
-        />
       <Route
         path="/sales/orders"
         element={

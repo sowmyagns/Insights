@@ -77,9 +77,10 @@ function FilterSection({ label, children }) {
 function SummaryTab({ label, count, amount, active, tone, onClick }) {
   const activeStyles = {
     blue: "border-[#0f6d84] text-[#0f6d84]",
-    purple: "border-[#0f6d84] text-[#0f6d84]",
+    purple: "border-[#a855f7] text-[#a855f7]",
     green: "border-[#16a34a] text-[#16a34a]",
     orange: "border-[#ea580c] text-[#ea580c]",
+    amber: "border-[#ca8a04] text-[#ca8a04]",
   };
   return (
     <button
@@ -220,7 +221,7 @@ export default function InvoiceDashboard() {
         </div>
         <Link
           to="/sales/invoices/create"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-action-blue)] px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm hover:bg-[var(--color-action-blue-hover)] active:bg-[var(--color-action-blue-active)]"
+          className="ui-btn-primary"
         >
           <Plus className="h-4 w-4" strokeWidth={2.5} />
           Create Invoice
@@ -273,7 +274,7 @@ export default function InvoiceDashboard() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search"
-            className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] shadow-sm placeholder:text-[#9a9aa5] focus:border-[#0f6d84] focus:outline-none focus:ring-2 focus:ring-[#0f6d84]/25"
+            className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] shadow-sm placeholder:text-[#9a9aa5] focus:border-[#0f6d84] focus:outline-none"
           />
         </div>
       </div>
@@ -365,13 +366,13 @@ export default function InvoiceDashboard() {
                     <td className="border-t border-r border-[#d0d0d8] px-4 py-3 text-[14px] font-medium text-[#0f6d84]">
                       {r.invoice_number}
                     </td>
-                    <td className="border-t border-r border-[#d0d0d8] px-4 py-3 text-[14px] text-[#4a4a55]">
+                    <td className="border-t border-r border-[#d0d0d8] px-4 py-3 text-[14px] font-medium text-[#1a1a1f]">
                       {fmtDisplayDate(r.issue_date || r.due_date) || "ΓÇö"}
                     </td>
                     <td className="border-t border-r border-[#d0d0d8] px-4 py-3 text-[14px] font-medium text-[#1a1a1f]">
                       {r.buyer_name || r.customer_name || "ΓÇö"}
                     </td>
-                    <td className="border-t border-r border-[#d0d0d8] px-4 py-3 text-[14px] text-[#4a4a55]">
+                    <td className="border-t border-r border-[#d0d0d8] px-4 py-3 text-[14px] font-medium text-[#1a1a1f]">
                       {r.due_in || daysUntilDue(r.due_date)}
                     </td>
                     <td className="border-t border-r border-[#d0d0d8] px-4 py-3 text-[14px] font-semibold tabular-nums text-[#1a1a1f]">
@@ -450,18 +451,23 @@ export default function InvoiceDashboard() {
               type="button"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="rounded-md border border-[#e4e4ea] p-1.5 text-[#4a4a55] disabled:opacity-35"
+              className="ui-page-btn"
+              aria-label="Previous page"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="min-w-[2rem] rounded-md bg-[#0f6d84] px-2.5 py-1 text-center text-[13px] font-semibold text-white">
+            <button
+              type="button"
+              className="ui-page-btn ui-page-btn--active"
+            >
               {page}
-            </span>
+            </button>
             <button
               type="button"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="rounded-md border border-[#e4e4ea] p-1.5 text-[#4a4a55] disabled:opacity-35"
+              className="ui-page-btn"
+              aria-label="Next page"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -682,7 +688,8 @@ export default function InvoiceDashboard() {
                   setFilters(draftFilters);
                   setShowFilters(false);
                 }}
-                className="rounded-xl bg-[#0f6d84] py-3 text-[14px] font-semibold text-white hover:bg-[#0c5a6e]"
+                className="rounded-xl py-3 text-[14px] font-semibold text-white hover:opacity-90"
+                style={{ background: "#0025D4" }}
               >
                 Apply Filter
               </button>

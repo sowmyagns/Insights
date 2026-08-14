@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Download, Mail, MessageCircle, Printer, Share2 } from "lucide-react";
+import { Mail, MessageCircle, Printer, Share2 } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import TaxInvoiceCopy from "../../components/sales/TaxInvoiceCopy";
@@ -79,43 +79,6 @@ export default function InvoiceCopyPage() {
     setTimeout(() => { win.print(); win.close(); }, 300);
   }, [invoiceRef, invoiceNo]);
 
-  const handleDownloadPdf = useCallback(async () => {
-    const el = invoiceRef.current;
-    if (!el) return;
-    setBusy("pdf");
-    try {
-      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf"),
-      ]);
-      // Temporarily remove box-shadow so it doesn't bleed into capture
-      const prev = el.style.boxShadow;
-      el.style.boxShadow = "none";
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        width: el.offsetWidth,
-        height: el.offsetHeight,
-        windowWidth: el.offsetWidth,
-      });
-      el.style.boxShadow = prev;
-      const imgData = canvas.toDataURL("image/jpeg", 0.98);
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = (canvas.height * pdfW) / canvas.width;
-      pdf.addImage(imgData, "JPEG", 0, 0, pdfW, pdfH);
-      pdf.save(`Invoice-${invoiceNo}.pdf`);
-      addToast("PDF downloaded.", "success");
-    } catch (err) {
-      addToast("Could not generate PDF.", "error");
-      console.error(err);
-    } finally {
-      setBusy("");
-    }
-  }, [invoiceNo, addToast]);
-
   const handleEmail = useCallback(async () => {
     if (!id) {
       addToast("Save the invoice first to email.", "info");
@@ -161,14 +124,6 @@ export default function InvoiceCopyPage() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium hover:bg-slate-50"
           >
             <Printer className="h-4 w-4" /> Print
-          </button>
-          <button
-            type="button"
-            onClick={handleDownloadPdf}
-            disabled={busy === "pdf"}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium hover:bg-slate-50 disabled:opacity-60"
-          >
-            <Download className="h-4 w-4" /> {busy === "pdf" ? "Downloading…" : "Download PDF"}
           </button>
           <button
             type="button"

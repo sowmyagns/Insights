@@ -129,16 +129,34 @@ export default function JournalEntries() {
 
   if (loading) return <Loader label="Loading Journal Entries..." />;
 
+  const posted = filtered.filter((e) => e.status === "Posted").length;
+  const draft = filtered.filter((e) => e.status !== "Posted").length;
+  const totalDebit = filtered.reduce((s, e) => s + (Number(e.debit) || 0), 0);
+
   return (
     <div className="space-y-5 pb-4">
       <PageHeader
         subtitle="Record manual adjustments, accrued expenses, and general ledger corrections."
         action={
-          <>
-            
-          </>
+          <button type="button" onClick={() => setModalOpen(true)} className="ui-btn-primary">
+            <Plus className="h-4 w-4" /> New Journal Entry
+          </button>
         }
       />
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { label: "Total Entries", value: filtered.length, color: "#0f6d84" },
+          { label: "Posted", value: posted, color: "#16a34a" },
+          { label: "Draft / Pending", value: draft, color: "#f59e0b" },
+          { label: "Total Debit", value: formatInr(totalDebit), color: "#6b4eff" },
+        ].map((k) => (
+          <div key={k.label} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+            <p className="text-[11px] font-medium text-slate-500">{k.label}</p>
+            <p className="mt-0.5 text-[20px] font-bold tabular-nums" style={{ color: k.color }}>{k.value}</p>
+          </div>
+        ))}
+      </div>
 
       <FinanceFilters
         search={search}

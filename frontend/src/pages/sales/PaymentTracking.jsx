@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { Plus } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
 import Table from "../../components/common/Table";
+import CreatePayment from "./CreatePayment";
 import { getPayments, getInvoices } from "../../api/salesApi";
 import useTenantId from "../../hooks/useTenantId";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
@@ -15,6 +15,7 @@ export default function PaymentTracking() {
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -42,11 +43,13 @@ export default function PaymentTracking() {
       <PageHeader
         subtitle="Payments update invoice balances, income, and AR journal entries."
         action={
-          <Link to="/sales/payments/create" className="ui-btn-primary">
+          <button type="button" onClick={() => setShowCreateModal(true)} className="ui-btn-primary">
             <Plus className="h-4 w-4" /> Record Payment
-          </Link>
+          </button>
         }
       />
+
+      {showCreateModal && <CreatePayment onClose={() => setShowCreateModal(false)} />}
 
       <div className="ui-card p-4">
         <Table

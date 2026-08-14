@@ -10,8 +10,8 @@
   background: #fff;
   width: min(210mm, 100%);
   max-width: 100%;
-  margin: 20px auto;
-  padding: 5mm 6mm;
+  margin: 10px auto 0;
+  padding: 5mm 6mm 0 6mm;
   box-sizing: border-box;
   border: 1px solid #000;
 }
@@ -250,17 +250,18 @@
 .invoice-page .mt10  { margin-top: 10px; }
 
 .invoice-page .bottom-note {
-  margin-top: 3px;
+  margin-top: 2px;
+  margin-bottom: 0;
   text-align: center;
   font-size: 7.5px;
   color: #444;
   font-style: italic;
-  padding-top: 2px;
+  padding-top: 1px;
   letter-spacing: 0.005em;
 }
 
 @media screen {
-  .invoice-page { box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin: 20px auto; }
+  .invoice-page { box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin: 10px auto 0; }
 }
 
 @media print {

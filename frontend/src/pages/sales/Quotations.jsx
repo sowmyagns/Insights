@@ -15,7 +15,7 @@ import {
 import { apiErrorMessage } from "../../utils/apiError";
 import { formatInr, statusColor } from "../../data/salesMasterData";
 
-const ACCENT = "#0f6d84";
+const ACCENT = "#0025D4";
 const PAGE_SIZES = [10, 20, 50];
 
 const SORT_OPTIONS = [
@@ -302,8 +302,7 @@ export default function Quotations() {
         </div>
         <Link
           to="/sales/quotations/create"
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f] shadow-sm"
-          style={{ background: ACCENT }}
+          className="ui-btn-primary inline-flex items-center justify-center gap-1.5"
         >
           <Plus className="h-4 w-4" strokeWidth={2.5} />
           Create Quotation
@@ -399,7 +398,7 @@ export default function Quotations() {
                     </p>
                     <Link
                       to="/sales/quotations/create"
-                      className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
+                      className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
                       style={{ background: ACCENT }}
                     >
                       <Plus className="h-4 w-4" /> Create Quotation
@@ -484,7 +483,7 @@ export default function Quotations() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="min-w-[2rem] rounded-md bg-[#0f6d84] px-2.5 py-1 text-center text-[13px] font-semibold text-white">
+            <span className="min-w-[2rem] rounded-md border border-[#0025D4] bg-white px-2.5 py-1 text-center text-[13px] font-semibold text-[#0025D4] shadow-sm">
               {page}
             </span>
             <button
@@ -573,7 +572,7 @@ export default function Quotations() {
                   setFilters(draftFilters);
                   setShowFilters(false);
                 }}
-                className="rounded-xl py-3 text-[14px] font-semibold text-[#1a1a1f]"
+                className="rounded-xl py-3 text-[14px] font-semibold text-white"
                 style={{ background: ACCENT }}
               >
                 Apply Filter

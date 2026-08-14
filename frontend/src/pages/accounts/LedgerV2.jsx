@@ -76,7 +76,7 @@ function ActionIcons({ onView, onEdit, onSendLedger, onDelete, deleteLabel = "De
         type="button"
         title="View"
         onClick={onView}
-        className="grid h-8 w-8 place-items-center rounded-full bg-[#0f6d84] text-white hover:bg-[#1a1a1f]"
+        className="grid h-8 w-8 place-items-center rounded-full bg-[#0025D4] text-white hover:opacity-90"
       >
         <Eye className="h-3.5 w-3.5" />
       </button>
@@ -84,7 +84,7 @@ function ActionIcons({ onView, onEdit, onSendLedger, onDelete, deleteLabel = "De
         type="button"
         title="Edit"
         onClick={onEdit}
-        className="grid h-8 w-8 place-items-center rounded-full bg-[#0f6d84] text-white hover:bg-[#1a1a1f]"
+        className="grid h-8 w-8 place-items-center rounded-full bg-[#0025D4] text-white hover:opacity-90"
       >
         <Pencil className="h-3.5 w-3.5" />
       </button>
@@ -92,7 +92,7 @@ function ActionIcons({ onView, onEdit, onSendLedger, onDelete, deleteLabel = "De
         type="button"
         title="More"
         onClick={() => setMenuOpen((v) => !v)}
-        className="grid h-8 w-8 place-items-center rounded-full bg-[#0f6d84] text-white hover:bg-[#1a1a1f]"
+        className="grid h-8 w-8 place-items-center rounded-full bg-[#0025D4] text-white hover:opacity-90"
       >
         <MoreVertical className="h-3.5 w-3.5" />
       </button>
@@ -169,7 +169,7 @@ function Pagination({ page, pageSize, total, onPage, onPageSize }) {
             type="button"
             onClick={() => onPage(n)}
             className={`grid h-8 min-w-8 place-items-center rounded px-2 text-[13px] font-bold ${
-              n === page ? "bg-[#0f6d84] text-white" : "bg-white text-[#1a1a1f] hover:bg-[#f7f7f9]"
+              n === page ? "bg-[#0025D4] text-white" : "bg-white text-[#1a1a1f] hover:bg-[#f7f7f9]"
             }`}
           >
             {n}
@@ -460,8 +460,24 @@ export default function LedgerV2() {
     );
   }
 
+  const totalBalance = filtered.reduce((s, r) => s + (Number(r.balance || r.balance_label && r.balance || 0)), 0);
+
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
+
+      <div className="mx-4 mt-4 grid grid-cols-2 gap-3 sm:mx-6 sm:grid-cols-4">
+        {[
+          { label: "Total Customers", value: customers.length, color: "#0025D4" },
+          { label: "Total Vendors", value: vendors.length, color: "#22c55e" },
+          { label: "Cash / Bank Accounts", value: cashAccounts.length, color: "#f97316" },
+          { label: "Other Accounts", value: otherAccounts.length, color: "#6b4eff" },
+        ].map((k) => (
+          <div key={k.label} className="rounded-xl border border-[#e4e4ea] bg-white px-4 py-3">
+            <p className="text-[11px] font-medium text-[#6b6b76]">{k.label}</p>
+            <p className="mt-0.5 text-[20px] font-bold tabular-nums" style={{ color: k.color }}>{k.value}</p>
+          </div>
+        ))}
+      </div>
 
       <div className="mx-4 mt-4 overflow-hidden rounded-t-2xl border border-b-0 border-[#e4e4ea] bg-[#f3f3f6] sm:mx-6">
         <div className="relative flex overflow-x-auto">
@@ -507,7 +523,7 @@ export default function LedgerV2() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search"
-              className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] placeholder:text-[#9a9aa5] focus:border-[#0f6d84] focus:outline-none focus:ring-2 focus:ring-[#0f6d84]/25"
+              className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] placeholder:text-[#9a9aa5] focus:border-[#0025D4] focus:outline-none focus:ring-2 focus:ring-[#0025D4]/25"
             />
           </div>
 
@@ -516,7 +532,7 @@ export default function LedgerV2() {
               <button
                 type="button"
                 onClick={() => setAddCustomerOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0f6d84] px-4 py-2.5 text-[13px] font-bold text-white hover:bg-[#1a1a1f]"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0025D4] px-4 py-2.5 text-[13px] font-bold text-white hover:opacity-90"
               >
                 <UserPlus className="h-4 w-4" /> Add Customer
               </button>
@@ -525,7 +541,7 @@ export default function LedgerV2() {
               <button
                 type="button"
                 onClick={() => setAddVendorOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0f6d84] px-4 py-2.5 text-[13px] font-bold text-white hover:bg-[#1a1a1f]"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0025D4] px-4 py-2.5 text-[13px] font-bold text-white hover:opacity-90"
               >
                 <UserPlus className="h-4 w-4" /> Add Vendor
               </button>
@@ -535,14 +551,14 @@ export default function LedgerV2() {
                 <button
                   type="button"
                   onClick={() => setAdjustOpen(true)}
-                  className="rounded-lg border border-[#0f6d84] bg-white px-3 py-2.5 text-[13px] font-bold text-[#0f6d84]"
+                  className="rounded-lg border border-[#0025D4] bg-white px-3 py-2.5 text-[13px] font-bold text-[#0025D4]"
                 >
                   Adjust Balance
                 </button>
                 <button
                   type="button"
                   onClick={() => setContraOpen(true)}
-                  className="rounded-lg border border-[#0f6d84] bg-white px-3 py-2.5 text-[13px] font-bold text-[#0f6d84]"
+                  className="rounded-lg border border-[#0025D4] bg-white px-3 py-2.5 text-[13px] font-bold text-[#0025D4]"
                 >
                   Contra Entry (Bank/Cash Transfer)
                 </button>
@@ -552,7 +568,7 @@ export default function LedgerV2() {
                     setEditCashAccount(null);
                     setBankCashOpen(true);
                   }}
-                  className="rounded-lg bg-[#0f6d84] px-4 py-2.5 text-[13px] font-bold text-white"
+                  className="rounded-lg bg-[#0025D4] px-4 py-2.5 text-[13px] font-bold text-white"
                 >
                   Add Bank/Cash
                 </button>
@@ -565,7 +581,7 @@ export default function LedgerV2() {
                   setEditOtherAccount(null);
                   setExpenseIncomeOpen(true);
                 }}
-                className="rounded-lg bg-[#0f6d84] px-4 py-2.5 text-[13px] font-bold text-white"
+                className="rounded-lg bg-[#0025D4] px-4 py-2.5 text-[13px] font-bold text-white"
               >
                 Add Expense/Income
               </button>
@@ -574,7 +590,7 @@ export default function LedgerV2() {
             <button
               type="button"
               onClick={() => setDownloadOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#0f6d84] px-4 py-2.5 text-[13px] font-bold text-white"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#0025D4] px-4 py-2.5 text-[13px] font-bold text-white"
             >
               <Download className="h-4 w-4" /> Download
             </button>
@@ -582,7 +598,7 @@ export default function LedgerV2() {
               <button
                 type="button"
                 onClick={onMail}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#0f6d84] bg-white px-4 py-2.5 text-[13px] font-bold text-[#0f6d84]"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#0025D4] bg-white px-4 py-2.5 text-[13px] font-bold text-[#0025D4]"
               >
                 <Mail className="h-4 w-4" /> Send On Mail
               </button>

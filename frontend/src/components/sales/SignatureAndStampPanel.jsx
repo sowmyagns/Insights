@@ -183,7 +183,6 @@ export default function SignatureAndStampPanel({
       <p className="text-[13px] text-[#4a4a55]">
         Certified that the particular given above are true and correct,
       </p>
-      <p className="mt-1 text-[13px] font-semibold text-[#1a1a1f]">For, {companyName}</p>
 
       <div className="relative mx-auto mt-4 max-w-sm overflow-hidden rounded-lg border border-dashed border-[#c4c4cc] bg-white">
         {stampDataUrl ? (
@@ -243,6 +242,7 @@ export default function SignatureAndStampPanel({
       </button>
 
       <p className="mt-4 text-[13px] font-medium text-[#4a4a55]">Authorised Signatory</p>
+      <p className="mt-0.5 text-[13px] font-semibold text-[#1a1a1f]">For, {companyName}</p>
     </div>
   );
 }

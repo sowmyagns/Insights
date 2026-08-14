@@ -157,6 +157,20 @@ function SoftSelect({ className = "", children, ...props }) {
   );
 }
 
+function SideDropdown({ className = "", iconClassName = "", children, ...props }) {
+  return (
+    <div className="relative">
+      <select
+        {...props}
+        className={`w-full appearance-none rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-2.5 py-1.5 pr-7 text-[12px] text-[#1a1a1f] focus:border-[#6b4eff] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#c4b5fd] ${className}`}
+      >
+        {children}
+      </select>
+      <ChevronDown className={`pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#6b6b76] ${iconClassName}`} />
+    </div>
+  );
+}
+
 function Pill({ active, onClick, children, soft }) {
   if (soft) {
     return (
@@ -1147,10 +1161,10 @@ export default function TaxInvoiceForm() {
                         />
                       </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2">
-                        <select
+                        <SideDropdown
                           value={row.unit}
                           onChange={(e) => updateItem(idx, "unit", e.target.value)}
-                          className="w-[72px] rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1 py-1.5"
+                          className="w-[72px]"
                         >
                           <option value="">-</option>
                           <option value="pcs">pcs</option>
@@ -1158,7 +1172,7 @@ export default function TaxInvoiceForm() {
                           <option value="MT">MT</option>
                           <option value="NOS">NOS</option>
                           <option value="BOX">BOX</option>
-                        </select>
+                        </SideDropdown>
                       </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2">
                         <div className="flex items-center gap-0.5">
@@ -1173,14 +1187,14 @@ export default function TaxInvoiceForm() {
                         </div>
                       </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2">
-                        <select
+                        <SideDropdown
                           value={row.tax_type}
                           onChange={(e) => updateItem(idx, "tax_type", e.target.value)}
-                          className="rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
+                          className="min-w-[96px]"
                         >
                           <option>Exclusive</option>
                           <option>Inclusive</option>
-                        </select>
+                        </SideDropdown>
                       </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2">
                         <div className="flex gap-1">
@@ -1191,31 +1205,31 @@ export default function TaxInvoiceForm() {
                             placeholder="-"
                             className="w-14 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
                           />
-                          <select
+                          <SideDropdown
                             value={row.discount_type}
                             onChange={(e) => updateItem(idx, "discount_type", e.target.value)}
-                            className="rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1 py-1.5"
+                            className="w-[52px]"
                           >
                             <option value="₹">₹</option>
                             <option value="%">%</option>
-                          </select>
+                          </SideDropdown>
                         </div>
                       </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2 tabular-nums text-[#6b6b76]">
                         {hasDesc ? t.taxable.toFixed(2) : "-"}
                       </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2">
-                        <select
+                        <SideDropdown
                           value={gstValue}
                           onChange={(e) => updateItem(idx, "gst_option", e.target.value)}
-                          className="min-w-[120px] rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
+                          className="min-w-[120px]"
                         >
                           {GST_RATE_OPTIONS.map((o) => (
                             <option key={o.value} value={o.value}>
                               {o.label}
                             </option>
                           ))}
-                        </select>
+                        </SideDropdown>
                       </td>
                       <td className="border-b border-r border-[#d0d0d8] px-2 py-2 font-semibold tabular-nums">
                         {hasDesc ? t.total.toFixed(2) : "-"}
