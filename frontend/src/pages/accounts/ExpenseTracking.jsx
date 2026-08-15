@@ -9,6 +9,7 @@ import useTenantId from "../../hooks/useTenantId";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import RecordExpense from "./RecordExpense";
 
+import Button from "../../components/common/Button";
 export default function ExpenseTracking() {
   const tenantId = useTenantId();
   const [loading, setLoading] = useState(true);
@@ -77,8 +78,8 @@ export default function ExpenseTracking() {
           >
             + Record Expense
           </button>
-          <button onClick={exportExcel} className="ui-btn-secondary">Export Excel</button>
-          <button onClick={exportPdf} className="ui-btn-secondary">Export PDF</button>
+          <Button variant="secondary" type="button" onClick={exportExcel}>Export Excel</Button>
+          <Button variant="secondary" type="button" onClick={exportPdf}>Export PDF</Button>
         </div>
       </div>
 

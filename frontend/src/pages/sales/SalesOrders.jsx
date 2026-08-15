@@ -17,6 +17,7 @@ import { formatInr, statusColor } from "../../data/salesMasterData";
 import { exportToExcel } from "../../utils/exportUtils";
 
 
+import Button from "../../components/common/Button";
 const defaultFilters = { customer: "", status: "", sales_person: "" };
 
 export default function SalesOrders() {
@@ -177,10 +178,11 @@ export default function SalesOrders() {
         subtitle="Manage orders from quotation to dispatch with production and inventory integration."
         action={
           <>
-            <Link to="/sales/orders/create" className="ui-btn-primary">
+            <Button variant="primary" to="/sales/orders/create">
               <Plus className="h-4 w-4" /> New Sales Order
-            </Link>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
               type="button"
               onClick={() =>
                 exportToExcel(
@@ -189,10 +191,9 @@ export default function SalesOrders() {
                   "sales-orders"
                 )
               }
-              className="ui-btn-secondary"
             >
               <Download className="h-4 w-4" /> Export
-            </button>
+            </Button>
           </>
         }
       />

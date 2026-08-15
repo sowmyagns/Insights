@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -10,6 +10,7 @@ from app.models.security import (
     LoginAttempt,
     PasswordResetToken,
     RefreshToken,
+    RevokedToken,
 )
 from app.models.user import User
 from app.utils.security_tokens import generate_token, hash_token
@@ -181,9 +182,86 @@ def revoke_all_refresh_tokens_for_user(db: Session, user_id: int) -> int:
     )
     for row in rows:
         row.revoked = True
-    if rows:
-        db.commit()
+    user = db.get(User, user_id)
+    if user:
+        user.tokens_revoked_at = _utcnow()
+    db.commit()
     return len(rows)
+
+
+def revoke_access_token(
+    db: Session,
+    raw_token: str,
+    *,
+    payload: dict | None = None,
+    user_id: int | None = None,
+) -> None:
+    """Add access token to RevokedToken blocklist."""
+    if not raw_token:
+        return
+    token_hash = hash_token(raw_token)
+    existing = db.scalars(
+        select(RevokedToken).where(RevokedToken.token_hash == token_hash)
+    ).first()
+    if existing:
+        return
+
+    jti = payload.get("jti") if payload else None
+    exp_ts = payload.get("exp") if payload else None
+    uid = user_id or (int(payload["user_id"]) if payload and payload.get("user_id") else None)
+    expires_at = datetime.fromtimestamp(exp_ts, tz=timezone.utc) if exp_ts else None
+
+    db.add(
+        RevokedToken(
+            jti=jti,
+            token_hash=token_hash,
+            user_id=uid,
+            revoked_at=_utcnow(),
+            expires_at=expires_at,
+        )
+    )
+    db.commit()
+
+
+def is_access_token_revoked(
+    db: Session,
+    raw_token: str,
+    payload: dict | None = None,
+) -> bool:
+    """Check if token is blocklisted or issued before user's tokens_revoked_at."""
+    if not raw_token:
+        return True
+    token_hash = hash_token(raw_token)
+    jti = payload.get("jti") if payload else None
+
+    conditions = [RevokedToken.token_hash == token_hash]
+    if jti:
+        conditions.append(RevokedToken.jti == jti)
+
+    revoked = db.scalars(
+        select(RevokedToken).where(or_(*conditions))
+    ).first()
+    if revoked:
+        return True
+
+    # Check if user had all tokens revoked after token issuance
+    if payload:
+        uid = payload.get("user_id") or payload.get("sub")
+        iat_ts = payload.get("iat")
+        if uid and iat_ts:
+            try:
+                user = db.get(User, int(uid))
+                if user and user.tokens_revoked_at:
+                    revoked_at = user.tokens_revoked_at
+                    if revoked_at.tzinfo is None:
+                        revoked_at = revoked_at.replace(tzinfo=timezone.utc)
+                    token_iat = datetime.fromtimestamp(iat_ts, tz=timezone.utc)
+                    if token_iat < revoked_at - timedelta(seconds=1):
+                        return True
+            except (TypeError, ValueError):
+                pass
+
+    return False
 
 
 def rotate_refresh_token(

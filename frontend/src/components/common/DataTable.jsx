@@ -4,6 +4,7 @@ import Table from "./Table";
 import { SearchBar, FilterSelect } from "./SearchFilter";
 import EmptyState from "./EmptyState";
 import NoResultsState from "./states/NoResultsState";
+import { asArray } from "../../utils/apiError";
 
 export default function DataTable({
   columns,
@@ -22,6 +23,7 @@ export default function DataTable({
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState({});
   const [page, setPage] = useState(1);
+  const rows = useMemo(() => asArray(data), [data]);
 
   const hasActiveFilters =
     Boolean(search.trim()) ||
@@ -34,7 +36,7 @@ export default function DataTable({
   };
 
   const filtered = useMemo(() => {
-    let result = data;
+    let result = rows;
     if (search.trim() && searchKeys.length > 0) {
       const q = search.toLowerCase();
       result = result.filter((row) =>
@@ -51,7 +53,7 @@ export default function DataTable({
       }
     });
     return result;
-  }, [data, search, searchKeys, filters, filterValues]);
+  }, [rows, search, searchKeys, filters, filterValues]);
 
   const paginated = useMemo(() => {
     if (!showPagination) return filtered;
@@ -77,7 +79,7 @@ export default function DataTable({
   );
 
   let body;
-  if (!data?.length) {
+  if (!rows.length) {
     body = defaultEmpty;
   } else if (!filtered.length && hasActiveFilters) {
     body = defaultNoResults;

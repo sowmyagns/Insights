@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Banknote, Bookmark, Building2, ChevronDown, MoreVertical, Pencil, Search, Star, Trash2, CircleMinus } from "lucide-react";
 
+import Button from "../../components/common/Button";
 import Loader from "../../components/common/Loader";
 import AddNewPartyModal from "../../components/sales/AddNewPartyModal";
 import AddPaymentModeModal from "../../components/sales/AddPaymentModeModal";
@@ -16,7 +17,6 @@ import { useToast } from "../../context/ToastContext";
 import { apiErrorMessage } from "../../utils/apiError";
 import { formatInr } from "../../data/salesMasterData";
 
-const YELLOW = "var(--color-primary)";
 const PURPLE = "#6b4eff";
 const LAVENDER = "#efeaf8";
 const ACCOUNTS_KEY = "gns_payment_made_accounts";
@@ -292,21 +292,12 @@ export default function MakePaymentForm() {
     <form onSubmit={handleSubmit} className="flex h-full min-h-0 flex-col bg-[#F5F5F5]">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#e4e4ea] bg-white px-5 py-3.5">
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate("/purchases/payments-made")}
-            className="rounded-lg border border-[#e4e4ea] bg-white px-4 py-2 text-[13px] font-semibold"
-          >
+          <Button type="button" variant="secondary" onClick={() => navigate("/purchases/payments-made")}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-lg px-5 py-2 text-[13px] font-semibold disabled:opacity-60 text-white"
-            style={{ background: YELLOW }}
-          >
+          </Button>
+          <Button type="submit" variant="primary" loading={saving} disabled={saving}>
             {saving ? "Saving…" : "Save"}
-          </button>
+          </Button>
         </div>
         </div>
 

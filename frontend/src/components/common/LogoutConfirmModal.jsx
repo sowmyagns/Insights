@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LogOut } from "lucide-react";
 
+import Button from "./Button";
+
 /**
  * Logout confirmation modal — yellow accent, all-devices checkbox, Cancel / Log Out.
  */
@@ -60,23 +62,20 @@ export default function LogoutConfirmModal({ open, onCancel, onConfirm, busy = f
         </label>
 
         <div className="mt-8 grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onCancel}
-            className="rounded-xl bg-slate-200 px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-300 disabled:opacity-60"
-          >
+          <Button type="button" variant="secondary" disabled={busy} onClick={onCancel} fullWidth>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             ref={confirmRef}
             type="button"
+            variant="warning"
             disabled={busy}
+            loading={busy}
             onClick={() => onConfirm?.({ allDevices })}
-            className="rounded-xl bg-[var(--color-cta)] px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-[var(--color-cta-hover)] disabled:opacity-60"
+            fullWidth
           >
             {busy ? "Logging out…" : "Log Out"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

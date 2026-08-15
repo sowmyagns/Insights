@@ -7,6 +7,7 @@ so each user action posts related modules in one transactional flow.
 from __future__ import annotations
 
 import math
+import re
 from datetime import date, datetime, timezone
 from typing import Any
 
@@ -209,8 +210,71 @@ def find_or_create_inventory_item_for_product(
     return item
 
 
+_COMPONENT_CATEGORY_HINTS = (
+    "raw material",
+    "raw_material",
+    "packaging",
+    "wip",
+    "consumable",
+    "spare",
+    "component",
+)
+
+_AUTO_COMPONENT_NAME_PREFIXES = (
+    "raw polymer / resin",
+    "preform / sub-component",
+    "outer corrugated box",
+    "color masterbatch",
+)
+
+
+def _is_bom_component_product(product: Product) -> bool:
+    """True for raw/packaging/WIP items — do not auto-generate a BOM for these."""
+    cat = (getattr(product, "category", None) or "").strip().lower()
+    if any(h in cat for h in _COMPONENT_CATEGORY_HINTS):
+        return True
+    sku = (getattr(product, "sku", None) or "").strip().upper()
+    if sku.startswith(("RAW-", "PKG-")):
+        return True
+    name = (product.name or "").strip().lower()
+    return any(name.startswith(p) for p in _AUTO_COMPONENT_NAME_PREFIXES)
+
+
+def _base_label_for_bom(name: str | None) -> str:
+    """Strip nested auto-BOM wrappers so packaging names stay one level deep."""
+    s = (name or "Product").strip()
+    while True:
+        m = re.match(r"^Outer Corrugated Box\s+\((Outer Corrugated Box\s+\(.+\))\)\s*$", s, flags=re.I)
+        if not m:
+            break
+        s = m.group(1).strip()
+    for pattern in (
+        r"^Raw Polymer / Resin\s+\((.+)\)\s*$",
+        r"^Preform / Sub-component\s+\((.+)\)\s*$",
+        r"^Outer Corrugated Box\s+\((.+)\)\s*$",
+    ):
+        m = re.match(pattern, s, flags=re.I)
+        if m:
+            inner = m.group(1).strip()
+            # Keep a clean FG label for component naming (unwrap nested boxes first).
+            while True:
+                nested = re.match(
+                    r"^Outer Corrugated Box\s+\((Outer Corrugated Box\s+\(.+\))\)\s*$",
+                    inner,
+                    flags=re.I,
+                )
+                if not nested:
+                    break
+                inner = nested.group(1).strip()
+            # If still "Outer Corrugated Box (FG)", use FG only.
+            box_inner = re.match(r"^Outer Corrugated Box\s+\((.+)\)\s*$", inner, flags=re.I)
+            s = box_inner.group(1).strip() if box_inner else inner
+            break
+    return s or "Product"
+
+
 def ensure_default_bom_for_product(db: Session, tenant_id: int, product: Product) -> list[BillOfMaterial]:
-    """If a product has no BOM, generate realistic raw material components & BOM entries."""
+    """If a finished product has no BOM, generate realistic raw material components & BOM entries."""
     existing = list(
         db.scalars(
             select(BillOfMaterial).where(
@@ -222,9 +286,16 @@ def ensure_default_bom_for_product(db: Session, tenant_id: int, product: Product
     if existing:
         return existing
 
-    p_name = product.name or "Product"
-    p_code = product.sku or product.product_code if hasattr(product, "product_code") else None
+    # Never explode BOM for components/packaging — that created nested
+    # "Outer Corrugated Box (Outer Corrugated Box (...))" product names.
+    if _is_bom_component_product(product):
+        return []
+
+    p_name = _base_label_for_bom(product.name)
+    p_code = product.sku or (product.product_code if hasattr(product, "product_code") else None)
     p_code = p_code or f"PROD-{product.id}"
+    # Keep SKUs short/stable even if product name was previously nested.
+    p_code = re.sub(r"[^A-Za-z0-9_-]+", "-", str(p_code)).strip("-")[:40] or f"PROD-{product.id}"
 
     default_components = [
         {
@@ -246,7 +317,7 @@ def ensure_default_bom_for_product(db: Session, tenant_id: int, product: Product
             "unit_cost": 12.0,
         },
         {
-            "name": f"Color Masterbatch Additive",
+            "name": "Color Masterbatch Additive",
             "sku": "RAW-DYE-01",
             "category": "Raw Material",
             "unit": "KG",

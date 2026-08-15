@@ -19,6 +19,7 @@ import usePageRefresh from "../../hooks/usePageRefresh";
 import { starRating } from "../../data/vendorsMasterData";
 import { useToast } from "../../context/ToastContext";
 
+import Button from "../../components/common/Button";
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "purchase", label: "Purchase History" },
@@ -162,19 +163,12 @@ export default function VendorDetail() {
         <div className="flex flex-wrap gap-2">
           {!viewOnly && (
             <>
-              <Link
-                to="/procurement/vendors/create"
-                className="ui-btn-secondary"
-              >
+              <Button variant="secondary" to="/procurement/vendors/create">
                 <Plus className="h-4 w-4" /> Add Vendor
-              </Link>
-              <button
-                type="button"
-                onClick={() => navigate(`/procurement/vendors/${v.id}/edit`)}
-                className="ui-btn-primary"
-              >
+              </Button>
+              <Button variant="primary" type="button" onClick={() => navigate(`/procurement/vendors/${v.id}/edit`)}>
                 <Pencil className="h-4 w-4" /> Edit
-              </button>
+              </Button>
             </>
           )}
         </div>

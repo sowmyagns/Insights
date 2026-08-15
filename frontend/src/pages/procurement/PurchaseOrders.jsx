@@ -6,6 +6,7 @@ import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
+import Button from "../../components/common/Button";
 import PODetailModal from "../../components/procurement/PODetailModal";
 import { useToast } from "../../context/ToastContext";
 import {
@@ -16,7 +17,6 @@ import {
 import { formatInr, statusColor } from "../../data/procurementMasterData";
 import { exportToExcel } from "../../utils/exportUtils";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
-
 
 const defaultFilters = { vendor: "", status: "", buyer: "" };
 const emptySummary = {
@@ -171,14 +171,15 @@ export default function PurchaseOrders() {
       <PageHeader
         action={
           <>
-            <Link
+            <Button
+              variant="primary"
               to="/procurement/purchase-orders/create"
-              className="inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[var(--color-action-teal-hover)] active:bg-[var(--color-action-teal-active)]"
-              style={{ background: "var(--color-action-teal)" }}
+              leftIcon={<Plus className="h-4 w-4" />}
             >
-            <Plus className="h-4 w-4" /> New Purchase Order (PO)
-          </Link>
-          <button
+              New Purchase Order (PO)
+            </Button>
+          <Button
+            variant="secondary"
             type="button"
             onClick={() =>
               exportToExcel(
@@ -187,10 +188,9 @@ export default function PurchaseOrders() {
                 "purchase-orders"
               )
             }
-            className="ui-btn-secondary"
           >
             <Download className="h-4 w-4" /> Export
-          </button>
+          </Button>
           </>
         }
       />

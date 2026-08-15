@@ -1,9 +1,35 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { AlertTriangle, Ban, CheckCircle, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, FileSpreadsheet, FileText, Filter, Play, Plus, Printer, Search, Send, Target, Upload, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
+import {
+  AlertTriangle,
+  CheckCircle,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Eye,
+  FileSpreadsheet,
+  FileText,
+  Filter,
+  MoreVertical,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  Printer,
+  Search,
+  Send,
+  Target,
+  Upload,
+  X,
+} from "lucide-react";
 
+import Button, { IconButton } from "../../components/common/Button";
 import DataTable from "../../components/common/DataTable";
+import KpiCard from "../../components/common/KpiCard";
 import Loader from "../../components/common/Loader";
+import PageHeader from "../../components/common/PageHeader";
+import StatusBadge from "../../components/common/StatusBadge";
 import CreateProductionOrderModal from "../../components/production/CreateProductionOrderModal";
 import ProductionOrderDetailModal, {
   CompleteWorkflowModal,
@@ -43,52 +69,29 @@ import {
   statusLabel,
 } from "../../data/productionPlanningMasterData";
 import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
+import { cleanProductLabel } from "../../utils/productLabel";
 import QuickWorkOrderModal from "../../components/production/QuickWorkOrderModal";
 import IssueMaterialsModal from "../../components/production/IssueMaterialsModal";
 
-const PAGE_BG = "var(--color-bg)";
-const DECO_BG = "#EDF3FD";
-const NAVY = "#002C66";
-const PRIMARY_BLUE = "#0025D4";
 const PAGE_SIZES = [20, 50, 100];
 
-const TOOLBAR_BTN =
-  "inline-flex items-center gap-1.5 rounded-lg border border-[#d7e6f8] bg-white px-3.5 py-2 text-[13px] font-semibold text-[#002C66] hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-60";
-
-function SummaryCard({ label, value, icon: Icon, iconWrap, onClick }) {
-  const displayVal =
-    value === null || value === undefined
-      ? "—"
-      : typeof value === "object"
-      ? (value?.value ?? value?.count ?? value?.total ?? "—")
-      : String(value);
-
-  return (
-    <div
-      onClick={onClick}
-      className={`min-h-[86px] min-w-0 overflow-hidden rounded-xl border border-[#d7e6f8] bg-white p-3.5 shadow-[0_4px_16px_rgba(15,23,42,0.04)] ${
-        onClick ? "cursor-pointer hover:shadow-md" : ""
-      }`}
-      title={typeof label === "string" ? label : undefined}
-    >
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="min-w-0 flex-1 truncate text-[11px] font-medium leading-tight text-slate-500 sm:text-xs">{label}</p>
-        {Icon && (
-          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconWrap}`}>
-            <Icon className="h-4 w-4" strokeWidth={2} />
-          </div>
-        )}
-      </div>
-      <p className="mt-2 truncate text-xl font-extrabold tabular-nums leading-none text-[#002C66]">{displayVal}</p>
-    </div>
-  );
+function statusTone(row) {
+  if (row?.is_delayed) return "danger";
+  const s = String(row?.status || "").toLowerCase();
+  if (s === "completed" || s === "closed" || s === "done") return "success";
+  if (s === "in_progress" || s === "running" || s === "started") return "progress";
+  if (s === "planned" || s === "pending") return "pending";
+  if (s === "cancelled" || s === "canceled") return "neutral";
+  if (s === "paused" || s === "on_hold") return "warning";
+  return "info";
 }
 
 function PriorityPill({ priority }) {
   const p = priorityBadge(priority || "medium");
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${p.bg} ${p.text}`}>
-      {p.dot} {p.label}
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${p.bg} ${p.text}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" aria-hidden />
+      {p.label}
     </span>
   );
 }
@@ -103,14 +106,92 @@ function ProgressCell({ row }) {
     ? rawProduced
     : Math.round((planned * pct) / 100);
   return (
-    <div className="min-w-[100px]">
-      <div className="mb-0.5 flex justify-between text-[10px] text-slate-500 print:text-black">
-        <span>{produced}/{planned}</span>
-        <span>{pct}%</span>
+    <div className="min-w-[88px] max-w-[120px]">
+      <div className="mb-1 flex justify-between text-[11px] tabular-nums text-[var(--color-text-secondary)]">
+        <span>
+          {produced}/{planned}
+        </span>
+        <span className="font-semibold text-[var(--color-text)]">{pct}%</span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-slate-200 print:border print:border-slate-300">
-        <div className="h-full rounded-full bg-[var(--color-primary)] print:bg-slate-700" style={{ width: `${Math.min(pct, 100)}%` }} />
+      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
+        <div
+          className="h-full rounded-full bg-[var(--color-action-teal)] transition-[width]"
+          style={{ width: `${Math.min(pct, 100)}%` }}
+        />
       </div>
+    </div>
+  );
+}
+
+function OrderActions({
+  row,
+  onView,
+  onEdit,
+  onPrint,
+  onStart,
+  onPause,
+  onWorkOrder,
+  canEdit,
+}) {
+  const [open, setOpen] = useState(false);
+  const needsMachine = !row.machine_name || row.machine_name === "—" || row.machine_name === "Unassigned";
+  const more = [];
+  if (canPause(row.status)) more.push({ label: "Pause", onClick: () => onPause(row) });
+  more.push({ label: "Print", onClick: () => onPrint(row) });
+  if (needsMachine) more.push({ label: "Create Work Order", onClick: () => onWorkOrder(row) });
+
+  return (
+    <div className="flex items-center justify-end gap-1 whitespace-nowrap print:hidden">
+      <IconButton aria-label="View" title="View" onClick={() => onView(row)}>
+        <Eye className="h-3.5 w-3.5" />
+      </IconButton>
+      {canEdit ? (
+        <IconButton aria-label="Edit" title="Edit" onClick={() => onEdit(row)}>
+          <Pencil className="h-3.5 w-3.5" />
+        </IconButton>
+      ) : null}
+      {canStart(row.status) ? (
+        <IconButton variant="primary" aria-label="Start" title="Start" onClick={() => onStart(row)}>
+          <Play className="h-3.5 w-3.5" />
+        </IconButton>
+      ) : null}
+      {more.length ? (
+        <div className="relative">
+          <IconButton
+            aria-label="More actions"
+            title="More actions"
+            onClick={(e) => {
+              e?.stopPropagation?.();
+              setOpen((v) => !v);
+            }}
+          >
+            <MoreVertical className="h-3.5 w-3.5" />
+          </IconButton>
+          {open ? (
+            <>
+              <button type="button" className="fixed inset-0 z-40 cursor-default" aria-label="Close menu" onClick={() => setOpen(false)} />
+              <div className="absolute right-0 z-50 mt-1 w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-lg">
+                {more.map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-surface-muted)]"
+                    onClick={() => {
+                      setOpen(false);
+                      item.onClick?.();
+                    }}
+                  >
+                    {item.label === "Pause" ? <Pause className="h-3.5 w-3.5" /> : null}
+                    {item.label === "Print" ? <Printer className="h-3.5 w-3.5" /> : null}
+                    {item.label === "Create Work Order" ? <ClipboardList className="h-3.5 w-3.5" /> : null}
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -638,61 +719,60 @@ export default function ProductionPlanning() {
   };
 
   const columns = [
-    { key: "order_number", label: "Order No" },
-    { 
-      key: "product_name", 
-      label: "Product",
+    {
+      key: "order_number",
+      label: "Order",
       render: (r) => (
-        <span className="font-medium text-slate-900 print:text-black print:font-semibold">
-          {r.product_name || "—"}
-        </span>
-      )
+        <div className="min-w-[7.5rem]">
+          <p className="text-[13px] font-semibold tabular-nums text-[var(--color-text)]">{r.order_number || "—"}</p>
+          <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
+            {formatDate(r.start_date) !== "—" ? `Start ${formatDate(r.start_date)}` : "No start date"}
+          </p>
+        </div>
+      ),
     },
     {
-      key: "buyer_company",
-      label: "Buyer Company",
-      render: (r) => r.buyer_company || r.customer_name || "—",
+      key: "product_name",
+      label: "Product",
+      render: (r) => {
+        const product = cleanProductLabel(r.product_name);
+        const customer = r.buyer_company || r.customer_name || "";
+        const machine =
+          r.machine_name && r.machine_name !== "—" && r.machine_name !== "Unassigned" ? r.machine_name : "";
+        const meta = [customer, machine].filter(Boolean).join(" · ");
+        return (
+          <div className="max-w-[220px]">
+            <p className="truncate text-[13px] font-medium text-[var(--color-text)]" title={product}>
+              {product}
+            </p>
+            <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]" title={meta || undefined}>
+              {meta || "No customer / machine"}
+            </p>
+          </div>
+        );
+      },
     },
     {
-      key: "size",
-      label: "Size",
-      render: (r) => r.size || "—",
-    },
-    { key: "planned_quantity", label: "Planned Quantity" },
-    {
-      key: "produced_quantity",
-      label: "Produced",
-      render: (r) => r.produced_quantity ?? 0,
-    },
-    {
-      key: "balance_quantity",
-      label: "Balance",
-      render: (r) => Math.max((r.planned_quantity || 0) - (r.produced_quantity || 0), 0),
+      key: "planned_quantity",
+      label: "Qty",
+      render: (r) => {
+        const planned = Number(r.planned_quantity || 0);
+        const produced = Number(r.produced_quantity ?? r.actual_quantity ?? 0);
+        const balance = Math.max(planned - produced, 0);
+        return (
+          <div className="tabular-nums">
+            <p className="text-[13px] font-semibold text-[var(--color-text)]">{planned}</p>
+            <p className="text-[11px] text-[var(--color-text-muted)]">
+              {produced} done · {balance} left
+            </p>
+          </div>
+        );
+      },
     },
     {
       key: "priority",
       label: "Priority",
       render: (r) => <PriorityPill priority={r.priority} />,
-    },
-    {
-      key: "machine_name",
-      label: "Machine",
-      render: (r) => (
-        <span className={r.machine_name && r.machine_name !== "—" && r.machine_name !== "Unassigned" ? "font-semibold text-slate-800" : "text-slate-400"}>
-          {r.machine_name && r.machine_name !== "—" && r.machine_name !== "Unassigned" ? r.machine_name : "—"}
-        </span>
-      ),
-    },
-    { key: "shift", label: "Shift", render: (r) => typeof r.shift === "object" ? (r.shift?.label || r.shift?.id || "—") : (r.shift || "—") },
-    {
-      key: "start_date",
-      label: "Start",
-      render: (r) => formatDate(r.start_date),
-    },
-    {
-      key: "due_date",
-      label: "Due",
-      render: (r) => formatDate(r.due_date),
     },
     {
       key: "progress",
@@ -705,10 +785,17 @@ export default function ProductionPlanning() {
       key: "status",
       label: "Status",
       render: (r) => (
-        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold capitalize print:border print:border-slate-300 ${
-          r.is_delayed ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700"
-        }`}>
-          {r.is_delayed ? "delayed" : statusLabel(r.status)}
+        <StatusBadge tone={statusTone(r)}>
+          {r.is_delayed ? "Delayed" : statusLabel(r.status)}
+        </StatusBadge>
+      ),
+    },
+    {
+      key: "due_date",
+      label: "Due",
+      render: (r) => (
+        <span className="whitespace-nowrap text-[12px] tabular-nums text-[var(--color-text-secondary)]">
+          {formatDate(r.due_date)}
         </span>
       ),
     },
@@ -717,41 +804,33 @@ export default function ProductionPlanning() {
       label: "Actions",
       sortable: false,
       printHidden: true,
-      render: (r) => {
-        const shiftStr = typeof r.shift === "object" ? (r.shift?.label || r.shift?.id || "General") : (r.shift || "General");
-        return (
-          <div className="flex flex-wrap gap-1 text-xs print:hidden">
-            <button type="button" title="View" onClick={() => openOrder(r)} className="font-semibold text-[#2563EB] hover:underline">👁 View</button>
-            <button type="button" title="Edit" onClick={() => { setEditModalOrder(r); setCreateOrderModalOpen(true); }} className="font-semibold text-slate-600 hover:underline">✏ Edit</button>
-            <button type="button" onClick={() => handleIndividualPrint(r)} className="font-semibold text-slate-500 hover:underline">🖨 Print</button>
-            {canStart(r.status) && (
-              <button type="button" onClick={() => handleStartClick(r)} className="font-semibold text-green-700 hover:underline">▶ Start</button>
-            )}
-            {canPause(r.status) && (
-              <button type="button" onClick={() => handlePause(r)} className="font-semibold text-amber-700 hover:underline">⏸ Pause</button>
-            )}
-            {(!r.machine_name || r.machine_name === "—" || r.machine_name === "Unassigned") && (
-              <button type="button" onClick={() => setIssueModalOrder(r)} className="font-semibold text-cyan-700 hover:underline">📄 Work Order</button>
-            )}
-          </div>
-        );
-      },
+      render: (r) => (
+        <OrderActions
+          row={r}
+          canEdit={!isOperator(user)}
+          onView={openOrder}
+          onEdit={(order) => {
+            setEditModalOrder(order);
+            setCreateOrderModalOpen(true);
+          }}
+          onPrint={handleIndividualPrint}
+          onStart={handleStartClick}
+          onPause={handlePause}
+          onWorkOrder={(order) => setIssueModalOrder(order)}
+        />
+      ),
     },
   ];
 
   if (loading) return <Loader label="Loading production planning..." />;
 
+  const canCreate = !isOperator(user);
+
   return (
     <>
       <div
-        className={`relative -m-4 min-h-[calc(100%+2rem)] overflow-hidden pb-10 sm:-m-5 lg:-m-6 ${printDetailOrder ? "hidden print:hidden" : "print:m-0 print:p-0 print:space-y-4 print:block"}`}
-        style={{ background: PAGE_BG }}
+        className={`space-y-5 pb-4 ${printDetailOrder ? "hidden print:hidden" : "print:m-0 print:p-0 print:space-y-4 print:block"}`}
       >
-        <div className="pointer-events-none absolute -right-24 -top-16 h-72 w-72 rounded-full" style={{ background: DECO_BG }} aria-hidden />
-        <div className="pointer-events-none absolute -bottom-28 -left-20 h-80 w-80 rounded-full" style={{ background: DECO_BG }} aria-hidden />
-
-        <div className="relative mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
-          {/* Global Print-only Header */}
           <div className="mb-4 hidden border-b pb-4 print:block">
             <h1 className="text-xl font-bold text-black">Production Planning Report</h1>
             <p className="text-xs text-slate-600">
@@ -767,104 +846,104 @@ export default function ProductionPlanning() {
             className="hidden"
           />
 
-          <div className="flex flex-wrap gap-2 print:hidden">
-            <Link
-              to="/production/mrp"
-              className="inline-flex items-center rounded-full border-2 px-4 py-1.5 text-sm font-semibold"
-              style={{ borderColor: PRIMARY_BLUE, color: PRIMARY_BLUE, background: "#FFFFFF" }}
-            >
-              Run MRP
-            </Link>
-            <Link
-              to="/production/work-orders"
-              className="inline-flex items-center rounded-full border border-transparent px-4 py-1.5 text-sm font-semibold text-slate-500 hover:bg-white hover:text-[#002C66]"
-            >
-              Work Orders
-            </Link>
-          </div>
+          <PageHeader
+            action={
+              <>
+                <Button variant="secondary" to="/production/mrp">
+                  <Target className="h-4 w-4" />
+                  Run MRP
+                </Button>
+                <Button variant="secondary" to="/production/work-orders">
+                  <ClipboardList className="h-4 w-4" />
+                  Work Orders
+                </Button>
+              </>
+            }
+          />
 
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-8 print:hidden">
-            <SummaryCard label="Total Orders" value={summary.total_orders} icon={ClipboardList} iconWrap="bg-blue-100 text-blue-600" />
-            <SummaryCard label="Planned" value={summary.planned_orders} icon={FileText} iconWrap="bg-sky-100 text-sky-600" />
-            <SummaryCard label="In Progress" value={summary.in_progress_orders} icon={Play} iconWrap="bg-orange-100 text-orange-500" />
-            <SummaryCard label="Completed" value={summary.completed_orders} icon={CheckCircle2} iconWrap="bg-emerald-100 text-emerald-600" />
-            <SummaryCard label="Delayed" value={summary.delayed_orders} icon={AlertTriangle} iconWrap="bg-red-100 text-red-500" />
-            <SummaryCard label="Cancelled" value={summary.cancelled_orders} icon={Ban} iconWrap="bg-slate-200 text-[#002C66]" />
-            <SummaryCard
-              label="Today's Target"
-              value={summary.todays_target?.toLocaleString?.() ?? summary.todays_target}
-              icon={Target}
-              iconWrap="bg-violet-100 text-violet-600"
-            />
-            <SummaryCard
-              label="Today's Production"
-              value={summary.todays_production?.toLocaleString?.() ?? summary.todays_production}
-              icon={CheckCircle2}
-              iconWrap="bg-teal-100 text-teal-600"
+          <div className="ui-grid-kpi print:hidden">
+            <KpiCard label="Total Orders" value={summary.total_orders ?? 0} icon={ClipboardList} tone="primary" />
+            <KpiCard label="Planned" value={summary.planned_orders ?? 0} icon={FileText} tone="info" />
+            <KpiCard label="In Progress" value={summary.in_progress_orders ?? 0} icon={Play} tone="warning" />
+            <KpiCard label="Completed" value={summary.completed_orders ?? 0} icon={CheckCircle2} tone="success" />
+            <KpiCard label="Delayed" value={summary.delayed_orders ?? 0} icon={AlertTriangle} tone="danger" />
+            <button
+              type="button"
               onClick={showTodayStartOrders}
-            />
+              className="rounded-[var(--radius-lg)] text-left transition hover:ring-2 hover:ring-[var(--color-focus-ring)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
+              title="Show orders starting today"
+            >
+              <KpiCard
+                label="Today's Production"
+                value={summary.todays_production?.toLocaleString?.() ?? summary.todays_production ?? 0}
+                icon={Target}
+                tone="success"
+                meta="Click to filter"
+              />
+            </button>
           </div>
 
-          <div className="rounded-xl bg-[#EFF4FD] p-4 sm:p-5 print:bg-white print:p-0 print:shadow-none">
-            <div className="mb-4 flex flex-wrap items-center gap-2.5 print:hidden">
-              <div className="relative min-w-[220px] flex-1">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
+          <div className="ui-card overflow-hidden p-4 sm:p-5 print:border-0 print:bg-white print:p-0 print:shadow-none">
+            <div className="mb-4 flex flex-col gap-3 print:hidden lg:flex-row lg:items-center lg:justify-between">
+              <div className="relative min-w-[220px] flex-1 lg:max-w-md">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-icon)]" />
                 <input
                   type="search"
-                  placeholder="Search production orders..."
+                  placeholder="Search order, product, customer…"
                   value={filters.q}
                   onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
-                  className="w-full rounded-full border border-[#d7e6f8] bg-white py-2.5 pl-10 pr-4 text-[13px] text-[#002C66] outline-none placeholder:text-[#a0a0ab] focus:border-[#789DF8]"
+                  className="ui-input !rounded-full pl-10"
                 />
               </div>
-              <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} className={TOOLBAR_BTN}>
-                <Filter className="h-4 w-4" />
-                {showAdvanced ? "Hide Filters" : "Advanced Filters"}
-              </button>
-              <button type="button" onClick={handleImportFileClick} disabled={importing} className={TOOLBAR_BTN}>
-                <Upload className="h-4 w-4" />
-                {importing ? "Importing…" : "Import"}
-              </button>
-              <button type="button" onClick={handleExportExcel} className={TOOLBAR_BTN}>
-                <FileSpreadsheet className="h-4 w-4" />
-                Export Excel
-              </button>
-              <button type="button" onClick={handleExportPdf} className={TOOLBAR_BTN}>
-                <FileText className="h-4 w-4" />
-                Export PDF
-              </button>
-              <button type="button" onClick={handleGlobalPrint} className={TOOLBAR_BTN}>
-                <Printer className="h-4 w-4" />
-                Print
-              </button>
-              {!isOperator(user) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditModalOrder(null);
-                    setCreateOrderModalOpen(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
-                  style={{ background: PRIMARY_BLUE }}
-                >
-                  <Plus className="h-4 w-4" />
-                  New Production Order
-                </button>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="secondary" type="button" onClick={() => setShowAdvanced(!showAdvanced)}>
+                  <Filter className="h-4 w-4" />
+                  {showAdvanced ? "Hide Filters" : "Filters"}
+                </Button>
+                <Button variant="secondary" type="button" onClick={handleImportFileClick} disabled={importing}>
+                  <Upload className="h-4 w-4" />
+                  {importing ? "Importing…" : "Import"}
+                </Button>
+                <Button variant="secondary" type="button" onClick={handleExportExcel}  title="Export Excel">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  <span className="hidden sm:inline">Excel</span>
+                </Button>
+                <Button variant="secondary" type="button" onClick={handleExportPdf}  title="Export PDF">
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">PDF</span>
+                </Button>
+                <Button variant="secondary" type="button" onClick={handleGlobalPrint}  title="Print">
+                  <Printer className="h-4 w-4" />
+                  <span className="hidden sm:inline">Print</span>
+                </Button>
+                {canCreate ? (
+                  <Button
+                    variant="success"
+                    type="button"
+                    onClick={() => {
+                      setEditModalOrder(null);
+                      setCreateOrderModalOpen(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    New Production Order
+                  </Button>
+                ) : null}
+              </div>
             </div>
 
-            {showAdvanced && (
-              <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 print:hidden">
-                <input placeholder="Order No." value={filters.order_number} onChange={(e) => setFilters((f) => ({ ...f, order_number: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
-                <input placeholder="Product" value={filters.product} onChange={(e) => setFilters((f) => ({ ...f, product: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
-                <input placeholder="Customer" value={filters.customer} onChange={(e) => setFilters((f) => ({ ...f, customer: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
-                <input placeholder="Work Order" value={filters.work_order} onChange={(e) => setFilters((f) => ({ ...f, work_order: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
-                <input placeholder="Machine" value={filters.machine} onChange={(e) => setFilters((f) => ({ ...f, machine: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
-                <select value={filters.department} onChange={(e) => setFilters((f) => ({ ...f, department: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm">
+            {showAdvanced ? (
+              <div className="mb-4 grid gap-3 rounded-[var(--radius-md)] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] p-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 print:hidden">
+                <input placeholder="Order No." value={filters.order_number} onChange={(e) => setFilters((f) => ({ ...f, order_number: e.target.value }))} className="ui-input" />
+                <input placeholder="Product" value={filters.product} onChange={(e) => setFilters((f) => ({ ...f, product: e.target.value }))} className="ui-input" />
+                <input placeholder="Customer" value={filters.customer} onChange={(e) => setFilters((f) => ({ ...f, customer: e.target.value }))} className="ui-input" />
+                <input placeholder="Work Order" value={filters.work_order} onChange={(e) => setFilters((f) => ({ ...f, work_order: e.target.value }))} className="ui-input" />
+                <input placeholder="Machine" value={filters.machine} onChange={(e) => setFilters((f) => ({ ...f, machine: e.target.value }))} className="ui-input" />
+                <select value={filters.department} onChange={(e) => setFilters((f) => ({ ...f, department: e.target.value }))} className="ui-select">
                   <option value="">Department</option>
                   {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
-                <select value={filters.shift} onChange={(e) => setFilters((f) => ({ ...f, shift: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm">
+                <select value={filters.shift} onChange={(e) => setFilters((f) => ({ ...f, shift: e.target.value }))} className="ui-select">
                   <option value="">Shift</option>
                   {SHIFTS.map((s) => {
                     const id = typeof s === "object" ? s.id : s;
@@ -872,43 +951,65 @@ export default function ProductionPlanning() {
                     return <option key={id} value={id}>{label}</option>;
                   })}
                 </select>
-                <select value={filters.priority} onChange={(e) => setFilters((f) => ({ ...f, priority: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm">
+                <select value={filters.priority} onChange={(e) => setFilters((f) => ({ ...f, priority: e.target.value }))} className="ui-select">
                   <option value="">Priority</option>
                   {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
-                <select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm">
+                <select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))} className="ui-select">
                   <option value="">Status</option>
                   {ORDER_STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
                 </select>
-                <input type="date" value={filters.date_from} onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
-                <input type="date" value={filters.date_to} onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value }))} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm" />
-                <button type="button" onClick={() => setFilters(defaultFilters)} className="rounded-lg border border-[#d7e6f8] bg-white px-3 py-2 text-sm font-semibold text-[#002C66] hover:bg-white/80">Clear</button>
+                <input type="date" value={filters.date_from} onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value }))} className="ui-input" />
+                <input type="date" value={filters.date_to} onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value }))} className="ui-input" />
+                <Button variant="secondary" type="button" onClick={() => setFilters(defaultFilters)}>
+                  Clear filters
+                </Button>
               </div>
-            )}
+            ) : null}
 
-            <div className="overflow-hidden rounded-lg border border-[#d7e6f8] bg-white print:w-full print:border-none">
+            <div className="ui-table-wrap print:border-none print:shadow-none">
               <DataTable
                 columns={columns}
                 data={paginatedOrders}
                 showSearch={false}
                 showPagination={false}
                 emptyState={
-                  <div className="py-16 text-center">
-                    <ClipboardList className="mx-auto h-16 w-16 text-slate-300" strokeWidth={1.25} />
-                    <p className="mt-4 text-sm font-semibold text-slate-600">No production orders found.</p>
-                    <p className="mt-1 text-sm text-slate-400">Create a new production order to get started.</p>
+                  <div className="px-4 py-16 text-center">
+                    <ClipboardList className="mx-auto h-14 w-14 text-[var(--color-text-icon)]" strokeWidth={1.25} />
+                    <p className="mt-4 text-sm font-semibold text-[var(--color-text)]">No production orders yet</p>
+                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+                      Create an order to start planning, or run MRP against stock.
+                    </p>
+                    <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                      {canCreate ? (
+                        <Button
+                          variant="success"
+                          type="button"
+                          onClick={() => {
+                            setEditModalOrder(null);
+                            setCreateOrderModalOpen(true);
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                          New Production Order
+                        </Button>
+                      ) : null}
+                      <Button variant="secondary" to="/production/mrp">
+                        Run MRP
+                      </Button>
+                    </div>
                   </div>
                 }
               />
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-end gap-3 text-[12px] text-[#6b6b76] print:hidden">
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-3 text-[12px] text-[var(--color-text-muted)] print:hidden">
               <div className="mr-auto flex items-center gap-2">
-                <span>Rows per page:</span>
+                <span>Rows per page</span>
                 <select
                   value={pageSize}
                   onChange={(e) => setPageSize(Number(e.target.value))}
-                  className="rounded border border-[#d7e6f8] bg-white px-2 py-1 outline-none"
+                  className="ui-select !min-h-0 !w-auto !py-1"
                 >
                   {PAGE_SIZES.map((n) => (
                     <option key={n} value={n}>
@@ -916,30 +1017,26 @@ export default function ProductionPlanning() {
                     </option>
                   ))}
                 </select>
-                <span>{total === 0 ? "0-0 of 0" : `${from}-${to} of ${total}`}</span>
+                <span className="tabular-nums">{total === 0 ? "0–0 of 0" : `${from}–${to} of ${total}`}</span>
               </div>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="grid h-8 w-8 place-items-center rounded border border-[#d7e6f8] bg-white disabled:opacity-40"
+                  className="ui-page-btn"
                   aria-label="Previous page"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <button
-                  type="button"
-                  className="grid h-8 min-w-8 place-items-center rounded border px-2 text-[13px] font-semibold text-[#002C66]"
-                  style={{ borderColor: "#789DF8", background: "#FFFFFF" }}
-                >
+                <button type="button" className="ui-page-btn ui-page-btn--active" aria-current="page">
                   {page}
                 </button>
                 <button
                   type="button"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="grid h-8 w-8 place-items-center rounded border border-[#d7e6f8] bg-white disabled:opacity-40"
+                  className="ui-page-btn"
                   aria-label="Next page"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -947,7 +1044,6 @@ export default function ProductionPlanning() {
               </div>
             </div>
           </div>
-        </div>
       </div>
 
       {/* Single Item Print View */}

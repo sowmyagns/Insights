@@ -4,8 +4,7 @@ import { Check, ChevronDown, X } from "lucide-react";
 
 import { lookupVendorBank } from "../../api/procurementApi";
 import { useToast } from "../../context/ToastContext";
-
-const YELLOW = "var(--color-primary)";
+import Button from "../common/Button";
 
 const EMPTY = {
   ifsc: "",
@@ -266,20 +265,12 @@ export default function AddBankAccountModal({ open, onClose, onSave, initial }) 
         </div>
 
         <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-[#ececf0] bg-white px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-[#d8d8e0] bg-[#f0f0f4] py-3 text-[14px] font-semibold text-[#1a1a1f]"
-          >
+          <Button type="button" variant="secondary" onClick={onClose} fullWidth>
             Cancel
-          </button>
-          <button
-            type="submit"
-            className="rounded-xl py-3 text-[14px] font-semibold text-white"
-            style={{ background: YELLOW }}
-          >
+          </Button>
+          <Button type="submit" variant="primary" fullWidth>
             Save
-          </button>
+          </Button>
         </div>
       </form>
     </div>,

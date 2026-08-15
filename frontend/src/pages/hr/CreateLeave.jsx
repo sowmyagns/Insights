@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { createLeaveRequest, getEmployees } from "../../api/hrApi";
 
+import Button from "../../components/common/Button";
 const LEAVE_TYPES = ["casual", "sick", "annual", "unpaid"];
 
 export default function CreateLeave() {
@@ -113,9 +114,9 @@ export default function CreateLeave() {
             style={{ display: "block", width: "100%", marginTop: "4px", padding: "8px" }}
           />
         </label>
-        <button type="submit" disabled={saving} className="ui-btn-hr">
+        <Button variant="primary" type="submit" disabled={saving}>
           {saving ? "Submitting..." : "Submit Request"}
-        </button>
+        </Button>
       </form>
     </div>
   );

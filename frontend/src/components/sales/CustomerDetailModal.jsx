@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import CITIES_MAP from "../../data/indiaCitiesToStates.json";
+import Button from "../common/Button";
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "orders", label: "Sales Orders" },
@@ -198,7 +199,7 @@ export default function CustomerDetailModal({ customer, onClose, onEdit, onDelet
         </div>
 
         <div className="flex flex-wrap gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
-          <button type="button" onClick={() => onEdit(customer)} className="ui-btn-primary text-xs">Edit</button>
+          <Button type="button" onClick={() => onEdit(customer)} variant="primary" className="text-xs">Edit</Button>
           <Link to="/sales/orders" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 no-underline">
             <ShoppingCart className="h-3.5 w-3.5" /> Sales History
           </Link>
@@ -406,7 +407,7 @@ export function CustomerFormModal({ customer, onClose, onSave }) {
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600">Cancel</button>
-          <button type="submit" className="ui-btn-primary">Save Customer</button>
+          <Button variant="primary" type="submit" >Save Customer</Button>
         </div>
       </form>
     </div>

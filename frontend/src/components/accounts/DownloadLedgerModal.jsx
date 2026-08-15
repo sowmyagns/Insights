@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
+import Button from "../common/Button";
+
 const field =
   "w-full rounded border border-[#1a1a1f]/70 bg-white px-3 py-2.5 text-[13px] text-[#1a1a1f] outline-none focus:border-[#1a1a1f] focus:ring-1 focus:ring-[#1a1a1f]/20";
 
@@ -81,19 +83,12 @@ export default function DownloadLedgerModal({ open, onClose, onDownload }) {
         </div>
 
         <div className="flex justify-end gap-3 px-5 pb-5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded border border-[#1a1a1f] bg-white px-5 py-2 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#f7f7f9]"
-          >
+          <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            className="rounded bg-[#2d2a4a] px-5 py-2 text-[13px] font-semibold text-white hover:bg-[#1a1a1f]"
-          >
+          </Button>
+          <Button type="submit" variant="primary">
             Download
-          </button>
+          </Button>
         </div>
       </form>
     </div>,

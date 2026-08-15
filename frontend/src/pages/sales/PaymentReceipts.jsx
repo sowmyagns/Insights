@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Calendar, ChevronLeft, ChevronRight, Filter, ListFilter, Plus, Receipt, Search, X } from "lucide-react";
 
+import Button from "../../components/common/Button";
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
@@ -365,13 +366,13 @@ export default function PaymentReceipts() {
               </>
             ) : null}
           </div>
-          <Link
+          <Button
+            variant="primary"
             to="/sales/payment-receipts/create"
-            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
-            style={{ background: ACCENT }}
+            leftIcon={<Plus className="h-4 w-4 text-white" strokeWidth={2.5} />}
           >
-            <Plus className="h-4 w-4 text-white" strokeWidth={2.5} /> Record Payment
-          </Link>
+            Record Payment
+          </Button>
         </div>
       </div>
 
@@ -397,13 +398,14 @@ export default function PaymentReceipts() {
                     <p className="mt-3 text-[14px] text-[#6b6b76]">
                       No Receipt available, Record new payment
                     </p>
-                    <Link
+                    <Button
+                      variant="primary"
                       to="/sales/payment-receipts/create"
-                      className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
-                      style={{ background: ACCENT }}
+                      className="mt-4"
+                      leftIcon={<Plus className="h-4 w-4 text-white" />}
                     >
-                      <Plus className="h-4 w-4 text-white" /> Record Payment
-                    </Link>
+                      Record Payment
+                    </Button>
                   </td>
                 </tr>
               ) : (

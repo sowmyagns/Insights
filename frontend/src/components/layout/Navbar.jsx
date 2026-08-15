@@ -153,13 +153,13 @@ export default function Navbar({ onMenuClick }) {
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </button>
 
-          <div className="hidden items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-primary-soft)] px-2.5 py-1.5 lg:flex">
-            <Calendar className="h-3.5 w-3.5 text-[var(--color-primary)]" aria-hidden />
+          <div className="hidden items-center gap-2 rounded-lg bg-[var(--color-primary)] px-2.5 py-1.5 text-white shadow-sm lg:flex">
+            <Calendar className="h-3.5 w-3.5 text-white" aria-hidden />
             <div className="leading-tight">
-              <p className="text-[10px] font-medium text-[var(--color-text-muted)]">
+              <p className="text-[10px] font-semibold text-white">
                 {weekdayLabel} · {dateLabel}
               </p>
-              <p className="text-[var(--text-xs)] font-bold tabular-nums text-[var(--color-text)]">{timeLabel}</p>
+              <p className="text-[var(--text-xs)] font-bold tabular-nums text-white">{timeLabel}</p>
             </div>
           </div>
 

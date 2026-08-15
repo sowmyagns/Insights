@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -25,6 +25,7 @@ import { apiErrorMessage } from "../../utils/apiError";
 
 import { theme } from "../../styles/theme";
 
+import Button from "../../components/common/Button";
 const PAGE_BG = theme.bg;
 const PAGE_SIZES = [20, 50, 100];
 
@@ -270,38 +271,31 @@ export default function ProductsMaster() {
               />
             </div>
             {!isPM && (
-              <Link
-                to={
-                  pathname.startsWith("/inventory")
-                    ? "/inventory/products/bulk-import"
-                    : "/masters/products/bulk-import"
-                }
-                className="ui-btn-secondary"
-              >
+              <Button variant="secondary" to={
+         pathname.startsWith("/inventory")
+          ? "/inventory/products/bulk-import"
+          : "/masters/products/bulk-import"
+        }>
                 <Upload className="h-4 w-4" />
                 Bulk Import
-              </Link>
+              </Button>
             )}
-            <button
-              type="button"
-              onClick={onExport}
-              className="ui-btn-secondary"
-            >
+            <Button variant="secondary" type="button" onClick={onExport}>
               <FileSpreadsheet className="h-4 w-4" />
               Export (xlsx)
-            </button>
+            </Button>
             {!isPM && (
-              <button
+              <Button
+                variant="primary"
                 type="button"
                 onClick={() => {
                   setEditing(null);
                   setAddOpen(true);
                 }}
-                className="ui-btn-primary"
               >
                 <Plus className="h-4 w-4" />
                 Create Product
-              </button>
+              </Button>
             )}
           </div>
 

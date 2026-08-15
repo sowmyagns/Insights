@@ -15,6 +15,8 @@ import { FINANCE_FLOW, formatInr } from "../../data/financeMasterData";
 import RecordIncome from "./RecordIncome";
 import RecordExpense from "./RecordExpense";
 
+import Button from "../../components/common/Button";
+
 const INITIAL_FINANCE_HUB = {
   total_receivables: null,
   outstanding_payables: null,
@@ -168,8 +170,8 @@ export default function AccountsDashboard() {
         subtitle="Enterprise finance hub — cash flow, revenue, expenses, GST, and manufacturing cost insights."
         action={
           <>
-            <button type="button" onClick={() => setShowRecordIncome(true)} className="ui-btn-primary">+ Record Income</button>
-            <button type="button" onClick={() => setShowRecordExpense(true)} className="ui-btn-danger">+ Record Expense</button>
+            <Button variant="primary" type="button" onClick={() => setShowRecordIncome(true)}>+ Record Income</Button>
+            <Button variant="danger" type="button" onClick={() => setShowRecordExpense(true)}>+ Record Expense</Button>
           </>
         }
       />

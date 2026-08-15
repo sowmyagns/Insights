@@ -4,7 +4,6 @@ import PlaceholderPage from "../components/common/PlaceholderPage";
 import ProtectedRoute from "../components/layout/ProtectedRoute";
 /* Pages are lazy-loaded via lazyPages – see vite.config manualChunks for vendor splits */
 import * as P from "./lazyPages";
-import LiveProduction from "../pages/factoryMonitor/LiveProduction";
 import MachineStatus from "../pages/factoryMonitor/MachineStatus";
 import ProductionLines from "../pages/factoryMonitor/ProductionLines";
 
@@ -435,6 +434,14 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/sales"
+        element={
+          <ProtectedRoute>
+            <P.SalesDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/sales/dashboard"
         element={
           <ProtectedRoute>
@@ -594,8 +601,10 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route path="/masters" element={<Navigate to="/masters/products" replace />} />
+      <Route path="/procurement" element={<Navigate to="/procurement/purchase-orders" replace />} />
       <Route
-        path="/sales/customers"
+        path="/masters/customers"
         element={
           <ProtectedRoute>
             <P.Customers />
@@ -603,7 +612,7 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/sales/customers/bulk-import"
+        path="/masters/customers/bulk-import"
         element={
           <ProtectedRoute>
             <P.BulkImportBuyer />
@@ -611,13 +620,16 @@ export default function AppRoutes() {
         }
       />
       <Route
-        path="/sales/customers/create"
+        path="/masters/customers/create"
         element={
           <ProtectedRoute>
             <P.CreateCustomer />
           </ProtectedRoute>
         }
       />
+      <Route path="/sales/customers" element={<Navigate to="/masters/customers" replace />} />
+      <Route path="/sales/customers/bulk-import" element={<Navigate to="/masters/customers/bulk-import" replace />} />
+      <Route path="/sales/customers/create" element={<Navigate to="/masters/customers/create" replace />} />
       <Route
         path="/sales/payments"
         element={
@@ -802,7 +814,7 @@ export default function AppRoutes() {
       <Route path="/finance/payment-tracking" element={<ProtectedRoute><P.PaymentTracking /></ProtectedRoute>} />
       <Route path="/finance/general-ledger" element={<ProtectedRoute><P.GeneralLedger /></ProtectedRoute>} />
       <Route path="/finance" element={<ProtectedRoute><Navigate to="/accounts" replace /></ProtectedRoute>} />
-      <Route path="/factory-monitor/live-production" element={<ProtectedRoute><LiveProduction /></ProtectedRoute>} />
+      <Route path="/factory-monitor/live-production" element={<ProtectedRoute><Navigate to="/factory-monitor/machine-status" replace /></ProtectedRoute>} />
       <Route path="/factory-monitor/machine-status" element={<ProtectedRoute><MachineStatus /></ProtectedRoute>} />
       <Route path="/factory-monitor/production-lines" element={<ProtectedRoute><ProductionLines /></ProtectedRoute>} />
       <Route path="/iot" element={<ProtectedRoute><P.IotDashboard /></ProtectedRoute>} />

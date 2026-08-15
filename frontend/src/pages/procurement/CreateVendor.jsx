@@ -35,6 +35,7 @@ import {
 } from "../../data/vendorsMasterData";
 import { useToast } from "../../context/ToastContext";
 
+import Button from "../../components/common/Button";
 const inputClass =
   "w-full rounded-xl border border-slate-300/80 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 disabled:bg-slate-50 disabled:text-slate-500";
 
@@ -873,12 +874,8 @@ export default function CreateVendor() {
           >
             Cancel
           </Link>
-          <button
-            type="submit"
-            form="vendor-master-form"
-            disabled={loading || bankLookupLoading || !bankVerified}
-            className="ui-btn-primary inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-          >
+          <Button variant="primary" type="submit" form="vendor-master-form"
+      disabled={loading || bankLookupLoading || !bankVerified} className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50">
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -889,7 +886,7 @@ export default function CreateVendor() {
             ) : (
               "Save Vendor"
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
 import { Plus } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
@@ -12,6 +11,7 @@ import useTenantId from "../../hooks/useTenantId";
 
 
 
+import Button from "../../components/common/Button";
 export default function InventoryList({
   title = "Raw Material Tracking",
   itemType,
@@ -64,10 +64,10 @@ export default function InventoryList({
     <div style={{ display: "grid", gap: "16px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2>{title}</h2>
-        <Link to={createPath} className="ui-btn-primary">
+        <Button variant="primary" to={createPath}>
           <Plus className="h-4 w-4" />
           {createLabel}
-        </Link>
+        </Button>
       </div>
 
       <section

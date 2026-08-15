@@ -13,6 +13,7 @@ import { getAPEnriched, getAPSummary } from "../../api/accountsApi";
 import { FINANCE_FLOW, formatInr, statusColor } from "../../data/financeMasterData";
 
 
+import Button from "../../components/common/Button";
 export default function AccountsPayable() {
   const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -93,7 +94,7 @@ export default function AccountsPayable() {
         subtitle="Vendor bills, payment scheduling, and outstanding payables management."
         action={
           <>
-            <Link to="/purchases/payments-made/create" className="ui-btn-primary">Record Payment</Link>
+            <Button variant="primary" to="/purchases/payments-made/create">Record Payment</Button>
           </>
         }
       />

@@ -1,5 +1,7 @@
 /** Production planning demo data and helpers. */
 
+import { cleanProductLabel } from "../utils/productLabel";
+
 export const ORDER_STATUSES = [
   "draft", "planned", "material_ready", "machine_assigned",
   "in_progress", "quality_check", "completed", "closed", "delayed", "cancelled",
@@ -173,7 +175,7 @@ export function enrichApiOrder(row, index = 0) {
   return {
     ...row,
     order_number: row.order_number || `PO-${row.id || index + 1}`,
-    product_name: row.product_name || `Product #${row.product_id}`,
+    product_name: cleanProductLabel(row.product_name || `Product #${row.product_id}`),
     customer_name: row.customer_name || "—",
     priority: row.priority || "medium",
     bom_version: row.bom_version || "BOM v1.0",

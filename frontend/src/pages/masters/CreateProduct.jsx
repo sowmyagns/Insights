@@ -9,6 +9,7 @@ import useTenantId from "../../hooks/useTenantId";
 import { createProduct, getProductDetail, getProducts, updateProduct } from "../../api/productsApi";
 import { PRODUCT_UNITS, WAREHOUSES } from "../../data/productsMasterData";
 
+import Button from "../../components/common/Button";
 const CATEGORY_OPTIONS = [
   "Raw Material",
   "WIP",
@@ -335,9 +336,9 @@ export default function CreateProduct() {
           >
             Cancel
           </Link>
-          <button type="submit" disabled={saving} className="ui-btn-primary min-w-[9rem] disabled:opacity-60">
+          <Button variant="primary" type="submit" disabled={saving} className="min-w-[9rem] disabled:opacity-60">
             {saving ? "Saving…" : isEdit ? "Save changes" : "Add Materials"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

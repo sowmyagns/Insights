@@ -5,6 +5,7 @@ import { RotateCcw } from "lucide-react";
 import Loader from "../../components/common/Loader";
 import StoreManagerNav from "../../components/inventory/StoreManagerNav";
 import { useToast } from "../../context/ToastContext";
+import Button from "../../components/common/Button";
 import {
   createStoreStockReturn,
   getInventoryDashboard,
@@ -135,9 +136,9 @@ export default function StoreStockReturn() {
             Machine (optional)
             <input value={form.machine} onChange={(e) => setForm((f) => ({ ...f, machine: e.target.value }))} className="mt-1 w-full rounded-lg border px-3 py-2.5 text-sm" />
           </label>
-          <button type="submit" disabled={submitting} className="ui-btn-primary w-full py-3">
+          <Button variant="primary" type="submit" disabled={submitting} className="w-full py-3">
             {submitting ? "Saving…" : "Save Return"}
-          </button>
+          </Button>
         </form>
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">

@@ -40,9 +40,15 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
+import uuid
+
+
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.setdefault("jti", str(uuid.uuid4()))
+    to_encode.setdefault("iat", int(now.timestamp()))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -213,7 +219,9 @@ def issue_auth_response_data(
     from app.services.security_service import clear_login_failures, create_refresh_token
 
     clear_login_failures(db, user)
-    user.last_login_at = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+    user.last_login_at = now
+    user.tokens_revoked_at = now
     db.commit()
     db.refresh(user, ["roles", "tenant"])
     access = build_access_token_for_user(user, role_name=role_name)

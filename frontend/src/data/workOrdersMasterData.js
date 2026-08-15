@@ -53,6 +53,7 @@ export const DEMO_WO_SUMMARY = {
 };
 
 import { calculateProgressPct } from "./productionPlanningMasterData";
+import { cleanProductLabel } from "../utils/productLabel";
 
 export const DEMO_WORK_ORDERS = [];
 
@@ -83,13 +84,16 @@ export function enrichApiWorkOrder(row, index = 0) {
 
   const finalProgress = status === "completed" ? 100 : progress;
   const remaining = Number(row.remaining_quantity ?? Math.max(planned - produced, 0));
+  const poNumber =
+    row.production_order_number ||
+    (row.production_order_id != null ? `PO-${row.production_order_id}` : "—");
 
   return {
     ...row,
     work_order_number: row.work_order_number || `WO-${row.id || index + 1}`,
-    product_name: row.product_name || "—",
+    product_name: cleanProductLabel(row.product_name || "—"),
     customer_name: row.customer_name || "—",
-    production_order_number: row.production_order_number || `PO-${row.production_order_id}`,
+    production_order_number: poNumber,
     machine_name: row.machine_name || "—",
     machine_status: row.machine_status || "—",
     operator_name: row.operator_name || "—",
@@ -144,7 +148,7 @@ export function woStatusLabel(status) {
 }
 
 export function canWoStart(status) {
-  return ["draft", "released", "planned", "in_progress", "material_ready", "machine_ready", "pending"].includes(status);
+  return ["draft", "released", "planned", "material_ready", "machine_ready", "pending", "paused"].includes(status);
 }
 
 export function canWoIssueMaterials(status, materialsIssued) {

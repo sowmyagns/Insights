@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import Button from "../common/Button";
 import { Trash2, X } from "lucide-react";
 
 export default function DeleteBankModal({
@@ -36,23 +37,20 @@ export default function DeleteBankModal({
         <h2 className="text-[20px] font-bold text-[#1a1a1f]">{title}</h2>
         <p className="mt-2 text-[14px] text-[#6b6b76]">{message}</p>
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg bg-[#ececf0] py-2.5 text-[14px] font-semibold text-[#4a4a55] hover:bg-[#e4e4ea]"
-          >
+          <Button type="button" variant="secondary" onClick={onClose} fullWidth>
             No
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="danger"
             onClick={() => {
               onConfirm?.();
               onClose?.();
             }}
-            className="rounded-lg bg-[#ef4444] py-2.5 text-[14px] font-semibold text-white hover:bg-[#dc2626]"
+            fullWidth
           >
             Delete
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

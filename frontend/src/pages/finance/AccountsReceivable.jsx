@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
-import { Link } from "react-router-dom";
 import { FileText, IndianRupee, TrendingDown, Users, Wallet } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import KpiCard from "../../components/common/KpiCard";
@@ -14,6 +13,7 @@ import { getAREnriched, getARSummary } from "../../api/accountsApi";
 import { formatInr, statusColor, agingColor } from "../../data/financeMasterData";
 
 
+import Button from "../../components/common/Button";
 const INITIAL_AR_SUMMARY = {
   total_receivables: 0,
   received_today: 0,
@@ -192,12 +192,9 @@ export default function AccountsReceivable() {
               Accounts receivable data is pulled from your sales invoices.
               Create an invoice in the Sales module to see it here.
             </p>
-            <Link
-              to="/sales/invoices/create"
-              className="ui-btn-primary mt-5"
-            >
+            <Button variant="primary" to="/sales/invoices/create" className="mt-5">
               Create Invoice
-            </Link>
+            </Button>
           </div>
         ) : (
           <DataTable columns={columns} data={filtered} searchPlaceholder="" searchKeys={[]} />

@@ -196,7 +196,7 @@ export default function App() {
   }
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-[var(--color-bg)] dark:bg-slate-950">
+    <div className="app-shell relative flex h-screen overflow-hidden dark:bg-slate-950">
       <a
         href="#main-content"
         className="absolute left-4 top-4 z-[100] -translate-y-[200%] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white shadow-lg outline-none ring-2 ring-[var(--color-primary)]/40 ring-offset-2 transition-transform focus:translate-y-0 dark:ring-offset-slate-900"
@@ -224,7 +224,7 @@ export default function App() {
         <main
           id="main-content"
           tabIndex={-1}
-          className={`min-h-0 flex-1 bg-[var(--color-bg)] outline-none ${
+          className={`min-h-0 flex-1 bg-transparent outline-none ${
             isInvoiceEditor || isEInvoiceLogin
               ? "overflow-hidden"
               : "overflow-y-auto"

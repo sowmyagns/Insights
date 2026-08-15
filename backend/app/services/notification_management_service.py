@@ -5,9 +5,19 @@ from __future__ import annotations
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from datetime import datetime, timezone
+
 from app.models.erp_notification import NOTIFICATION_PRIORITIES, NOTIFICATION_TYPES, ErpNotification
 from app.models.user import User
 from app.repositories.notification_repository import NotificationRepository
+
+
+def _iso(dt: datetime | None) -> str | None:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
 
 
 def _serialize(row: ErpNotification) -> dict:
@@ -22,8 +32,8 @@ def _serialize(row: ErpNotification) -> dict:
         "is_read": row.is_read,
         "read": row.is_read,
         "created_by": row.created_by,
-        "created_at": row.created_at.isoformat() if row.created_at else None,
-        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+        "created_at": _iso(row.created_at),
+        "updated_at": _iso(row.updated_at),
     }
 
 

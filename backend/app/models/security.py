@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base, TimestampMixin
 
 
+
 class RefreshToken(Base, TimestampMixin):
     __tablename__ = "refresh_tokens"
 
@@ -18,6 +19,22 @@ class RefreshToken(Base, TimestampMixin):
     revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     user_agent: Mapped[str | None] = mapped_column(String(512))
     ip_address: Mapped[str | None] = mapped_column(String(64))
+
+
+class RevokedToken(Base, TimestampMixin):
+    """Blocklist of invalidated JWT access tokens."""
+
+    __tablename__ = "revoked_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    jti: Mapped[str | None] = mapped_column(String(64), index=True)
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    revoked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
 
 
 class EmailVerificationToken(Base, TimestampMixin):

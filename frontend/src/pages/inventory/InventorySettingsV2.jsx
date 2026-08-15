@@ -1,18 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  ArrowLeftRight,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ClipboardList,
+  RefreshCw,
+  Save,
+  Scale,
+  Settings,
+  ShoppingCart,
+  Warehouse,
+} from "lucide-react";
+
 import { getFeatureSetting, putFeatureSetting } from "../../api/bizDocumentsApi";
-import { useToast } from "../../context/ToastContext";
+import Button from "../../components/common/Button";
 import Loader from "../../components/common/Loader";
+import PageHeader from "../../components/common/PageHeader";
+import { useToast } from "../../context/ToastContext";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const PAGE_BG = "var(--color-bg)";
 const SETTING_KEY = "inventory_settings";
 
 const DEFAULTS = {
+  // Legacy keys (preserved for existing saved settings)
   stock_value_tax: "exclusive",
   price_setting: "last_sale_purchase",
   stock_value_basis: "purchase",
   track_from: "invoice",
-  stock_warning: "no",
+  stock_warning: "yes",
   wholesale_price: false,
   scan_barcode: false,
   secondary_units: false,
@@ -21,45 +37,72 @@ const DEFAULTS = {
   cess: true,
   show_category: true,
   inventory_module: "latest",
+
+  // General
+  default_warehouse: "Main Warehouse",
+  default_uom: "",
+  allow_negative_stock: false,
+  show_item_cost: true,
+  auto_generate_item_code: true,
+  date_format: "DD-MMM-YYYY",
+
+  // Stock rules
+  expiry_date_tracking: true,
+  batch_tracking: true,
+  serial_number_tracking: false,
+  allow_duplicate_batch: false,
+  minimum_shelf_life_days: 30,
+
+  // Reorder
+  reorder_level_based_on: "Available Stock",
+  reorder_point_calculation: "Average Daily Consumption",
+  lead_time_days: 7,
+  reorder_qty_calculation: "Economic Order Quantity (EOQ)",
+  low_stock_alert: true,
+
+  // Warehouse
+  multiple_warehouse: true,
+  warehouse_code_required: true,
+  default_bin_location: false,
+  allow_stock_transfer: true,
+
+  // Adjustment
+  adjustment_reason_required: true,
+  adjustment_approval_required: false,
+  allow_future_dated_adjustment: false,
+  default_adjustment_account: "Stock Adjustment Account",
+
+  // Transfer
+  transfer_approval_required: true,
+  allow_direct_transfer: false,
+  auto_update_stock: true,
+  default_transit_warehouse: "In-Transit Warehouse",
 };
 
-function Radio({ name, value, checked, onChange, label, hint }) {
-  return (
-    <label className="flex cursor-pointer items-start gap-2.5">
-      <input
-        type="radio"
-        name={name}
-        className="mt-1 accent-[#0f6d84]"
-        checked={checked}
-        onChange={() => onChange(value)}
-      />
-      <span>
-        <span className="block text-[13px] font-semibold text-[#1a1a1f]">{label}</span>
-        {hint ? <span className="mt-0.5 block text-[12px] leading-snug text-[#6b6b76]">{hint}</span> : null}
-      </span>
-    </label>
-  );
-}
+const TABS = [
+  { id: "general", label: "General", icon: Settings },
+  { id: "stock-rules", label: "Stock Rules", icon: Scale },
+  { id: "reorder", label: "Reorder Settings", icon: ShoppingCart },
+  { id: "warehouse", label: "Warehouse Settings", icon: Warehouse },
+  { id: "adjustment", label: "Adjustment Settings", icon: ClipboardList },
+  { id: "transfer", label: "Transfer Settings", icon: ArrowLeftRight },
+];
 
-function SectionTitle({ children }) {
+function ToggleRow({ label, hint, on, onChange }) {
   return (
-    <div className="rounded-xl bg-[var(--color-success-soft)] px-4 py-2.5 text-[13px] font-bold uppercase tracking-wide text-[#0f6d84]">
-      {children}
-    </div>
-  );
-}
-
-function ToggleRow({ label, on, onChange }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-xl bg-[var(--color-success-soft)] px-4 py-3">
-      <span className="text-[13px] font-bold text-[#0f6d84]">{label}</span>
+    <div className="flex items-start justify-between gap-3 py-2.5">
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-[var(--color-text)]">{label}</p>
+        {hint ? <p className="mt-0.5 text-[11px] leading-snug text-[var(--color-text-muted)]">{hint}</p> : null}
+      </div>
       <button
         type="button"
         role="switch"
         aria-checked={on}
+        aria-label={label}
         onClick={() => onChange(!on)}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-          on ? "bg-[#0f6d84]" : "bg-[#c8c8d0]"
+        className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors ${
+          on ? "bg-[#22c55e]" : "bg-[#d1d5db]"
         }`}
       >
         <span
@@ -72,12 +115,40 @@ function ToggleRow({ label, on, onChange }) {
   );
 }
 
+function FieldLabel({ children }) {
+  return <label className="mb-1.5 block text-[13px] font-medium text-[var(--color-text)]">{children}</label>;
+}
+
+function SettingsCard({ id, icon: Icon, iconBg, iconColor, title, description, children }) {
+  return (
+    <section id={id} className="ui-card scroll-mt-28 p-4 sm:p-5">
+      <div className="mb-4 flex items-start gap-3">
+        <span
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+          style={{ backgroundColor: iconBg, color: iconColor }}
+        >
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-[15px] font-semibold text-[var(--color-text)]">{title}</h3>
+          <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">{description}</p>
+        </div>
+      </div>
+      <div className="space-y-3">{children}</div>
+    </section>
+  );
+}
+
 export default function InventorySettingsV2() {
   const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [tab, setTab] = useState("basic");
   const [form, setForm] = useState(DEFAULTS);
+  const [activeTab, setActiveTab] = useState("general");
+  const [headerDate, setHeaderDate] = useState("2026-08-13");
+  const [headerWarehouse, setHeaderWarehouse] = useState("Main Warehouse");
+  const [justSaved, setJustSaved] = useState(false);
+  const saveTimer = useRef(null);
 
   useEffect(() => {
     getFeatureSetting(SETTING_KEY)
@@ -89,12 +160,19 @@ export default function InventorySettingsV2() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+  }, []);
+
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
   const onSave = async () => {
     setSaving(true);
     try {
       await putFeatureSetting(SETTING_KEY, form);
+      setJustSaved(true);
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => setJustSaved(false), 2500);
       addToast("Inventory settings saved.");
     } catch (err) {
       addToast(apiErrorMessage(err, "Save failed"), "error");
@@ -103,223 +181,396 @@ export default function InventorySettingsV2() {
     }
   };
 
+  const onReset = () => {
+    if (!window.confirm("Reset all inventory settings to defaults?")) return;
+    setForm(DEFAULTS);
+    addToast("Settings reset to defaults. Click Save to persist.");
+  };
+
+  const goToTab = (id) => {
+    setActiveTab(id);
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   if (loading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center" style={{ background: PAGE_BG }}>
+      <div className="space-y-5 pb-4">
         <Loader label="Loading inventory settings…" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-full" style={{ background: PAGE_BG }}>
+    <div className="space-y-5 pb-24">
+      <PageHeader
+        title="Inventory Settings"
+        showTitle
+        subtitle="Configure system preferences and inventory rules"
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="relative inline-flex items-center">
+              <CalendarDays className="pointer-events-none absolute left-3 h-4 w-4 text-[var(--color-text-muted)]" aria-hidden />
+              <input
+                type="date"
+                value={headerDate}
+                onChange={(e) => setHeaderDate(e.target.value)}
+                className="ui-input !w-auto min-w-[10.5rem] !pl-9"
+                aria-label="Date"
+              />
+            </label>
+            <select
+              value={headerWarehouse}
+              onChange={(e) => setHeaderWarehouse(e.target.value)}
+              className="ui-select !w-auto min-w-[11rem]"
+              aria-label="Warehouse"
+            >
+              <option>Main Warehouse</option>
+              <option>Unit-1 Warehouse</option>
+              <option>FG Store</option>
+              <option>All Warehouses</option>
+            </select>
+          </div>
+        }
+      />
 
-      <div className="mx-auto max-w-5xl p-4 sm:p-6">
-        <div className="overflow-hidden rounded-2xl border border-[#e4e4ea] bg-white">
-          <div className="relative flex border-b border-[#e4e4ea]">
-            {[
-              { id: "basic", label: "Basic Details" },
-              { id: "optional", label: "Optional Details" },
-            ].map((t) => {
-              const active = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTab(t.id)}
-                  className={`relative z-[1] flex-1 px-4 py-3.5 text-sm font-bold transition-colors duration-300 ${
-                    active ? "text-[#1a1a1f]" : "text-[#9a9aa5] hover:text-[#6b6b76]"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              );
-            })}
-            <span
-              aria-hidden
-              className="pointer-events-none absolute bottom-0 left-0 h-[3px] w-1/2 rounded-full bg-[#0f6d84] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
-              style={{ transform: tab === "optional" ? "translateX(100%)" : "translateX(0)" }}
+      <div className="overflow-x-auto border-b border-[var(--color-border-soft)]">
+        <nav className="flex min-w-max gap-1" aria-label="Settings sections">
+          {TABS.map(({ id, label, icon: Icon }) => {
+            const active = activeTab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => goToTab(id)}
+                className={`inline-flex items-center gap-2 border-b-2 px-3.5 py-2.5 text-[13px] font-medium transition-colors ${
+                  active
+                    ? "border-[#16a34a] text-[#16a34a]"
+                    : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <SettingsCard
+          id="general"
+          icon={Settings}
+          iconBg="#dcfce7"
+          iconColor="#16a34a"
+          title="General Inventory Settings"
+          description="Basic inventory configuration and defaults"
+        >
+          <div>
+            <FieldLabel>Default Warehouse</FieldLabel>
+            <select
+              value={form.default_warehouse}
+              onChange={(e) => set("default_warehouse", e.target.value)}
+              className="ui-select w-full"
+            >
+              <option>Main Warehouse</option>
+              <option>Unit-1 Warehouse</option>
+              <option>Unit-2 Warehouse</option>
+              <option>FG Store</option>
+              <option>RM Store</option>
+            </select>
+          </div>
+          <div>
+            <FieldLabel>Default UOM</FieldLabel>
+            <select
+              value={form.default_uom}
+              onChange={(e) => set("default_uom", e.target.value)}
+              className="ui-select w-full"
+            >
+              <option value="">Select UOM</option>
+              <option>Pcs</option>
+              <option>Kg</option>
+              <option>Ltr</option>
+              <option>Box</option>
+              <option>Meter</option>
+            </select>
+          </div>
+          <ToggleRow
+            label="Allow Negative Stock"
+            hint="Allow transactions that may result in negative stock"
+            on={form.allow_negative_stock}
+            onChange={(v) => set("allow_negative_stock", v)}
+          />
+          <ToggleRow
+            label="Show Item Cost in Transactions"
+            hint="Display item cost in all inventory transactions"
+            on={form.show_item_cost}
+            onChange={(v) => set("show_item_cost", v)}
+          />
+          <ToggleRow
+            label="Auto Generate Item Code"
+            hint="Automatically generate item codes"
+            on={form.auto_generate_item_code}
+            onChange={(v) => set("auto_generate_item_code", v)}
+          />
+          <div>
+            <FieldLabel>Date Format</FieldLabel>
+            <select
+              value={form.date_format}
+              onChange={(e) => set("date_format", e.target.value)}
+              className="ui-select w-full"
+            >
+              <option>DD-MMM-YYYY</option>
+              <option>DD/MM/YYYY</option>
+              <option>MM/DD/YYYY</option>
+              <option>YYYY-MM-DD</option>
+            </select>
+          </div>
+        </SettingsCard>
+
+        <SettingsCard
+          id="stock-rules"
+          icon={Scale}
+          iconBg="#dbeafe"
+          iconColor="#2563eb"
+          title="Stock Rules"
+          description="Rules for stock tracking and validation"
+        >
+          <ToggleRow
+            label="Expiry Date Tracking"
+            hint="Track expiry dates for applicable items"
+            on={form.expiry_date_tracking}
+            onChange={(v) => set("expiry_date_tracking", v)}
+          />
+          <ToggleRow
+            label="Batch Tracking"
+            hint="Enable batch wise tracking"
+            on={form.batch_tracking}
+            onChange={(v) => set("batch_tracking", v)}
+          />
+          <ToggleRow
+            label="Serial Number Tracking"
+            hint="Enable serial number tracking"
+            on={form.serial_number_tracking}
+            onChange={(v) => set("serial_number_tracking", v)}
+          />
+          <ToggleRow
+            label="Allow Duplicate Batch"
+            hint="Allow same batch number for items"
+            on={form.allow_duplicate_batch}
+            onChange={(v) => set("allow_duplicate_batch", v)}
+          />
+          <div>
+            <FieldLabel>Minimum Shelf Life (Days)</FieldLabel>
+            <input
+              type="number"
+              min={0}
+              value={form.minimum_shelf_life_days}
+              onChange={(e) => set("minimum_shelf_life_days", Number(e.target.value) || 0)}
+              className="ui-input w-full"
             />
+            <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+              Minimum remaining shelf life to accept item
+            </p>
           </div>
+        </SettingsCard>
 
-          <div className="overflow-hidden">
-            <div
-              className="flex w-[200%] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
-              style={{ transform: tab === "optional" ? "translateX(-50%)" : "translateX(0)" }}
+        <SettingsCard
+          id="reorder"
+          icon={ShoppingCart}
+          iconBg="#f3e8ff"
+          iconColor="#7c3aed"
+          title="Reorder Settings"
+          description="Configure automatic reorder rules"
+        >
+          <div>
+            <FieldLabel>Reorder Level Based On</FieldLabel>
+            <select
+              value={form.reorder_level_based_on}
+              onChange={(e) => set("reorder_level_based_on", e.target.value)}
+              className="ui-select w-full"
             >
-              <div className="w-1/2 shrink-0 space-y-5 p-5">
-                <div className="space-y-3">
-                  <SectionTitle>Stock Value</SectionTitle>
-                  <div className="space-y-3 px-1">
-                    <Radio
-                      name="stock_value_tax"
-                      value="exclusive"
-                      checked={form.stock_value_tax === "exclusive"}
-                      onChange={(v) => set("stock_value_tax", v)}
-                      label="Gst Exclusive"
-                    />
-                    <Radio
-                      name="stock_value_tax"
-                      value="inclusive"
-                      checked={form.stock_value_tax === "inclusive"}
-                      onChange={(v) => set("stock_value_tax", v)}
-                      label="Gst Inclusive"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <SectionTitle>Sale / Purchase Price Setting</SectionTitle>
-                  <div className="space-y-3 px-1">
-                    <Radio
-                      name="price_setting"
-                      value="party_wise"
-                      checked={form.price_setting === "party_wise"}
-                      onChange={(v) => set("price_setting", v)}
-                      label="Maintain party wise price"
-                    />
-                    <Radio
-                      name="price_setting"
-                      value="last_sale_purchase"
-                      checked={form.price_setting === "last_sale_purchase"}
-                      onChange={(v) => set("price_setting", v)}
-                      label="Pickup price from last sale or purchase"
-                    />
-                    <Radio
-                      name="price_setting"
-                      value="fixed"
-                      checked={form.price_setting === "fixed"}
-                      onChange={(v) => set("price_setting", v)}
-                      label="Show the rate I entered in product detail (Fixed price)"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <SectionTitle>Calculation of Stock Value</SectionTitle>
-                  <div className="space-y-3 px-1">
-                    <Radio
-                      name="stock_value_basis"
-                      value="purchase"
-                      checked={form.stock_value_basis === "purchase"}
-                      onChange={(v) => set("stock_value_basis", v)}
-                      label="On Purchase Price"
-                    />
-                    <Radio
-                      name="stock_value_basis"
-                      value="sale"
-                      checked={form.stock_value_basis === "sale"}
-                      onChange={(v) => set("stock_value_basis", v)}
-                      label="On Sale Price"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <SectionTitle>Sales Inventory Setting</SectionTitle>
-                  <div className="space-y-4 px-1">
-                    <div>
-                      <p className="mb-2 text-[12px] font-semibold text-[#6b6b76]">
-                        How do you want to track the inventory?
-                      </p>
-                      <div className="space-y-3">
-                        <Radio
-                          name="track_from"
-                          value="invoice"
-                          checked={form.track_from === "invoice"}
-                          onChange={(v) => set("track_from", v)}
-                          label="Track from Invoice"
-                        />
-                        <Radio
-                          name="track_from"
-                          value="delivery_challan"
-                          checked={form.track_from === "delivery_challan"}
-                          onChange={(v) => set("track_from", v)}
-                          label="Track from Delivery Challan"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <p className="mb-2 text-[12px] font-semibold text-[#6b6b76]">
-                        Show Stock Availability Warning
-                      </p>
-                      <div className="space-y-3">
-                        <Radio
-                          name="stock_warning"
-                          value="yes"
-                          checked={form.stock_warning === "yes"}
-                          onChange={(v) => set("stock_warning", v)}
-                          label="Yes"
-                          hint="Warn when selling an item that is out of stock or below minimum stock."
-                        />
-                        <Radio
-                          name="stock_warning"
-                          value="no"
-                          checked={form.stock_warning === "no"}
-                          onChange={(v) => set("stock_warning", v)}
-                          label="No"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="w-1/2 shrink-0 space-y-3 p-5">
-                <p className="mb-1 text-[15px] font-bold text-[#1a1a1f]">Additional Details</p>
-                <ToggleRow
-                  label="Whole Sale Price"
-                  on={form.wholesale_price}
-                  onChange={(v) => set("wholesale_price", v)}
-                />
-                <ToggleRow label="Scan Barcode" on={form.scan_barcode} onChange={(v) => set("scan_barcode", v)} />
-                <ToggleRow
-                  label="Secondary Units"
-                  on={form.secondary_units}
-                  onChange={(v) => set("secondary_units", v)}
-                />
-                <ToggleRow
-                  label="Item Description"
-                  on={form.item_description}
-                  onChange={(v) => set("item_description", v)}
-                />
-                <ToggleRow label="MRP" on={form.mrp} onChange={(v) => set("mrp", v)} />
-                <ToggleRow label="CESS" on={form.cess} onChange={(v) => set("cess", v)} />
-                <ToggleRow label="Show Category" on={form.show_category} onChange={(v) => set("show_category", v)} />
-
-                <div className="space-y-3 pt-3">
-                  <SectionTitle>Select Old Inventory Module</SectionTitle>
-                  <div className="space-y-3 px-1">
-                    <Radio
-                      name="inventory_module"
-                      value="old"
-                      checked={form.inventory_module === "old"}
-                      onChange={(v) => set("inventory_module", v)}
-                      label="Use Old Inventory Module"
-                    />
-                    <Radio
-                      name="inventory_module"
-                      value="latest"
-                      checked={form.inventory_module === "latest"}
-                      onChange={(v) => set("inventory_module", v)}
-                      label="Use Latest Inventory Module"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+              <option>Available Stock</option>
+              <option>On Hand Stock</option>
+              <option>Projected Stock</option>
+            </select>
           </div>
-
-          <div className="flex justify-end border-t border-[#e4e4ea] px-5 py-4">
-            <button
-              type="button"
-              disabled={saving}
-              onClick={onSave}
-              className="rounded-lg bg-[#0f6d84] px-6 py-2.5 text-sm font-bold text-white disabled:opacity-60"
+          <div>
+            <FieldLabel>Reorder Point Calculation</FieldLabel>
+            <select
+              value={form.reorder_point_calculation}
+              onChange={(e) => set("reorder_point_calculation", e.target.value)}
+              className="ui-select w-full"
             >
-              {saving ? "Saving…" : "Save Settings"}
-            </button>
+              <option>Average Daily Consumption</option>
+              <option>Fixed Reorder Point</option>
+              <option>Min-Max Level</option>
+            </select>
           </div>
+          <div>
+            <FieldLabel>Lead Time (Days)</FieldLabel>
+            <input
+              type="number"
+              min={0}
+              value={form.lead_time_days}
+              onChange={(e) => set("lead_time_days", Number(e.target.value) || 0)}
+              className="ui-input w-full"
+            />
+            <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">Average procurement lead time</p>
+          </div>
+          <div>
+            <FieldLabel>Reorder Quantity Calculation</FieldLabel>
+            <select
+              value={form.reorder_qty_calculation}
+              onChange={(e) => set("reorder_qty_calculation", e.target.value)}
+              className="ui-select w-full"
+            >
+              <option>Economic Order Quantity (EOQ)</option>
+              <option>Fixed Quantity</option>
+              <option>Max Level Fill</option>
+            </select>
+          </div>
+          <ToggleRow
+            label="Low Stock Alert"
+            hint="Show alert when stock reaches reorder level"
+            on={form.low_stock_alert}
+            onChange={(v) => {
+              set("low_stock_alert", v);
+              set("stock_warning", v ? "yes" : "no");
+            }}
+          />
+        </SettingsCard>
+
+        <SettingsCard
+          id="warehouse"
+          icon={Warehouse}
+          iconBg="#ffedd5"
+          iconColor="#ea580c"
+          title="Warehouse Settings"
+          description="Multi-warehouse and location settings"
+        >
+          <ToggleRow
+            label="Multiple Warehouse"
+            hint="Enable multiple warehouse management"
+            on={form.multiple_warehouse}
+            onChange={(v) => set("multiple_warehouse", v)}
+          />
+          <ToggleRow
+            label="Warehouse Code Required"
+            hint="Require code for all warehouses"
+            on={form.warehouse_code_required}
+            onChange={(v) => set("warehouse_code_required", v)}
+          />
+          <ToggleRow
+            label="Default Bin Location"
+            hint="Use bin locations in warehouses"
+            on={form.default_bin_location}
+            onChange={(v) => set("default_bin_location", v)}
+          />
+          <ToggleRow
+            label="Allow Stock Transfer"
+            hint="Allow transfers between warehouses"
+            on={form.allow_stock_transfer}
+            onChange={(v) => set("allow_stock_transfer", v)}
+          />
+        </SettingsCard>
+
+        <SettingsCard
+          id="adjustment"
+          icon={ClipboardList}
+          iconBg="#fce7f3"
+          iconColor="#db2777"
+          title="Stock Adjustment Settings"
+          description="Rules for stock adjustments"
+        >
+          <ToggleRow
+            label="Adjustment Reason Required"
+            hint="Require reason for all adjustments"
+            on={form.adjustment_reason_required}
+            onChange={(v) => set("adjustment_reason_required", v)}
+          />
+          <ToggleRow
+            label="Approval Required"
+            hint="Require approval for stock adjustments"
+            on={form.adjustment_approval_required}
+            onChange={(v) => set("adjustment_approval_required", v)}
+          />
+          <ToggleRow
+            label="Allow Future Dated Adjustment"
+            hint="Allow adjustments with future dates"
+            on={form.allow_future_dated_adjustment}
+            onChange={(v) => set("allow_future_dated_adjustment", v)}
+          />
+          <div>
+            <FieldLabel>Default Adjustment Account</FieldLabel>
+            <select
+              value={form.default_adjustment_account}
+              onChange={(e) => set("default_adjustment_account", e.target.value)}
+              className="ui-select w-full"
+            >
+              <option>Stock Adjustment Account</option>
+              <option>Inventory Write-off</option>
+              <option>Cost of Goods Sold</option>
+            </select>
+          </div>
+        </SettingsCard>
+
+        <SettingsCard
+          id="transfer"
+          icon={ArrowLeftRight}
+          iconBg="#ccfbf1"
+          iconColor="#0d9488"
+          title="Stock Transfer Settings"
+          description="Rules for inter-warehouse transfers"
+        >
+          <ToggleRow
+            label="Approval Required"
+            hint="Require approval for stock transfers"
+            on={form.transfer_approval_required}
+            onChange={(v) => set("transfer_approval_required", v)}
+          />
+          <ToggleRow
+            label="Allow Direct Transfer"
+            hint="Allow direct transfer without approval"
+            on={form.allow_direct_transfer}
+            onChange={(v) => set("allow_direct_transfer", v)}
+          />
+          <ToggleRow
+            label="Auto Update Stock"
+            hint="Automatically update stock on transfer completion"
+            on={form.auto_update_stock}
+            onChange={(v) => set("auto_update_stock", v)}
+          />
+          <div>
+            <FieldLabel>Default Transit Warehouse</FieldLabel>
+            <select
+              value={form.default_transit_warehouse}
+              onChange={(e) => set("default_transit_warehouse", e.target.value)}
+              className="ui-select w-full"
+            >
+              <option>In-Transit Warehouse</option>
+              <option>Main Warehouse</option>
+              <option>Transit Hub</option>
+            </select>
+          </div>
+        </SettingsCard>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-[var(--color-border-soft)] bg-white/95 px-4 py-3 backdrop-blur sm:px-6 lg:left-[var(--sidebar-width,0px)]">
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" variant="outline" onClick={onSave} loading={saving} className="!border-[#16a34a] !text-[#16a34a] hover:!bg-[#f0fdf4]">
+              {justSaved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+              Save Settings
+            </Button>
+            <span className="inline-flex items-center gap-1.5 text-[12px] text-[#16a34a]">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Settings are saved automatically
+            </span>
+          </div>
+          <Button type="button" variant="ghost" onClick={onReset}>
+            <RefreshCw className="h-4 w-4" /> Reset to Defaults
+          </Button>
         </div>
       </div>
     </div>

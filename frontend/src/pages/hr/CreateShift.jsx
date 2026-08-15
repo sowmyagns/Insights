@@ -6,6 +6,7 @@ import useTenantId from "../../hooks/useTenantId";
 
 
 
+import Button from "../../components/common/Button";
 export default function CreateShift() {
   const tenantId = useTenantId();
   const navigate = useNavigate();
@@ -91,13 +92,9 @@ export default function CreateShift() {
           />
         </label>
         {error && <div style={{ color: "#b91c1c" }}>{error}</div>}
-        <button
-          type="submit"
-          disabled={saving}
-          className="ui-btn-hr"
-        >
+        <Button variant="primary" type="submit" disabled={saving}>
           {saving ? "Saving..." : "Create Shift"}
-        </button>
+        </Button>
       </form>
     </div>
   );

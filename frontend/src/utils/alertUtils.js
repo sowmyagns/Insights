@@ -55,12 +55,12 @@ export function formatAlertDate(value) {
       const [datePart, timePart] = raw.split("T");
       const [year, month, day] = datePart.split("-").map(Number);
       const [hour, minute] = (timePart || "00:00").split(":").map(Number);
-      d = new Date(year, month - 1, day, hour, minute);
+      d = new Date(Date.UTC(year, month - 1, day, hour, minute));
     } else if (raw.includes(" ")) {
       const [datePart, timePart] = raw.split(" ");
       const [year, month, day] = datePart.split("-").map(Number);
       const [hour, minute] = (timePart || "00:00").split(":").map(Number);
-      d = new Date(year, month - 1, day, hour, minute);
+      d = new Date(Date.UTC(year, month - 1, day, hour, minute));
     } else {
       d = new Date(raw);
     }

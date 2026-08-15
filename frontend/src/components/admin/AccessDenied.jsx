@@ -1,5 +1,6 @@
-import { Link } from "react-router-dom";
 import { ShieldX } from "lucide-react";
+
+import Button from "../common/Button";
 
 /**
  * 403 Access Denied — unauthorized module / direct URL / missing role.
@@ -27,12 +28,9 @@ export default function AccessDenied({ message, requiredRole }) {
           Required access: <span className="font-medium text-slate-600 dark:text-slate-300">{requiredRole}</span>
         </p>
       ) : null}
-      <Link
-        to="/"
-        className="mt-6 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)]"
-      >
+      <Button variant="primary" to="/" className="mt-6">
         Back to Dashboard
-      </Link>
+      </Button>
     </div>
   );
 }

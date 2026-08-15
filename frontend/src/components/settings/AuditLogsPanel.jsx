@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Download, Loader2, Search, Trash2 } from "lucide-react";
 
+import Button from "../common/Button";
+
 import {
   deleteAuditLog,
   exportAuditLogs,
@@ -34,6 +36,7 @@ const ACTIONS = ["", "login", "login_failed", "logout", "create", "update", "del
 function statusClass(status) {
   if (status === "Success") return "bg-emerald-50 text-emerald-700";
   if (status === "Failed") return "bg-red-50 text-red-700";
+  if (status === "Logged Out") return "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300";
   return "bg-slate-100 text-slate-600";
 }
 
@@ -175,30 +178,33 @@ export default function AuditLogsPanel() {
               ))}
             </div>
           )}
-          <button
+          <Button
+            variant="secondary"
             type="button"
             disabled={exporting}
             onClick={() => handleExport("csv")}
-            className="ui-btn-secondary text-xs"
+            className="text-xs"
           >
             <Download className="h-3.5 w-3.5" /> CSV
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
             type="button"
             disabled={exporting}
             onClick={() => handleExport("excel")}
-            className="ui-btn-secondary text-xs"
+            className="text-xs"
           >
             <Download className="h-3.5 w-3.5" /> Excel
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
             type="button"
             disabled={exporting}
             onClick={() => handleExport("pdf")}
-            className="ui-btn-secondary text-xs"
+            className="text-xs"
           >
             <Download className="h-3.5 w-3.5" /> PDF
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -232,6 +238,7 @@ export default function AuditLogsPanel() {
           <option value="">All statuses</option>
           <option value="Success">Success</option>
           <option value="Failed">Failed</option>
+          <option value="Logged Out">Logged Out</option>
         </select>
         <input
           className={inputCls}
@@ -270,6 +277,7 @@ export default function AuditLogsPanel() {
                   ["device_type", "Device"],
                   ["logout_time", "Logout"],
                   ["session_duration", "Duration"],
+                  ["details", "Details"],
                 ].map(([key, label]) => (
                   <th
                     key={key}
@@ -315,6 +323,7 @@ export default function AuditLogsPanel() {
                   <td className="whitespace-nowrap px-2.5 py-2">{row.device_type || "—"}</td>
                   <td className="whitespace-nowrap px-2.5 py-2">{row.logout_time || "—"}</td>
                   <td className="whitespace-nowrap px-2.5 py-2">{row.session_duration || "—"}</td>
+                  <td className="whitespace-nowrap px-2.5 py-2 max-w-xs truncate" title={row.details || ""}>{row.details || "—"}</td>
                   {isAdmin && (
                     <td className="whitespace-nowrap px-2.5 py-2">
                       <button

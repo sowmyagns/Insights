@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { PRODUCT_UNITS } from "../../data/productsMasterData";
 
+import Button from "../common/Button";
 const TABS = [
   { id: "general", label: "General" },
   { id: "inventory", label: "Inventory" },
@@ -185,9 +186,9 @@ export default function ProductDetailModal({
         </div>
 
         <div className="flex flex-wrap gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
-          <button type="button" onClick={() => onEdit(product)} className="ui-btn-primary text-xs">
+          <Button type="button" onClick={() => onEdit(product)} variant="primary" className="text-xs">
             Edit
-          </button>
+          </Button>
           <button type="button" onClick={() => onDuplicate(product)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
             <Copy className="h-3.5 w-3.5" /> Duplicate
           </button>
@@ -355,7 +356,7 @@ export function ProductFormModal({ product, onClose, onSave }) {
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600">Cancel</button>
-          <button type="submit" className="ui-btn-primary">{isEdit ? "Save Changes" : "Add Product"}</button>
+          <Button variant="primary" type="submit" >{isEdit ? "Save Changes" : "Add Product"}</Button>
         </div>
       </form>
     </div>

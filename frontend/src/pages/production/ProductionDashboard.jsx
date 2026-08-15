@@ -109,7 +109,7 @@ export default function ProductionDashboard() {
     <div className="space-y-5 pb-4">
       <ProductionManagerNav />
 
-      <PageHeader subtitle="Planning, schedule, allocation, shop floor, batches, and quality in one control center." />
+      <PageHeader subtitle="Planning, schedule, allocation, batches, and quality in one control center." />
 
       <div className="ui-grid-kpi">
         <KpiCard label="Running Jobs" value={hub.running_jobs} accent icon={Cog} iconWrap="bg-violet-50 text-violet-700" />

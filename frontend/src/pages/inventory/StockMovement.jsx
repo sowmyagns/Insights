@@ -14,6 +14,7 @@ import usePageRefresh from "../../hooks/usePageRefresh";
 import { isStoreManager } from "../../config/permissions";
 import useAuth from "../../hooks/useAuth";
 
+import Button from "../../components/common/Button";
 function itemLabel(item) {
   const code = item.product_code || item.code || item.item_code;
   const name = item.name || "Item";
@@ -176,9 +177,9 @@ export default function StockMovement() {
             />
           </label>
 
-          <button type="submit" disabled={submitting} className="ui-btn-primary w-full">
+          <Button variant="primary" type="submit" disabled={submitting} className="w-full">
             {submitting ? "Issuing…" : "Issue Material"}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

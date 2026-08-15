@@ -1,10 +1,14 @@
 """Production module API — sidebar Production section (admin CRUD + enriched reads)."""
 
+import logging
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.api.deps import get_db
 from app.core.permissions import require_action, user_can_action
@@ -45,7 +49,6 @@ from app.services.production_service import (
     update_production_order_status,
     update_work_order,
 )
-from app.services.shop_floor_service import get_shop_floor_grid, get_shop_floor_summary
 from app.services.work_order_service import (
     complete_work_order,
     get_work_order_detail,
@@ -190,12 +193,25 @@ def production_plan_priority(
 ):
     _, tenant_id = user_tenant
     from app.models.production import ProductionOrder
-    order = db.query(ProductionOrder).filter(ProductionOrder.id == plan_id, ProductionOrder.tenant_id == tenant_id).first()
-    if not order:
-        raise HTTPException(404, "Production plan not found")
-    order.priority = priority
-    db.commit()
-    return success_response("Production plan priority updated", _dump(order))
+
+    try:
+        order = db.query(ProductionOrder).filter(ProductionOrder.id == plan_id, ProductionOrder.tenant_id == tenant_id).first()
+        if not order:
+            raise HTTPException(404, "Production plan not found")
+        order.priority = priority
+        db.commit()
+        db.refresh(order)
+        return success_response("Production plan priority updated", _dump(order))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error updating priority for plan_id=%s, tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error updating production plan priority") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to update priority for plan_id=%s, tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to update production plan priority") from exc
 
 
 @router.patch("/planning/{plan_id}/machine")
@@ -207,25 +223,38 @@ def production_plan_machine(
 ):
     _, tenant_id = user_tenant
     from app.models.production import ProductionOrder, WorkOrder
-    order = db.query(ProductionOrder).filter(ProductionOrder.id == plan_id, ProductionOrder.tenant_id == tenant_id).first()
-    if not order:
-        raise HTTPException(404, "Production plan not found")
-    order.machine_id = machine_id
-    wo = db.query(WorkOrder).filter(WorkOrder.production_order_id == plan_id, WorkOrder.tenant_id == tenant_id).first()
-    if wo:
-        wo.machine_id = machine_id
-    else:
-        wo = WorkOrder(
-            tenant_id=tenant_id,
-            production_order_id=plan_id,
-            work_order_number=f"WO-{order.order_number}",
-            planned_quantity=order.planned_quantity,
-            machine_id=machine_id,
-            status="planned"
-        )
-        db.add(wo)
-    db.commit()
-    return success_response("Machine assigned to production plan", _dump(order))
+
+    try:
+        order = db.query(ProductionOrder).filter(ProductionOrder.id == plan_id, ProductionOrder.tenant_id == tenant_id).first()
+        if not order:
+            raise HTTPException(404, "Production plan not found")
+        order.machine_id = machine_id
+        wo = db.query(WorkOrder).filter(WorkOrder.production_order_id == plan_id, WorkOrder.tenant_id == tenant_id).first()
+        if wo:
+            wo.machine_id = machine_id
+        else:
+            wo = WorkOrder(
+                tenant_id=tenant_id,
+                production_order_id=plan_id,
+                work_order_number=f"WO-{order.order_number}",
+                planned_quantity=order.planned_quantity,
+                machine_id=machine_id,
+                status="planned"
+            )
+            db.add(wo)
+        db.commit()
+        db.refresh(order)
+        return success_response("Machine assigned to production plan", _dump(order))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error assigning machine_id=%s for plan_id=%s, tenant_id=%s: %s", machine_id, plan_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error assigning machine to production plan") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to assign machine_id=%s for plan_id=%s, tenant_id=%s: %s", machine_id, plan_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to assign machine to production plan") from exc
 
 
 # ── Job Cards (Work Order shop-floor document) ─────────────────────────────
@@ -307,11 +336,22 @@ def create_work_order_endpoint(
 ):
     from app.services.production_service import create_work_order as create_wo
 
-    payload.tenant_id = user.tenant_id
-    if user.plant_code:
-        payload.plant_code = user.plant_code
-    wo = create_wo(db, payload)
-    return success_response("Work order created", _dump(wo))
+    try:
+        payload.tenant_id = user.tenant_id
+        if user.plant_code:
+            payload.plant_code = user.plant_code
+        wo = create_wo(db, payload)
+        return success_response("Work order created", _dump(wo))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error creating work order for user_id=%s: %s", user.id, exc)
+        raise HTTPException(status_code=500, detail="Database error creating work order") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to create work order for user_id=%s: %s", user.id, exc)
+        raise HTTPException(status_code=500, detail="Failed to create work order") from exc
 
 
 @router.post("/work-orders/quick")
@@ -320,9 +360,20 @@ def quick_work_order(
     user: User = Depends(require_action("production", "create")),
     db: Session = Depends(get_db),
 ):
-    payload.tenant_id = user.tenant_id
-    wo = quick_create_work_order(db, payload)
-    return success_response("Work order created", _dump(wo))
+    try:
+        payload.tenant_id = user.tenant_id
+        wo = quick_create_work_order(db, payload)
+        return success_response("Work order created", _dump(wo))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error quick-creating work order for user_id=%s: %s", user.id, exc)
+        raise HTTPException(status_code=500, detail="Database error creating work order") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to quick-create work order for user_id=%s: %s", user.id, exc)
+        raise HTTPException(status_code=500, detail="Failed to create work order") from exc
 
 
 @router.patch("/work-orders/{work_order_id}")
@@ -333,26 +384,37 @@ def update_work_order_endpoint(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    if payload.status is not None and not user_can_action(user, "production", "update"):
-        raise HTTPException(403, "You cannot change work order status")
-    if payload.actual_quantity is not None and not user_can_action(user, "production", "update_qty"):
-        raise HTTPException(403, "You cannot update production quantity")
-    can_update = user_can_action(user, "production", "update")
-    wo = update_work_order(
-        db,
-        work_order_id,
-        tenant_id,
-        user=user,
-        actual_quantity=payload.actual_quantity,
-        status=payload.status if can_update else None,
-        machine_id=payload.machine_id if can_update else None,
-        shift=payload.shift if can_update else None,
-        operator_name=payload.operator_name if can_update else None,
-        priority=payload.priority if can_update else None,
-    )
-    if not wo:
-        raise HTTPException(404, "Work order not found")
-    return success_response("Work order updated", _dump(wo))
+    try:
+        if payload.status is not None and not user_can_action(user, "production", "update"):
+            raise HTTPException(403, "You cannot change work order status")
+        if payload.actual_quantity is not None and not user_can_action(user, "production", "update_qty"):
+            raise HTTPException(403, "You cannot update production quantity")
+        can_update = user_can_action(user, "production", "update")
+        wo = update_work_order(
+            db,
+            work_order_id,
+            tenant_id,
+            user=user,
+            actual_quantity=payload.actual_quantity,
+            status=payload.status if can_update else None,
+            machine_id=payload.machine_id if can_update else None,
+            shift=payload.shift if can_update else None,
+            operator_name=payload.operator_name if can_update else None,
+            priority=payload.priority if can_update else None,
+        )
+        if not wo:
+            raise HTTPException(404, "Work order not found")
+        return success_response("Work order updated", _dump(wo))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error updating work_order_id=%s for tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error updating work order") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to update work_order_id=%s for tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to update work order") from exc
 
 
 @router.get("/work-orders/{work_order_id}/start-checks")
@@ -375,7 +437,18 @@ def work_order_start(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Work order started", _dump(start_work_order(db, tenant_id, work_order_id)))
+    try:
+        return success_response("Work order started", _dump(start_work_order(db, tenant_id, work_order_id)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error starting work_order_id=%s for tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error starting work order") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to start work_order_id=%s for tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to start work order") from exc
 
 
 @router.post("/work-orders/{work_order_id}/pause")
@@ -385,7 +458,18 @@ def work_order_pause(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Work order paused", _dump(pause_work_order(db, tenant_id, work_order_id)))
+    try:
+        return success_response("Work order paused", _dump(pause_work_order(db, tenant_id, work_order_id)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error pausing work_order_id=%s for tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error pausing work order") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to pause work_order_id=%s for tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to pause work order") from exc
 
 
 @router.post("/work-orders/{work_order_id}/stop")
@@ -395,7 +479,18 @@ def work_order_stop(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Work order stopped", _dump(stop_work_order(db, tenant_id, work_order_id)))
+    try:
+        return success_response("Work order stopped", _dump(stop_work_order(db, tenant_id, work_order_id)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error stopping work_order_id=%s for tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error stopping work order") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to stop work_order_id=%s for tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to stop work order") from exc
 
 
 @router.post("/work-orders/{work_order_id}/issue-materials")
@@ -424,14 +519,23 @@ def work_order_complete(
     user, _ = user_tenant
     from app.services.manufacturing_workflow_service import complete_work_order_integrated
 
-    result = complete_work_order_integrated(
-        db, tenant_id, work_order_id, user_id=user.id if user else None
-    )
-    if not result.success:
-        from fastapi import HTTPException
-
-        raise HTTPException(status_code=400, detail=result.message)
-    return success_response("Work order completed", _dump(result))
+    try:
+        result = complete_work_order_integrated(
+            db, tenant_id, work_order_id, user_id=user.id if user else None
+        )
+        if not result.success:
+            raise HTTPException(status_code=400, detail=result.message)
+        return success_response("Work order completed", _dump(result))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error completing work_order_id=%s for tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error completing work order") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to complete work_order_id=%s for tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to complete work order") from exc
 
 
 @router.post("/mrp/run")
@@ -445,30 +549,29 @@ def run_mrp_endpoint(
     from app.services.manufacturing_workflow_service import run_mrp
 
     user, tenant_id = user_tenant
-    result = run_mrp(
-        db,
-        tenant_id,
-        product_id,
-        quantity,
-        create_purchase_request=create_purchase_request,
-        requested_by=user.full_name or user.email,
-    )
-    return success_response(
-        "Produce" if result["enough_stock"] else "Purchase required — material request created",
-        result,
-    )
-
-
-# ── Shop Floor ─────────────────────────────────────────────────────────────
-
-
-@router.get("/shop-floor")
-def shop_floor(user_tenant: tuple[User, int] = Depends(require_tenant("shopfloor")), db: Session = Depends(get_db)):
-    _, tenant_id = user_tenant
-    return success_response("Shop floor retrieved", {
-        "summary": _dump(get_shop_floor_summary(db, tenant_id)),
-        "grid": _dump(get_shop_floor_grid(db, tenant_id)),
-    })
+    try:
+        result = run_mrp(
+            db,
+            tenant_id,
+            product_id,
+            quantity,
+            create_purchase_request=create_purchase_request,
+            requested_by=user.full_name or user.email,
+        )
+        return success_response(
+            "Produce" if result["enough_stock"] else "Purchase required — material request created",
+            result,
+        )
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error executing MRP for product_id=%s, quantity=%s, tenant_id=%s: %s", product_id, quantity, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error executing MRP calculation") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to execute MRP calculation for product_id=%s, quantity=%s, tenant_id=%s: %s", product_id, quantity, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to execute MRP calculation") from exc
 
 
 # ── Machine Allocation ─────────────────────────────────────────────────────
@@ -522,24 +625,57 @@ def batches(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    if work_order_id is not None:
-        return success_response("Batches retrieved", _dump(list_batches(db, tenant_id, work_order_id)))
-    return success_response("Batches retrieved", {
-        "summary": _dump(get_batch_summary(db, tenant_id)),
-        "items": _dump(list_batches_enriched(db, tenant_id)),
-    })
+    try:
+        if work_order_id is not None:
+            return success_response("Batches retrieved", _dump(list_batches(db, tenant_id, work_order_id)))
+        return success_response("Batches retrieved", {
+            "summary": _dump(get_batch_summary(db, tenant_id)),
+            "items": _dump(list_batches_enriched(db, tenant_id)),
+        })
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving batches for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve batches for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve batches") from exc
 
 
 @router.get("/batches/summary")
 def batch_summary(user_tenant: tuple[User, int] = Depends(require_tenant("batches")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Batch summary retrieved", _dump(get_batch_summary(db, tenant_id)))
+    try:
+        return success_response("Batch summary retrieved", _dump(get_batch_summary(db, tenant_id)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving batch summary for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve batch summary for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve batch summary") from exc
 
 
 @router.get("/batches/items")
 def batch_items(user_tenant: tuple[User, int] = Depends(require_tenant("batches")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Batches retrieved", _dump(list_batches_enriched(db, tenant_id)))
+    try:
+        return success_response("Batches retrieved", _dump(list_batches_enriched(db, tenant_id)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving batch items for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve batch items for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve batch items") from exc
 
 
 @router.get("/batches/{batch_id}")
@@ -549,10 +685,21 @@ def batch_detail(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    detail = get_batch_detail(db, tenant_id, batch_id)
-    if not detail:
-        raise HTTPException(404, "Batch not found")
-    return success_response("Batch retrieved", _dump(detail))
+    try:
+        detail = get_batch_detail(db, tenant_id, batch_id)
+        if not detail:
+            raise HTTPException(404, "Batch not found")
+        return success_response("Batch retrieved", _dump(detail))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving batch_id=%s for tenant_id=%s: %s", batch_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve batch_id=%s for tenant_id=%s: %s", batch_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve batch detail") from exc
 
 
 @router.post("/batches")
@@ -561,12 +708,23 @@ def create_batch(
     user_tenant: tuple[User, int] = Depends(require_tenant("batches")),
     db: Session = Depends(get_db),
 ):
-    from app.services.production_service import create_batch
+    from app.services.production_service import create_batch as create_batch_svc
 
     _, tenant_id = user_tenant
-    payload.tenant_id = tenant_id
-    batch = create_batch(db, payload)
-    return success_response("Batch created", _dump(batch))
+    try:
+        payload.tenant_id = tenant_id
+        batch = create_batch_svc(db, payload)
+        return success_response("Batch created", _dump(batch))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error creating batch for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error creating batch") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to create batch for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to create batch") from exc
 
 
 # ── Daily Reports ──────────────────────────────────────────────────────────
@@ -582,16 +740,27 @@ def daily_reports(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    reports = list_daily_production_reports(
-        db,
-        tenant_id,
-        date_from=date_from,
-        date_to=date_to,
-        work_order_id=work_order_id,
-        machine_id=machine_id,
-        user=user,
-    )
-    return success_response("Daily reports retrieved", _dump(reports))
+    try:
+        reports = list_daily_production_reports(
+            db,
+            tenant_id,
+            date_from=date_from,
+            date_to=date_to,
+            work_order_id=work_order_id,
+            machine_id=machine_id,
+            user=user,
+        )
+        return success_response("Daily reports retrieved", _dump(reports))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving daily reports for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve daily reports for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve daily reports") from exc
 
 
 @router.post("/daily-reports")
@@ -601,6 +770,17 @@ def create_daily_report(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    payload.tenant_id = tenant_id
-    report = create_daily_production_report(db, payload, created_by_user_id=user.id)
-    return success_response("Daily report created", _dump(report))
+    try:
+        payload.tenant_id = tenant_id
+        report = create_daily_production_report(db, payload, created_by_user_id=user.id)
+        return success_response("Daily report created", _dump(report))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error creating daily report for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error creating daily report") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to create daily report for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to create daily report") from exc

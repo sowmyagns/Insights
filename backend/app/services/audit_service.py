@@ -138,7 +138,7 @@ def record_login_audit(
             db, request=request, user=user, role=role
         )
     return AuditLogService.log_login_failed(
-        db, request=request, email=email, user=user
+        db, request=request, email=email, user=user, role=role
     )
 
 

@@ -11,6 +11,7 @@ import { getInvoices } from "../../api/salesApi";
 import { useToast } from "../../context/ToastContext";
 import usePageRefresh from "../../hooks/usePageRefresh";
 
+import Button from "../../components/common/Button";
 const fmt = (v) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(v) || 0);
 
@@ -240,10 +241,13 @@ export default function SalesBills() {
         subtitle="Manage your billing records."
         action={
           <>
-            <Link to="/sales/bills/create" className="ui-btn-primary">
+            <Button variant="primary" to="/sales/bills/create">
               <Plus className="h-4 w-4" /> Create Bill
-            </Link>
-            <button type="button" onClick={() => exportToExcel(
+            </Button>
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => exportToExcel(
               filteredBills.map((b) => ({
                 ...b,
                 product: b.items?.[0]?.item_description || "—",
@@ -264,9 +268,9 @@ export default function SalesBills() {
               ],
               "sales-bills"
             )}
-              className="ui-btn-secondary">
+            >
               <Download className="h-4 w-4" /> Export
-            </button>
+            </Button>
           </>
         }
       />
@@ -294,9 +298,9 @@ export default function SalesBills() {
             <FileText className="mx-auto mb-4 h-12 w-12 text-slate-300" />
             <p className="text-lg font-semibold text-slate-700">No bills yet</p>
             <p className="ui-subtitle">Create your first bill to get started.</p>
-            <Link to="/sales/bills/create" className="ui-btn-primary mt-6">
+            <Button variant="primary" to="/sales/bills/create" className="mt-6">
               <Plus className="h-4 w-4" /> Create Bill
-            </Link>
+            </Button>
           </div>
         ) : (
           <div>

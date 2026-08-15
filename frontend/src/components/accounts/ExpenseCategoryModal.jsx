@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
+import Button from "../common/Button";
 import { ACCOUNT_GROUPS, EXPENSE_COLOURS } from "../../data/expenseCategories";
 
 export default function ExpenseCategoryModal({
@@ -107,29 +108,26 @@ export default function ExpenseCategoryModal({
 
         <div className="flex items-center justify-between border-t border-[#ececf0] px-5 py-4">
           {isEdit ? (
-            <button
+            <Button
               type="button"
+              variant="danger"
               onClick={() => {
                 onDelete?.(category);
                 onClose?.();
               }}
-              className="rounded border border-[#ef4444] px-4 py-1.5 text-[13px] font-semibold text-[#ef4444]"
             >
               Delete
-            </button>
+            </Button>
           ) : (
             <span />
           )}
           <div className="flex items-center gap-4">
-            <button type="button" onClick={onClose} className="text-[14px] font-semibold text-[#4a4a55]">
+            <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-lg bg-[#2d2a4a] px-5 py-2 text-[13px] font-semibold text-white"
-            >
+            </Button>
+            <Button type="submit" variant="primary">
               Save
-            </button>
+            </Button>
           </div>
         </div>
       </form>

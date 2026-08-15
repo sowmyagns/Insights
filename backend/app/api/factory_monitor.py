@@ -7,12 +7,6 @@ from app.core.permissions import tenant_scope
 from app.models.machine import Machine
 from app.models.production import ProductionOrder, WorkOrder
 from app.models.product import Product
-from app.services.shop_floor_service import (
-    get_shop_floor_alerts,
-    get_shop_floor_grid,
-    get_shop_floor_summary,
-    get_shop_floor_timeline,
-)
 
 router = APIRouter(prefix="/factory-monitor", tags=["Factory Monitor"])
 
@@ -123,32 +117,3 @@ def get_production_lines_status(
             }
         )
     return lines
-
-
-@router.get("/shop-floor/summary")
-def shop_floor_summary(
-    tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)
-):
-    data = get_shop_floor_summary(db, tenant_id)
-    return data.model_dump()
-
-
-@router.get("/shop-floor/grid")
-def shop_floor_grid(
-    tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)
-):
-    return [r.model_dump() for r in get_shop_floor_grid(db, tenant_id)]
-
-
-@router.get("/shop-floor/alerts")
-def shop_floor_alerts(
-    tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)
-):
-    return [a.model_dump() for a in get_shop_floor_alerts(db, tenant_id)]
-
-
-@router.get("/shop-floor/timeline")
-def shop_floor_timeline(
-    tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)
-):
-    return [t.model_dump() for t in get_shop_floor_timeline(db, tenant_id)]

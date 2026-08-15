@@ -88,6 +88,7 @@ def test_api_dashboard(operator_auth, client):
     body = resp.json()
     assert body["success"] is True
     assert "shop_floor" in body["data"]
+    assert body["data"]["shop_floor"] == {}
 
 
 def test_api_workorders_today(operator_auth, client):

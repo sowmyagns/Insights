@@ -119,11 +119,13 @@ function mapApiMenusToNav(menus) {
       label: section.label,
       icon: Icon,
       module: section.module,
-      children: (section.children || []).map((c) => ({
-        label: c.label,
-        to: c.path,
-        module: c.module,
-      })),
+      children: (section.children || [])
+        .filter((c) => c?.path)
+        .map((c) => ({
+          label: c.label,
+          to: c.path,
+          module: c.module,
+        })),
     };
   });
 }
@@ -154,7 +156,6 @@ const PROD_MANAGER_ALLOWED_CHILDREN = new Set([
   "/production/work-orders/create-quick",
   "/production/job-card",
   "/production/schedule",
-  "/factory-monitor/live-production",
   "/production/tasks",
   "/production/reports",
   "/inventory",
@@ -295,9 +296,9 @@ export default function Sidebar({ collapsed = false, onToggleCollapse, onClose }
     }
     // Operators do not see the Masters section
     if (isOperator(user)) {
-      return raw.filter((section) => section.key !== "masters");
+      return filteredRaw.filter((section) => section.key !== "masters");
     }
-    return raw;
+    return filteredRaw;
   }, [apiNav, user, storeMode]);
 
   const [expanded, setExpanded] = useState(() =>

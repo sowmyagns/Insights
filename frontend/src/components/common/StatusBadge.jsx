@@ -3,6 +3,7 @@ const TONE_CLASS = {
   info: "ui-badge-info",
   progress: "ui-badge-progress",
   pending: "ui-badge-pending",
+  primary: "ui-badge-pending",
   warning: "ui-badge-warning",
   danger: "ui-badge-danger",
   error: "ui-badge-error",

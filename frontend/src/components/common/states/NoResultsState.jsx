@@ -1,4 +1,5 @@
 import { SearchX } from "lucide-react";
+import Button from "../Button";
 
 /**
  * Shown when search/filters match nothing (data exists, filters empty it).
@@ -28,9 +29,9 @@ export default function NoResultsState({
       <h3 className="mt-4 text-[var(--text-base)] font-semibold text-[var(--color-text)]">{title}</h3>
       <p className="mt-1 max-w-sm text-[var(--text-md)] text-[var(--color-text-muted)]">{desc}</p>
       {onClear ? (
-        <button type="button" onClick={onClear} className="mt-5 ui-btn-secondary">
+        <Button type="button" variant="secondary" onClick={onClear} className="mt-5">
           {clearLabel}
-        </button>
+        </Button>
       ) : null}
     </div>
   );

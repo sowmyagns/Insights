@@ -14,6 +14,8 @@ import {
 
 import { departmentTypeLabel } from "../../data/departmentsMasterData";
 
+import Button from "../common/Button";
+
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "employees", label: "Employees" },
@@ -168,9 +170,9 @@ export function DepartmentFormModal({ department, onClose, onSave }) {
           <button type="button" onClick={onClose} className="rounded-xl border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
             Cancel
           </button>
-          <button type="button" onClick={() => canSave && onSave(form)} className="ui-btn-hr" disabled={!canSave}>
+          <Button type="button" onClick={() => canSave && onSave(form)} variant="hr" disabled={!canSave}>
             <Save className="h-4 w-4" /> Save Department
-          </button>
+          </Button>
         </div>
       </div>
     </div>

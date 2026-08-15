@@ -10,6 +10,7 @@ import {
 
 import { starRating } from "../../data/vendorsMasterData";
 
+import Button from "../common/Button";
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "purchase_orders", label: "Purchase Orders" },
@@ -522,7 +523,7 @@ export function VendorFormModal({ vendor, onClose, onSave }) {
             </label>
           </div>
           <div className="flex gap-2 pt-2">
-            <button type="submit" className="ui-btn-primary">Save Vendor</button>
+            <Button variant="primary" type="submit" >Save Vendor</Button>
             <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700">
               Cancel
             </button>

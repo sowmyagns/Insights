@@ -5,6 +5,7 @@ import { Check, MapPin, MoreVertical, Pencil, Plus, Trash2, X } from "lucide-rea
 import AddBasicDetailsModal from "./AddBasicDetailsModal";
 import AddCustomFieldModal from "./AddCustomFieldModal";
 import AddOtherDetailsModal from "./AddOtherDetailsModal";
+import Button from "../common/Button";
 import SearchableSelect from "../common/SearchableSelect";
 import { createCustomer, getCustomers, updateCustomer } from "../../api/salesApi";
 import {
@@ -17,7 +18,6 @@ import { INDIAN_STATES, CITIES_BY_STATE } from "../../data/indiaLocations";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
 
-const YELLOW = "var(--color-primary)";
 const PURPLE = "#6b4eff";
 
 const inputClass =
@@ -236,24 +236,20 @@ function AddressModal({ open, onClose, initial, onSave }) {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 border-t border-[#ececf0] px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg bg-[#eff0f4] py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
-          >
+          <Button type="button" variant="secondary" onClick={onClose} fullWidth>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="primary"
+            fullWidth
             onClick={() => {
               onSave?.(address);
               onClose?.();
             }}
-            className="rounded-lg py-2.5 text-[14px] font-semibold text-white"
-            style={{ background: YELLOW }}
           >
             Save
-          </button>
+          </Button>
         </div>
       </div>
     </div>,
@@ -339,6 +335,10 @@ export default function AddNewPartyModal({
     e.preventDefault();
     if (!form.name.trim()) {
       addToast("Company Name is required", "error");
+      return;
+    }
+    if (form.name.trim().length > 100) {
+      addToast("Company Name cannot exceed 100 characters", "error");
       return;
     }
     if (!/[a-zA-Z]/.test(form.name)) {
@@ -522,6 +522,7 @@ export default function AddNewPartyModal({
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="Enter Company Name"
+                  maxLength={100}
                   required
                   className={inputClass}
                 />
@@ -693,7 +694,7 @@ export default function AddNewPartyModal({
             className="ui-btn-primary py-3 text-[14px] disabled:opacity-60"
           >
             {saving ? "Saving…" : "Submit"}
-          </button>
+          </Button>
         </div>
       </form>
 

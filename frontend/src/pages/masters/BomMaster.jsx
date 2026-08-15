@@ -15,6 +15,7 @@ import {
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
+import Button from "../../components/common/Button";
 import BomDetailModal, { BomFormModal, checkDuplicateBom } from "../../components/masters/BomDetailModal";
 import { useToast } from "../../context/ToastContext";
 import { addBomItem, deleteBomItem, getBillOfMaterials } from "../../api/bomApi";
@@ -375,9 +376,9 @@ export default function BomMaster() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setFormBom({ _existingBoms: boms })} className="ui-btn-primary">
+          <Button variant="primary" type="button" onClick={() => setFormBom({ _existingBoms: boms })}>
             <Plus className="h-4 w-4" /> Create Bill of Materials (BOM)
-          </button>
+          </Button>
           <button type="button" onClick={() => selected && setFormBom(selected)} disabled={!selected} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
             Edit Bill of Materials (BOM)
           </button>

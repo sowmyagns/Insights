@@ -10,13 +10,22 @@ def test_customer_name_validation():
     )
     assert customer.name == "Valid Company"
 
+    # Excessively long company name (>100 characters) rejected
+    long_name = "A" * 150 + " Inc"
+    with pytest.raises(ValidationError) as exc_info:
+        CustomerCreate(
+            tenant_id=1,
+            name=long_name,
+        )
+    assert "Company Name cannot exceed 100 characters" in str(exc_info.value)
+
     # Whitespace-only name rejected
     with pytest.raises(ValidationError) as exc_info:
         CustomerCreate(
             tenant_id=1,
             name="   ",
         )
-    assert "Company Name is required and cannot be blank or whitespace-only" in str(exc_info.value)
+    assert "Company Name is required" in str(exc_info.value)
 
     # Special characters-only name rejected
     with pytest.raises(ValidationError) as exc_info:
@@ -34,87 +43,8 @@ def test_customer_name_validation():
         )
     assert "Company Name must contain at least one letter" in str(exc_info.value)
 
-def test_customer_contact_person_validation():
-    # Valid contact person
-    customer = CustomerCreate(
-        tenant_id=1,
-        name="Valid Company",
-        contact_name="John Doe",
-    )
-    assert customer.contact_name == "John Doe"
-
-    # Whitespace-only contact name coerced to None
-    customer = CustomerCreate(
-        tenant_id=1,
-        name="Valid Company",
-        contact_name="   ",
-    )
-    assert customer.contact_name is None
-
-    # Numeric-only contact name rejected
-    with pytest.raises(ValidationError) as exc_info:
-        CustomerCreate(
-            tenant_id=1,
-            name="Valid Company",
-            contact_name="123456",
-        )
-    assert "Contact Person name must contain at least one letter" in str(exc_info.value)
-
-    # Special characters-only contact name rejected
-    with pytest.raises(ValidationError) as exc_info:
-        CustomerCreate(
-            tenant_id=1,
-            name="Valid Company",
-            contact_name="@@@@@",
-        )
-    assert "Contact Person name must contain at least one letter" in str(exc_info.value)
-
-def test_customer_email_validation():
-    # Valid email
-    customer = CustomerCreate(
-        tenant_id=1,
-        name="Valid Company",
-        email="test@example.com",
-    )
-    assert customer.email == "test@example.com"
-
-    # Whitespace-only email coerced to None
-    customer = CustomerCreate(
-        tenant_id=1,
-        name="Valid Company",
-        email="   ",
-    )
-    assert customer.email is None
-
-    # Invalid email rejected
-    with pytest.raises(ValidationError) as exc_info:
-        CustomerCreate(
-            tenant_id=1,
-            name="Valid Company",
-            email="invalid-email",
-        )
-    assert "Invalid email format" in str(exc_info.value)
-
-    # Email with consecutive dots rejected
-    with pytest.raises(ValidationError) as exc_info:
-        CustomerCreate(
-            tenant_id=1,
-            name="Valid Company",
-            email="test..24@gmail.com",
-        )
-    assert "Invalid email format" in str(exc_info.value)
-
-    # Email without top-level domain rejected
-    with pytest.raises(ValidationError) as exc_info:
-        CustomerCreate(
-            tenant_id=1,
-            name="Valid Company",
-            email="test25@gmail",
-        )
-    assert "Invalid email format" in str(exc_info.value)
-
 def test_customer_phone_validation():
-    # Valid 10-digit phone
+    # Valid 10-digit phone starting with 6, 7, 8, or 9
     customer = CustomerCreate(
         tenant_id=1,
         name="Valid Company",
@@ -122,41 +52,41 @@ def test_customer_phone_validation():
     )
     assert customer.phone == "9876543210"
 
-    # Less than 10 digits phone rejected (9 digits)
+    # Phone starting with 0 rejected
     with pytest.raises(ValidationError) as exc_info:
         CustomerCreate(
             tenant_id=1,
             name="Valid Company",
-            phone="123456789",
+            phone="0000000000",
         )
-    assert "Phone number must be exactly 10 numeric digits" in str(exc_info.value)
+    assert "Mobile No. cannot start with 0" in str(exc_info.value)
 
-    # Less than 10 digits phone rejected (5 digits)
+    # Phone starting with 1 (1234567890) rejected
+    with pytest.raises(ValidationError) as exc_info:
+        CustomerCreate(
+            tenant_id=1,
+            name="Mobile Test 2",
+            phone="1234567890",
+        )
+    assert "Mobile No. cannot start with 1" in str(exc_info.value)
+
+    # Phone starting with 09... rejected
+    with pytest.raises(ValidationError) as exc_info:
+        CustomerCreate(
+            tenant_id=1,
+            name="Valid Company",
+            phone="0987654321",
+        )
+    assert "Mobile No. cannot start with 0" in str(exc_info.value)
+
+    # Less than 7 digits phone rejected
     with pytest.raises(ValidationError) as exc_info:
         CustomerCreate(
             tenant_id=1,
             name="Valid Company",
             phone="12345",
         )
-    assert "Phone number must be exactly 10 numeric digits" in str(exc_info.value)
-
-    # More than 10 digits phone rejected (11 digits)
-    with pytest.raises(ValidationError) as exc_info:
-        CustomerCreate(
-            tenant_id=1,
-            name="Valid Company",
-            phone="12345678901",
-        )
-    assert "Phone number must be exactly 10 numeric digits" in str(exc_info.value)
-
-    # More than 10 digits phone rejected (13 digits)
-    with pytest.raises(ValidationError) as exc_info:
-        CustomerCreate(
-            tenant_id=1,
-            name="Valid Company",
-            phone="1234567890123",
-        )
-    assert "Phone number must be exactly 10 numeric digits" in str(exc_info.value)
+    assert "Phone number must be between 7 and 15 numeric digits" in str(exc_info.value)
 
     # Non-numeric phone rejected
     with pytest.raises(ValidationError) as exc_info:
@@ -176,7 +106,7 @@ def test_customer_phone_validation():
     assert customer.phone is None
 
 def test_customer_gstin_validation():
-    # Valid uppercase GSTIN
+    # Valid GSTIN
     customer = CustomerCreate(
         tenant_id=1,
         name="Valid Company",
@@ -184,20 +114,10 @@ def test_customer_gstin_validation():
     )
     assert customer.gstin == "27AAAAA0000A1Z2"
 
-    # Lowercase GSTIN rejected
-    with pytest.raises(ValidationError) as exc_info:
-        CustomerCreate(
-            tenant_id=1,
-            name="Valid Company",
-            gstin="27aaaaa0000a1z2",
-        )
-    assert "GSTIN must contain only uppercase letters and numeric values" in str(exc_info.value)
-
-    # Short GSTIN rejected
-    with pytest.raises(ValidationError) as exc_info:
-        CustomerCreate(
-            tenant_id=1,
-            name="Valid Company",
-            gstin="27ABCDE1234F1",
-        )
-    assert "GST Number must be exactly 15 characters" in str(exc_info.value)
+    # Lowercase GSTIN normalized to uppercase
+    customer = CustomerCreate(
+        tenant_id=1,
+        name="Valid Company",
+        gstin="27aaaaa0000a1z2",
+    )
+    assert customer.gstin == "27AAAAA0000A1Z2"

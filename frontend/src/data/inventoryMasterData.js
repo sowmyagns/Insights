@@ -69,15 +69,51 @@ export function formatInr(value) {
 
 export function stockStatusColor(status) {
   const s = (status || "").toLowerCase();
-  if (s === "available" || s === "ready") return "bg-green-100 text-green-800";
+  if (s === "available" || s === "ready" || s === "in_stock") return "bg-green-100 text-green-800";
   if (s === "low_stock") return "bg-amber-100 text-amber-800";
   if (s === "out_of_stock") return "bg-red-100 text-red-800";
   return "bg-slate-100 text-slate-700";
 }
 
+/** Maps stock status → StatusBadge tone */
+export function stockStatusTone(status) {
+  const s = (status || "").toLowerCase();
+  if (s === "available" || s === "ready" || s === "in_stock") return "success";
+  if (s === "low_stock") return "warning";
+  if (s === "out_of_stock" || s === "damaged") return "danger";
+  return "neutral";
+}
+
 export function stockStatusLabel(status) {
-  const map = { available: "Available", low_stock: "Low Stock", out_of_stock: "Out of Stock", ready: "Ready" };
-  return map[status] || status;
+  const map = {
+    available: "In Stock",
+    in_stock: "In Stock",
+    low_stock: "Low Stock",
+    out_of_stock: "Out of Stock",
+    ready: "Ready",
+    damaged: "Damaged",
+  };
+  return map[status] || status || "—";
+}
+
+/** Human-readable stock ledger / movement labels */
+export function transactionTypeLabel(type) {
+  const t = String(type || "").toLowerCase().replace(/_/g, " ");
+  const map = {
+    purchase: "Purchase In",
+    production: "Production In",
+    transfer: "Transfer",
+    adjustment: "Adjustment",
+    sales: "Sales Out",
+    sale: "Sales Out",
+    return: "Return In",
+    scrap: "Scrap Out",
+    in: "Stock In",
+    out: "Stock Out",
+    issue: "Material Issue",
+    "material issue": "Material Issue",
+  };
+  return map[t] || (t ? t.replace(/\b\w/g, (c) => c.toUpperCase()) : "—");
 }
 
 export const DEMO_MATERIAL_DETAIL = {

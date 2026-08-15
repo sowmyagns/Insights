@@ -124,32 +124,37 @@ def get_enhanced_timeline(
     machines = list(
         db.scalars(select(Machine).where(Machine.tenant_id == tenant_id, Machine.is_active == True))
     )
+    if not machines:
+        return []
+
+    machine_ids = [m.id for m in machines]
+    active_wos = db.execute(
+        select(WorkOrder, ProductionOrder, Product)
+        .join(ProductionOrder, WorkOrder.production_order_id == ProductionOrder.id)
+        .join(Product, ProductionOrder.product_id == Product.id)
+        .where(
+            WorkOrder.tenant_id == tenant_id,
+            WorkOrder.machine_id.in_(machine_ids),
+            WorkOrder.status.notin_(["completed", "cancelled"]),
+        )
+        .order_by(WorkOrder.planned_start)
+    ).all()
+
+    wo_by_machine = {}
+    for work_order, prod_order, product in active_wos:
+        if work_order.machine_id not in wo_by_machine:
+            wo_by_machine[work_order.machine_id] = (work_order, prod_order, product)
+
     rows = []
     for m in machines:
-        # Most recent active work order on this machine
-        wo = db.execute(
-            select(WorkOrder, ProductionOrder, Product)
-            .join(ProductionOrder, WorkOrder.production_order_id == ProductionOrder.id)
-            .join(Product, ProductionOrder.product_id == Product.id)
-            .where(
-                WorkOrder.tenant_id == tenant_id,
-                WorkOrder.machine_id == m.id,
-                WorkOrder.status.notin_(["completed", "cancelled"]),
-            )
-            .order_by(WorkOrder.planned_start)
-            .limit(1)
-        ).first()
-
+        wo = wo_by_machine.get(m.id)
         if wo:
             work_order, prod_order, product = wo
-            # Map status to timeline status
             status = "running" if work_order.status == "in_progress" else "planned"
-            # Determine slot position based on planned_start hour
             start_hour = (
                 work_order.planned_start.hour if work_order.planned_start else 8
             )
             start_slot = max(0, min(5, (start_hour - 8) // 2))
-            # Duration slots
             if work_order.planned_start and work_order.planned_end:
                 hours = (work_order.planned_end - work_order.planned_start).seconds / 3600
                 span_slots = max(1, min(6 - start_slot, int(hours / 2)))
@@ -168,7 +173,6 @@ def get_enhanced_timeline(
                 "priority": prod_order.priority or "medium",
             })
         else:
-            # Maintenance or idle row
             m_status = "maintenance" if m.status == "maintenance" else "idle"
             rows.append({
                 "machine_id": m.id,
@@ -270,25 +274,30 @@ def get_live_machines(
     machines = list(
         db.scalars(select(Machine).where(Machine.tenant_id == tenant_id, Machine.is_active == True))
     )
-    result = []
-    for m in machines:
-        # Active work order on this machine
-        wo = db.scalar(
-            select(WorkOrder.work_order_number)
-            .where(
-                WorkOrder.machine_id == m.id,
-                WorkOrder.status == "in_progress",
-            )
-            .limit(1)
+    if not machines:
+        return []
+
+    machine_ids = [m.id for m in machines]
+    in_progress_wos = db.execute(
+        select(WorkOrder.machine_id, WorkOrder.work_order_number)
+        .where(
+            WorkOrder.tenant_id == tenant_id,
+            WorkOrder.machine_id.in_(machine_ids),
+            WorkOrder.status == "in_progress",
         )
-        result.append({
+    ).all()
+    job_map = {m_id: wo_num for m_id, wo_num in in_progress_wos}
+
+    return [
+        {
             "machine_id": m.id,
             "machine_name": m.name,
             "status": m.status or "idle",
-            "job": wo,
+            "job": job_map.get(m.id),
             "progress_pct": float(m.efficiency_pct or 0),
-        })
-    return result
+        }
+        for m in machines
+    ]
 
 
 # ─── queue ───────────────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import { createMachine } from "../../api/productionApi";
 import useTenantId from "../../hooks/useTenantId";
 import { DEPARTMENTS, PRODUCTION_LINES, MACHINE_NAMES } from "../../data/machinesMasterData";
 
+import Button from "../../components/common/Button";
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20";
 
@@ -287,9 +288,9 @@ export default function CreateMachine() {
           {t("production.machineActive", { defaultValue: "Active" })}
         </label>
         <div className="flex flex-wrap gap-3 pt-2">
-          <button type="submit" disabled={saving} className="ui-btn-primary disabled:opacity-50">
+          <Button variant="primary" type="submit" disabled={saving} className="disabled:opacity-50">
             {saving ? t("common.saving", { defaultValue: "Saving…" }) : t("production.addMachine", { defaultValue: "Add machine" })}
-          </button>
+          </Button>
           <Link
             to="/production/machines"
             className="inline-flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-600 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"

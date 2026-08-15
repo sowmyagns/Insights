@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
+import Button from "../common/Button";
 import SearchableSelect from "../common/SearchableSelect";
 import { createVendor, updateVendor } from "../../api/procurementApi";
 import { INDIAN_STATES } from "../../data/indiaLocations";
@@ -339,20 +340,12 @@ export default function AddLedgerVendorModal({ open, onClose, onSaved, vendor = 
         </div>
 
         <div className="flex shrink-0 justify-end gap-3 border-t border-[#ececf0] px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded border border-[#1a1a1f] bg-white px-5 py-2 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#f7f7f9]"
-          >
+          <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded bg-[#2d2a4a] px-5 py-2 text-[13px] font-semibold text-white hover:bg-[#1a1a1f] disabled:opacity-60"
-          >
+          </Button>
+          <Button type="submit" variant="primary" loading={saving} disabled={saving}>
             {saving ? "Saving…" : "Save"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>,

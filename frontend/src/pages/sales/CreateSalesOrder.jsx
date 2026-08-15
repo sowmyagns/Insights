@@ -10,6 +10,7 @@ import { fetchCustomersWithFallback, resolveCustomerId } from "../../utils/custo
 import { fetchProductsWithFallback } from "../../utils/productOptions";
 import useTenantId from "../../hooks/useTenantId";
 
+import Button from "../../components/common/Button";
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20";
 
@@ -303,7 +304,7 @@ export default function CreateSalesOrder() {
           </select>
         </label>
         {customers.length === 0 && (
-          <p className="text-sm text-slate-500">No customers yet. <Link to="/sales/customers" className="font-medium text-teal-600 hover:underline">Add a customer first</Link>.</p>
+          <p className="text-sm text-slate-500">No customers yet. <Link to="/masters/customers" className="font-medium text-teal-600 hover:underline">Add a customer first</Link>.</p>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -396,9 +397,9 @@ export default function CreateSalesOrder() {
         </div>
 
         <div className="flex flex-wrap gap-3 pt-2">
-          <button type="submit" disabled={saving || !form.customer_id} className="ui-btn-primary disabled:opacity-50">
+          <Button variant="primary" type="submit" disabled={saving || !form.customer_id} className="disabled:opacity-50">
             {saving ? "Saving…" : isEdit ? "Update Sales Order" : "Create Sales Order"}
-          </button>
+          </Button>
           <Link to="/sales/orders" className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
             Cancel
           </Link>

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
+import Button from "../common/Button";
+
 const field =
   "w-full rounded border border-[#c4c4cc] bg-white px-3 py-2.5 text-[13px] text-[#1a1a1f] outline-none placeholder:text-[#9a9aa5] focus:border-[#1a1a1f]";
 
@@ -177,16 +179,12 @@ export default function AddExpenseIncomeModal({ open, onClose, onSave, account =
         </div>
 
         <div className="flex shrink-0 justify-end gap-4 border-t border-[#ececf0] px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded border border-[#e67e22] px-4 py-1.5 text-[14px] font-semibold text-[#e67e22]"
-          >
+          <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button type="submit" className="px-2 text-[14px] font-semibold text-[#1a1a1f]">
+          </Button>
+          <Button type="submit" variant="primary">
             Save
-          </button>
+          </Button>
         </div>
       </form>
     </div>,

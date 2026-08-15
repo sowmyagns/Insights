@@ -67,7 +67,7 @@ def list_alerts(
             | (Alert.alert_type.ilike(q))
         )
 
-    rows = list(db.scalars(stmt.order_by(Alert.triggered_at.desc())).all())
+    rows = list(db.scalars(stmt.order_by(Alert.triggered_at.desc(), Alert.id.desc())).all())
 
     if user and not user_is_admin(user):
         role_names = {r.lower() for r in get_role_names(user)}

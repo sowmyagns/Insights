@@ -3,6 +3,7 @@ import { Building2, Cpu, Download, FileText, Layers, Plus, Printer, Upload, User
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
+import Button from "../../components/common/Button";
 import DepartmentDetailModal, { DepartmentFormModal } from "../../components/hr/DepartmentDetailModal";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
@@ -298,9 +299,9 @@ export default function DepartmentManagement() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setFormDept({})} className="ui-btn-primary">
+          <Button variant="primary" type="button" onClick={() => setFormDept({})}>
             <Plus className="h-4 w-4" /> Add Department
-          </button>
+          </Button>
           <button type="button" onClick={handleDownloadTemplate} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
             <Upload className="h-4 w-4" /> Import
           </button>

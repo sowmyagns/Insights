@@ -28,7 +28,7 @@ export const MANUFACTURING_WORKFLOW_STEPS = [
   { id: "work_order", label: "Work Order", shortLabel: "Work Order", path: "/production/work-orders" },
   { id: "machine_assign", label: "Machine Assign", shortLabel: "Machine Assign", path: "/production/tasks" },
   { id: "material_issue", label: "Material Issue", shortLabel: "Material Issue", path: "/production/work-orders" },
-  { id: "production", label: "Production", shortLabel: "Production", path: "/factory-monitor/live-production" },
+  { id: "production", label: "Production", shortLabel: "Production", path: "/production/job-card" },
   { id: "quality", label: "Quality", shortLabel: "Quality", path: "/quality/final" },
   { id: "finished_goods", label: "Finished Goods", shortLabel: "Finished Goods", path: "/inventory/finished-goods" },
   { id: "dispatch", label: "Dispatch", shortLabel: "Dispatch", path: "/sales/dispatch" },

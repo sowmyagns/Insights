@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { Link } from "react-router-dom";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { Plus, AlertTriangle, ShieldCheck, HeartPulse, ShieldAlert, X, Save } from "lucide-react";
 import KpiCard from "../../components/common/KpiCard";
@@ -11,6 +10,7 @@ import { useToast } from "../../context/ToastContext";
 import { createSafetyIncident, getEmployees, getSafetyIncidents } from "../../api/hrApi";
 import { apiErrorMessage } from "../../utils/apiError";
 
+import Button from "../../components/common/Button";
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all";
 
@@ -341,14 +341,10 @@ export default function IncidentReports({ autoOpenCreate }) {
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="ui-btn-hr"
-                >
+                <Button variant="primary" type="submit" disabled={saving}>
                   <Save className="h-4 w-4" />
                   {saving ? "Saving..." : "Submit Report"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

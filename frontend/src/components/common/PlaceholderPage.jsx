@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
 import { Construction, ArrowLeft, LayoutDashboard } from "lucide-react";
+import Button from "./Button";
 
 /**
  * Friendly "coming soon" / empty module page – consistent UX across placeholder routes.
@@ -16,21 +16,14 @@ export default function PlaceholderPage({ title, description }) {
           {description || `${title} is not available yet. We're building it to keep your workflow smooth.`}
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            to="/"
-            className="ui-btn-primary no-underline"
-          >
+          <Button variant="primary" to="/">
             <LayoutDashboard className="h-4 w-4" />
             Back to Dashboard
-          </Link>
-          <button
-            type="button"
-            onClick={() => window.history.back()}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => window.history.back()}>
             <ArrowLeft className="h-4 w-4" />
             Go back
-          </button>
+          </Button>
         </div>
       </div>
     </div>

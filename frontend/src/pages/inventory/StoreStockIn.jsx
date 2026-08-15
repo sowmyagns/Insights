@@ -5,6 +5,7 @@ import { PackagePlus } from "lucide-react";
 import Loader from "../../components/common/Loader";
 import StoreManagerNav from "../../components/inventory/StoreManagerNav";
 import { useToast } from "../../context/ToastContext";
+import Button from "../../components/common/Button";
 import {
   createStoreStockIn,
   getInventoryDashboard,
@@ -197,9 +198,9 @@ export default function StoreStockIn() {
             />
           </label>
 
-          <button type="submit" disabled={submitting} className="ui-btn-primary w-full py-3 text-base">
+          <Button variant="primary" type="submit" disabled={submitting} className="w-full py-3 text-base">
             {submitting ? "Saving…" : "Save Stock In"}
-          </button>
+          </Button>
         </form>
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">

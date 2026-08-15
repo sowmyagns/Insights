@@ -10,6 +10,7 @@ import useTenantId from "../../hooks/useTenantId";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 import { formatInr } from "../../data/salesMasterData";
 
+import Button from "../../components/common/Button";
 export default function PaymentTracking() {
   const tenantId = useTenantId();
   const [loading, setLoading] = useState(true);

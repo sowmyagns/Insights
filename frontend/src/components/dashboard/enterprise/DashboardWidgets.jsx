@@ -334,7 +334,7 @@ export function MaintenanceScheduleWidget() {
 
 export function LiveProductionWidget() {
   return (
-    <ChartPanel title="Live Production Status" action={<WidgetLink to="/factory-monitor/live-production" label="Live view" />}>
+    <ChartPanel title="Live Production Status" action={<WidgetLink to="/factory-monitor/machine-status" label="Live view" />}>
       <div className="flex items-center gap-2 mb-3">
         <span className="relative flex h-3 w-3">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />

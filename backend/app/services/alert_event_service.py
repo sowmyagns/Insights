@@ -8,7 +8,7 @@ refactoring callers.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 from sqlalchemy import select
@@ -296,7 +296,7 @@ def emit_alert(
         message=message,
         severity=severity,
         status=status,
-        triggered_at=datetime.utcnow(),
+        triggered_at=datetime.now(timezone.utc),
         reference_type=reference_type,
         reference_id=reference_id,
         module=mod,

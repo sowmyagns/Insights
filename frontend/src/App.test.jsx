@@ -4,7 +4,6 @@ import { shouldShowChatbot } from "./App";
 describe("shouldShowChatbot", () => {
   it("shows the chatbot for operator users on the operator landing and operations routes", () => {
     expect(shouldShowChatbot({ role: "Operator" }, "/")).toBe(true);
-    expect(shouldShowChatbot({ role: "Operator" }, "/factory-monitor/live-production")).toBe(true);
     expect(shouldShowChatbot({ role: "Operator" }, "/factory-monitor/machine-status")).toBe(true);
     expect(shouldShowChatbot({ role: "Operator" }, "/iot/live-operations")).toBe(true);
     expect(shouldShowChatbot({ role: "Operator" }, "/operations")).toBe(true);

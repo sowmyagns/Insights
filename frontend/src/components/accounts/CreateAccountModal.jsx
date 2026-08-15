@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, X } from "lucide-react";
 
+import Button from "../common/Button";
 import { COA_GROUPS } from "../../data/chartOfAccounts";
 
 const DEFAULT_SIDE = {
@@ -304,21 +305,12 @@ export default function CreateAccountModal({
         </div>
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[#ececf0] bg-white px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-5 py-2.5 text-[14px] font-medium text-[#1a1a1f] hover:bg-[#ececf0]"
-          >
+          <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="rounded-lg px-5 py-2.5 text-[14px] font-bold text-[#1a1a1f] disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ background: "var(--color-cta)" }}
-          >
+          </Button>
+          <Button type="submit" variant="primary" disabled={!canSubmit}>
             {account ? "Update" : "Create Account"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>,

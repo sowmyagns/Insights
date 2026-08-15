@@ -1,7 +1,13 @@
+import logging
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.api.auth_deps import get_current_user
 from app.api.deps import get_db
@@ -28,6 +34,7 @@ from app.services.auth_service import (
     ROLE_MISMATCH_MESSAGE,
     assert_user_has_role,
     build_access_token_for_user,
+    decode_access_token,
     find_user_by_email,
     get_user_with_role,
     issue_auth_response_data,
@@ -44,6 +51,7 @@ from app.services.security_service import (
     record_login_attempt,
     register_failed_login,
     rotate_refresh_token,
+    revoke_access_token,
     revoke_refresh_token,
     touch_user_activity,
     validate_refresh_token,
@@ -65,58 +73,22 @@ def _client_ip(request: Request) -> str | None:
 def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
     from app.middleware.security import check_rate_limit
 
-    email = req.email
-    check_rate_limit(request, email=email, scope="login")
-    ip_address = _client_ip(request)
-    user_agent = request.headers.get("User-Agent")
-    user = find_user_by_email(db, email)
-
-    if user and is_account_locked(user):
-        record_login_attempt(
-            db,
-            email=email,
-            success=False,
-            user_id=user.id,
-            ip_address=ip_address,
-            user_agent=user_agent,
-            failure_reason="locked",
-        )
-        record_login_history(
-            db,
-            email=email,
-            success=False,
-            user=user,
-            ip_address=ip_address,
-            user_agent=user_agent,
-        )
-        AuditLogService.log_login_failed(
-            db, request=request, email=email, user=user
-        )
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Account temporarily locked. Try again later.",
-        )
-
-    if not db.scalar(select(func.count(User.id))):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No user accounts found. Please contact your administrator.",
-        )
-
     try:
-        authenticated = login_user(db, email, req.password)
-    except HTTPException as exc:
-        if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-            if user:
-                register_failed_login(db, user, email)
+        email = req.email
+        check_rate_limit(request, email=email, scope="login")
+        ip_address = _client_ip(request)
+        user_agent = request.headers.get("User-Agent")
+        user = find_user_by_email(db, email)
+
+        if user and is_account_locked(user):
             record_login_attempt(
                 db,
                 email=email,
                 success=False,
-                user_id=user.id if user else None,
+                user_id=user.id,
                 ip_address=ip_address,
                 user_agent=user_agent,
-                failure_reason="invalid",
+                failure_reason="locked",
             )
             record_login_history(
                 db,
@@ -129,80 +101,134 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
             AuditLogService.log_login_failed(
                 db, request=request, email=email, user=user
             )
-            detail = exc.detail if isinstance(exc.detail, str) else "Invalid email or password."
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Account temporarily locked. Try again later.",
+            )
+
+        if not db.scalar(select(func.count(User.id))):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No user accounts found. Please contact your administrator.",
+            )
+
+        try:
+            authenticated = login_user(db, email, req.password)
+        except HTTPException as exc:
+            if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+                if user:
+                    register_failed_login(db, user, email)
+                record_login_attempt(
+                    db,
+                    email=email,
+                    success=False,
+                    user_id=user.id if user else None,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    failure_reason="invalid",
+                )
+                record_login_history(
+                    db,
+                    email=email,
+                    success=False,
+                    user=user,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                )
+                AuditLogService.log_login_failed(
+                    db, request=request, email=email, user=user
+                )
+                detail = exc.detail if isinstance(exc.detail, str) else "Invalid email or password."
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=detail,
+                ) from exc
+            raise
+
+        db.refresh(authenticated, ["roles", "tenant"])
+        try:
+            actual_role = assert_user_has_role(authenticated, req.role)
+        except HTTPException as exc:
+            if user:
+                register_failed_login(db, authenticated, email)
+            record_login_attempt(
+                db,
+                email=email,
+                success=False,
+                user_id=authenticated.id,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                failure_reason="role_mismatch",
+            )
+            record_login_history(
+                db,
+                email=email,
+                success=False,
+                user=authenticated,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                role=req.role,
+            )
+            AuditLogService.log_login_failed(
+                db,
+                request=request,
+                email=email,
+                user=authenticated,
+                details=ROLE_MISMATCH_MESSAGE,
+                role=req.role,
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=detail,
+                detail=ROLE_MISMATCH_MESSAGE,
             ) from exc
-        raise
 
-    db.refresh(authenticated, ["roles", "tenant"])
-    try:
-        actual_role = assert_user_has_role(authenticated, req.role)
-    except HTTPException as exc:
-        if user:
-            register_failed_login(db, authenticated, email)
         record_login_attempt(
             db,
             email=email,
-            success=False,
+            success=True,
             user_id=authenticated.id,
             ip_address=ip_address,
             user_agent=user_agent,
-            failure_reason="role_mismatch",
         )
         record_login_history(
             db,
             email=email,
-            success=False,
+            success=True,
             user=authenticated,
             ip_address=ip_address,
             user_agent=user_agent,
-            role=req.role,
+            role=actual_role,
         )
-        AuditLogService.log_login_failed(
+        AuditLogService.log_login_success(
             db,
             request=request,
-            email=email,
             user=authenticated,
-            details=ROLE_MISMATCH_MESSAGE,
+            role=actual_role,
         )
+        data = issue_auth_response_data(
+            db,
+            authenticated,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            role_name=actual_role,
+        )
+        return AuthResponse(**data)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error during login for email=%s: %s", req.email, exc)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ROLE_MISMATCH_MESSAGE,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database connection or transaction failure during login.",
         ) from exc
-
-    record_login_attempt(
-        db,
-        email=email,
-        success=True,
-        user_id=authenticated.id,
-        ip_address=ip_address,
-        user_agent=user_agent,
-    )
-    record_login_history(
-        db,
-        email=email,
-        success=True,
-        user=authenticated,
-        ip_address=ip_address,
-        user_agent=user_agent,
-        role=actual_role,
-    )
-    AuditLogService.log_login_success(
-        db,
-        request=request,
-        user=authenticated,
-        role=actual_role,
-    )
-    data = issue_auth_response_data(
-        db,
-        authenticated,
-        ip_address=ip_address,
-        user_agent=user_agent,
-        role_name=actual_role,
-    )
-    return AuthResponse(**data)
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Unexpected error during login for email=%s: %s", req.email, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal error occurred during login. Please try again.",
+        ) from exc
 
 
 @router.get("/me", response_model=UserResponse)
@@ -357,14 +383,37 @@ def logout(
     request: Request,
     db: Session = Depends(get_db),
 ):
+    auth_header = request.headers.get("Authorization") or ""
+    access_token = (
+        auth_header.split(" ", 1)[1].strip()
+        if auth_header.lower().startswith("bearer ")
+        else None
+    )
+
     user = validate_refresh_token(db, req.refresh_token)
+    if not user and access_token:
+        payload = decode_access_token(access_token) or {}
+        sub = payload.get("sub") or payload.get("user_id")
+        if sub:
+            try:
+                user = db.get(User, int(sub))
+            except (TypeError, ValueError):
+                pass
+
     if req.all_devices and user:
         from app.services.security_service import revoke_all_refresh_tokens_for_user
 
         revoke_all_refresh_tokens_for_user(db, user.id)
     else:
         revoke_refresh_token(db, req.refresh_token)
+
+    if access_token:
+        revoke_access_token(db, access_token, user_id=user.id if user else None)
+
     if user:
+        user.tokens_revoked_at = datetime.now(timezone.utc)
+        db.commit()
         mark_logout(db, user_id=user.id, email=user.email)
         AuditLogService.log_logout(db, request=request, user=user)
+
     return MessageResponse(message="Logged out successfully.")

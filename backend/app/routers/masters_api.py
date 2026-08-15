@@ -1,9 +1,14 @@
 """Masters API — Products, BOM, Machines (sidebar: Masters section)."""
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.api.deps import get_db
 from app.models.user import User
@@ -214,56 +219,67 @@ def update_machine_status_endpoint(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    machine = update_machine_status(db, machine_id, tenant_id, payload.status, user=user)
-    if not machine:
-        raise HTTPException(404, "Machine not found")
+    try:
+        machine = update_machine_status(db, machine_id, tenant_id, payload.status, user=user)
+        if not machine:
+            raise HTTPException(404, "Machine not found")
 
-    # ── Notify Production Managers & Admins when machine is stopped (idle) ──
-    idle_reason = payload.idle_reason
-    if payload.status in ("idle", "stopped") and idle_reason:
-        operator_name = user.full_name or user.email
-        machine_name = machine.name or f"Machine #{machine_id}"
-        title = f"⚠️ Machine Stopped — {machine_name}"
-        message = (
-            f"Operator {operator_name} stopped '{machine_name}' and reported:\n"
-            f"Reason: {idle_reason}"
-        )
-        # Find all Production Managers and Admins in the same tenant (case-insensitive)
-        from sqlalchemy import or_, func as sql_func
-        stmt = (
-            select(User)
-            .join(User.roles)
-            .where(
-                User.tenant_id == tenant_id,
-                User.is_active == True,
-                or_(
-                    sql_func.lower(Role.name).contains("admin"),
-                    sql_func.lower(Role.name).contains("production manager"),
-                    sql_func.lower(Role.name).contains("production_manager"),
-                ),
+        # ── Notify Production Managers & Admins when machine is stopped (idle) ──
+        idle_reason = payload.idle_reason
+        if payload.status in ("idle", "stopped") and idle_reason:
+            operator_name = user.full_name or user.email
+            machine_name = machine.name or f"Machine #{machine_id}"
+            title = f"⚠️ Machine Stopped — {machine_name}"
+            message = (
+                f"Operator {operator_name} stopped '{machine_name}' and reported:\n"
+                f"Reason: {idle_reason}"
             )
-            .distinct()
-        )
-        recipients = list(db.scalars(stmt).all())
-        for recipient in recipients:
-            try:
-                NotificationManagementService.create_for_user(
-                    db,
-                    tenant_id=tenant_id,
-                    user_id=recipient.id,
-                    title=title,
-                    message=message,
-                    type="warning",
-                    priority="high",
-                    module="production",
-                    action_url=f"/production/machines",
-                    created_by=operator_name,
-                    created_by_user_id=user.id,
+            # Find all Production Managers and Admins in the same tenant (case-insensitive)
+            from sqlalchemy import or_, func as sql_func
+            stmt = (
+                select(User)
+                .join(User.roles)
+                .where(
+                    User.tenant_id == tenant_id,
+                    User.is_active == True,
+                    or_(
+                        sql_func.lower(Role.name).contains("admin"),
+                        sql_func.lower(Role.name).contains("production manager"),
+                        sql_func.lower(Role.name).contains("production_manager"),
+                    ),
                 )
-            except Exception:
-                pass  # Never let notification failure block the status update
+                .distinct()
+            )
+            recipients = list(db.scalars(stmt).all())
+            for recipient in recipients:
+                try:
+                    NotificationManagementService.create_for_user(
+                        db,
+                        tenant_id=tenant_id,
+                        user_id=recipient.id,
+                        title=title,
+                        message=message,
+                        type="warning",
+                        priority="high",
+                        module="production",
+                        action_url=f"/production/machines",
+                        created_by=operator_name,
+                        created_by_user_id=user.id,
+                    )
+                except Exception:
+                    pass  # Never let notification failure block the status update
 
-    return success_response("Machine status updated", _dump(machine))
+        return success_response("Machine status updated", _dump(machine))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error occurred while updating status for machine_id=%s: %s", machine_id, exc)
+        raise HTTPException(status_code=500, detail=f"Database error updating machine status: {exc}") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Service error occurred while updating status for machine_id=%s: %s", machine_id, exc)
+        raise HTTPException(status_code=500, detail=f"Failed to update machine status: {exc}") from exc
 
 
 # ── Machine Status Events ──────────────────────────────────────────────────

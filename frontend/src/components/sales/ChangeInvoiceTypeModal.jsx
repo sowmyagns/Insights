@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
-const YELLOW = "var(--color-primary)";
+import Button, { IconButton } from "../common/Button";
 
 /**
  * Confirm changing invoice type (erases entered data).
@@ -28,14 +28,14 @@ export default function ChangeInvoiceTypeModal({ open, onClose, onConfirm }) {
           >
             Are you sure?
           </h2>
-          <button
+          <IconButton
             type="button"
             onClick={onClose}
             className="rounded-lg p-1 text-[#1a1a1f] hover:bg-[#f5f5f7]"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
-          </button>
+          </IconButton>
         </div>
 
         <div className="bg-[#f3f3f6] px-5 py-5">
@@ -45,24 +45,20 @@ export default function ChangeInvoiceTypeModal({ open, onClose, onConfirm }) {
         </div>
 
         <div className="flex items-center justify-between gap-3 px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-w-[110px] rounded-xl border border-[#d8d8e0] bg-[#f0f0f4] px-6 py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
-          >
+          <Button type="button" variant="secondary" onClick={onClose} className="min-w-[110px]">
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="primary"
+            className="min-w-[110px]"
             onClick={() => {
               onConfirm?.();
               onClose?.();
             }}
-            className="min-w-[110px] rounded-xl px-6 py-2.5 text-[14px] font-semibold text-white shadow-sm"
-            style={{ background: YELLOW }}
           >
             Okay
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

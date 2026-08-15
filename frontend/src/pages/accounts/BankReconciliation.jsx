@@ -10,6 +10,7 @@ import { apiErrorMessage } from "../../utils/apiError";
 import KpiCard from "../../components/common/KpiCard";
 import PageHeader from "../../components/common/PageHeader";
 
+import Button from "../../components/common/Button";
 const PREF_KEY = "bank_reconciliation_v1";
 
 function parseStatementCsv(text) {
@@ -180,14 +181,10 @@ export default function BankReconciliation() {
         subtitle="Verify company cash postings against monthly bank statements to ensure ledger integrity."
         action={
           <>
-            <button
-              type="button"
-              onClick={handleUploadClick}
-              className="ui-btn-secondary"
-            >
+            <Button variant="secondary" type="button" onClick={handleUploadClick}>
               <Upload className="h-4 w-4" />
               Upload Bank statement
-            </button>
+            </Button>
             <input
               ref={uploadInputRef}
               type="file"

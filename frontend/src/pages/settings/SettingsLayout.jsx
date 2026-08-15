@@ -1,9 +1,10 @@
-﻿import { Link, Outlet } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { ArrowLeft, Settings } from "lucide-react";
 
 import useSettings from "../../context/SettingsContext";
 import useAuth from "../../hooks/useAuth";
 
+import Button from "../../components/common/Button";
 export default function SettingsLayout() {
   const { companyName } = useSettings();
   const { user } = useAuth();
@@ -24,14 +25,11 @@ export default function SettingsLayout() {
               <p className="truncate text-xs text-[var(--color-text-muted)]">{tenantName}</p>
             </div>
           </div>
-          <Link
-            to="/"
-            className="ui-btn-secondary"
-          >
+          <Button variant="secondary" to="/">
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline">Back to App</span>
             <span className="sm:hidden">Back</span>
-          </Link>
+          </Button>
         </div>
       </header>
 

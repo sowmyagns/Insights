@@ -1,8 +1,27 @@
-import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, ClipboardCheck, Plus, XCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ArrowDown,
+  ArrowRight,
+  ArrowUp,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardList,
+  Eye,
+  Filter,
+  Info,
+  MoreVertical,
+  Plus,
+  RefreshCw,
+  Search,
+  XCircle,
+} from "lucide-react";
 
+import Button from "../../components/common/Button";
 import DataTable from "../../components/common/DataTable";
+import EmptyState from "../../components/common/EmptyState";
 import Loader from "../../components/common/Loader";
+import PageHeader from "../../components/common/PageHeader";
+import StatusBadge from "../../components/common/StatusBadge";
 import StoreManagerNav from "../../components/inventory/StoreManagerNav";
 import { useToast } from "../../context/ToastContext";
 import useAuth from "../../hooks/useAuth";
@@ -16,13 +35,127 @@ import {
   updateStockAdjustmentStatus,
 } from "../../api/inventoryApi";
 import { ADJUSTMENT_REASONS } from "../../data/inventoryMasterData";
+import { asArray } from "../../utils/apiError";
 
-const APPROVAL_FLOW = ["Store Executive", "Store Manager", "Inventory Manager"];
+const STEPS = [
+  { id: 1, label: "Adjustment Details" },
+  { id: 2, label: "Review & Confirm" },
+];
+
+const REASON_OPTIONS = [
+  "Stock Count Adjustment",
+  ...ADJUSTMENT_REASONS.filter((r) => r !== "Physical Count"),
+  "Damaged Goods",
+];
+
+const MOCKUP_ADJUSTMENTS = [
+  {
+    id: "a1",
+    adjustment_number: "ADJ-2026-0018",
+    adjustment_date: "2026-08-13T10:30:00",
+    item_name: "PET Resin",
+    item_code: "RM-0001",
+    warehouse_name: "Main Warehouse",
+    type: "increase",
+    adjustment_qty: 100,
+    unit: "KG",
+    new_qty: 1350,
+    reason: "Stock Count Adjustment",
+    created_by: "Raj K.",
+    status: "approved",
+    live: false,
+  },
+  {
+    id: "a2",
+    adjustment_number: "ADJ-2026-0017",
+    adjustment_date: "2026-08-12T16:15:00",
+    item_name: "HDPE Caps",
+    item_code: "RM-0004",
+    warehouse_name: "Main Warehouse",
+    type: "decrease",
+    adjustment_qty: 50,
+    unit: "Nos",
+    new_qty: 12450,
+    reason: "Damaged Goods",
+    created_by: "Store Admin",
+    status: "pending",
+    live: false,
+  },
+  {
+    id: "a3",
+    adjustment_number: "ADJ-2026-0016",
+    adjustment_date: "2026-08-12T11:05:00",
+    item_name: "Color Masterbatch - Blue",
+    item_code: "RM-0002",
+    warehouse_name: "Unit-1 Warehouse",
+    type: "increase",
+    adjustment_qty: 20,
+    unit: "KG",
+    new_qty: 104.5,
+    reason: "Correction",
+    created_by: "Raj K.",
+    status: "approved",
+    live: false,
+  },
+  {
+    id: "a4",
+    adjustment_number: "ADJ-2026-0015",
+    adjustment_date: "2026-08-11T09:40:00",
+    item_name: "Shrink Film",
+    item_code: "RM-0005",
+    warehouse_name: "Main Warehouse",
+    type: "decrease",
+    adjustment_qty: 12,
+    unit: "KG",
+    new_qty: 36,
+    reason: "Scrap",
+    created_by: "Ops Team",
+    status: "approved",
+    live: false,
+  },
+  {
+    id: "a5",
+    adjustment_number: "ADJ-2026-0014",
+    adjustment_date: "2026-08-10T14:20:00",
+    item_name: "Corrugated Sheet",
+    item_code: "RM-0008",
+    warehouse_name: "Unit-1 Warehouse",
+    type: "increase",
+    adjustment_qty: 300,
+    unit: "Nos",
+    new_qty: 300,
+    reason: "Return",
+    created_by: "Store Admin",
+    status: "pending",
+    live: false,
+  },
+];
 
 function itemLabel(item) {
-  const code = item.product_code || item.code || item.item_code;
+  const code = item.product_code || item.code || item.item_code || item.sku;
   const name = item.name || "Item";
-  return code ? `${code} — ${name}` : name;
+  return code ? `${name} (${code})` : name;
+}
+
+function currentStockOf(item) {
+  if (!item) return 0;
+  return Number(item.total_quantity ?? item.quantity ?? item.available ?? item.current_stock ?? 0) || 0;
+}
+
+function formatQty(value) {
+  return Number(value || 0).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatDateTime(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  const day = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).replace(/ /g, "-");
+  const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+  return `${day}, ${time}`;
 }
 
 export default function StockAdjustment() {
@@ -34,14 +167,24 @@ export default function StockAdjustment() {
   const [warehouses, setWarehouses] = useState([]);
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({
-    adjustment_date: new Date().toISOString().slice(0, 10),
+    adjustment_date: "2026-08-13",
     warehouse_id: "",
     item_id: "",
-    new_qty: "",
-    reason: "Physical Count",
+    adj_type: "increase",
+    adj_qty: "100",
+    reason: "Stock Count Adjustment",
+    reference: "",
+    remarks: "",
   });
+  const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
+  const [showForm, setShowForm] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [headerDate, setHeaderDate] = useState("2026-08-13");
+  const [headerWarehouse, setHeaderWarehouse] = useState("");
 
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -51,45 +194,127 @@ export default function StockAdjustment() {
         getWarehouses(),
         getInventoryDashboard(),
       ]);
-
-
-      if (adjRes.status === "fulfilled" && adjRes.value?.data) {
-        setAdjustments(adjRes.value.data);
-      } else {
-        setAdjustments([]);
-      }
-      if (whRes.status === "fulfilled") setWarehouses(whRes.value?.data || []);
-      if (itemsRes.status === "fulfilled") setItems(itemsRes.value?.data || []);
+      if (adjRes.status === "fulfilled") setAdjustments(asArray(adjRes.value?.data));
+      else setAdjustments([]);
+      if (whRes.status === "fulfilled") setWarehouses(asArray(whRes.value?.data));
+      if (itemsRes.status === "fulfilled") setItems(asArray(itemsRes.value?.data));
     } finally {
       setLoading(false);
     }
   }, []);
 
   usePageRefresh(() => load(true));
-
   useEffect(() => {
     load();
   }, [load]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (!headerWarehouse && warehouses.length) setHeaderWarehouse(String(warehouses[0].id));
+    if (!form.warehouse_id && warehouses.length) {
+      setForm((f) => ({ ...f, warehouse_id: String(warehouses[0].id) }));
+    }
+  }, [warehouses, headerWarehouse, form.warehouse_id]);
+
+  const selectedItem = items.find((i) => String(i.id) === String(form.item_id));
+  const previewItem = selectedItem || {
+    name: "PET Resin",
+    sku: "RM-0001",
+    unit: "KG",
+    total_quantity: 1250,
+  };
+  const currentStock = selectedItem ? currentStockOf(selectedItem) : 1250;
+  const adjQty = Number(form.adj_qty) || 0;
+  const newQty =
+    form.adj_type === "decrease" ? Math.max(0, currentStock - adjQty) : currentStock + adjQty;
+  const unit = previewItem.unit || selectedItem?.unit || "KG";
+  const itemDisplay = selectedItem ? itemLabel(selectedItem) : "PET Resin (RM-0001)";
+  const warehouseDisplay =
+    warehouses.find((w) => String(w.id) === String(form.warehouse_id))?.name || "Main Warehouse";
+
+  const canReview =
+    Boolean(form.warehouse_id) &&
+    (!items.length || Boolean(form.item_id)) &&
+    adjQty > 0 &&
+    Boolean(form.reason) &&
+    Boolean(form.adjustment_date);
+
+  const displayAdjustments = useMemo(() => {
+    if (adjustments.length) {
+      return adjustments.map((a) => {
+        const diff = Number(a.difference ?? a.new_qty - a.old_qty) || 0;
+        return {
+          ...a,
+          adjustment_number: a.adjustment_number || `ADJ-${a.id}`,
+          item_code: a.item_code || a.sku || "",
+          type: diff >= 0 ? "increase" : "decrease",
+          adjustment_qty: Math.abs(diff),
+          unit: a.unit || "",
+          created_by: a.approved_by || a.created_by || "—",
+          live: true,
+        };
+      });
+    }
+    return MOCKUP_ADJUSTMENTS;
+  }, [adjustments]);
+
+  const filteredAdjustments = useMemo(() => {
+    let rows = displayAdjustments;
+    const q = search.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter((r) =>
+        [r.adjustment_number, r.item_name, r.warehouse_name, r.reason].some(
+          (v) => v && String(v).toLowerCase().includes(q)
+        )
+      );
+    }
+    if (statusFilter) {
+      rows = rows.filter((r) => String(r.status || "").toLowerCase() === statusFilter);
+    }
+    return rows;
+  }, [displayAdjustments, search, statusFilter]);
+
+  const resetForm = () => {
+    setForm({
+      adjustment_date: new Date().toISOString().slice(0, 10),
+      warehouse_id: warehouses[0] ? String(warehouses[0].id) : "",
+      item_id: "",
+      adj_type: "increase",
+      adj_qty: "",
+      reason: "Stock Count Adjustment",
+      reference: "",
+      remarks: "",
+    });
+    setStep(1);
+  };
+
+  const handleSubmit = async () => {
+    if (!form.item_id || !items.length) {
+      addToast("Select a live inventory item to save", "error");
+      return;
+    }
+    if (!form.reason) {
+      addToast("Reason is required", "error");
+      return;
+    }
+    if (adjQty <= 0) {
+      addToast("Enter adjustment quantity", "error");
+      return;
+    }
     setSubmitting(true);
     try {
+      const reasonParts = [form.reason, form.reference ? `Ref: ${form.reference}` : "", form.remarks]
+        .filter(Boolean)
+        .join(" | ");
       await createStockAdjustment({
         adjustment_date: form.adjustment_date || null,
         warehouse_id: Number(form.warehouse_id),
         item_id: Number(form.item_id),
-        new_qty: Number(form.new_qty),
-        reason: form.reason,
+        new_qty: Number(newQty),
+        reason: reasonParts,
       });
       addToast("Adjustment recorded — pending approval");
-      setForm({
-        adjustment_date: new Date().toISOString().slice(0, 10),
-        warehouse_id: "",
-        item_id: "",
-        new_qty: "",
-        reason: "Physical Count",
-      });
+      resetForm();
+      setShowForm(false);
       load();
     } catch {
       addToast("Adjustment failed", "error");
@@ -98,14 +323,15 @@ export default function StockAdjustment() {
     }
   };
 
-  const handleStatusChange = async (adjustmentId, newStatus) => {
-    setUpdatingId(adjustmentId);
+  const handleStatusChange = async (id, newStatus) => {
+    if (typeof id !== "number") return;
+    setUpdatingId(id);
     try {
-      await updateStockAdjustmentStatus(adjustmentId, {
+      await updateStockAdjustmentStatus(id, {
         status: newStatus,
         approved_by: "Store Manager",
       });
-      addToast(`Adjustment updated to ${newStatus}`);
+      addToast(`Adjustment ${newStatus}`);
       await load();
     } catch {
       addToast("Failed to update status", "error");
@@ -115,194 +341,496 @@ export default function StockAdjustment() {
   };
 
   const columns = [
-    { key: "adjustment_date", label: "Date" },
-    { key: "warehouse_name", label: "Warehouse" },
-    { key: "item_name", label: "Item" },
-    { key: "old_qty", label: "Old Qty" },
-    { key: "new_qty", label: "New Qty" },
     {
-      key: "difference",
-      label: "Difference",
+      key: "adjustment_number",
+      label: "Adjustment No.",
+      render: (r) => <span className="font-semibold tabular-nums text-[var(--color-text)]">{r.adjustment_number}</span>,
+    },
+    {
+      key: "adjustment_date",
+      label: "Date",
       render: (r) => (
-        <span className={r.difference < 0 ? "text-red-600 font-semibold" : "text-green-600 font-semibold"}>
-          {r.difference > 0 ? `+${r.difference}` : r.difference}
+        <span className="whitespace-nowrap text-[12px] text-[var(--color-text-secondary)]">
+          {formatDateTime(r.adjustment_date)}
         </span>
       ),
     },
-    { key: "reason", label: "Reason" },
-    { key: "approved_by", label: "Approved By", render: (r) => r.approved_by || "Pending" },
+    {
+      key: "item_name",
+      label: "Item",
+      render: (r) => (
+        <div>
+          <p className="text-[13px] font-medium text-[var(--color-text)]">{r.item_name}</p>
+          {r.item_code ? <p className="text-[11px] text-[var(--color-text-muted)]">({r.item_code})</p> : null}
+        </div>
+      ),
+    },
+    {
+      key: "warehouse_name",
+      label: "Warehouse",
+      render: (r) => <span className="text-[13px] text-[var(--color-text-secondary)]">{r.warehouse_name || "—"}</span>,
+    },
+    {
+      key: "type",
+      label: "Type",
+      render: (r) =>
+        r.type === "increase" ? (
+          <StatusBadge tone="success">
+            <span className="inline-flex items-center gap-1"><ArrowUp className="h-3 w-3" /> Increase</span>
+          </StatusBadge>
+        ) : (
+          <StatusBadge tone="danger">
+            <span className="inline-flex items-center gap-1"><ArrowDown className="h-3 w-3" /> Decrease</span>
+          </StatusBadge>
+        ),
+    },
+    {
+      key: "adjustment_qty",
+      label: "Adjustment Qty",
+      render: (r) => (
+        <span className={`tabular-nums font-semibold ${r.type === "increase" ? "text-[#16a34a]" : "text-[#ef4444]"}`}>
+          {r.type === "increase" ? "+" : "-"}
+          {formatQty(r.adjustment_qty)}
+        </span>
+      ),
+    },
+    {
+      key: "unit",
+      label: "UOM",
+      render: (r) => <span className="text-[13px] text-[var(--color-text-secondary)]">{r.unit || "—"}</span>,
+    },
+    {
+      key: "new_qty",
+      label: "New Stock",
+      render: (r) => <span className="tabular-nums text-[13px] font-semibold">{formatQty(r.new_qty)}</span>,
+    },
+    {
+      key: "reason",
+      label: "Reason",
+      render: (r) => <span className="max-w-[140px] truncate text-[13px] text-[var(--color-text-secondary)]">{r.reason || "—"}</span>,
+    },
+    {
+      key: "created_by",
+      label: "Created By",
+      render: (r) => <span className="text-[13px] text-[var(--color-text-secondary)]">{r.created_by || "—"}</span>,
+    },
     {
       key: "status",
       label: "Status",
-      render: (r) => (
-        <span
-          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
-            r.status === "approved"
-              ? "bg-green-100 text-green-800"
-              : r.status === "rejected"
-              ? "bg-red-100 text-red-800"
-              : "bg-amber-100 text-amber-800"
-          }`}
-        >
-          {r.status}
-        </span>
-      ),
+      render: (r) => {
+        const st = String(r.status || "").toLowerCase();
+        const pending = st === "pending" || st === "pending_approval";
+        return (
+          <StatusBadge tone={pending ? "warning" : st === "approved" ? "success" : "neutral"}>
+            {pending ? "Pending" : st === "approved" ? "Approved" : String(r.status || "—").replace(/_/g, " ")}
+          </StatusBadge>
+        );
+      },
     },
     {
       key: "actions",
       label: "Actions",
+      sortable: false,
       render: (r) => {
         const isBusy = updatingId === r.id;
-        if (r.status === "pending" || r.status === "pending_approval") {
-          return (
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={() => handleStatusChange(r.id, "approved")}
-                className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-success)] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[var(--color-success-hover)] disabled:opacity-50"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" /> Approve
-              </button>
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={() => handleStatusChange(r.id, "rejected")}
-                className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-              >
-                <XCircle className="h-3.5 w-3.5" /> Reject
-              </button>
-            </div>
-          );
-        }
-        return <span className="text-xs text-slate-400">—</span>;
+        const st = String(r.status || "").toLowerCase();
+        return (
+          <div className="flex items-center gap-1">
+            {r.live && (st === "pending" || st === "pending_approval") ? (
+              <>
+                <Button type="button" variant="success" size="sm" disabled={isBusy} onClick={() => handleStatusChange(r.id, "approved")} title="Approve">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                </Button>
+                <Button type="button" variant="danger" size="sm" disabled={isBusy} onClick={() => handleStatusChange(r.id, "rejected")} title="Reject">
+                  <XCircle className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            ) : null}
+            <button type="button" className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]" aria-label="View" title="View">
+              <Eye className="h-4 w-4" />
+            </button>
+            <button type="button" className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]" aria-label="More" title="More">
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          </div>
+        );
       },
     },
   ];
 
   if (loading) {
     return (
-      <div className="space-y-6 p-4 sm:p-6">
+      <div className="space-y-5 pb-4">
         {storeMode ? <StoreManagerNav /> : null}
-        <Loader label="Loading adjustments..." />
+        <Loader label="Loading stock adjustments…" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-5 pb-4">
       {storeMode ? <StoreManagerNav /> : null}
-      <header>
-        <p className="ui-subtitle">
-          Audit-ready stock corrections with multi-level approval workflow.
-        </p>
-      </header>
 
-      <div className="grid gap-6 xl:grid-cols-[400px_1fr]">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-800">
-            <Plus className="h-4 w-4" /> New Adjustment
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <label className="block text-sm">
-              Adjustment Date
+      <PageHeader
+        title="Stock Adjustment"
+        showTitle
+        subtitle="Adjust stock quantity for items"
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="relative inline-flex items-center">
+              <CalendarDays className="pointer-events-none absolute left-3 h-4 w-4 text-[var(--color-text-muted)]" aria-hidden />
               <input
                 type="date"
-                required
-                value={form.adjustment_date}
-                onChange={(e) => setForm((f) => ({ ...f, adjustment_date: e.target.value }))}
-                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                value={headerDate}
+                onChange={(e) => setHeaderDate(e.target.value)}
+                className="ui-input !w-auto min-w-[10.5rem] !pl-9"
+                aria-label="Date"
               />
             </label>
+            <select
+              value={headerWarehouse}
+              onChange={(e) => setHeaderWarehouse(e.target.value)}
+              className="ui-select !w-auto min-w-[11rem]"
+              aria-label="Warehouse"
+            >
+              {warehouses.length ? (
+                warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>{w.name}</option>
+                ))
+              ) : (
+                <option value="">Main Warehouse</option>
+              )}
+            </select>
+          </div>
+        }
+      />
 
-            <label className="block text-sm">
-              Warehouse
-              <select
-                value={form.warehouse_id}
-                onChange={(e) => setForm((f) => ({ ...f, warehouse_id: e.target.value }))}
-                required
-                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-              >
-                <option value="">Select</option>
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+      {showForm ? (
+        <section className="ui-card p-4 sm:p-5">
+          <div className="mb-5 flex flex-wrap items-center gap-3 border-b border-[var(--color-border-soft)] pb-4">
+            {STEPS.map((s, i) => {
+              const active = step === s.id;
+              const done = step > s.id;
+              return (
+                <div key={s.id} className="flex items-center gap-3">
+                  <div className="flex flex-col items-start gap-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                          active || done
+                            ? "bg-[var(--color-action-teal)] text-white"
+                            : "bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]"
+                        }`}
+                      >
+                        {s.id}
+                      </span>
+                      <span className={`text-sm font-semibold ${active ? "text-[var(--color-action-teal)]" : "text-[var(--color-text-muted)]"}`}>
+                        {s.label}
+                      </span>
+                    </div>
+                    {active ? <span className="ml-9 h-0.5 w-24 rounded bg-[var(--color-action-teal)]" /> : null}
+                  </div>
+                  {i < STEPS.length - 1 ? <ArrowRight className="h-4 w-4 text-[var(--color-text-muted)]" /> : null}
+                </div>
+              );
+            })}
+          </div>
 
-            <label className="block text-sm">
-              Item
-              <select
-                value={form.item_id}
-                onChange={(e) => setForm((f) => ({ ...f, item_id: e.target.value }))}
-                required
-                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-              >
-                <option value="">Select</option>
-                {items.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {itemLabel(i)}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="grid gap-4 xl:grid-cols-[1fr_280px]">
+            <div>
+              {step === 1 ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <label className="text-sm">
+                    <span className="ui-label">Adjustment No.</span>
+                    <input value="Auto generated" readOnly className="ui-input bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]" />
+                  </label>
+                  <label className="text-sm">
+                    <span className="ui-label">Adjustment Date *</span>
+                    <input
+                      type="date"
+                      value={form.adjustment_date}
+                      onChange={(e) => setForm((f) => ({ ...f, adjustment_date: e.target.value }))}
+                      className="ui-input"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    <span className="ui-label">Warehouse *</span>
+                    <select
+                      value={form.warehouse_id}
+                      onChange={(e) => setForm((f) => ({ ...f, warehouse_id: e.target.value }))}
+                      className="ui-select"
+                    >
+                      <option value="">Select warehouse</option>
+                      {warehouses.map((w) => (
+                        <option key={w.id} value={w.id}>{w.name}</option>
+                      ))}
+                      {!warehouses.length ? <option value="main">Main Warehouse</option> : null}
+                    </select>
+                  </label>
 
-            <label className="block text-sm">
-              New Quantity
-              <input
-                type="number"
-                min="0"
-                value={form.new_qty}
-                onChange={(e) => setForm((f) => ({ ...f, new_qty: e.target.value }))}
-                required
-                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-              />
-            </label>
+                  <label className="text-sm">
+                    <span className="ui-label">Item *</span>
+                    <select
+                      value={form.item_id}
+                      onChange={(e) => setForm((f) => ({ ...f, item_id: e.target.value }))}
+                      className="ui-select"
+                    >
+                      <option value="">{items.length ? "Select item" : "PET Resin (RM-0001)"}</option>
+                      {items.map((i) => (
+                        <option key={i.id} value={i.id}>{itemLabel(i)}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-sm">
+                    <span className="ui-label">UOM</span>
+                    <input value={unit} readOnly className="ui-input bg-[var(--color-surface-muted)]" />
+                  </label>
+                  <label className="text-sm">
+                    <span className="ui-label">Current Stock</span>
+                    <input value={`${formatQty(currentStock)} ${unit}`} readOnly className="ui-input bg-[var(--color-surface-muted)]" />
+                  </label>
 
-            <label className="block text-sm">
-              Reason
-              <select
-                value={form.reason}
-                onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
-                className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-              >
-                {ADJUSTMENT_REASONS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </label>
+                  <div className="text-sm">
+                    <span className="ui-label">Adjustment Type *</span>
+                    <div className="mt-1 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, adj_type: "increase" }))}
+                        className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-sm font-semibold ${
+                          form.adj_type === "increase"
+                            ? "border-[#16a34a] bg-[#dcfce7] text-[#16a34a]"
+                            : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
+                        }`}
+                      >
+                        <ArrowUp className="h-4 w-4" /> Increase
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, adj_type: "decrease" }))}
+                        className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-sm font-semibold ${
+                          form.adj_type === "decrease"
+                            ? "border-[#ef4444] bg-[#fee2e2] text-[#ef4444]"
+                            : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
+                        }`}
+                      >
+                        <ArrowDown className="h-4 w-4" /> Decrease
+                      </button>
+                    </div>
+                  </div>
 
-            <button type="submit" disabled={submitting} className="ui-btn-primary w-full">
-              {submitting ? "Saving..." : "Record Adjustment"}
-            </button>
-          </form>
+                  <label className="text-sm">
+                    <span className="ui-label">Adjustment Quantity *</span>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={form.adj_qty}
+                        onChange={(e) => setForm((f) => ({ ...f, adj_qty: e.target.value }))}
+                        className="ui-input !pr-12"
+                      />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--color-text-muted)]">
+                        {unit}
+                      </span>
+                    </div>
+                  </label>
 
-          <div className="mt-4 rounded-xl bg-slate-50 p-3">
-            <p className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-700">
-              <ClipboardCheck className="h-3.5 w-3.5" /> Approval Workflow
-            </p>
-            <div className="flex flex-wrap gap-2 text-xs text-slate-600">
-              {APPROVAL_FLOW.map((s, i) => (
-                <span key={s} className="flex items-center gap-1">
-                  <span className="font-semibold text-[#2563EB]">{s}</span>
-                  {i < 2 && "→"}
-                </span>
-              ))}
+                  <label className="text-sm">
+                    <span className="ui-label">Reason *</span>
+                    <select
+                      value={form.reason}
+                      onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+                      className="ui-select"
+                    >
+                      {REASON_OPTIONS.map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="text-sm">
+                    <span className="ui-label">Reference (Optional)</span>
+                    <input
+                      value={form.reference}
+                      onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))}
+                      className="ui-input"
+                      placeholder="Enter reference"
+                    />
+                  </label>
+
+                  <label className="text-sm sm:col-span-2">
+                    <span className="ui-label">Remarks (Optional)</span>
+                    <textarea
+                      value={form.remarks}
+                      maxLength={250}
+                      onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))}
+                      className="ui-input"
+                      rows={3}
+                      placeholder="Add remarks…"
+                    />
+                    <span className="mt-1 block text-right text-[11px] text-[var(--color-text-muted)]">
+                      {form.remarks.length} / 250
+                    </span>
+                  </label>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]/40 p-4 text-sm">
+                  <h3 className="mb-3 font-semibold text-[var(--color-text)]">Review adjustment</h3>
+                  <dl className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-xs text-[var(--color-text-muted)]">Item</dt>
+                      <dd className="font-medium">{itemDisplay}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-[var(--color-text-muted)]">Warehouse</dt>
+                      <dd className="font-medium">{warehouseDisplay}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-[var(--color-text-muted)]">Type</dt>
+                      <dd className="font-medium capitalize">{form.adj_type}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-[var(--color-text-muted)]">Reason</dt>
+                      <dd className="font-medium">{form.reason}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-[var(--color-text-muted)]">Current → New</dt>
+                      <dd className="font-semibold tabular-nums">
+                        {formatQty(currentStock)} → {formatQty(newQty)} {unit}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              )}
+
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                {step === 1 ? (
+                  <>
+                    <Button type="button" variant="secondary" onClick={() => { resetForm(); setShowForm(false); }}>
+                      Cancel
+                    </Button>
+                    <Button type="button" variant="primary" disabled={!canReview} onClick={() => setStep(2)}>
+                      Review & Confirm <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button type="button" variant="secondary" onClick={() => setStep(1)}>
+                      Back
+                    </Button>
+                    <Button type="button" variant="primary" loading={submitting} disabled={submitting || !items.length} onClick={handleSubmit}>
+                      Confirm Adjustment
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-4 flex justify-between">
-            <h2 className="text-sm font-bold text-slate-800">Adjustment History</h2>
+            <aside className="h-fit rounded-xl border border-[var(--color-success)]/25 bg-[#ecfdf5] p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-[var(--color-success)]" />
+                <h3 className="text-sm font-semibold text-[var(--color-text)]">Adjustment Summary</h3>
+              </div>
+              <dl className="space-y-2.5 text-sm">
+                <div className="flex justify-between gap-2">
+                  <dt className="text-[var(--color-text-muted)]">Item</dt>
+                  <dd className="max-w-[140px] truncate text-right font-medium">{itemDisplay}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-[var(--color-text-muted)]">Warehouse</dt>
+                  <dd className="text-right font-medium">{warehouseDisplay}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-[var(--color-text-muted)]">Current Stock</dt>
+                  <dd className="tabular-nums font-medium">{formatQty(currentStock)} {unit}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-[var(--color-text-muted)]">Adjustment</dt>
+                  <dd className={`tabular-nums font-semibold ${form.adj_type === "increase" ? "text-[#16a34a]" : "text-[#ef4444]"}`}>
+                    {form.adj_type === "increase" ? "+" : "-"}
+                    {formatQty(adjQty)} {unit}
+                  </dd>
+                </div>
+                <div className="border-t border-[var(--color-success)]/20 pt-3">
+                  <dt className="text-xs text-[var(--color-text-muted)]">New Stock</dt>
+                  <dd className={`mt-1 text-2xl font-bold tabular-nums ${form.adj_type === "increase" ? "text-[#16a34a]" : "text-[#ef4444]"}`}>
+                    {formatQty(newQty)} {unit}
+                  </dd>
+                </div>
+              </dl>
+              <div className="mt-3 flex gap-2 rounded-lg border border-[var(--color-info)]/30 bg-[var(--color-info-soft)] px-3 py-2 text-xs text-[var(--color-text)]">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-info)]" />
+                <p>
+                  This adjustment will {form.adj_type === "increase" ? "increase" : "decrease"} the stock by{" "}
+                  {formatQty(adjQty)} {unit}.
+                </p>
+              </div>
+            </aside>
           </div>
-          <DataTable columns={columns} data={adjustments} showSearch={false} />
         </section>
-      </div>
+      ) : null}
+
+      <section className="ui-card p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <h2 className="text-sm font-semibold text-[var(--color-text)]">Recent Adjustments</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-0 flex-1 xl:w-72">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
+              <input
+                type="search"
+                placeholder="Search adjustments..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="ui-input w-full !pl-9"
+              />
+            </div>
+            <Button type="button" variant="secondary" onClick={() => setShowFilters((v) => !v)}>
+              <Filter className="h-4 w-4" /> Filters
+            </Button>
+            {showFilters ? (
+              <>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="ui-select !w-auto min-w-[8.5rem]">
+                  <option value="">Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <Button type="button" variant="ghost" onClick={() => { setSearch(""); setStatusFilter(""); }}>
+                  <RefreshCw className="h-4 w-4" /> Clear
+                </Button>
+              </>
+            ) : null}
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => {
+                setShowForm(true);
+                setStep(1);
+              }}
+            >
+              <Plus className="h-4 w-4" /> New Adjustment
+            </Button>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-lg border border-[var(--color-border-soft)]">
+          <DataTable
+            columns={columns}
+            data={filteredAdjustments}
+            showSearch={false}
+            pageSize={10}
+            emptyState={
+              <EmptyState
+                icon="clipboard"
+                title="No adjustments yet"
+                description="Create an adjustment to correct stock quantities."
+                actionLabel="New Adjustment"
+                onAction={() => { setShowForm(true); setStep(1); }}
+              />
+            }
+          />
+        </div>
+      </section>
     </div>
   );
 }

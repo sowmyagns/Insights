@@ -20,6 +20,8 @@ import { DEMO_PRODUCTS, enrichApiProduct } from "../../data/productsMasterData";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
 
+import Button from "../common/Button";
+
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "components", label: "Components" },
@@ -548,7 +550,7 @@ export default function BomDetailModal({ bom, onClose, onEdit, onCopy, onDelete,
         </div>
 
         <div className="flex flex-wrap gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
-          <button type="button" onClick={() => onEdit(bom)} className="ui-btn-primary text-xs">Edit BOM</button>
+          <Button type="button" onClick={() => onEdit(bom)} variant="primary" className="text-xs">Edit BOM</Button>
           <button type="button" onClick={() => onCopy(bom)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
             <Copy className="h-3.5 w-3.5" /> Copy BOM
           </button>

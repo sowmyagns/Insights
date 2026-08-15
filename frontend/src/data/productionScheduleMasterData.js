@@ -12,7 +12,6 @@ export const SCHEDULE_FLOW_STEPS = [
   "Production Schedule",
   "Machine Allocation",
   "Material Issue",
-  "Shop Floor",
   "Quality",
   "Finished Goods",
   "Inventory",

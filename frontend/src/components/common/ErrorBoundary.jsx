@@ -1,6 +1,8 @@
 import { Component } from "react";
 import { AlertCircle, RefreshCw, Home } from "lucide-react";
 
+import Button from "./Button";
+
 export default class ErrorBoundary extends Component {
   state = { hasError: false, error: null };
 
@@ -28,14 +30,15 @@ export default class ErrorBoundary extends Component {
               </pre>
             )}
             <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-              <button
+              <Button
+                variant="primary"
                 type="button"
                 onClick={() => window.location.reload()}
-                className="ui-btn-primary w-full sm:w-auto"
+                className="w-full sm:w-auto"
               >
                 <RefreshCw className="h-4 w-4" />
                 Reload page
-              </button>
+              </Button>
               <a
                 href="/"
                 className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 sm:w-auto"

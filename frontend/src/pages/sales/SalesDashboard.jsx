@@ -93,7 +93,7 @@ export default function SalesDashboard() {
               </li>
             ))}
           </ul>
-          <Link to="/sales/customers" className="mt-3 inline-block text-[var(--text-sm)] font-semibold text-[var(--color-primary)] hover:underline">
+          <Link to="/masters/customers" className="mt-3 inline-block text-[var(--text-sm)] font-semibold text-[var(--color-primary)] hover:underline">
             View all customers →
           </Link>
         </div>

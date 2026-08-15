@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -18,10 +18,12 @@ import {
   Star,
 } from "lucide-react";
 
+import Button, { IconButton } from "../../components/common/Button";
 import DataTable from "../../components/common/DataTable";
 import EmptyState from "../../components/common/EmptyState";
 import KpiCard from "../../components/common/KpiCard";
 import Loader from "../../components/common/Loader";
+import StatusBadge from "../../components/common/StatusBadge";
 import { calculateProgressPct } from "../../data/productionPlanningMasterData";
 import WorkOrderDetailModal, {
   WorkOrderCompleteModal,
@@ -50,7 +52,6 @@ import {
   PRIORITIES,
   SHIFTS,
   WO_STATUSES,
-  canWoComplete,
   canWoIssueMaterials,
   canWoPause,
   canWoStart,
@@ -66,6 +67,7 @@ import {
 } from "../../utils/manufacturingEvents";
 import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
 import { printWorkOrder } from "../../utils/printUtils";
+import { cleanProductLabel } from "../../utils/productLabel";
 
 const PAGE_SIZES = [20, 50, 100];
 
@@ -73,17 +75,55 @@ function isServerWoId(id) {
   return typeof id === "number" || (typeof id === "string" && /^\d+$/.test(id));
 }
 
+function woStatusTone(row) {
+  if (row?.is_delayed) return "danger";
+  const s = String(row?.status || "").toLowerCase();
+  if (s === "completed" || s === "closed" || s === "done") return "success";
+  if (s === "running" || s === "in_progress" || s === "started") return "progress";
+  if (s === "planned" || s === "draft" || s === "released" || s === "material_ready" || s === "machine_ready") return "pending";
+  if (s === "cancelled" || s === "canceled") return "neutral";
+  if (s === "paused" || s === "on_hold" || s === "quality_check") return "warning";
+  return "info";
+}
+
 function PriorityPill({ priority }) {
-  const p = priorityBadge(priority);
+  const p = priorityBadge(priority || "medium");
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${p.bg} ${p.text}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${priority === "high" || priority === "urgent" ? "bg-rose-500" : priority === "low" ? "bg-emerald-500" : "bg-amber-500"}`} />
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${p.bg} ${p.text}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" aria-hidden />
       {p.label}
     </span>
   );
 }
 
-/** Compact row actions — primary buttons + overflow menu (no emoji clutter). */
+function ProgressCell({ row }) {
+  const pct = calculateProgressPct(row);
+  const planned = Number(row.planned_quantity || 0);
+  const rawProduced = Number(row.produced_quantity ?? row.actual_quantity ?? 0);
+  const produced = (row.status === "completed" || row.status === "closed" || row.status === "done")
+    ? Math.max(rawProduced, planned)
+    : rawProduced > 0
+    ? rawProduced
+    : Math.round((planned * pct) / 100);
+  return (
+    <div className="min-w-[88px] max-w-[120px]">
+      <div className="mb-1 flex justify-between text-[11px] tabular-nums text-[var(--color-text-secondary)]">
+        <span>
+          {produced}/{planned}
+        </span>
+        <span className="font-semibold text-[var(--color-text)]">{pct}%</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
+        <div
+          className="h-full rounded-full bg-[var(--color-action-teal)] transition-[width]"
+          style={{ width: `${Math.min(pct, 100)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Compact row actions — icon buttons + overflow menu. */
 function WoRowActions({
   row,
   onView,
@@ -112,58 +152,50 @@ function WoRowActions({
   more.push({ label: "Export PDF", onClick: () => onPdf(row) });
 
   return (
-    <div className="flex items-center gap-1 whitespace-nowrap">
-      <button type="button" onClick={() => onView(row)} className="ui-btn-ghost !px-2 !py-1 text-xs" title="View">
+    <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+      <IconButton aria-label="View" title="View" onClick={() => onView(row)}>
         <Eye className="h-3.5 w-3.5" />
-        View
-      </button>
+      </IconButton>
       {serverId ? (
-        <Link
-          to={`/production/job-card?id=${row.id}`}
-          className="ui-btn-ghost !px-2 !py-1 text-xs"
-          title="Open Job Card"
-        >
+        <IconButton to={`/production/job-card?id=${row.id}`} aria-label="Job Card" title="Job Card">
           <ClipboardList className="h-3.5 w-3.5" />
-          Job Card
-        </Link>
+        </IconButton>
       ) : null}
       {canWoStart(row.status) ? (
-        <button type="button" onClick={() => onStart(row)} className="ui-btn-primary !px-2 !py-1 text-xs" title="Start">
+        <IconButton variant="primary" aria-label="Start" title="Start" onClick={() => onStart(row)}>
           <Play className="h-3.5 w-3.5" />
-          Start
-        </button>
-      ) : null}
-      {row.materials_issued ? (
-        <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">Mat ✓</span>
+        </IconButton>
       ) : null}
       {more.length ? (
         <div className="relative">
-          <button
-            type="button"
-            className="ui-btn-ghost !px-1.5 !py-1"
+          <IconButton
             aria-label="More actions"
+            title="More actions"
             onClick={(e) => {
-              e.stopPropagation();
+              e?.stopPropagation?.();
               setOpen((v) => !v);
             }}
           >
-            <MoreVertical className="h-4 w-4" />
-          </button>
+            <MoreVertical className="h-3.5 w-3.5" />
+          </IconButton>
           {open ? (
             <>
               <button type="button" className="fixed inset-0 z-40 cursor-default" aria-label="Close menu" onClick={() => setOpen(false)} />
-              <div className="absolute right-0 z-50 mt-1 w-44 rounded-lg border border-[var(--color-border)] bg-white py-1 shadow-lg">
+              <div className="absolute right-0 z-50 mt-1 w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-lg">
                 {more.map((item) => (
                   <button
                     key={item.label}
                     type="button"
                     disabled={item.disabled}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
                     onClick={() => {
                       setOpen(false);
                       item.onClick?.();
                     }}
                   >
+                    {item.label === "Pause" ? <Pause className="h-3.5 w-3.5" /> : null}
+                    {item.label === "Print" ? <Printer className="h-3.5 w-3.5" /> : null}
+                    {item.label === "Export PDF" ? <FileText className="h-3.5 w-3.5" /> : null}
                     {item.label}
                   </button>
                 ))}
@@ -172,42 +204,6 @@ function WoRowActions({
           ) : null}
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function ProgressCell({ row }) {
-  const pct = calculateProgressPct(row);
-  const planned = Number(row.planned_quantity || 0);
-  const rawProduced = Number(row.produced_quantity ?? row.actual_quantity ?? 0);
-  const produced = (row.status === "completed" || row.status === "closed" || row.status === "done")
-    ? Math.max(rawProduced, planned)
-    : rawProduced > 0
-    ? rawProduced
-    : Math.round((planned * pct) / 100);
-  return (
-    <div className="min-w-[110px]">
-      <div className="mb-0.5 flex justify-between text-[10px] text-slate-500">
-        <span>{produced} / {planned}</span>
-        <span>{pct}%</span>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
-        <div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${Math.min(pct, 100)}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function MachineCell({ row }) {
-  const isAssigned = Boolean(row.machine_name && row.machine_name !== "—" && row.machine_name !== "Unassigned");
-  return (
-    <div>
-      <p className={`text-sm font-medium ${isAssigned ? "text-slate-800" : "text-slate-400"}`}>
-        {isAssigned ? row.machine_name : "—"}
-      </p>
-      {isAssigned && row.machine_status && row.machine_status !== "—" && (
-        <p className="text-[10px] capitalize text-slate-500">{row.machine_status}</p>
-      )}
     </div>
   );
 }
@@ -551,27 +547,56 @@ export default function WorkOrders() {
   ];
 
   const columns = [
-    { key: "work_order_number", label: "Work Order Number" },
-    { key: "product_name", label: "Product" },
-    { key: "production_order_number", label: "Production Order" },
-    { key: "customer_name", label: "Customer" },
     {
-      key: "machine_name",
-      label: "Machine",
-      render: (r) => <MachineCell row={r} />,
-    },
-    { key: "operator_name", label: "Operator" },
-    { key: "planned_quantity", label: "Planned Quantity" },
-    {
-      key: "progress",
-      label: "Produced",
-      sortable: false,
-      render: (r) => <ProgressCell row={r} />,
+      key: "work_order_number",
+      label: "Work Order",
+      render: (r) => (
+        <div className="min-w-[7.5rem]">
+          <p className="text-[13px] font-semibold tabular-nums text-[var(--color-text)]">{r.work_order_number || "—"}</p>
+          <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]" title={r.production_order_number || undefined}>
+            {r.production_order_number ? `PO ${r.production_order_number}` : "No production order"}
+          </p>
+        </div>
+      ),
     },
     {
-      key: "remaining_quantity",
-      label: "Remaining",
-      render: (r) => r.remaining_quantity ?? Math.max((r.planned_quantity || 0) - (r.produced_quantity || 0), 0),
+      key: "product_name",
+      label: "Product",
+      render: (r) => {
+        const product = cleanProductLabel(r.product_name);
+        const machine =
+          r.machine_name && r.machine_name !== "—" && r.machine_name !== "Unassigned" ? r.machine_name : "";
+        const customer = r.customer_name && r.customer_name !== "—" ? r.customer_name : "";
+        const operator = r.operator_name && r.operator_name !== "—" ? r.operator_name : "";
+        const meta = [customer, machine || "No machine", operator].filter(Boolean).join(" · ");
+        return (
+          <div className="max-w-[220px]">
+            <p className="truncate text-[13px] font-medium text-[var(--color-text)]" title={product}>
+              {product}
+            </p>
+            <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]" title={meta}>
+              {meta}
+            </p>
+          </div>
+        );
+      },
+    },
+    {
+      key: "planned_quantity",
+      label: "Qty",
+      render: (r) => {
+        const planned = Number(r.planned_quantity || 0);
+        const produced = Number(r.produced_quantity ?? r.actual_quantity ?? 0);
+        const remaining = r.remaining_quantity ?? Math.max(planned - produced, 0);
+        return (
+          <div className="tabular-nums">
+            <p className="text-[13px] font-semibold text-[var(--color-text)]">{planned}</p>
+            <p className="text-[11px] text-[var(--color-text-muted)]">
+              {produced} done · {remaining} left
+            </p>
+          </div>
+        );
+      },
     },
     {
       key: "priority",
@@ -579,26 +604,31 @@ export default function WorkOrders() {
       render: (r) => <PriorityPill priority={r.priority} />,
     },
     {
-      key: "planned_start",
-      label: "Start",
-      render: (r) => formatDate(r.planned_start),
-    },
-    {
-      key: "planned_end",
-      label: "Due",
-      render: (r) => formatDate(r.planned_end),
+      key: "progress",
+      label: "Progress",
+      sortable: false,
+      render: (r) => <ProgressCell row={r} />,
     },
     {
       key: "status",
       label: "Status",
       render: (r) => (
-        <span className="inline-flex flex-col gap-0.5">
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold capitalize">{woStatusLabel(r.status)}</span>
-          {r.is_delayed && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-600">
-              <AlertTriangle className="h-3 w-3" /> Delayed
-            </span>
-          )}
+        <div className="flex flex-col items-start gap-1">
+          <StatusBadge tone={woStatusTone(r)}>
+            {r.is_delayed ? "Delayed" : woStatusLabel(r.status)}
+          </StatusBadge>
+          {r.materials_issued ? (
+            <span className="text-[10px] font-semibold text-emerald-700">Materials issued</span>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: "planned_end",
+      label: "Due",
+      render: (r) => (
+        <span className="whitespace-nowrap text-[12px] tabular-nums text-[var(--color-text-secondary)]">
+          {formatDate(r.planned_end || r.planned_start)}
         </span>
       ),
     },
@@ -635,12 +665,9 @@ export default function WorkOrders() {
               <span className="font-semibold text-[var(--color-warning)]">Pending Orders</span>
               <span className="text-[var(--color-warning)]">— showing only <strong>Planned</strong> and <strong>In Progress</strong> work orders</span>
             </div>
-            <Link
-              to="/production/work-orders"
-              className="ui-btn-secondary"
-            >
+            <Button variant="secondary" to="/production/work-orders">
               View All Orders
-            </Link>
+            </Button>
           </div>
         )}
 
@@ -653,11 +680,9 @@ export default function WorkOrders() {
           <KpiCard label="High Priority" value={summary.high_priority_orders} icon={Star} color="bg-purple-500" />
         </div>
 
-        {/* Card Container */}
-        <div className="ui-card p-4 sm:p-5">
-          {/* Action Bar */}
-          <div className="mb-4 ui-toolbar">
-            <div className="relative min-w-[220px] flex-1">
+        <div className="ui-card overflow-hidden p-4 sm:p-5">
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative min-w-[220px] flex-1 lg:max-w-md">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-icon)]" />
               <input
                 type="search"
@@ -667,39 +692,30 @@ export default function WorkOrders() {
                 className="ui-input !rounded-full pl-10"
               />
             </div>
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="ui-btn-secondary"
-            >
-              {showAdvanced ? "Hide Filters" : "Advanced Filters"}
-            </button>
-            <button
-              type="button"
-              onClick={() => exportToExcel(filtered, exportCols, "work-orders")}
-              className="ui-btn-secondary"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              Export Excel
-            </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="ui-btn-secondary"
-            >
-              <Printer className="h-4 w-4" />
-              Print
-            </button>
-            {!isOperator(user) && (
-              <button
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="secondary" type="button" onClick={() => setShowAdvanced(!showAdvanced)}>
+                {showAdvanced ? "Hide Filters" : "Filters"}
+              </Button>
+              <Button
+                variant="secondary"
                 type="button"
-                onClick={() => setShowQuickModal(true)}
-                className="ui-btn-primary"
+                onClick={() => exportToExcel(filtered, exportCols, "work-orders")}
+                title="Export Excel"
               >
-                <Plus className="h-4 w-4" />
-                New Work Order
-              </button>
-            )}
+                <FileSpreadsheet className="h-4 w-4" />
+                <span className="hidden sm:inline">Excel</span>
+              </Button>
+              <Button variant="secondary" type="button" onClick={() => window.print()} title="Print">
+                <Printer className="h-4 w-4" />
+                <span className="hidden sm:inline">Print</span>
+              </Button>
+              {!isOperator(user) && (
+                <Button variant="success" type="button" onClick={() => setShowQuickModal(true)}>
+                  <Plus className="h-4 w-4" />
+                  New Work Order
+                </Button>
+              )}
+            </div>
           </div>
 
           {showAdvanced && (
@@ -730,7 +746,7 @@ export default function WorkOrders() {
                 <option value="">Status</option>
                 {WO_STATUSES.map((s) => <option key={s} value={s}>{woStatusLabel(s)}</option>)}
               </select>
-              <button type="button" onClick={() => setFilters(defaultFilters)} className="ui-btn-secondary">Clear</button>
+              <Button variant="secondary" type="button" onClick={() => setFilters(defaultFilters)}>Clear</Button>
             </div>
           )}
 

@@ -10,6 +10,7 @@ import {
 
 import { DEMO_BIN_TREE } from "../../data/warehousesMasterData";
 
+import Button from "../common/Button";
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "inventory", label: "Inventory" },
@@ -437,7 +438,7 @@ export function WarehouseFormModal({ warehouse, onClose, onSave }) {
             Primary warehouse
           </label>
           <div className="flex gap-2 pt-2">
-            <button type="submit" className="ui-btn-primary">Save Warehouse</button>
+            <Button variant="primary" type="submit" >Save Warehouse</Button>
             <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700">Cancel</button>
           </div>
         </form>

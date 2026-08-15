@@ -22,7 +22,6 @@ MODULE_MAP = {
     "machines": "production",
     "production": "production",
     "workorders": "production",
-    "shopfloor": "production",
     "allocation": "production",
     "batches": "production",
     "notifications": "production",

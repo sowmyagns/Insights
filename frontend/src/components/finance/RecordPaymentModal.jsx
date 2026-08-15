@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { X, Save, Paperclip } from "lucide-react";
+import Button, { IconButton } from "../common/Button";
 import { useToast } from "../../context/ToastContext";
 
 /* ── identical to CreateLeadModal ── */
@@ -88,13 +89,14 @@ export default function RecordPaymentModal({
             <h3 className="text-lg font-bold text-slate-900">Record Payment</h3>
             <p className="text-xs text-slate-500 mt-0.5">Record a customer receipt or vendor disbursement.</p>
           </div>
-          <button
+          <IconButton
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 transition-colors"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+            aria-label="Close"
           >
             <X className="h-5 w-5" />
-          </button>
+          </IconButton>
         </div>
 
         {/* ── Form ── */}
@@ -253,18 +255,12 @@ export default function RecordPaymentModal({
 
           {/* ── Footer ── */}
           <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-            <button
-              type="button" onClick={onClose}
-              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-            >
+            <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit" disabled={saving}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] shadow-sm transition-all disabled:opacity-50"
-            >
-              <Save className="h-4 w-4" /> Save Payment
-            </button>
+            </Button>
+            <Button type="submit" variant="primary" loading={saving} disabled={saving} leftIcon={<Save className="h-4 w-4" />}>
+              Save Payment
+            </Button>
           </div>
 
         </form>

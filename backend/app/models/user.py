@@ -42,6 +42,9 @@ class User(Base, TimestampMixin):
     assigned_machine_id: Mapped[int | None] = mapped_column(
         ForeignKey("machines.id"), nullable=True, index=True
     )
+    tokens_revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     tenant = relationship("Tenant", back_populates="users")
     roles = relationship("Role", secondary="user_roles", back_populates="users")

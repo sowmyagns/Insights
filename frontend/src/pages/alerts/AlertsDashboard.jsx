@@ -24,6 +24,7 @@ import {
 import { getEmployees } from "../../api/hrApi";
 import { isAdmin, userCanAction } from "../../config/permissions";
 import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
+import Button from "../../components/common/Button";
 import {
   SEVERITY_OPTIONS,
   STATUS_OPTIONS,
@@ -238,7 +239,9 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
     list.sort((a, b) => {
       const av = a[sortKey] ?? "";
       const bv = b[sortKey] ?? "";
-      if (av === bv) return 0;
+      if (av === bv) {
+        return sortDir === "asc" ? ((a.id || 0) - (b.id || 0)) : ((b.id || 0) - (a.id || 0));
+      }
       const cmp = av > bv ? 1 : -1;
       return sortDir === "asc" ? cmp : -cmp;
     });
@@ -376,7 +379,8 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
         action={
           <>
             {canWrite && (
-              <button
+              <Button
+                variant="secondary"
                 type="button"
                 onClick={async () => {
                   try {
@@ -387,30 +391,29 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
                     addToast(e.response?.data?.detail || "Failed to mark all read", "error");
                   }
                 }}
-                className="ui-btn-secondary"
               >
                 Mark all read
-              </button>
+              </Button>
             )}
             <ExportButtons
               onExcel={() => exportToExcel(exportRows, EXPORT_COLUMNS, "alerts")}
               onPdf={() => exportToPdf(exportRows, EXPORT_COLUMNS, "Alerts Report", "alerts")}
             />
-            <button
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => window.print()}
-              className="ui-btn-secondary"
             >
               <Printer className="h-4 w-4" /> Print
-            </button>
+            </Button>
             {canCreate && (
-              <button
+              <Button
+                variant="primary"
                 type="button"
                 onClick={() => setShowCreate(true)}
-                className="ui-btn-primary"
               >
                 <Plus className="h-4 w-4" /> New Alert
-              </button>
+              </Button>
             )}
           </>
         }
@@ -915,21 +918,17 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
             </div>
 
             <div className="flex justify-end gap-2 border-t pt-4">
-              <button
+              <Button
+                variant="secondary"
                 type="button"
                 onClick={() => setShowCreate(false)}
-                className="ui-btn-secondary"
               >
                 Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="ui-btn-primary"
-              >
+              </Button>
+              <Button variant="primary" type="submit" disabled={saving}>
                 <Save className="h-4 w-4" />
                 {saving ? "Saving..." : "Create Alert"}
-              </button>
+              </Button>
             </div>
           </form>
         </div>

@@ -10,6 +10,7 @@ import useTenantId from "../../hooks/useTenantId";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { useToast } from "../../context/ToastContext";
 
+import Button from "../../components/common/Button";
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all";
 
@@ -119,13 +120,13 @@ export default function Performance() {
         subtitle="Monitor employee review periods, rating logs, goals achieved, and manager feedback."
         action={
           <>
-            <button
+            <Button
+            variant="hr"
             type="button"
             onClick={() => setShowCreateModal(true)}
-            className="ui-btn-hr"
           >
             <Plus className="h-4 w-4" /> Create Review
-          </button>
+          </Button>
           </>
         }
       />
@@ -280,14 +281,10 @@ export default function Performance() {
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="ui-btn-hr"
-                >
+                <Button variant="primary" type="submit" disabled={saving}>
                   <Save className="h-4 w-4" />
                   {saving ? "Saving..." : "Create"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { CheckCircle, Package, Plus, X } from "lucide-react";
 import KpiCard from "../../components/common/KpiCard";
 import PageHeader from "../../components/common/PageHeader";
@@ -24,6 +23,7 @@ import useAuth from "../../hooks/useAuth";
 import { isStoreManager } from "../../config/permissions";
 
 
+import Button from "../../components/common/Button";
 function GRNDetailModal({ row, onClose, onQC }) {
   if (!row) return null;
   const pending =
@@ -273,9 +273,9 @@ export default function GoodsReceipt() {
         subtitle="Receive materials against purchase orders and post accepted quantity to inventory."
         action={
           <>
-            <Link to="/procurement/goods-receipt/create" className="ui-btn-primary">
+            <Button variant="primary" to="/procurement/goods-receipt/create">
             <Plus className="h-4 w-4" /> New GRN
-          </Link>
+          </Button>
           </>
         }
       />

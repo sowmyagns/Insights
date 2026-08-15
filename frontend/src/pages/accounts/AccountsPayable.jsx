@@ -18,6 +18,8 @@ import { FINANCE_FLOW, formatInr, statusColor } from "../../data/financeMasterDa
 import useTenantId from "../../hooks/useTenantId";
 import usePageRefresh from "../../hooks/usePageRefresh";
 
+import Button from "../../components/common/Button";
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function normalizeList(payload) {
@@ -782,12 +784,12 @@ export default function AccountsPayable() {
         subtitle="Manage vendor bills, supplier payments, and outstanding payables."
         action={
           <>
-            <button type="button" onClick={() => setShowCreateBill(true)} className="ui-btn-secondary">
+            <Button variant="secondary" type="button" onClick={() => setShowCreateBill(true)}>
               <FileText className="h-4 w-4" /> New Vendor Bill
-            </button>
-            <button type="button" onClick={() => { setPayBill(null); setShowCreatePayment(true); }} className="ui-btn-primary">
+            </Button>
+            <Button variant="primary" type="button" onClick={() => { setPayBill(null); setShowCreatePayment(true); }}>
               <CreditCard className="h-4 w-4" /> Record Payment
-            </button>
+            </Button>
           </>
         }
       />

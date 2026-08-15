@@ -1,13 +1,28 @@
-import { useState, useEffect } from "react";
-import { X, Cpu } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { Cpu, X } from "lucide-react";
+
 import { SHIFTS } from "../../data/productionPlanningMasterData";
 import { getMachines, quickCreateWorkOrder } from "../../api/productionApi";
-import { fetchProductsWithFallback } from "../../utils/productOptions";
+import { fetchFinishedGoodsWithFallback } from "../../utils/productOptions";
+import { apiErrorMessage } from "../../utils/apiError";
+import Button from "../common/Button";
+
+function toDateTimeLocal(value) {
+  if (!value) return "";
+  const s = String(value);
+  if (s.length >= 16 && s[10] === "T") return s.slice(0, 16);
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export default function QuickWorkOrderModal({ order, onClose, onSuccess, addToast }) {
   const [machines, setMachines] = useState([]);
   const [products, setProducts] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const poNumber = order?.order_number || order?.id || "";
   const initialWoNumber = poNumber ? `WO-${poNumber}` : `WO-${Date.now().toString().slice(-6)}`;
@@ -15,35 +30,44 @@ export default function QuickWorkOrderModal({ order, onClose, onSuccess, addToas
   const [form, setForm] = useState({
     work_order_number: initialWoNumber,
     product_name: order?.product_name || "",
-    product_id: order?.product_id || "",
+    product_id: order?.product_id ? String(order.product_id) : "",
     planned_quantity: order?.planned_quantity || 100,
     customer_name: order?.buyer_company || order?.customer_name || "",
-    machine_id: order?.machine_id || "",
+    machine_id: order?.machine_id ? String(order.machine_id) : "",
     operator_name: order?.operator_name || "",
     shift: typeof order?.shift === "object" ? order?.shift?.id || "General" : order?.shift || "General",
     priority: order?.priority || "medium",
-    start_date: order?.start_date ? String(order.start_date).slice(0, 16) : "",
-    due_date: order?.due_date ? String(order.due_date).slice(0, 16) : "",
+    start_date: toDateTimeLocal(order?.start_date),
+    due_date: toDateTimeLocal(order?.due_date),
   });
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     setLoadingOptions(true);
-    Promise.all([getMachines().catch(() => ({ data: [] })), fetchProductsWithFallback().catch(() => [])])
+    Promise.all([
+      getMachines().catch(() => ({ data: [] })),
+      fetchFinishedGoodsWithFallback().catch(() => []),
+    ])
       .then(([mRes, pRes]) => {
-        setMachines(mRes?.data || []);
-        const prods = Array.isArray(pRes) ? pRes : pRes?.data || [];
+        if (cancelled) return;
+        setMachines(Array.isArray(mRes?.data) ? mRes.data : []);
+        const prods = Array.isArray(pRes) ? pRes : [];
         setProducts(prods);
-        // Prefill product only when opened from a production order
         if (order?.product_id) {
+          const selected = prods.find((p) => String(p.id) === String(order.product_id));
           setForm((prev) => ({
             ...prev,
             product_id: String(order.product_id),
-            product_name: order.product_name || prev.product_name,
+            product_name: selected?.name || order.product_name || prev.product_name,
           }));
         }
       })
-      .finally(() => setLoadingOptions(false));
+      .finally(() => {
+        if (!cancelled) setLoadingOptions(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [order?.product_id, order?.product_name]);
 
   useEffect(() => {
@@ -103,31 +127,35 @@ export default function QuickWorkOrderModal({ order, onClose, onSuccess, addToas
       });
       onClose?.();
     } catch (err) {
-      const detail = err?.response?.data?.detail;
-      addToast?.(typeof detail === "string" ? detail : "Failed to create work order", "error");
+      addToast?.(apiErrorMessage(err, "Failed to create work order"), "error");
     } finally {
       setSaving(false);
     }
   };
 
-  return (
+  const modal = (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-4 backdrop-blur-sm sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="quick-wo-title"
     >
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50/80 px-6 py-4">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-[var(--color-surface)] shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] px-6 py-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/20 text-amber-700">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-action-teal)]/15 text-[var(--color-action-teal)]">
               <Cpu className="h-5 w-5" />
             </div>
-            <h3 id="quick-wo-title" className="text-base font-bold text-slate-900">
+            <h3 id="quick-wo-title" className="text-base font-bold text-[var(--color-text)]">
               New Work Order
             </h3>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -135,14 +163,27 @@ export default function QuickWorkOrderModal({ order, onClose, onSuccess, addToas
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="block space-y-1">
               <span className="ui-label">Work Order Number</span>
-              <input name="work_order_number" value={form.work_order_number} onChange={handleChange} required className="ui-input" />
+              <input
+                name="work_order_number"
+                value={form.work_order_number}
+                onChange={handleChange}
+                required
+                className="ui-input"
+              />
             </label>
             <label className="block space-y-1">
               <span className="ui-label">Product</span>
               {order?.product_id ? (
-                <input value={form.product_name} readOnly className="ui-input bg-slate-50" />
+                <input value={form.product_name} readOnly className="ui-input bg-[var(--color-surface-muted)]" />
               ) : (
-                <select name="product_id" value={form.product_id} onChange={handleChange} required disabled={loadingOptions} className="ui-select">
+                <select
+                  name="product_id"
+                  value={form.product_id}
+                  onChange={handleChange}
+                  required
+                  disabled={loadingOptions}
+                  className="ui-select"
+                >
                   <option value="">{loadingOptions ? "Loading products…" : "Select product…"}</option>
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -156,7 +197,15 @@ export default function QuickWorkOrderModal({ order, onClose, onSuccess, addToas
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="block space-y-1">
               <span className="ui-label">Planned Quantity</span>
-              <input type="number" name="planned_quantity" min="1" value={form.planned_quantity} onChange={handleChange} required className="ui-input" />
+              <input
+                type="number"
+                name="planned_quantity"
+                min="1"
+                value={form.planned_quantity}
+                onChange={handleChange}
+                required
+                className="ui-input"
+              />
             </label>
             <label className="block space-y-1">
               <span className="ui-label">Machine</span>
@@ -201,16 +250,40 @@ export default function QuickWorkOrderModal({ order, onClose, onSuccess, addToas
               </select>
             </label>
           </div>
-          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-            <button type="button" onClick={onClose} className="ui-btn-secondary" disabled={saving}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="block space-y-1">
+              <span className="ui-label">Start</span>
+              <input
+                type="datetime-local"
+                name="start_date"
+                value={form.start_date}
+                onChange={handleChange}
+                className="ui-input"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="ui-label">Due</span>
+              <input
+                type="datetime-local"
+                name="due_date"
+                value={form.due_date}
+                onChange={handleChange}
+                className="ui-input"
+              />
+            </label>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-[var(--color-border)] pt-4">
+            <Button variant="secondary" type="button" onClick={onClose}  disabled={saving}>
               Cancel
-            </button>
-            <button type="submit" className="ui-btn-primary" disabled={saving || loadingOptions}>
+            </Button>
+            <Button variant="success" type="submit" disabled={saving || loadingOptions}>
               {saving ? "Creating…" : "Create Work Order"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }

@@ -1,36 +1,283 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, FileDown, FileSpreadsheet, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Factory,
+  FileDown,
+  FileSpreadsheet,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 
-import Loader from "../../components/common/Loader";
-import PageHeader from "../../components/common/PageHeader";
+import Button, { IconButton } from "../../components/common/Button";
 import DataTable from "../../components/common/DataTable";
 import EmptyState from "../../components/common/EmptyState";
-import { getDailyReports, getProductionOrders } from "../../api/productionApi";
-import { enrichApiOrder } from "../../data/productionPlanningMasterData";
-import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
+import KpiCard from "../../components/common/KpiCard";
+import Loader from "../../components/common/Loader";
+import StatusBadge from "../../components/common/StatusBadge";
+import { useToast } from "../../context/ToastContext";
+import {
+  createDailyReport,
+  getDailyReports,
+  getProductionOrders,
+  getWorkOrders,
+} from "../../api/productionApi";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 import useTenantId from "../../hooks/useTenantId";
+import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
+import { cleanProductLabel } from "../../utils/productLabel";
 
-const PAGE_BG = "var(--color-bg)";
-const YELLOW = "var(--color-cta)";
 const PAGE_SIZES = [20, 50, 100];
+
+function isoDate(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+}
+
+function lastDaysRange(days) {
+  const to = new Date();
+  to.setHours(0, 0, 0, 0);
+  const from = new Date(to);
+  from.setDate(from.getDate() - (days - 1));
+  return { from: isoDate(from), to: isoDate(to) };
+}
 
 function formatDate(val) {
   if (!val) return "—";
   const d = new Date(val);
-  return isNaN(d.getTime()) ? val : d.toLocaleDateString(undefined, { dateStyle: "medium" });
+  if (Number.isNaN(d.getTime())) return String(val);
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function num(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function producedOf(r) {
+  const prod = num(r.produced_quantity ?? r.actual_quantity);
+  const good = num(r.good_qty ?? r.good_quantity);
+  const scrap = num(r.scrap_quantity ?? r.reject_qty);
+  if (prod > 0) return prod;
+  if (good > 0 || scrap > 0) return good + scrap;
+  return 0;
+}
+
+function scrapOf(r) {
+  return num(r.scrap_quantity ?? r.reject_qty);
+}
+
+function goodOf(r) {
+  const good = num(r.good_qty ?? r.good_quantity);
+  if (good > 0) return good;
+  return Math.max(producedOf(r) - scrapOf(r), 0);
+}
+
+function shiftLabel(shift) {
+  if (shift && typeof shift === "object") return shift.label || shift.id || "—";
+  return shift || "General";
+}
+
+function isSyncedRow(r) {
+  const id = String(r?.id ?? "");
+  if (id.startsWith("wo-") || id.startsWith("po-") || id.startsWith("batch-")) return true;
+  return String(r?.notes || "").toLowerCase().includes("auto-synced");
+}
+
+function yieldTone(pct) {
+  if (pct == null) return "neutral";
+  if (pct >= 95) return "success";
+  if (pct >= 85) return "warning";
+  return "danger";
+}
+
+function NewReportModal({ onClose, onSuccess }) {
+  const tenantId = useTenantId();
+  const { addToast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [workOrders, setWorkOrders] = useState([]);
+  const [productByPo, setProductByPo] = useState({});
+  const [form, setForm] = useState({
+    report_date: isoDate(new Date()),
+    work_order_id: "",
+    produced_quantity: "",
+    scrap_quantity: "0",
+    downtime_minutes: "0",
+    notes: "",
+  });
+
+  useEffect(() => {
+    Promise.all([
+      getWorkOrders().catch(() => ({ data: [] })),
+      getProductionOrders().catch(() => ({ data: [] })),
+    ])
+      .then(([woRes, poRes]) => {
+        const orders = Array.isArray(woRes.data) ? woRes.data : [];
+        setWorkOrders(orders.filter((w) => typeof w.id === "number" || /^\d+$/.test(String(w.id))));
+        const map = {};
+        (Array.isArray(poRes.data) ? poRes.data : []).forEach((po) => {
+          if (po?.id != null) map[po.id] = po.product_id;
+        });
+        setProductByPo(map);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const selectedWo = workOrders.find((w) => String(w.id) === String(form.work_order_id));
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.work_order_id) {
+      addToast("Select a work order", "error");
+      return;
+    }
+    const produced = num(form.produced_quantity);
+    if (produced <= 0) {
+      addToast("Enter produced quantity", "error");
+      return;
+    }
+    const wo = selectedWo;
+    const productId = wo?.product_id || productByPo[wo?.production_order_id];
+    if (!productId) {
+      addToast("Could not resolve product for this work order", "error");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await createDailyReport({
+        tenant_id: tenantId,
+        report_date: form.report_date,
+        product_id: Number(productId),
+        work_order_id: Number(form.work_order_id),
+        machine_id: wo?.machine_id ? Number(wo.machine_id) : null,
+        planned_quantity: num(wo?.planned_quantity) || null,
+        produced_quantity: produced,
+        scrap_quantity: num(form.scrap_quantity),
+        downtime_minutes: Math.round(num(form.downtime_minutes)),
+        notes: form.notes?.trim() || null,
+      });
+      addToast("Daily report saved", "success");
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      const detail = err?.response?.data?.detail;
+      addToast(typeof detail === "string" ? detail : "Failed to save report", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-text)]/40 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xl">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-[var(--color-text)]">New daily report</h3>
+            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+              Record output, scrap, and downtime for a work order.
+            </p>
+          </div>
+          <IconButton type="button" variant="ghost" onClick={onClose} aria-label="Close">
+            <X className="h-4 w-4" />
+          </IconButton>
+        </div>
+
+        {loading ? (
+          <Loader label="Loading work orders…" />
+        ) : workOrders.length === 0 ? (
+          <EmptyState
+            icon="clipboard"
+            title="No work orders"
+            description="Create a work order before logging a daily report."
+            actionLabel="Work Orders"
+            actionHref="/production/work-orders"
+          />
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="ui-label">Date</label>
+                <input type="date" name="report_date" value={form.report_date} onChange={handleChange} required className="ui-input" />
+              </div>
+              <div>
+                <label className="ui-label">Work order</label>
+                <select name="work_order_id" value={form.work_order_id} onChange={handleChange} required className="ui-select">
+                  <option value="">Select…</option>
+                  {workOrders.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.work_order_number} · {cleanProductLabel(w.product_name)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {selectedWo ? (
+              <p className="rounded-lg bg-[var(--color-surface-muted)] px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+                {cleanProductLabel(selectedWo.product_name)}
+                {selectedWo.machine_name ? ` · ${selectedWo.machine_name}` : " · No machine"}
+                {selectedWo.planned_quantity != null ? ` · Plan ${num(selectedWo.planned_quantity).toLocaleString()}` : ""}
+              </p>
+            ) : null}
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <label className="ui-label">Produced *</label>
+                <input type="number" min="0" step="any" name="produced_quantity" value={form.produced_quantity} onChange={handleChange} required className="ui-input" placeholder="0" />
+              </div>
+              <div>
+                <label className="ui-label">Scrap</label>
+                <input type="number" min="0" step="any" name="scrap_quantity" value={form.scrap_quantity} onChange={handleChange} className="ui-input" />
+              </div>
+              <div>
+                <label className="ui-label">Downtime (min)</label>
+                <input type="number" min="0" step="1" name="downtime_minutes" value={form.downtime_minutes} onChange={handleChange} className="ui-input" />
+              </div>
+            </div>
+
+            <div>
+              <label className="ui-label">Notes</label>
+              <textarea name="notes" value={form.notes} onChange={handleChange} rows={2} className="ui-input" placeholder="Optional…" />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="secondary" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="success" loading={saving}>
+                Save report
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function DailyReports() {
   const tenantId = useTenantId();
-  const { t } = useTranslation();
+  const initial = lastDaysRange(7);
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState([]);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(initial.from);
+  const [dateTo, setDateTo] = useState(initial.to);
   const [searchQuery, setSearchQuery] = useState("");
-
+  const [includeSynced, setIncludeSynced] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showNew, setShowNew] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -40,89 +287,12 @@ export default function DailyReports() {
       const params = {};
       if (dateFrom) params.date_from = dateFrom;
       if (dateTo) params.date_to = dateTo;
-
-      const [reportsRes, ordersRes] = await Promise.all([
-        getDailyReports(tenantId, params).catch(() => ({ data: [] })),
-        getProductionOrders().catch(() => ({ data: [] })),
-      ]);
-
-      let list = reportsRes.data || [];
-      const apiOrders = ordersRes.data || [];
-      let localOrders = [];
-      try {
-        const stored = localStorage.getItem("smrt_local_production_orders");
-        if (stored) localOrders = JSON.parse(stored);
-      } catch (e) {}
-
-      const allOrders = [...localOrders, ...apiOrders];
-
-      list = list.map((rep) => {
-        let p = Number(rep.produced_quantity ?? rep.actual_quantity ?? 0);
-        let g = Number(rep.good_qty ?? rep.good_quantity ?? 0);
-        let r = Number(rep.reject_qty ?? rep.scrap_quantity ?? 0);
-
-        if (p <= 0) {
-          const match = allOrders.find(
-            (o) =>
-              o.order_number === rep.work_order_number ||
-              `WO-${o.order_number}` === rep.work_order_number ||
-              `WO-P0-${o.id}` === rep.work_order_number ||
-              `PO-${o.id}` === rep.work_order_number ||
-              (o.product_name && rep.product_name && o.product_name.toLowerCase().trim() === rep.product_name.toLowerCase().trim())
-          );
-          if (match) {
-            const matchEnriched = enrichApiOrder(match);
-            p = Number(matchEnriched.produced_quantity ?? matchEnriched.actual_quantity ?? 0);
-            g = Number(matchEnriched.good_qty ?? matchEnriched.good_quantity ?? 0);
-            r = Number(matchEnriched.reject_qty ?? matchEnriched.scrap_quantity ?? 0);
-          }
-        }
-
-      const calc = p > 0 ? p : (g + r > 0 ? g + r : rep.produced_quantity);
-        return {
-          ...rep,
-          produced_quantity: calc != null && calc > 0 ? calc : rep.produced_quantity,
-          good_qty: g > 0 ? g : (calc > 0 ? calc - r : 0),
-          scrap_quantity: r > 0 ? r : rep.scrap_quantity,
-        };
-      });
-
-      // Sync good_qty from reports back to localStorage production orders
-      try {
-        const stored = localStorage.getItem("smrt_local_production_orders");
-        if (stored && list.length > 0) {
-          let localPOs = JSON.parse(stored);
-          let changed = false;
-          list.forEach((rep) => {
-            const g = Number(rep.good_qty ?? 0);
-            const p = Number(rep.produced_quantity ?? 0);
-            if (g > 0 || p > 0) {
-              localPOs = localPOs.map((po) => {
-                const nameMatch = po.product_name && rep.product_name &&
-                  po.product_name.toLowerCase().trim() === rep.product_name.toLowerCase().trim();
-                const orderMatch = po.order_number === rep.work_order_number ||
-                  `WO-${po.order_number}` === rep.work_order_number;
-                if (nameMatch || orderMatch) {
-                  changed = true;
-                  return {
-                    ...po,
-                    good_qty: Math.max(Number(po.good_qty ?? 0), g),
-                    produced_quantity: Math.max(Number(po.produced_quantity ?? 0), p > 0 ? p : g),
-                  };
-                }
-                return po;
-              });
-            }
-          });
-          if (changed) {
-            localStorage.setItem("smrt_local_production_orders", JSON.stringify(localPOs));
-          }
-        }
-      } catch (e) {}
-
+      const res = await getDailyReports(tenantId, params).catch(() => ({ data: [] }));
+      const list = Array.isArray(res.data) ? res.data : [];
+      list.sort((a, b) => String(b.report_date || "").localeCompare(String(a.report_date || "")));
       setReports(list);
-    } catch (error) {
-      console.error("Failed to load daily reports", error);
+    } catch {
+      setReports([]);
     } finally {
       setLoading(false);
     }
@@ -134,181 +304,349 @@ export default function DailyReports() {
 
   useManufacturingRefresh(loadReports);
 
-  const columns = [
-    { key: "report_date", label: t("dashboard.date"), render: (r) => formatDate(r.report_date) },
-    { key: "product_name", label: t("dashboard.product"), render: (r) => r.product_name || r.product_id || "—" },
-    { key: "work_order_number", label: t("production.workOrder"), render: (r) => r.work_order_number || r.work_order_id || "—" },
-    { key: "machine_name", label: t("production.machine"), render: (r) => r.machine_name || r.machine_id || "—" },
-    { key: "shift", label: "Shift", render: (r) => typeof r.shift === "object" ? (r.shift?.label || r.shift?.id || "—") : (r.shift || "—") },
-    { key: "operator_name", label: "Operator", render: (r) => r.operator_name || "—" },
-    { key: "planned_quantity", label: "Planned Quantity", render: (r) => (r.planned_quantity != null ? r.planned_quantity : "—") },
-    {
-      key: "produced_quantity",
-      label: t("dashboard.produced"),
-      render: (r) => {
-        const planned = Number(r.planned_quantity || 0);
-        const prod = Number(r.produced_quantity ?? r.actual_quantity ?? 0);
-        const good = Number(r.good_qty ?? r.good_quantity ?? r.accepted_quantity ?? 0);
-        const reject = Number(r.scrap_quantity ?? r.reject_qty ?? r.rejected_quantity ?? 0);
-        if (prod > 0) return prod;
-        if (good > 0 || reject > 0) return good + reject;
-        if (r.status === "completed" || r.status === "closed" || r.status === "done") return planned;
-        return prod;
-      },
-    },
-    { key: "scrap_quantity", label: t("dashboard.scrap"), render: (r) => r.scrap_quantity ?? 0 },
-    { key: "downtime_minutes", label: t("dashboard.downtime"), render: (r) => (r.downtime_minutes ? `${r.downtime_minutes} min` : "0 min") },
-    { key: "notes", label: "Notes", render: (r) => r.notes || "—" },
-  ];
-
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return reports;
+    let rows = includeSynced ? reports : reports.filter((r) => !isSyncedRow(r));
+    if (!searchQuery.trim()) return rows;
     const q = searchQuery.toLowerCase();
-    return reports.filter((r) =>
-      String(r.work_order_number || "").toLowerCase().includes(q) ||
-      String(r.product_name || "").toLowerCase().includes(q) ||
-      String(r.machine_name || "").toLowerCase().includes(q) ||
-      String(r.operator_name || "").toLowerCase().includes(q) ||
-      String(r.notes || "").toLowerCase().includes(q)
+    return rows.filter((r) =>
+      [r.work_order_number, r.product_name, r.machine_name, r.operator_name, r.notes].some(
+        (v) => v && String(v).toLowerCase().includes(q)
+      )
     );
-  }, [reports, searchQuery]);
+  }, [reports, includeSynced, searchQuery]);
 
-  useEffect(() => { setPage(1); }, [searchQuery, pageSize]);
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, pageSize, dateFrom, dateTo, includeSynced]);
+
+  const kpis = useMemo(() => {
+    let produced = 0;
+    let good = 0;
+    let scrap = 0;
+    let downtime = 0;
+    filtered.forEach((r) => {
+      produced += producedOf(r);
+      good += goodOf(r);
+      scrap += scrapOf(r);
+      downtime += num(r.downtime_minutes);
+    });
+    return {
+      produced,
+      scrap,
+      downtime,
+      yieldPct: produced > 0 ? Math.round((good / produced) * 1000) / 10 : 0,
+    };
+  }, [filtered]);
 
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
-  const paginatedReports = useMemo(() => {
-    return filtered.slice((page - 1) * pageSize, page * pageSize);
-  }, [filtered, page, pageSize]);
-  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const to = Math.min(page * pageSize, total);
+  const safePage = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => filtered.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [filtered, safePage, pageSize]
+  );
+  const from = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const to = Math.min(safePage * pageSize, total);
 
-  const emptyState = (
-    <EmptyState
-      icon="chart"
-      title={t("production.noDataAvailable")}
-      description={t("production.noDailyReports")}
-    />
+  const columns = useMemo(
+    () => [
+      {
+        key: "report_date",
+        label: "Date",
+        render: (r) => (
+          <div className="min-w-[5.5rem]">
+            <p className="text-[13px] font-semibold tabular-nums text-[var(--color-text)]">{formatDate(r.report_date)}</p>
+            <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">{shiftLabel(r.shift)}</p>
+          </div>
+        ),
+      },
+      {
+        key: "work_order_number",
+        label: "Work order",
+        render: (r) => {
+          const product = cleanProductLabel(r.product_name);
+          return (
+            <div className="max-w-[220px]">
+              <div className="flex items-center gap-1.5">
+                <p className="text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+                  {r.work_order_number || "—"}
+                </p>
+                {isSyncedRow(r) ? <StatusBadge tone="pending">Synced</StatusBadge> : null}
+              </div>
+              <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]" title={product}>
+                {product}
+              </p>
+            </div>
+          );
+        },
+      },
+      {
+        key: "machine_name",
+        label: "Machine",
+        render: (r) => (
+          <div className="max-w-[160px]">
+            <p className="truncate text-[13px] font-medium text-[var(--color-text)]">{r.machine_name || "—"}</p>
+            <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]">{r.operator_name || "—"}</p>
+          </div>
+        ),
+      },
+      {
+        key: "planned_quantity",
+        label: "Plan",
+        render: (r) => (
+          <span className="tabular-nums text-[13px] text-[var(--color-text-secondary)]">
+            {r.planned_quantity != null ? num(r.planned_quantity).toLocaleString() : "—"}
+          </span>
+        ),
+      },
+      {
+        key: "produced_quantity",
+        label: "Output",
+        render: (r) => {
+          const produced = producedOf(r);
+          const scrap = scrapOf(r);
+          return (
+            <div>
+              <p className="tabular-nums text-[13px] font-semibold text-[var(--color-text)]">{produced.toLocaleString()}</p>
+              <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">Scrap {scrap.toLocaleString()}</p>
+            </div>
+          );
+        },
+      },
+      {
+        key: "yield",
+        label: "Yield",
+        render: (r) => {
+          const produced = producedOf(r);
+          const good = goodOf(r);
+          if (produced <= 0) return <span className="text-[var(--color-text-muted)]">—</span>;
+          const pct = Math.round((good / produced) * 1000) / 10;
+          return <StatusBadge tone={yieldTone(pct)}>{pct}%</StatusBadge>;
+        },
+      },
+      {
+        key: "downtime_minutes",
+        label: "Downtime",
+        render: (r) => {
+          const mins = num(r.downtime_minutes);
+          return (
+            <span className={`tabular-nums text-[13px] font-medium ${mins > 0 ? "text-[var(--color-warning)]" : "text-[var(--color-text-muted)]"}`}>
+              {mins} min
+            </span>
+          );
+        },
+      },
+    ],
+    []
   );
 
-  return (
-    <div className="min-h-full pb-8" style={{ background: PAGE_BG }}>
-      <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
-        <div>
-          <p className="mt-0.5 text-xs text-slate-500">{t("production.dailyReportsSubtitle")}</p>
-        </div>
+  const exportCols = [
+    { key: "report_date", label: "Date" },
+    { key: "work_order_number", label: "Work Order" },
+    { key: "product_name", label: "Product" },
+    { key: "machine_name", label: "Machine" },
+    { key: "operator_name", label: "Operator" },
+    { key: "shift", label: "Shift" },
+    { key: "planned_quantity", label: "Planned" },
+    { key: "produced_quantity", label: "Produced" },
+    { key: "scrap_quantity", label: "Scrap" },
+    { key: "downtime_minutes", label: "Downtime (min)" },
+  ];
 
-        <div className="ui-card p-4 sm:p-5">
-          <div className="mb-4 flex flex-wrap items-center gap-2.5">
-            <div className="relative min-w-[220px] flex-1">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
-              <input
-                type="search"
-                placeholder={t("common.search")}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] py-2.5 pl-10 pr-4 text-[13px] outline-none placeholder:text-[#a0a0ab] focus:border-[#d0d0d8] focus:bg-white"
-              />
-            </div>
-            <div className="flex items-center gap-1 text-xs text-slate-600">
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3 py-2 text-xs"
-              />
-              <span>to</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3 py-2 text-xs"
-              />
-            </div>
-            <button
+  const exportRows = useMemo(
+    () =>
+      filtered.map((r) => ({
+        ...r,
+        product_name: cleanProductLabel(r.product_name),
+        shift: shiftLabel(r.shift),
+        produced_quantity: producedOf(r),
+        scrap_quantity: scrapOf(r),
+      })),
+    [filtered]
+  );
+
+  const setQuickRange = (days) => {
+    const r = lastDaysRange(days);
+    setDateFrom(r.from);
+    setDateTo(r.to);
+  };
+
+  if (loading && reports.length === 0) {
+    return <Loader label="Loading daily production reports…" />;
+  }
+
+  return (
+    <div className="space-y-5 pb-4">
+      <div className="ui-grid-kpi">
+        <KpiCard label="Produced" value={kpis.produced.toLocaleString()} icon={Factory} tone="primary" />
+        <KpiCard label="Yield" value={`${kpis.yieldPct}%`} icon={CheckCircle2} tone="success" />
+        <KpiCard label="Scrap" value={kpis.scrap.toLocaleString()} icon={AlertTriangle} tone="danger" />
+        <KpiCard label="Downtime" value={`${kpis.downtime} min`} icon={Clock3} tone="warning" />
+      </div>
+
+      <div className="ui-card overflow-hidden p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative min-w-[220px] flex-1 lg:max-w-md">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
+            <input
+              type="search"
+              placeholder="Search WO, product, machine…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="ui-input !rounded-full pl-10"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="secondary" onClick={() => setShowFilters((v) => !v)}>
+              {showFilters ? "Hide Filters" : "Filters"}
+            </Button>
+            <Button
               type="button"
-              onClick={() => exportToExcel(reports, columns, "daily-reports")}
-              disabled={!reports.length}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f] disabled:opacity-50"
-              style={{ background: YELLOW }}
+              variant="secondary"
+              disabled={!exportRows.length}
+              onClick={() => exportToExcel(exportRows, exportCols, "daily-reports")}
             >
               <FileSpreadsheet className="h-4 w-4" />
-              Export Excel
-            </button>
-            <button
+              <span className="hidden sm:inline">Excel</span>
+            </Button>
+            <Button
               type="button"
-              onClick={() => exportToPdf(reports, columns, "Daily Production Reports", "daily-reports")}
-              disabled={!reports.length}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0] disabled:opacity-50"
+              variant="secondary"
+              disabled={!exportRows.length}
+              onClick={() => exportToPdf(exportRows, exportCols, "Daily Production Reports", "daily-reports")}
             >
               <FileDown className="h-4 w-4" />
-              Export PDF
-            </button>
+              <span className="hidden sm:inline">PDF</span>
+            </Button>
+            <Button type="button" variant="success" onClick={() => setShowNew(true)}>
+              <Plus className="h-4 w-4" />
+              New Report
+            </Button>
           </div>
-
-          {loading ? (
-            <Loader label="Loading daily production reports..." />
-          ) : (
-            <>
-              <div className="overflow-hidden rounded-lg border border-[#ececf0]">
-                <DataTable
-                  columns={columns}
-                  data={paginatedReports}
-                  showSearch={false}
-                  pagination={false}
-                  emptyState={emptyState}
-                />
-              </div>
-
-              {/* Pagination Bar */}
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[12px] text-[#6b6b76]">
-                <div className="flex items-center gap-2">
-                  <span>Rows per page:</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    className="rounded border border-[#e2e2e8] bg-white px-2 py-1 outline-none"
-                  >
-                    {PAGE_SIZES.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                  <span>{total === 0 ? "0-0 of 0" : `${from}-${to} of ${total}`}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="grid h-8 w-8 place-items-center rounded border border-[#e2e2e8] bg-white disabled:opacity-40"
-                    aria-label="Previous page"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    className="grid h-8 min-w-8 place-items-center rounded border border-[#e0b400] px-2 text-[13px] font-semibold"
-                    style={{ background: "#fff2b8" }}
-                  >
-                    {page}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    className="grid h-8 w-8 place-items-center rounded border border-[#e2e2e8] bg-white disabled:opacity-40"
-                    aria-label="Next page"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
         </div>
+
+        {showFilters ? (
+          <div className="mb-4 flex flex-col gap-3 rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]/40 p-3 sm:flex-row sm:flex-wrap sm:items-end">
+            <div>
+              <label className="ui-label">From</label>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="ui-input" />
+            </div>
+            <div>
+              <label className="ui-label">To</label>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="ui-input" />
+            </div>
+            <div className="flex flex-wrap gap-1.5 pb-0.5">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setQuickRange(1)}>
+                Today
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setQuickRange(7)}>
+                7 days
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setQuickRange(30)}>
+                30 days
+              </Button>
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 pb-2 text-xs font-medium text-[var(--color-text-secondary)] sm:ml-auto">
+              <input
+                type="checkbox"
+                checked={includeSynced}
+                onChange={(e) => setIncludeSynced(e.target.checked)}
+                className="h-4 w-4 rounded border-[var(--color-border)]"
+              />
+              Include synced work orders
+            </label>
+          </div>
+        ) : null}
+
+        {!includeSynced && reports.some(isSyncedRow) ? (
+          <p className="mb-3 text-xs text-[var(--color-text-muted)]">
+            Showing logged reports only.{" "}
+            <button
+              type="button"
+              className="font-semibold text-[var(--color-action-teal)] hover:underline"
+              onClick={() => {
+                setIncludeSynced(true);
+                setShowFilters(true);
+              }}
+            >
+              Include synced work orders
+            </button>
+          </p>
+        ) : null}
+
+        {loading ? (
+          <Loader label="Refreshing…" />
+        ) : (
+          <>
+            <div className="overflow-hidden rounded-lg border border-[var(--color-border-soft)]">
+              <DataTable
+                columns={columns}
+                data={paginated}
+                showSearch={false}
+                pagination={false}
+                emptyState={
+                  <EmptyState
+                    icon="chart"
+                    title="No daily reports"
+                    description={
+                      searchQuery
+                        ? "No reports match your search."
+                        : includeSynced
+                          ? "Nothing in this date range yet."
+                          : "No logged reports in this range. Create one, or include synced work orders."
+                    }
+                    actionLabel="New Report"
+                    onAction={() => setShowNew(true)}
+                  />
+                }
+              />
+            </div>
+
+            <div className="mt-4 ui-pagination justify-between">
+              <div className="flex items-center gap-2">
+                <span>Rows per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="ui-select min-h-0 w-auto py-1"
+                >
+                  {PAGE_SIZES.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+                <span>{total === 0 ? "0-0 of 0" : `${from}-${to} of ${total}`}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="ui-page-btn"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button type="button" className="ui-page-btn ui-page-btn--active">
+                  {safePage}
+                </button>
+                <button
+                  type="button"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="ui-page-btn"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
+
+      {showNew ? <NewReportModal onClose={() => setShowNew(false)} onSuccess={loadReports} /> : null}
     </div>
   );
 }

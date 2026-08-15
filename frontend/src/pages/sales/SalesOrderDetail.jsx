@@ -8,6 +8,7 @@ import PageHeader from "../../components/common/PageHeader";
 import EmptyState from "../../components/common/EmptyState";
 import { StatusBadge } from "../../components/common/Table";
 import { useToast } from "../../context/ToastContext";
+import Button from "../../components/common/Button";
 import {
   confirmSalesOrder,
   confirmSalesOrderDelivery,
@@ -188,35 +189,27 @@ export default function SalesOrderDetail() {
 
       <div className="flex flex-wrap gap-2">
         {!isConfirmed && (
-          <button
-            type="button"
-            disabled={confirming}
-            onClick={handleConfirm}
-            className="ui-btn-primary inline-flex items-center gap-2 disabled:opacity-50"
-          >
+          <Button variant="primary" type="button" disabled={confirming}
+      onClick={handleConfirm} className="inline-flex items-center gap-2 disabled:opacity-50">
             <CheckCircle2 className="h-4 w-4" />
             {confirming ? "Confirming…" : "Confirm → MRP & Production"}
-          </button>
+          </Button>
         )}
         {isConfirmed && (
-          <button
-            type="button"
-            disabled={confirming}
-            onClick={handleConfirm}
-            className="ui-btn-secondary inline-flex items-center gap-2"
-          >
+          <Button variant="secondary" type="button" disabled={confirming}
+      onClick={handleConfirm} className="inline-flex items-center gap-2">
             View manufacturing status
-          </button>
+          </Button>
         )}
-        <Link to={createProductionHref} className="ui-btn-secondary inline-flex items-center gap-2">
+        <Button variant="secondary" to={createProductionHref} className="inline-flex items-center gap-2">
           <Factory className="h-4 w-4" /> Create Production Order
-        </Link>
-        <Link to="/production/mrp" className="ui-btn-secondary inline-flex items-center gap-2">
+        </Button>
+        <Button variant="secondary" to="/production/mrp" className="inline-flex items-center gap-2">
           <Package className="h-4 w-4" /> Open MRP
-        </Link>
-        <Link to="/production/planning" className="ui-btn-secondary">
+        </Button>
+        <Button variant="secondary" to="/production/planning">
           Production Planning
-        </Link>
+        </Button>
       </div>
 
       {!lineItems.length && (

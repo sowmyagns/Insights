@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Camera, X } from "lucide-react";
 
+import Button from "../common/Button";
 import { PAYMENT_MODES } from "../../data/expenseCategories";
 
 const input =
@@ -175,16 +176,12 @@ export default function AddExpenseModal({ open, onClose, onSave, categories = []
         </div>
 
         <div className="flex justify-end gap-3 px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-[#d0d0d8] bg-white px-5 py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
-          >
+          <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button type="submit" className="rounded-lg bg-[var(--color-cta)] px-5 py-2.5 text-[14px] font-semibold text-[#1a1a1f]">
+          </Button>
+          <Button type="submit" variant="primary">
             Add Expense
-          </button>
+          </Button>
         </div>
       </form>
     </div>,

@@ -34,6 +34,7 @@ import SettingsMyPermissions from "./SettingsMyPermissions";
 import SettingsMySubscription from "./SettingsMySubscription";
 import SettingsTeams from "./SettingsTeams";
 import SettingsUsers from "./SettingsUsers";
+import Button from "../../components/common/Button";
 import {
   Field,
   PanelShell,
@@ -192,22 +193,18 @@ function CompanySection() {
       description="Legal identity, tax IDs, contact details, and regional defaults."
       actions={
         <>
-          <button
+          <Button
+            variant="secondary"
             type="button"
             onClick={() => setForm(baseline)}
-            className="ui-btn-secondary"
           >
             Cancel
-          </button>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={handleSave}
-            className="ui-btn-primary disabled:opacity-50"
-          >
+          </Button>
+          <Button variant="primary" type="button" disabled={saving}
+      onClick={handleSave} className="disabled:opacity-50">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save Changes
-          </button>
+          </Button>
         </>
       }
     >
@@ -333,12 +330,12 @@ function UsersSection() {
         <SectionCard>
           <p className="text-xs font-medium uppercase text-slate-500">Quick actions</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <Link to="/admin/users" className="ui-btn-primary text-xs">
+            <Button variant="primary" to="/admin/users" className="text-xs">
               <Plus className="h-3.5 w-3.5" /> Create / Invite
-            </Link>
-            <Link to="/admin/roles" className="ui-btn-secondary text-xs">
+            </Button>
+            <Button variant="secondary" to="/admin/roles" className="text-xs">
               Roles
-            </Link>
+            </Button>
           </div>
         </SectionCard>
       </div>
@@ -416,14 +413,10 @@ function SecuritySection() {
       description="Enterprise audit trail, login history, password policy, and sessions."
       actions={
         tab === "policy" ? (
-          <button
-            type="button"
-            className="ui-btn-primary"
-            disabled={saving || loadingPolicy}
-            onClick={saveMfaPolicy}
-          >
+          <Button variant="primary" type="button" disabled={saving || loadingPolicy}
+      onClick={saveMfaPolicy}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save
-          </button>
+          </Button>
         ) : null
       }
     >
@@ -550,9 +543,9 @@ function AppearanceSection() {
       title="Appearance"
       description="Theme, language, and display density for your workspace."
       actions={
-        <button type="button" className="ui-btn-primary" onClick={saveLocal}>
+        <Button variant="primary" type="button" onClick={saveLocal}>
           <Save className="h-4 w-4" /> Save
-        </button>
+        </Button>
       }
     >
       <SectionCard title="Theme">
@@ -668,9 +661,9 @@ function NotificationsSection() {
       title="Notifications"
       description="Choose how Insights Iva alerts you about operations and system events."
       actions={
-        <button type="button" className="ui-btn-primary" onClick={save}>
+        <Button variant="primary" type="button" onClick={save}>
           <Save className="h-4 w-4" /> Save
-        </button>
+        </Button>
       }
     >
       <SectionCard title="Channels">
@@ -723,9 +716,9 @@ function AiSection() {
       title="AI & LLM"
       description="Configure assistant providers, models, and usage preferences."
       actions={
-        <button type="button" className="ui-btn-primary" onClick={save}>
+        <Button variant="primary" type="button" onClick={save}>
           <Save className="h-4 w-4" /> Save
-        </button>
+        </Button>
       }
     >
       <SectionCard title="Features">
@@ -878,9 +871,9 @@ function FinanceSection() {
           <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">
             Tax options and GST defaults are stored with company settings.
           </p>
-          <Link to="/settings/company" className="ui-btn-primary text-sm">
+          <Button variant="primary" to="/settings/company" className="text-sm">
             Edit company tax fields
-          </Link>
+          </Button>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <Link to="/accounts" className="rounded-xl border border-slate-200 p-4 text-sm hover:border-teal-300 dark:border-slate-700">
               Open Accounts module →
@@ -994,9 +987,9 @@ function ApiSection() {
       title="API & Webhooks"
       description="Developer access keys and webhook endpoints."
       actions={
-        <button type="button" className="ui-btn-primary" onClick={generate}>
+        <Button variant="primary" type="button" onClick={generate}>
           <KeyRound className="h-4 w-4" /> Generate API Key
-        </button>
+        </Button>
       }
     >
       <SectionCard title="API keys">
@@ -1036,20 +1029,14 @@ function BackupSection() {
       <div className="grid gap-4 sm:grid-cols-2">
         <SectionCard title="Actions">
           <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              className="ui-btn-primary"
-              onClick={() => addToast("Backup started. Download from server backups folder when ready.", "success")}
+            <Button variant="primary" type="button" onClick={() => addToast("Backup started. Download from server backups folder when ready.", "success")}
             >
               <Download className="h-4 w-4" /> Backup Database
-            </button>
-            <button
-              type="button"
-              className="ui-btn-secondary"
-              onClick={() => addToast("Restore requires admin confirmation on the server.", "error")}
+            </Button>
+            <Button variant="secondary" type="button" onClick={() => addToast("Restore requires admin confirmation on the server.", "error")}
             >
               <RefreshCw className="h-4 w-4" /> Restore Database
-            </button>
+            </Button>
           </div>
         </SectionCard>
         <SectionCard title="Schedule">
@@ -1071,12 +1058,12 @@ function AuditSection() {
           Full audit trails are available in Admin Access Logs.
         </p>
         <div className="flex flex-wrap gap-2">
-          <Link to="/admin/audit-logs" className="ui-btn-primary">
+          <Button variant="primary" to="/admin/audit-logs">
             Open Audit Logs
-          </Link>
-          <Link to="/admin/access-logs" className="ui-btn-secondary">
+          </Button>
+          <Button variant="secondary" to="/admin/access-logs">
             Login / Access History
-          </Link>
+          </Button>
         </div>
       </SectionCard>
     </PanelShell>

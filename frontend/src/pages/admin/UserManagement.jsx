@@ -303,14 +303,10 @@ export default function UserManagement() {
         title="User Management"
         subtitle="Create, view, and manage all user accounts and their assigned roles."
         action={
-          <button
-            type="button"
-            onClick={openCreate}
-            className="ui-btn-primary"
-          >
+          <Button variant="primary" type="button" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Add User
-          </button>
+          </Button>
         }
       />
 

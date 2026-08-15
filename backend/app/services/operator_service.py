@@ -21,7 +21,6 @@ from app.schemas.operator import (
     BatchUpdateRequest,
     MachineBreakdownRequest,
     OperatorProfileRead,
-    ShopFloorUpdateRequest,
     WorkOrderActionRequest,
     WorkOrderProgressRequest,
 )
@@ -36,12 +35,6 @@ from app.services.notification_management_service import (
 )
 from app.services.production_planning_service import get_production_order_detail, list_production_orders_enriched
 from app.services.schedule_service import get_enhanced_timeline, get_schedule_dashboard
-from app.services.shop_floor_service import (
-    get_shop_floor_alerts,
-    get_shop_floor_grid,
-    get_shop_floor_summary,
-    get_shop_floor_timeline,
-)
 from app.services.work_order_service import (
     complete_work_order,
     get_work_order_detail,
@@ -101,10 +94,9 @@ class OperatorService:
     # ── Dashboard ──────────────────────────────────────────────────────────
 
     def get_dashboard(self, user: User) -> dict:
-        summary = get_shop_floor_summary(self.db, self.tenant_id)
         wo_summary = list_work_orders_enriched(self.db, self.tenant_id, user=user)
         return {
-            "shop_floor": _serialize_model(summary),
+            "shop_floor": {},
             "work_orders_count": len(wo_summary),
             "running_machines": len(self.machines.list_by_status("running", "active")),
             "role": get_role_names(user),
@@ -355,41 +347,6 @@ class OperatorService:
     def get_schedule_week(self) -> dict:
         timeline = get_enhanced_timeline(self.db, self.tenant_id)
         return {"timeline": _serialize_model(timeline), "week_start": date.today().isoformat()}
-
-    # ── Shop Floor ─────────────────────────────────────────────────────────
-
-    def get_shop_floor(self) -> dict:
-        return {
-            "summary": _serialize_model(get_shop_floor_summary(self.db, self.tenant_id)),
-            "grid": _serialize_model(get_shop_floor_grid(self.db, self.tenant_id)),
-        }
-
-    def get_shop_floor_live(self) -> dict:
-        return {
-            "summary": _serialize_model(get_shop_floor_summary(self.db, self.tenant_id)),
-            "grid": _serialize_model(get_shop_floor_grid(self.db, self.tenant_id)),
-            "alerts": _serialize_model(get_shop_floor_alerts(self.db, self.tenant_id)),
-            "timeline": _serialize_model(get_shop_floor_timeline(self.db, self.tenant_id)),
-        }
-
-    def get_shop_floor_status(self) -> dict:
-        return _serialize_model(get_shop_floor_summary(self.db, self.tenant_id))
-
-    def update_shop_floor(self, user: User, payload: ShopFloorUpdateRequest) -> dict:
-        machine = None
-        if payload.machine_id:
-            machine = self.machines.get_by_id(payload.machine_id)
-        elif payload.machine_code:
-            machine = self.machines.get_by_code(payload.machine_code)
-        if machine and payload.status:
-            machine.status = payload.status
-            self.machines.save(machine)
-        if payload.work_order_id and payload.produced_quantity:
-            wo = self.work_orders.get_by_id(payload.work_order_id)
-            if wo and operator_can_access_work_order(user, wo):
-                wo.actual_quantity = float(wo.actual_quantity or 0) + payload.produced_quantity
-                self.work_orders.save(wo)
-        return {"updated": True, "machine_id": machine.id if machine else None}
 
     # ── Allocation ───────────────────────────────────────────────────────
 

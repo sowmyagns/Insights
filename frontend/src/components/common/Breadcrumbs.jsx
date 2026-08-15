@@ -68,7 +68,6 @@ const pathLabels = {
   manufacturing: "Manufacturing",
   workflow: "My Responsibilities",
   "factory-monitor": "Factory Monitor",
-  "live-production": "Live Production",
   "machine-status": "Machine Status",
   "production-lines": "Production Lines",
   iot: "Internet of Things (IoT)",
@@ -155,6 +154,7 @@ const pathLabels = {
 
 function getLabel(segment, segments, index) {
   const prev = index > 0 ? segments[index - 1] : null;
+  if (segment === "dashboard" && prev === "inventory") return "Store Dashboard";
   if (segment === "create" && prev === "items") return "Create Item";
   if (segment === "create" && prev === "warehouses") return "Create Warehouse";
   if (segment === "create" && prev === "suppliers") return "Create Supplier";

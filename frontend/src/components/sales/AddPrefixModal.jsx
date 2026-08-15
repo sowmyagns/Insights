@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
-const YELLOW = "var(--color-primary)";
+import Button, { IconButton } from "../common/Button";
 const PURPLE = "#6b4eff";
 
 /**
@@ -44,14 +44,14 @@ export default function AddPrefixModal({ open, onClose, onSubmit }) {
           <h2 id="add-prefix-title" className="text-[18px] font-bold text-[#1a1a1f]">
             Add Prefix
           </h2>
-          <button
+          <IconButton
             type="button"
             onClick={onClose}
             className="rounded-lg p-1 text-[#1a1a1f] hover:bg-[#f5f5f7]"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
-          </button>
+          </IconButton>
         </div>
 
         <div className="px-5 pb-4 pt-2">
@@ -67,13 +67,9 @@ export default function AddPrefixModal({ open, onClose, onSubmit }) {
         </div>
 
         <div className="px-5 pb-5">
-          <button
-            type="submit"
-            className="w-full rounded-xl py-3 text-[15px] font-semibold text-white"
-            style={{ background: YELLOW }}
-          >
+          <Button type="submit" variant="primary" fullWidth>
             Submit
-          </button>
+          </Button>
         </div>
       </form>
     </div>,

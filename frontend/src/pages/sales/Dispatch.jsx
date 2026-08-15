@@ -15,6 +15,7 @@ import {
 import { updateSalesOrderDispatch } from "../../api/salesApi";
 import { statusColor } from "../../data/salesMasterData";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
+import Button from "../../components/common/Button";
 import {
   MANUFACTURING_EVENTS,
   notifyManufacturingSpine,
@@ -266,9 +267,9 @@ export default function Dispatch() {
       <PageHeader
         subtitle="Packing, delivery challans, FG stock-out on ship, then invoice."
         action={
-          <Link to="/sales/orders" className="ui-btn-primary">
+          <Button variant="primary" to="/sales/orders">
             <Truck className="h-4 w-4" /> View Sales Orders
-          </Link>
+          </Button>
         }
       />
 

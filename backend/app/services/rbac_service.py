@@ -1,10 +1,14 @@
 """Admin user & role management service (CRUD + activity logging)."""
 
+import logging
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
+
+logger = logging.getLogger(__name__)
 
 from app.core.permissions import ADMIN_ROLE, get_role_names, get_user_permissions, is_valid_permission
 from app.models.security import AccessLog
@@ -144,171 +148,179 @@ def create_user(db: Session, tenant_id: int, payload: UserCreate) -> dict:
     )
     from app.models.tenant import Tenant
 
-    existing = db.scalars(select(User).where(User.email == payload.email)).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this email already exists",
-        )
-    if payload.employee_id:
-        employee_clash = db.scalars(
-            select(User).where(
-                User.tenant_id == tenant_id,
-                User.employee_id == payload.employee_id,
-            )
-        ).first()
-        if employee_clash:
+    try:
+        existing = db.scalars(select(User).where(User.email == payload.email)).first()
+        if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Employee ID already in use",
+                detail="An account with this email already exists",
             )
-    if is_public_email_domain(email_domain(payload.email)):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=MSG_PUBLIC_EMAIL)
+        if is_public_email_domain(email_domain(payload.email)):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=MSG_PUBLIC_EMAIL)
 
-    company = db.get(Tenant, tenant_id)
-    if company and company.email and not user_email_matches_company(payload.email, company):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=MSG_EMAIL_NOT_WITH_COMPANY,
+        company = db.get(Tenant, tenant_id)
+        if company and company.email and not user_email_matches_company(payload.email, company):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=MSG_EMAIL_NOT_WITH_COMPANY,
+            )
+
+        roles = _resolve_roles(db, tenant_id, payload.role_ids)
+        user = User(
+            tenant_id=tenant_id,
+            email=payload.email,
+            full_name=payload.full_name,
+            phone=payload.phone,
+            employee_id=payload.employee_id,
+            designation=payload.designation,
+            is_active=payload.is_active,
+            hashed_password=hash_password(payload.password),
+            email_verified=True,
+            plant_code=payload.plant_code,
+            department=payload.department,
+            assigned_machine_id=payload.assigned_machine_id,
         )
-
-    roles = _resolve_roles(db, tenant_id, payload.role_ids)
-    user = User(
-        tenant_id=tenant_id,
-        email=payload.email,
-        full_name=payload.full_name,
-        phone=payload.phone,
-        employee_id=payload.employee_id,
-        designation=payload.designation,
-        is_active=payload.is_active,
-        hashed_password=hash_password(payload.password),
-        email_verified=True,
-        plant_code=payload.plant_code,
-        department=payload.department,
-        assigned_machine_id=payload.assigned_machine_id,
-    )
-    user.roles = roles
-    db.add(user)
-    db.commit()
-    return get_user(db, tenant_id, user.id)
+        user.roles = roles
+        db.add(user)
+        db.commit()
+        return get_user(db, tenant_id, user.id)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error creating user with email=%s, tenant_id=%s: %s", payload.email, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error creating user") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to create user with email=%s, tenant_id=%s: %s", payload.email, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to create user") from exc
 
 
 def update_user(
     db: Session, tenant_id: int, user_id: int, payload: UserUpdate, acting_user: User
 ) -> dict:
-    user = _get_user_or_404(db, tenant_id, user_id)
-    data = payload.model_dump(exclude_unset=True)
+    try:
+        user = _get_user_or_404(db, tenant_id, user_id)
+        data = payload.model_dump(exclude_unset=True)
 
-    if "email" in data and data["email"] and data["email"] != user.email:
-        clash = db.scalars(
-            select(User).where(User.email == data["email"], User.id != user.id)
-        ).first()
-        if clash:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="Email already in use"
-            )
-        user.email = data["email"]
-
-    if data.get("full_name"):
-        user.full_name = data["full_name"]
-    if "phone" in data:
-        user.phone = data["phone"]
-    if "employee_id" in data:
-        if data["employee_id"] and data["employee_id"] != user.employee_id:
-            employee_clash = db.scalars(
-                select(User).where(
-                    User.tenant_id == tenant_id,
-                    User.employee_id == data["employee_id"],
-                    User.id != user.id,
-                )
+        if "email" in data and data["email"] and data["email"] != user.email:
+            clash = db.scalars(
+                select(User).where(User.email == data["email"], User.id != user.id)
             ).first()
-            if employee_clash:
+            if clash:
                 raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Employee ID already in use",
+                    status_code=status.HTTP_409_CONFLICT, detail="Email already in use"
                 )
-        user.employee_id = data["employee_id"]
-    if "designation" in data:
-        user.designation = data["designation"]
-    if data.get("password"):
-        from app.services.password_history_service import (
-            assert_password_not_reused,
-            record_password_history,
-        )
-        from app.services.security_service import revoke_all_refresh_tokens_for_user
+            user.email = data["email"]
 
-        try:
-            assert_password_not_reused(db, user, data["password"])
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(exc),
-            ) from exc
-        if user.hashed_password:
-            record_password_history(db, user.id, user.hashed_password)
-        user.hashed_password = hash_password(data["password"])
-        revoke_all_refresh_tokens_for_user(db, user.id)
-
-    if "is_active" in data and data["is_active"] is not None:
-        if not data["is_active"] and user.id == acting_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="You cannot deactivate your own account",
+        if data.get("full_name"):
+            user.full_name = data["full_name"]
+        if "phone" in data:
+            user.phone = data["phone"]
+        if "employee_id" in data:
+            user.employee_id = data["employee_id"]
+        if "designation" in data:
+            user.designation = data["designation"]
+        if data.get("password"):
+            from app.services.password_history_service import (
+                assert_password_not_reused,
+                record_password_history,
             )
-        if (
-            not data["is_active"]
-            and ADMIN_ROLE in get_role_names(user)
-            and _active_admin_count(db, tenant_id, exclude_user_id=user.id) == 0
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot deactivate the last active administrator",
-            )
-        user.is_active = data["is_active"]
+            from app.services.security_service import revoke_all_refresh_tokens_for_user
 
-    if "role_ids" in data and data["role_ids"] is not None:
-        new_roles = _resolve_roles(db, tenant_id, data["role_ids"])
-        was_admin = ADMIN_ROLE in get_role_names(user)
-        will_be_admin = ADMIN_ROLE in [r.name for r in new_roles]
-        if (
-            was_admin
-            and not will_be_admin
-            and _active_admin_count(db, tenant_id, exclude_user_id=user.id) == 0
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot remove the administrator role from the last admin",
-            )
-        user.roles = new_roles
+            try:
+                assert_password_not_reused(db, user, data["password"])
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=str(exc),
+                ) from exc
+            if user.hashed_password:
+                record_password_history(db, user.id, user.hashed_password)
+            user.hashed_password = hash_password(data["password"])
+            revoke_all_refresh_tokens_for_user(db, user.id)
 
-    if "plant_code" in data:
-        user.plant_code = data["plant_code"]
-    if "department" in data:
-        user.department = data["department"]
-    if "assigned_machine_id" in data:
-        user.assigned_machine_id = data["assigned_machine_id"]
+        if "is_active" in data and data["is_active"] is not None:
+            if not data["is_active"] and user.id == acting_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="You cannot deactivate your own account",
+                )
+            if (
+                not data["is_active"]
+                and ADMIN_ROLE in get_role_names(user)
+                and _active_admin_count(db, tenant_id, exclude_user_id=user.id) == 0
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot deactivate the last active administrator",
+                )
+            user.is_active = data["is_active"]
 
-    db.commit()
-    return get_user(db, tenant_id, user.id)
+        if "role_ids" in data and data["role_ids"] is not None:
+            new_roles = _resolve_roles(db, tenant_id, data["role_ids"])
+            was_admin = ADMIN_ROLE in get_role_names(user)
+            will_be_admin = ADMIN_ROLE in [r.name for r in new_roles]
+            if (
+                was_admin
+                and not will_be_admin
+                and _active_admin_count(db, tenant_id, exclude_user_id=user.id) == 0
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot remove the administrator role from the last admin",
+                )
+            user.roles = new_roles
+
+        if "plant_code" in data:
+            user.plant_code = data["plant_code"]
+        if "department" in data:
+            user.department = data["department"]
+        if "assigned_machine_id" in data:
+            user.assigned_machine_id = data["assigned_machine_id"]
+
+        db.commit()
+        return get_user(db, tenant_id, user.id)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error updating user_id=%s, tenant_id=%s: %s", user_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error updating user") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to update user_id=%s, tenant_id=%s: %s", user_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to update user") from exc
 
 
 def delete_user(db: Session, tenant_id: int, user_id: int, acting_user: User) -> None:
-    user = _get_user_or_404(db, tenant_id, user_id)
-    if user.id == acting_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You cannot delete your own account",
-        )
-    if (
-        ADMIN_ROLE in get_role_names(user)
-        and _active_admin_count(db, tenant_id, exclude_user_id=user.id) == 0
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete the last administrator",
-        )
-    db.delete(user)
-    db.commit()
+    try:
+        user = _get_user_or_404(db, tenant_id, user_id)
+        if user.id == acting_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You cannot delete your own account",
+            )
+        if (
+            ADMIN_ROLE in get_role_names(user)
+            and _active_admin_count(db, tenant_id, exclude_user_id=user.id) == 0
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete the last administrator",
+            )
+        db.delete(user)
+        db.commit()
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error deleting user_id=%s, tenant_id=%s: %s", user_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error deleting user") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to delete user_id=%s, tenant_id=%s: %s", user_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to delete user") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -336,89 +348,122 @@ def get_role(db: Session, tenant_id: int, role_id: int) -> dict:
 
 
 def create_role(db: Session, tenant_id: int, payload: RoleCreate) -> dict:
-    exists = db.scalars(
-        select(Role).where(Role.tenant_id == tenant_id, Role.name == payload.name)
-    ).first()
-    if exists:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A role with this name already exists",
-        )
-    from app.core.seed_permissions import sync_role_permissions
-
-    role = Role(
-        tenant_id=tenant_id,
-        name=payload.name,
-        description=payload.description,
-        permissions=_validate_modules(payload.permissions or []),
-    )
-    db.add(role)
-    db.flush()
-    sync_role_permissions(db, tenant_id)
-    db.commit()
-    return get_role(db, tenant_id, role.id)
-
-
-def update_role(db: Session, tenant_id: int, role_id: int, payload: RoleUpdate) -> dict:
-    role = _get_role_or_404(db, tenant_id, role_id)
-    data = payload.model_dump(exclude_unset=True)
-
-    if "name" in data and data["name"] and data["name"] != role.name:
-        if role.name == ADMIN_ROLE:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="The Admin role cannot be renamed",
-            )
-        clash = db.scalars(
-            select(Role).where(
-                Role.tenant_id == tenant_id,
-                Role.name == data["name"],
-                Role.id != role.id,
-            )
+    try:
+        exists = db.scalars(
+            select(Role).where(Role.tenant_id == tenant_id, Role.name == payload.name)
         ).first()
-        if clash:
+        if exists:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A role with this name already exists",
             )
-        role.name = data["name"]
-
-    if "description" in data:
-        role.description = data["description"]
-
-    if "permissions" in data and data["permissions"] is not None:
-        if role.name == ADMIN_ROLE:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="The Admin role always has full access and cannot be restricted",
-            )
-        from sqlalchemy.orm.attributes import flag_modified
-
         from app.core.seed_permissions import sync_role_permissions
 
-        role.permissions = _validate_modules(data["permissions"])
-        flag_modified(role, "permissions")
+        role = Role(
+            tenant_id=tenant_id,
+            name=payload.name,
+            description=payload.description,
+            permissions=_validate_modules(payload.permissions or []),
+        )
+        db.add(role)
+        db.flush()
         sync_role_permissions(db, tenant_id)
+        db.commit()
+        return get_role(db, tenant_id, role.id)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error creating role name=%s for tenant_id=%s: %s", payload.name, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error creating role") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to create role name=%s for tenant_id=%s: %s", payload.name, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to create role") from exc
 
-    db.commit()
-    db.refresh(role)
-    return get_role(db, tenant_id, role.id)
+
+def update_role(db: Session, tenant_id: int, role_id: int, payload: RoleUpdate) -> dict:
+    try:
+        role = _get_role_or_404(db, tenant_id, role_id)
+        data = payload.model_dump(exclude_unset=True)
+
+        if "name" in data and data["name"] and data["name"] != role.name:
+            if role.name == ADMIN_ROLE:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="The Admin role cannot be renamed",
+                )
+            clash = db.scalars(
+                select(Role).where(
+                    Role.tenant_id == tenant_id,
+                    Role.name == data["name"],
+                    Role.id != role.id,
+                )
+            ).first()
+            if clash:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A role with this name already exists",
+                )
+            role.name = data["name"]
+
+        if "description" in data:
+            role.description = data["description"]
+
+        if "permissions" in data and data["permissions"] is not None:
+            if role.name == ADMIN_ROLE:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="The Admin role always has full access and cannot be restricted",
+                )
+            from sqlalchemy.orm.attributes import flag_modified
+
+            from app.core.seed_permissions import sync_role_permissions
+
+            role.permissions = _validate_modules(data["permissions"])
+            flag_modified(role, "permissions")
+            sync_role_permissions(db, tenant_id)
+
+        db.commit()
+        db.refresh(role)
+        return get_role(db, tenant_id, role.id)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error updating role_id=%s for tenant_id=%s: %s", role_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error updating role") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to update role_id=%s for tenant_id=%s: %s", role_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to update role") from exc
 
 
 def delete_role(db: Session, tenant_id: int, role_id: int) -> None:
-    role = _get_role_or_404(db, tenant_id, role_id)
-    if role.name == ADMIN_ROLE:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The Admin role cannot be deleted",
-        )
-    if role.users:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot delete a role assigned to {len(role.users)} user(s). Reassign them first.",
-        )
-    db.delete(role)
-    db.commit()
+    try:
+        role = _get_role_or_404(db, tenant_id, role_id)
+        if role.name == ADMIN_ROLE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The Admin role cannot be deleted",
+            )
+        if role.users:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot delete a role assigned to {len(role.users)} user(s). Reassign them first.",
+            )
+        db.delete(role)
+        db.commit()
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error deleting role_id=%s for tenant_id=%s: %s", role_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error deleting role") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to delete role_id=%s for tenant_id=%s: %s", role_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to delete role") from exc
 
 
 def update_role_permissions(
@@ -505,19 +550,13 @@ def list_activities(
         for u in db.scalars(select(User).where(User.id.in_(user_ids))).all():
             names[u.id] = u.full_name
 
-    items = [
-        {
-            "id": r.id,
-            "user_id": r.user_id,
-            "user_name": names.get(r.user_id, "System") if r.user_id else "System",
-            "action": r.action,
-            "resource": r.resource,
-            "resource_id": r.resource_id,
-            "ip_address": r.ip_address,
-            "logged_at": r.logged_at.isoformat() if r.logged_at else None,
-        }
-        for r in rows
-    ]
+    from app.services.audit_log_service import format_audit_row
+
+    items = []
+    for r in rows:
+        formatted = format_audit_row(r)
+        formatted["user_name"] = names.get(r.user_id, r.full_name or "System") if r.user_id else (r.full_name or "System")
+        items.append(formatted)
 
     if search:
         needle = search.strip().lower()

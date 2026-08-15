@@ -24,7 +24,13 @@ const PRIORITY_DOT = {
 
 function formatDate(value) {
   if (!value) return "";
-  const date = new Date(value);
+  let str = String(value).trim();
+  if (str.includes("T") && !str.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(str)) {
+    str += "Z";
+  } else if (str.includes(" ") && !str.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(str)) {
+    str = str.replace(" ", "T") + "Z";
+  }
+  const date = new Date(str);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleString(undefined, {
     month: "short",

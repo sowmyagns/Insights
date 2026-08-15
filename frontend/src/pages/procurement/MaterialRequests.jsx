@@ -24,6 +24,7 @@ import {
 } from "../../data/procurementMasterData";
 import { exportToExcel } from "../../utils/exportUtils";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
+import Button from "../../components/common/Button";
 import {
   MANUFACTURING_EVENTS,
   notifyManufacturingSpine,
@@ -162,21 +163,18 @@ function ConvertToPOModal({ row, onClose, onConverted }) {
           </div>
         )}
         <div className="mt-6 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700"
-          >
+          <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="primary"
+            loading={saving}
             disabled={saving || loading}
             onClick={handleConvert}
-            className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             {saving ? "Converting…" : "Create PO"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -456,10 +454,11 @@ export default function MaterialRequests() {
         subtitle="MRP shortages become purchase requests, then purchase orders."
         action={
           <>
-            <Link to="/procurement/material-requests/create" className="ui-btn-primary">
+            <Button variant="primary" to="/procurement/material-requests/create">
             <Plus className="h-4 w-4" /> New Material Request
-          </Link>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
             type="button"
             onClick={() =>
               exportToExcel(
@@ -468,10 +467,9 @@ export default function MaterialRequests() {
                 "material-requests"
               )
             }
-            className="ui-btn-secondary"
           >
             <Download className="h-4 w-4" /> Export
-          </button>
+          </Button>
           </>
         }
       />

@@ -4,12 +4,12 @@ import { Link } from "react-router-dom";
 import { Calendar, ChevronLeft, ChevronRight, Filter, ListFilter, Plus, Search, ShoppingCart, X } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
+import Button from "../../components/common/Button";
 import { useToast } from "../../context/ToastContext";
 import { deleteBizDocument, listBizDocuments } from "../../api/bizDocumentsApi";
 import { apiErrorMessage } from "../../utils/apiError";
 import { formatInr } from "../../data/salesMasterData";
 
-const YELLOW = "var(--color-primary)";
 const PAGE_BG = "#F5F5F5";
 const PAGE_SIZES = [10, 25, 50];
 
@@ -183,13 +183,13 @@ export default function Purchases() {
               className="w-[118px] border-0 bg-transparent p-0 text-[13px] focus:outline-none"
             />
           </div>
-          <Link
+          <Button
+            variant="primary"
             to="/purchases/create"
-            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm"
-            style={{ background: YELLOW }}
+            leftIcon={<Plus className="h-4 w-4" strokeWidth={2.5} />}
           >
-            <Plus className="h-4 w-4" strokeWidth={2.5} /> Create New
-          </Link>
+            Create New
+          </Button>
         </div>
         </div>
 
@@ -284,13 +284,14 @@ export default function Purchases() {
                       <p className="mt-3 text-[14px] text-[#9a9aa5]">
                         No Purchase available, Create new Purchase
                       </p>
-                      <Link
+                      <Button
+                        variant="primary"
                         to="/purchases/create"
-                        className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
-                        style={{ background: YELLOW }}
+                        className="mt-4"
+                        leftIcon={<Plus className="h-4 w-4" />}
                       >
-                        <Plus className="h-4 w-4" /> Create New
-                      </Link>
+                        Create New
+                      </Button>
                     </td>
                   </tr>
                 ) : (

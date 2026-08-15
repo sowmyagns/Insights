@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { ArrowLeft, Building2, ChevronDown, FileText, Grid2x2, ImagePlus, MapPin, Package, PenLine, Plane, Plus, Ban, Search, Ship, TrainFront, Trash2, Truck, User, X } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
+import Button from "../../components/common/Button";
 import AddBankAccountModal from "../../components/sales/AddBankAccountModal";
 import AddCustomFieldModal from "../../components/sales/AddCustomFieldModal";
 import AddNewItemModal from "../../components/sales/AddNewItemModal";
@@ -684,21 +685,12 @@ export default function CreditNoteForm() {
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate("/sales/credit-notes")}
-            className="rounded-lg border border-[#e4e4ea] bg-white px-4 py-2 text-[13px] font-semibold text-[#4a4a55] hover:bg-[#F5F5F5]"
-          >
+          <Button type="button" variant="secondary" onClick={() => navigate("/sales/credit-notes")}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-white shadow-sm disabled:opacity-60"
-            style={{ background: YELLOW }}
-          >
+          </Button>
+          <Button type="submit" variant="primary" loading={saving} disabled={saving}>
             {saving ? "Saving…" : "Save"}
-          </button>
+          </Button>
         </div>
       </div>
 

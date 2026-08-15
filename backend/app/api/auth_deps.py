@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.api.deps import get_db
 from app.models.user import User
 from app.services.auth_service import decode_access_token
-from app.services.security_service import check_session_active, touch_user_activity
+from app.services.security_service import check_session_active, is_access_token_revoked, touch_user_activity
 
 http_bearer = HTTPBearer(auto_error=False)
 
@@ -27,6 +27,11 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
+        )
+    if is_access_token_revoked(db, creds.credentials, payload):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
         )
     sub = payload.get("sub")
     if sub is None:

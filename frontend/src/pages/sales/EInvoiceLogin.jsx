@@ -8,6 +8,7 @@ import {
 } from "../../api/bizDocumentsApi";
 import { useToast } from "../../context/ToastContext";
 import Loader from "../../components/common/Loader";
+import Button from "../../components/common/Button";
 
 /**
  * NIC-style e-Invoice portal login — matches GimBooks / IRP login card.
@@ -155,13 +156,9 @@ export default function EInvoiceLogin() {
             </div>
           </label>
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full rounded-lg bg-[var(--color-primary)] py-3 text-[15px] font-bold text-white shadow-sm hover:bg-[var(--color-primary-hover)] disabled:opacity-60"
-          >
+          <Button type="submit" variant="primary" fullWidth loading={saving} disabled={saving}>
             {saving ? "Logging in…" : "Login"}
-          </button>
+          </Button>
 
           {status?.connected ? (
             <button

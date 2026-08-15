@@ -7,6 +7,7 @@ import EmployeeAddressModal from "../../components/hr/EmployeeAddressModal";
 import { createEmployee } from "../../api/hrApi";
 import useTenantId from "../../hooks/useTenantId";
 
+import Button from "../../components/common/Button";
 const inputClass = "ui-input mt-1.5";
 
 export default function CreateEmployee() {
@@ -197,12 +198,12 @@ export default function CreateEmployee() {
         />
 
         <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-5">
-          <button type="submit" disabled={saving} className="ui-btn-hr">
+          <Button variant="primary" type="submit" disabled={saving}>
             {saving ? "Creating…" : "Create Employee"}
-          </button>
-          <Link to="/hr/employees" className="ui-btn-secondary">
+          </Button>
+          <Button variant="secondary" to="/hr/employees">
             Cancel
-          </Link>
+          </Button>
         </div>
       </form>
     </div>

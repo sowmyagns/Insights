@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Building2, ChevronDown, FileText, Grid2x2, GripVertical, ImagePlus, MapPin, Package, PenLine, Plane, Plus, Ban, Search, Ship, TrainFront, Trash2, Truck, User, X } from "lucide-react";
 
+import Button from "../../components/common/Button";
 import Loader from "../../components/common/Loader";
 import AddBankAccountModal from "../../components/sales/AddBankAccountModal";
 import AddCustomFieldModal from "../../components/sales/AddCustomFieldModal";
@@ -40,7 +41,6 @@ import {
 
 const LAVENDER = "#efeaf8";
 const PURPLE = "#6b4eff";
-const YELLOW = "var(--color-primary)";
 const PREFIX_STORAGE_KEY = "gns_invoice_prefixes";
 const DEFAULT_PREFIXES = ["INV-", "TI-"];
 const ADD_PREFIX_VALUE = "__add_prefix__";
@@ -792,21 +792,12 @@ export default function TaxInvoiceForm() {
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate("/sales/invoices")}
-            className="rounded-lg border border-[#d0d0d8] bg-white px-4 py-2 text-[13px] font-semibold text-[#4a4a55] hover:bg-[#f5f5f7]"
-          >
+          <Button type="button" variant="secondary" onClick={() => navigate("/sales/invoices")}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-white shadow-sm disabled:opacity-60"
-            style={{ background: YELLOW }}
-          >
+          </Button>
+          <Button type="submit" variant="primary" loading={saving} disabled={saving}>
             {saving ? "Saving…" : isEdit ? "Update" : "Save"}
-          </button>
+          </Button>
         </div>
       </div>
 

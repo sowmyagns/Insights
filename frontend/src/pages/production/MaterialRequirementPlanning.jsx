@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, ClipboardList, Package, ShoppingCart } from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
@@ -17,6 +16,7 @@ import useAuth from "../../hooks/useAuth";
 import { isOperator } from "../../config/permissions";
 import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
 
+import Button from "../../components/common/Button";
 function SummaryCard({ label, value, icon: Icon, color }) {
   return (
     <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden">
@@ -205,12 +205,12 @@ const PAGE_BG = "var(--color-bg)";
           title="Material Requirement Planning"
           action={
             <div className="flex flex-wrap gap-2">
-              <Link to="/procurement/material-requests" className="ui-btn-secondary">
+              <Button variant="secondary" to="/procurement/material-requests">
                 <ShoppingCart className="h-4 w-4" /> Purchase Requests
-              </Link>
-              <Link to="/production/planning" className="ui-btn-success">
+              </Button>
+              <Button variant="success" to="/production/planning">
                 Production Planning
-              </Link>
+              </Button>
             </div>
           }
         />
@@ -259,18 +259,14 @@ const PAGE_BG = "var(--color-bg)";
           </span>
         </label>
         <div className="flex items-end">
-          <button
-            type="submit"
-            disabled={running || !products.length}
-            className="ui-btn-primary w-full inline-flex items-center justify-center gap-2 disabled:opacity-60"
-          >
+          <Button variant="primary" type="submit" disabled={running || !products.length} className="w-full inline-flex items-center justify-center gap-2 disabled:opacity-60">
             {running ? "Running…" : (
               <>
                 <Package className="h-4 w-4" />
                 Run MRP
               </>
             )}
-          </button>
+          </Button>
         </div>
       </form>
 
@@ -286,9 +282,9 @@ const PAGE_BG = "var(--color-bg)";
           <ClipboardList className="mx-auto h-10 w-10 text-slate-300" />
           <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-300">No products in masters.</p>
           {!isOperator(user) && (
-            <Link to="/masters/products" className="ui-btn-success mt-4 inline-flex">
+            <Button variant="success" to="/masters/products" className="mt-4 inline-flex">
               Add products
-            </Link>
+            </Button>
           )}
         </div>
       )}
@@ -320,31 +316,25 @@ const PAGE_BG = "var(--color-bg)";
             </div>
             <div className="flex flex-wrap gap-2">
               {result.material_request_id && (
-                <Link to="/procurement/material-requests" className="ui-btn-primary">
+                <Button variant="primary" to="/procurement/material-requests">
                   Open Purchase Requests
-                </Link>
+                </Button>
               )}
               {result.enough_stock && (
-                <Link to="/production/planning" className="ui-btn-success">
+                <Button variant="success" to="/production/planning">
                   Go to Production Planning
-                </Link>
+                </Button>
               )}
-              <button
-                type="button"
-                className="ui-btn-secondary"
-                onClick={() => exportToExcel(tableRows, exportCols, "mrp-requirements")}
+              <Button variant="secondary" type="button" onClick={() => exportToExcel(tableRows, exportCols, "mrp-requirements")}
                 disabled={!tableRows.length}
               >
                 Export Excel
-              </button>
-              <button
-                type="button"
-                className="ui-btn-secondary"
-                onClick={() => exportToPdf(tableRows, exportCols, "MRP Requirements")}
+              </Button>
+              <Button variant="secondary" type="button" onClick={() => exportToPdf(tableRows, exportCols, "MRP Requirements")}
                 disabled={!tableRows.length}
               >
                 Export PDF
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -355,9 +345,9 @@ const PAGE_BG = "var(--color-bg)";
               emptyState={
                 <div className="py-12 text-center">
                   <p className="text-sm text-slate-600">No BOM components for this product.</p>
-                  <Link to="/masters/bom" className="ui-btn-primary mt-4 inline-flex">
+                  <Button variant="primary" to="/masters/bom" className="mt-4 inline-flex">
                     Maintain BOM
-                  </Link>
+                  </Button>
                 </div>
               }
             />

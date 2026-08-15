@@ -285,7 +285,18 @@ def create_user(
     admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return _svc(db, admin).create_user(payload, request)
+    try:
+        return _svc(db, admin).create_user(payload, request)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error creating user in RBAC API: %s", exc)
+        raise HTTPException(status_code=500, detail="Database error creating user") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to create user in RBAC API: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to create user") from exc
 
 
 @router.put("/users/{user_id}")
@@ -296,7 +307,18 @@ def update_user(
     admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return _svc(db, admin).update_user(user_id, payload, request)
+    try:
+        return _svc(db, admin).update_user(user_id, payload, request)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error updating user_id=%s in RBAC API: %s", user_id, exc)
+        raise HTTPException(status_code=500, detail="Database error updating user") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to update user_id=%s in RBAC API: %s", user_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to update user") from exc
 
 
 @router.delete("/users/{user_id}")
@@ -306,7 +328,18 @@ def delete_user(
     admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return _svc(db, admin).delete_user(user_id, request)
+    try:
+        return _svc(db, admin).delete_user(user_id, request)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error deleting user_id=%s in RBAC API: %s", user_id, exc)
+        raise HTTPException(status_code=500, detail="Database error deleting user") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to delete user_id=%s in RBAC API: %s", user_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to delete user") from exc
 
 
 @router.post("/users/{user_id}/reset-password")

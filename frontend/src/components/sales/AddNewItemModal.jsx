@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 
+import Button from "../common/Button";
 import AddCustomFieldModal from "./AddCustomFieldModal";
 import { createProduct, getProducts, updateProduct } from "../../api/productsApi";
 import { PRODUCT_CATEGORIES, PRODUCT_UNITS } from "../../data/productsMasterData";
@@ -17,7 +18,6 @@ import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const YELLOW = "var(--color-primary)";
 const PURPLE = "#6b4eff";
 const BLUE = "#2563eb";
 
@@ -200,21 +200,12 @@ function ViewBarcodeModal({ open, code, onClose }) {
           <p className="font-mono text-[14px] font-semibold tracking-wide text-[#1a1a1f]">{text}</p>
         </div>
         <div className="grid grid-cols-2 gap-3 border-t border-[#ececf0] px-5 py-4">
-          <button
-            type="button"
-            onClick={print}
-            className="rounded-xl border border-[#d8d8e0] bg-[#f0f0f4] py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
-          >
+          <Button type="button" variant="secondary" onClick={print} fullWidth>
             Print
-          </button>
-          <button
-            type="button"
-            onClick={download}
-            className="rounded-xl py-2.5 text-[14px] font-semibold text-white"
-            style={{ background: YELLOW }}
-          >
+          </Button>
+          <Button type="button" variant="primary" onClick={download} fullWidth>
             Download
-          </button>
+          </Button>
         </div>
       </div>
     </div>,
@@ -1118,21 +1109,12 @@ export default function AddNewItemModal({
         </div>
 
         <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-[#ececf0] bg-white px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-[#d8d8e0] bg-[#f0f0f4] py-3 text-[14px] font-semibold text-[#1a1a1f]"
-          >
+          <Button type="button" variant="secondary" onClick={onClose} fullWidth>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-xl py-3 text-[14px] font-semibold text-white disabled:opacity-60"
-            style={{ background: YELLOW }}
-          >
+          </Button>
+          <Button type="submit" variant="primary" loading={saving} disabled={saving} fullWidth>
             {saving ? "Saving…" : "Save"}
-          </button>
+          </Button>
         </div>
       </form>
 

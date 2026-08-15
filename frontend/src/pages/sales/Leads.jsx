@@ -6,6 +6,7 @@ import KpiCard from "../../components/common/KpiCard";
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
+import Button from "../../components/common/Button";
 import CreateLeadModal from "../../components/sales/CreateLeadModal";
 import LeadDetailModal from "../../components/sales/LeadDetailModal";
 import { useToast } from "../../context/ToastContext";
@@ -185,13 +186,13 @@ export default function Leads() {
       <PageHeader
         subtitle="Enterprise CRM pipeline with Kanban view, 360° lead profile, and opportunity tracking."
         action={
-          <button
+          <Button
+            variant="primary"
             type="button"
             onClick={() => setShowCreateModal(true)}
-            className="ui-btn-primary"
           >
             <Plus className="h-4 w-4" /> New Lead
-          </button>
+          </Button>
         }
       />
 

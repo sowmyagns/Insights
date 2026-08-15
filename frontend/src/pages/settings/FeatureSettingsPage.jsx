@@ -4,6 +4,7 @@ import { useToast } from "../../context/ToastContext";
 import Loader from "../../components/common/Loader";
 import { apiErrorMessage } from "../../utils/apiError";
 
+import Button from "../../components/common/Button";
 export default function FeatureSettingsPage({
   title,
   settingKey,
@@ -71,13 +72,9 @@ export default function FeatureSettingsPage({
             )}
           </label>
         ))}
-        <button
-          type="submit"
-          disabled={saving}
-          className="ui-btn-primary disabled:opacity-60"
-        >
+        <Button variant="primary" type="submit" disabled={saving} className="disabled:opacity-60">
           {saving ? "Saving…" : "Save"}
-        </button>
+        </Button>
       </form>
     </div>
   );

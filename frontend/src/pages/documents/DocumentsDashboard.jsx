@@ -13,6 +13,7 @@ import {
   updateDocument,
 } from "../../api/documentsApi";
 import { isAdmin } from "../../config/permissions";
+import Button from "../../components/common/Button";
 import {
   DOC_TYPES,
   VERSION_OPTIONS,
@@ -381,13 +382,9 @@ Description:  ${doc.description || "No description provided."}
           </div>
         <div className="flex flex-wrap items-center gap-2">
           {canWrite && (
-            <button
-              type="button"
-              onClick={openCreate}
-              className="ui-btn-hr"
-            >
+            <Button variant="primary" type="button" onClick={openCreate}>
               <Plus className="h-4 w-4" /> Upload Document
-            </button>
+            </Button>
           )}
         </div>
       </header>
@@ -812,13 +809,9 @@ Description:  ${doc.description || "No description provided."}
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="ui-btn-hr"
-              >
+              <Button variant="primary" type="submit" disabled={saving}>
                 {saving ? "Saving..." : "Save Document"}
-              </button>
+              </Button>
             </div>
           </form>
         </div>

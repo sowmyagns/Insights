@@ -1,11 +1,23 @@
-import { useCallback, useEffect, useState } from "react";
-import usePageRefresh from "../../hooks/usePageRefresh";
-import { Link } from "react-router-dom";
-import { Cpu, Download, GripVertical, Settings, Users, Wrench } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Cpu,
+  Download,
+  Gauge,
+  GripVertical,
+  LayoutList,
+  MousePointer2,
+  Settings2,
+  Wrench,
+} from "lucide-react";
 
+import Button from "../../components/common/Button";
 import DataTable from "../../components/common/DataTable";
+import EmptyState from "../../components/common/EmptyState";
+import KpiCard from "../../components/common/KpiCard";
 import Loader from "../../components/common/Loader";
+import StatusBadge from "../../components/common/StatusBadge";
 import { useToast } from "../../context/ToastContext";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import {
   assignAllocation,
   getAllocationMachines,
@@ -13,29 +25,134 @@ import {
   getAllocations,
 } from "../../api/productionApi";
 import {
-  ALLOC_FLOW_STEPS,
   DEMO_ALLOC_SUMMARY,
-  DEMO_ALLOCATIONS,
   DEMO_MACHINE_AVAIL,
-  DEMO_UNASSIGNED,
   priorityStyle,
 } from "../../data/machineAllocationMasterData";
 import { exportToExcel } from "../../utils/exportUtils";
+import { cleanProductLabel } from "../../utils/productLabel";
 
-function SummaryCard({ label, value, icon: Icon, color }) {
+const VIEWS = [
+  { id: "list", label: "List", icon: LayoutList },
+  { id: "board", label: "Assign", icon: MousePointer2 },
+];
+
+function statusTone(status) {
+  const s = String(status || "").toLowerCase();
+  if (s === "running" || s === "in_progress" || s === "allocated" || s === "planned") return "success";
+  if (s === "maintenance" || s === "breakdown" || s === "down") return "danger";
+  if (s === "unassigned" || s === "idle" || s === "free") return "warning";
+  if (s === "paused" || s === "on_hold") return "warning";
+  return "info";
+}
+
+function StatusDot({ status }) {
+  const tone = statusTone(status);
+  const color =
+    tone === "success"
+      ? "bg-[var(--color-success)]"
+      : tone === "danger"
+        ? "bg-[var(--color-danger)]"
+        : tone === "warning"
+          ? "bg-[var(--color-warning)]"
+          : "bg-[var(--color-text-muted)]";
+  return <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${color}`} aria-hidden />;
+}
+
+function isUnassigned(row) {
+  return !row.machine_id || !row.machine_name || String(row.status).toLowerCase() === "unassigned";
+}
+
+function normalizeLocalWorkOrders() {
+  try {
+    const stored = localStorage.getItem("smrt_local_work_orders") || localStorage.getItem("smrt_work_orders");
+    if (!stored) return [];
+    return JSON.parse(stored).map((w) => ({
+      work_order_id: w.id || w.work_order_number,
+      work_order_number: w.work_order_number,
+      product_name: w.product_name || "Product",
+      machine_id: w.machine_id || null,
+      machine_name:
+        w.machine_name && w.machine_name !== "Unassigned" && w.machine_name !== "—"
+          ? w.machine_name
+          : null,
+      operator_name: w.operator_name || "—",
+      shift:
+        typeof w.shift === "object"
+          ? w.shift?.label || w.shift?.id || "General"
+          : w.shift || "General",
+      capacity_pct: w.machine_id ? 85 : 0,
+      status:
+        w.machine_name && w.machine_name !== "Unassigned" && w.machine_name !== "—"
+          ? w.status || "planned"
+          : "unassigned",
+      priority: w.priority || "medium",
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function ViewTabs({ view, onChange }) {
   return (
-    <div className="ui-card p-4 min-h-[86px] flex flex-col justify-between min-w-0 overflow-hidden" title={typeof label === "string" ? label : undefined}>
-      <div className="flex items-center justify-between gap-1.5 min-w-0">
-        <p className="truncate text-[11px] font-medium text-[var(--color-text-muted)] leading-tight sm:text-xs min-w-0 flex-1">{label}</p>
-        {Icon && (
-          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${color}`}>
-            <Icon className="h-3.5 w-3.5 text-white" />
-          </div>
-        )}
-      </div>
-      <div className="mt-2">
-        <p className="truncate text-xl font-bold tabular-nums text-[var(--color-text)] leading-none">{value}</p>
-      </div>
+    <div
+      className="inline-flex flex-wrap rounded-full border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-1"
+      role="tablist"
+      aria-label="Allocation views"
+    >
+      {VIEWS.map((v) => {
+        const Icon = v.icon;
+        const active = view === v.id;
+        return (
+          <button
+            key={v.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(v.id)}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+              active
+                ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {v.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function FilterChips({ value, onChange, counts }) {
+  const chips = [
+    { id: "all", label: "All", count: counts.all },
+    { id: "unassigned", label: "Unassigned", count: counts.unassigned },
+    { id: "allocated", label: "Allocated", count: counts.allocated },
+  ];
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {chips.map((c) => {
+        const active = value === c.id;
+        return (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onChange(c.id)}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+              active
+                ? "bg-[var(--color-action-teal)] text-white"
+                : "bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+            }`}
+          >
+            {c.label}
+            <span className={`tabular-nums ${active ? "text-white/80" : "text-[var(--color-text-muted)]"}`}>
+              {c.count}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -46,32 +163,15 @@ export default function MachineAllocation() {
   const [summary, setSummary] = useState(DEMO_ALLOC_SUMMARY);
   const [allocations, setAllocations] = useState([]);
   const [machines, setMachines] = useState(DEMO_MACHINE_AVAIL);
-  const [unassigned, setUnassigned] = useState(DEMO_UNASSIGNED);
   const [dragWo, setDragWo] = useState(null);
+  const [view, setView] = useState("list");
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     try {
-      let localAllocations = [];
-      try {
-        const stored = localStorage.getItem("smrt_local_work_orders") || localStorage.getItem("smrt_work_orders");
-        if (stored) {
-          localAllocations = JSON.parse(stored).map((w) => ({
-            work_order_id: w.id || w.work_order_number,
-            work_order_number: w.work_order_number,
-            product_name: w.product_name || "Product",
-            machine_id: w.machine_id || null,
-            machine_name: w.machine_name && w.machine_name !== "Unassigned" && w.machine_name !== "—" ? w.machine_name : null,
-            operator_name: w.operator_name || "—",
-            shift: typeof w.shift === "object" ? (w.shift?.label || w.shift?.id || "General") : (w.shift || "General"),
-            supervisor: "Prod Mgr",
-            capacity_pct: w.machine_id ? 85 : 0,
-            status: w.machine_name && w.machine_name !== "Unassigned" && w.machine_name !== "—" ? (w.status || "planned") : "unassigned",
-            priority: w.priority || "medium",
-          }));
-        }
-      } catch (e) {}
-
+      const localAllocations = normalizeLocalWorkOrders();
       const [sumRes, listRes, machRes] = await Promise.allSettled([
         getAllocationSummary(),
         getAllocations(),
@@ -82,8 +182,11 @@ export default function MachineAllocation() {
         setSummary({ ...DEMO_ALLOC_SUMMARY, ...sumRes.value.data });
       }
 
-      const apiList = (listRes.status === "fulfilled" && listRes.value?.data) ? listRes.value.data : [];
-      const combined = [...localAllocations, ...apiList, ...DEMO_ALLOCATIONS];
+      const apiList =
+        listRes.status === "fulfilled" && Array.isArray(listRes.value?.data)
+          ? listRes.value.data
+          : [];
+      const combined = [...localAllocations, ...apiList];
       const seen = new Set();
       const uniqueList = combined.filter((item) => {
         const key = item.work_order_id || item.work_order_number;
@@ -93,32 +196,65 @@ export default function MachineAllocation() {
       });
 
       setAllocations(uniqueList);
-      setUnassigned(
-        uniqueList
-          .filter((r) => !r.machine_id || !r.machine_name || r.status === "unassigned")
-          .map((r) => ({
-            work_order_id: r.work_order_id,
-            work_order_number: r.work_order_number,
-            product_name: r.product_name,
-            priority: r.priority,
-          }))
-      );
 
-      if (machRes.status === "fulfilled" && machRes.value?.data?.length) {
+      if (machRes.status === "fulfilled" && Array.isArray(machRes.value?.data)) {
         setMachines(machRes.value.data);
       }
     } catch {
+      // keep prior state
     } finally {
       setLoading(false);
     }
-  }, [addToast]);
+  }, []);
 
   usePageRefresh(() => load(true));
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  useEffect(() => { load(); }, [load]);
+  const unassigned = useMemo(
+    () =>
+      allocations
+        .filter(isUnassigned)
+        .map((r) => ({
+          work_order_id: r.work_order_id,
+          work_order_number: r.work_order_number,
+          product_name: r.product_name,
+          priority: r.priority,
+        })),
+    [allocations]
+  );
 
-  const handleDrop = async (machineId, machineName) => {
+  const counts = useMemo(
+    () => ({
+      all: allocations.length,
+      unassigned: unassigned.length,
+      allocated: allocations.length - unassigned.length,
+    }),
+    [allocations.length, unassigned.length]
+  );
+
+  const filtered = useMemo(() => {
+    let rows = allocations;
+    if (filter === "unassigned") rows = rows.filter(isUnassigned);
+    if (filter === "allocated") rows = rows.filter((r) => !isUnassigned(r));
+    if (!search.trim()) return rows;
+    const q = search.toLowerCase();
+    return rows.filter((r) =>
+      [r.work_order_number, r.product_name, r.machine_name, r.operator_name]
+        .some((v) => v && String(v).toLowerCase().includes(q))
+    );
+  }, [allocations, filter, search]);
+
+  const handleDrop = async (machineId, machineName, machineStatus) => {
     if (!dragWo) return;
+    const status = String(machineStatus || "").toLowerCase();
+    if (status === "maintenance" || status === "breakdown" || status === "down") {
+      addToast("Cannot assign to a machine under maintenance", "error");
+      setDragWo(null);
+      return;
+    }
+
     const numericWo = typeof dragWo.work_order_id === "number";
     const numericMachine = typeof machineId === "number";
     if (numericWo && numericMachine) {
@@ -128,16 +264,16 @@ export default function MachineAllocation() {
           machine_id: machineId,
         });
         if (res.data?.success) {
-          addToast(res.data.message, "success");
+          addToast(res.data.message || `Assigned to ${machineName}`, "success");
+          setDragWo(null);
           load();
           return;
         }
       } catch {
-        // Fallback to local
+        // local fallback below
       }
     }
 
-    // Local Storage Persistence
     try {
       const stored = localStorage.getItem("smrt_local_work_orders") || localStorage.getItem("smrt_work_orders");
       if (stored) {
@@ -150,173 +286,327 @@ export default function MachineAllocation() {
         localStorage.setItem("smrt_local_work_orders", JSON.stringify(updated));
         localStorage.setItem("smrt_work_orders", JSON.stringify(updated));
       }
-    } catch (e) {}
+    } catch {
+      // ignore storage errors
+    }
 
     setAllocations((prev) =>
       prev.map((r) =>
         r.work_order_id === dragWo.work_order_id || r.work_order_number === dragWo.work_order_number
-          ? { ...r, machine_id: machineId, machine_name: machineName, status: "planned" }
+          ? { ...r, machine_id: machineId, machine_name: machineName, status: "planned", capacity_pct: 85 }
           : r
       )
     );
-    setUnassigned((prev) => prev.filter((u) => u.work_order_id !== dragWo.work_order_id));
     addToast(`Assigned ${dragWo.work_order_number} to ${machineName}`, "success");
     setDragWo(null);
   };
 
-  const columns = [
-    { key: "work_order_number", label: "Work Order" },
-    { key: "product_name", label: "Product" },
-    { key: "machine_name", label: "Machine", render: (r) => r.machine_name || "—" },
-    { key: "operator_name", label: "Operator", render: (r) => r.operator_name || r.assigned_operator || r.operator || "—" },
-    { key: "shift", label: "Shift", render: (r) => typeof (r.shift || r.current_shift) === "object" ? (r.shift?.label || r.shift?.id || r.current_shift?.label || r.current_shift?.id || "—") : (r.shift || r.current_shift || "—") },
-    { key: "supervisor", label: "Supervisor", render: (r) => r.supervisor || "—" },
-    {
-      key: "capacity_pct",
-      label: "Capacity",
-      render: (r) => (
-        <div className="min-w-[80px]">
-          <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
-            <div className="h-full rounded-full bg-violet-500" style={{ width: `${r.capacity_pct}%` }} />
+  const columns = useMemo(
+    () => [
+      {
+        key: "work_order_number",
+        label: "Work Order",
+        render: (r) => (
+          <div className="min-w-[7rem]">
+            <p className="text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+              {r.work_order_number || "—"}
+            </p>
+            <p className="mt-0.5 text-[11px] capitalize text-[var(--color-text-muted)]">
+              {typeof r.shift === "object" ? r.shift?.label || "General" : r.shift || "General"}
+            </p>
           </div>
-          <span className="text-[10px] text-slate-500">{r.capacity_pct}%</span>
-        </div>
-      ),
-    },
-    {
-      key: "status",
-      label: "Status",
-      render: (r) => (
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold capitalize text-slate-700">
-          {r.status}
-        </span>
-      ),
-    },
-  ];
+        ),
+      },
+      {
+        key: "product_name",
+        label: "Product",
+        render: (r) => {
+          const product = cleanProductLabel(r.product_name);
+          const p = priorityStyle(r.priority);
+          return (
+            <div className="max-w-[220px]">
+              <p className="truncate text-[13px] font-medium text-[var(--color-text)]" title={product}>
+                {product}
+              </p>
+              <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${p.bg} ${p.text}`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" aria-hidden />
+                {p.label}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        key: "machine_name",
+        label: "Machine",
+        render: (r) =>
+          r.machine_name ? (
+            <span className="text-[13px] font-medium text-[var(--color-text)]">{r.machine_name}</span>
+          ) : (
+            <span className="text-[12px] font-semibold text-[var(--color-warning)]">Unassigned</span>
+          ),
+      },
+      {
+        key: "operator_name",
+        label: "Operator",
+        render: (r) => (
+          <span className="text-[13px] text-[var(--color-text-secondary)]">
+            {r.operator_name || r.assigned_operator || r.operator || "—"}
+          </span>
+        ),
+      },
+      {
+        key: "capacity_pct",
+        label: "Load",
+        render: (r) => {
+          const pct = Number(r.capacity_pct || 0);
+          return (
+            <div className="min-w-[72px]">
+              <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
+                <div
+                  className="h-full rounded-full bg-[var(--color-action-teal)]"
+                  style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
+                />
+              </div>
+              <span className="mt-0.5 block text-[10px] tabular-nums text-[var(--color-text-muted)]">{pct}%</span>
+            </div>
+          );
+        },
+      },
+      {
+        key: "status",
+        label: "Status",
+        render: (r) => (
+          <StatusBadge tone={statusTone(isUnassigned(r) ? "unassigned" : r.status)}>
+            {isUnassigned(r) ? "unassigned" : r.status || "—"}
+          </StatusBadge>
+        ),
+      },
+    ],
+    []
+  );
 
   const handleExport = () => {
-    exportToExcel(allocations, columns.filter((c) => !c.render), "machine-allocation");
-    addToast("Exported", "success");
+    exportToExcel(
+      filtered.length ? filtered : allocations,
+      [
+        { key: "work_order_number", label: "Work Order" },
+        { key: "product_name", label: "Product" },
+        { key: "machine_name", label: "Machine" },
+        { key: "operator_name", label: "Operator" },
+        { key: "shift", label: "Shift" },
+        { key: "status", label: "Status" },
+        { key: "priority", label: "Priority" },
+      ],
+      "machine-allocation"
+    );
+    addToast("Allocation exported to Excel", "success");
   };
 
-  if (loading) return <Loader label="Loading machine allocation..." />;
+  if (loading) return <Loader label="Loading machine allocation…" />;
 
   return (
-    <div className="min-h-full pb-8 print:p-0" style={{ background: "#F5F5F5" }}>
-      <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
-        <div>
-          <p className="mt-0.5 text-xs text-slate-500 print:hidden">
-            Assign work orders to machines, operators, shifts, and supervisors.
-          </p>
-        </div>
-
-        <div className="mb-0 flex flex-wrap items-center justify-between gap-2 print:hidden">
-          <div className="flex flex-wrap gap-2">
-            <Link to="/production/work-orders" className="ui-btn-secondary text-sm">View Work Orders</Link>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={handleExport} className="inline-flex items-center gap-1.5 rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3.5 py-2 text-[13px] font-semibold text-[#1a1a1f] hover:bg-[#ececf0]">
-              <Download className="h-4 w-4" /> Export
-            </button>
-          </div>
-        </div>
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <SummaryCard label="Total Machines" value={summary.total_machines} icon={Cpu} color="bg-[var(--color-primary)]" />
-        <SummaryCard label="Allocated" value={summary.allocated} icon={Settings} color="bg-violet-500" />
-        <SummaryCard label="Free Machines" value={summary.free_machines} icon={Cpu} color="bg-green-500" />
-        <SummaryCard label="Under Maintenance" value={summary.under_maintenance} icon={Wrench} color="bg-red-500" />
-        <SummaryCard label="Utilization %" value={`${summary.utilization_pct}%`} icon={Users} color="bg-amber-500" />
+    <div className="space-y-5 pb-4">
+      <div className="ui-grid-kpi">
+        <KpiCard label="Machines" value={summary.total_machines ?? 0} icon={Cpu} tone="primary" />
+        <KpiCard label="Allocated" value={summary.allocated ?? counts.allocated} icon={Settings2} tone="info" />
+        <KpiCard label="Free" value={summary.free_machines ?? 0} icon={Cpu} tone="success" />
+        <KpiCard label="Maintenance" value={summary.under_maintenance ?? 0} icon={Wrench} tone="danger" />
+        <KpiCard
+          label="Utilization"
+          value={`${summary.utilization_pct ?? 0}%`}
+          icon={Gauge}
+          tone="warning"
+        />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_300px]">
-        <div className="space-y-6">
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-4 text-sm font-bold text-slate-800">Allocation Table</h2>
-            <DataTable columns={columns} data={allocations} searchKeys={["work_order_number", "product_name", "machine_name"]} />
-          </section>
+      {unassigned.length > 0 ? (
+        <div className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-[var(--color-warning)]/40 bg-[var(--color-warning-soft)] px-4 py-3">
+          <MousePointer2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-warning)]" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-[var(--color-text)]">
+              {unassigned.length} work order{unassigned.length > 1 ? "s" : ""} need a machine
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+              Open Assign view and drag a work order onto a free machine.
+            </p>
+          </div>
+          <Button type="button" variant="secondary" size="sm" onClick={() => setView("board")}>
+            Assign
+          </Button>
+        </div>
+      ) : null}
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-sm font-bold text-slate-800">Drag & Drop Allocation</h2>
-            <div className="mb-4 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-4">
-              <p className="mb-2 text-xs font-semibold text-slate-500">Unassigned Work Orders</p>
+      <div className="ui-card overflow-hidden p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <ViewTabs view={view} onChange={setView} />
+            <FilterChips value={filter} onChange={setFilter} counts={counts} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="secondary" to="/production/work-orders">
+              Work Orders
+            </Button>
+            <Button type="button" variant="secondary" onClick={handleExport}>
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+          </div>
+        </div>
+
+        {view === "list" ? (
+          <div>
+            <div className="mb-4 max-w-md">
+              <input
+                type="search"
+                placeholder="Search WO, product, machine…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="ui-input !rounded-full"
+              />
+            </div>
+            {filtered.length === 0 ? (
+              <EmptyState
+                icon="factory"
+                title="Nothing to allocate"
+                description={
+                  allocations.length === 0
+                    ? "Create work orders first, then assign them to machines here."
+                    : "No rows match this filter."
+                }
+                actionLabel={allocations.length === 0 ? "View Work Orders" : undefined}
+                actionHref={allocations.length === 0 ? "/production/work-orders" : undefined}
+              />
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-[var(--color-border-soft)]">
+                <DataTable
+                  columns={columns}
+                  data={filtered}
+                  searchKeys={["work_order_number", "product_name", "machine_name"]}
+                  showSearch={false}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-muted)]/50 p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--color-text)]">Unassigned work orders</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">Drag onto a machine below</p>
+                </div>
+                <span className="rounded-full bg-[var(--color-surface)] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-text-muted)]">
+                  {unassigned.length}
+                </span>
+              </div>
               <div className="flex flex-wrap gap-2">
-                {unassigned.map((u) => (
-                  <div
-                    key={u.work_order_id}
-                    draggable
-                    onDragStart={() => setDragWo(u)}
-                    className="flex cursor-grab items-center gap-2 rounded-lg border border-violet-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm active:cursor-grabbing"
-                  >
-                    <GripVertical className="h-3 w-3 text-slate-400" />
-                    {u.work_order_number} · {u.product_name}
-                  </div>
-                ))}
-                {unassigned.length === 0 && (
-                  <p className="text-xs text-slate-400">All work orders allocated</p>
-                )}
+                {unassigned.map((u) => {
+                  const p = priorityStyle(u.priority);
+                  return (
+                    <div
+                      key={u.work_order_id || u.work_order_number}
+                      draggable
+                      onDragStart={() => setDragWo(u)}
+                      onDragEnd={() => setDragWo(null)}
+                      className={`flex max-w-full cursor-grab items-center gap-2 rounded-xl border bg-[var(--color-surface)] px-3 py-2 shadow-sm active:cursor-grabbing ${
+                        dragWo?.work_order_id === u.work_order_id
+                          ? "border-[var(--color-action-teal)] ring-2 ring-[var(--color-action-teal)]/20"
+                          : "border-[var(--color-border-soft)]"
+                      }`}
+                    >
+                      <GripVertical className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-bold tabular-nums text-[var(--color-text)]">
+                          {u.work_order_number}
+                        </p>
+                        <p className="truncate text-[11px] text-[var(--color-text-muted)]">
+                          {cleanProductLabel(u.product_name)}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${p.bg} ${p.text}`}>
+                        {p.label}
+                      </span>
+                    </div>
+                  );
+                })}
+                {unassigned.length === 0 ? (
+                  <p className="py-2 text-sm text-[var(--color-text-muted)]">All work orders are assigned.</p>
+                ) : null}
               </div>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {machines.map((m) => (
-                <div
-                  key={m.machine_id}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => handleDrop(m.machine_id, m.machine_name)}
-                  className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center transition hover:border-violet-400 hover:bg-violet-50"
-                >
-                  <p className="text-sm font-bold text-slate-800">{m.machine_name}</p>
-                  <p className="text-[10px] capitalize text-slate-500">{m.status}</p>
-                  {m.current_job && <p className="text-[10px] text-violet-600">{m.current_job}</p>}
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
 
-        <aside className="space-y-4">
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="mb-3 text-sm font-bold text-slate-800">Machine Availability</h3>
-            <div className="space-y-2 text-xs">
-              {machines.map((m) => (
-                <div key={m.machine_id} className="rounded-lg border border-slate-100 p-2">
-                  <div className="flex justify-between font-semibold text-slate-800">
-                    <span>{m.machine_name}</span>
-                    <span className="capitalize text-slate-500">{m.status}</span>
-                  </div>
-                  <p className="text-slate-500">Free: {m.free_time || "—"} · Job: {m.current_job || "—"}</p>
+            {machines.length === 0 ? (
+              <EmptyState
+                icon="cpu"
+                title="No machines available"
+                description="Add machines in Masters to start allocating work orders."
+                actionLabel="Open Machines"
+                actionHref="/production/machines"
+              />
+            ) : (
+              <div>
+                <p className="mb-2 text-sm font-semibold text-[var(--color-text)]">Machines</p>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {machines.map((m) => {
+                    const busy = String(m.status || "").toLowerCase();
+                    const blocked = busy === "maintenance" || busy === "breakdown" || busy === "down";
+                    const util = Number(m.utilization_pct || 0);
+                    return (
+                      <div
+                        key={m.machine_id}
+                        onDragOver={(e) => {
+                          if (!blocked) e.preventDefault();
+                        }}
+                        onDrop={() => handleDrop(m.machine_id, m.machine_name, m.status)}
+                        className={`rounded-xl border p-3 transition-colors ${
+                          blocked
+                            ? "border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]/40 opacity-70"
+                            : dragWo
+                              ? "border-[var(--color-action-teal)]/50 bg-[var(--color-action-teal)]/5"
+                              : "border-[var(--color-border-soft)] bg-[var(--color-surface)] hover:border-[var(--color-action-teal)]/40"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <StatusDot status={m.status} />
+                              <p className="truncate text-sm font-semibold text-[var(--color-text)]">{m.machine_name}</p>
+                            </div>
+                            <p className="mt-0.5 text-xs capitalize text-[var(--color-text-muted)]">{m.status || "idle"}</p>
+                          </div>
+                          <span className="shrink-0 text-[11px] font-semibold tabular-nums text-[var(--color-text-muted)]">
+                            {util}%
+                          </span>
+                        </div>
+                        {m.current_job ? (
+                          <p className="mt-2 truncate text-xs text-[var(--color-text-secondary)]">
+                            Job: {cleanProductLabel(m.current_job)}
+                          </p>
+                        ) : (
+                          <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                            {blocked ? "Unavailable" : "Drop a work order here"}
+                          </p>
+                        )}
+                        {util > 0 ? (
+                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
+                            <div
+                              className="h-full rounded-full bg-[var(--color-action-teal)]"
+                              style={{ width: `${Math.min(util, 100)}%` }}
+                            />
+                          </div>
+                        ) : null}
+                        {m.free_time ? (
+                          <p className="mt-1.5 text-[10px] text-[var(--color-text-muted)]">Free: {m.free_time}</p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="mb-3 text-sm font-bold text-slate-800">Utilization Chart</h3>
-            <div className="space-y-3">
-              {machines.slice(0, 5).map((m) => (
-                <div key={m.machine_id}>
-                  <div className="mb-0.5 flex justify-between text-xs text-slate-600">
-                    <span>{m.machine_name}</span>
-                    <span>{m.utilization_pct}%</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-                    <div className="h-full rounded-full bg-violet-500" style={{ width: `${m.utilization_pct}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        </aside>
-      </div>
-
-      <div className="flex flex-wrap gap-2 rounded-xl bg-slate-50 px-4 py-3">
-        {ALLOC_FLOW_STEPS.map((step, i) => (
-          <span key={step} className="flex items-center gap-2 text-xs text-slate-600">
-            <span className="font-semibold text-violet-600">{step}</span>
-            {i < ALLOC_FLOW_STEPS.length - 1 && <span className="text-slate-300">↓</span>}
-          </span>
-        ))}
-      </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import csv
 import io
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException, Request
@@ -212,6 +212,7 @@ class AuditLogService:
         login_at: datetime | None = None,
         logout_at: datetime | None = None,
         email_override: str | None = None,
+        role_override: str | None = None,
         commit: bool = True,
     ) -> AccessLog | None:
         """
@@ -233,9 +234,11 @@ class AuditLogService:
         module = module_name or resolve_module(action, resource)
         email = email_override or actor["email"]
 
-        # Prefer explicit session id; generate on successful login; else reuse open session
+        # Prefer explicit session id; generate on login/login_failed attempt; else reuse open session or generate tracking ID
         sid = session_id
-        if sid is None and action == "login" and login_status == "Success":
+        if sid is None and request and hasattr(request, "state") and getattr(request.state, "session_id", None):
+            sid = getattr(request.state, "session_id")
+        if sid is None and (action in ("login", "login_failed") or login_status in ("Failed", "Success")):
             sid = str(uuid.uuid4())
         elif sid is None and actor["user_id"] is not None:
             open_login = db.scalars(
@@ -252,6 +255,9 @@ class AuditLogService:
             if open_login:
                 sid = open_login.session_id
 
+        if sid is None:
+            sid = str(uuid.uuid4())
+
         values = {
             "tenant_id": int(tenant_id),
             "company_id": int(actor["company_id"]) if actor["company_id"] is not None else int(tenant_id),
@@ -259,7 +265,7 @@ class AuditLogService:
             "user_id": actor["user_id"],
             "full_name": actor["full_name"],
             "email": (email or "").lower().strip() or None,
-            "role": actor["role"],
+            "role": role_override or actor["role"],
             "action": action,
             "module_name": module,
             "resource": resource,
@@ -329,6 +335,22 @@ class AuditLogService:
         role: str | None = None,
     ) -> AccessLog | None:
         now = _utcnow()
+        # Close any prior open active login sessions for this user before starting new session
+        try:
+            db.execute(
+                update(AccessLog)
+                .where(
+                    AccessLog.user_id == user.id,
+                    AccessLog.action == "login",
+                    AccessLog.login_status == "Success",
+                    AccessLog.logout_at.is_(None),
+                )
+                .values(logout_at=now)
+            )
+            db.commit()
+        except Exception:
+            pass
+
         sid = str(uuid.uuid4())
         # Ensure relationships loaded
         try:
@@ -362,17 +384,28 @@ class AuditLogService:
         email: str,
         user: User | None = None,
         details: str | None = None,
+        role: str | None = None,
     ) -> AccessLog | None:
+        formatted_details = details
+        if user and role:
+            user_roles = [r.name for r in (getattr(user, "roles", None) or [])]
+            if user_roles and role not in user_roles:
+                assigned_str = ", ".join(user_roles)
+                formatted_details = (
+                    f"Role mismatch failure: Selected role '{role}' does not match account role(s) '{assigned_str}'."
+                )
+
         return cls.log(
             db=db,
             request=request,
             current_user=user,
             action="login_failed",
             module_name="Authentication",
-            details=details or "Invalid email or password.",
+            details=formatted_details or "Invalid email or password.",
             resource="auth",
             login_status="Failed",
             email_override=email,
+            role_override=role,
         )
 
     @classmethod
@@ -398,13 +431,36 @@ class AuditLogService:
         session_id = open_login.session_id if open_login else None
         login_at = open_login.login_at if open_login else None
 
+        # Deduplication check: prevent creating duplicate logout records for the same session ID or recent request
+        if session_id:
+            existing_logout = db.scalars(
+                select(AccessLog).where(
+                    AccessLog.user_id == user.id,
+                    AccessLog.action == "logout",
+                    AccessLog.session_id == session_id,
+                )
+            ).first()
+            if existing_logout:
+                logger.info("log_logout_skip_duplicate user_id=%s session_id=%s", user.id, session_id)
+                return existing_logout
+        else:
+            recent_logout = db.scalars(
+                select(AccessLog).where(
+                    AccessLog.user_id == user.id,
+                    AccessLog.action == "logout",
+                    AccessLog.logged_at >= now - timedelta(seconds=5),
+                )
+            ).first()
+            if recent_logout:
+                logger.info("log_logout_skip_recent user_id=%s", user.id)
+                return recent_logout
+
         if open_login:
             db.execute(
                 update(AccessLog)
                 .where(AccessLog.id == open_login.id)
                 .values(
                     logout_at=now,
-                    details="User logged out successfully.",
                 )
             )
             db.commit()
@@ -417,7 +473,7 @@ class AuditLogService:
             module_name="Authentication",
             details="User logged out successfully.",
             resource="auth",
-            login_status="Success",
+            login_status="Logged Out",
             session_id=session_id,
             login_at=login_at,
             logout_at=now,

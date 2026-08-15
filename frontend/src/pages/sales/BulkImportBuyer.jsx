@@ -69,7 +69,7 @@ export default function BulkImportBuyer() {
   return (
     <BulkImportPage
       title="Upload Bulk Buyer"
-      backTo="/sales/customers"
+      backTo="/masters/customers"
       columns={COLUMNS}
       sampleRows={SAMPLE_ROWS}
       templateFilename="buyers_import_template.csv"

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { MapPin, X } from "lucide-react";
 
+import Button from "../common/Button";
 const EMPTY_ADDRESS = {
   address_line1: "",
   address_line2: "",
@@ -120,9 +121,9 @@ export default function EmployeeAddressModal({ open, onClose, value, onSave }) {
           <button type="button" onClick={onClose} className="rounded-xl border px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
             Cancel
           </button>
-          <button type="button" onClick={handleSave} className="ui-btn-hr">
+          <Button variant="primary" type="button" onClick={handleSave}>
             Save Address
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

@@ -1,4 +1,4 @@
-﻿import { Link } from "react-router-dom";
+import Button from "../components/common/Button";
 import BrandLogo from "../components/common/BrandLogo";
 
 const features = [
@@ -23,7 +23,9 @@ export default function Landing() {
             nameStyle={{ color: "var(--color-dark-bg)" }}
           />
           <div className="flex items-center gap-4">
-            <Link to="/login" className="rounded-lg px-4 py-2 text-sm font-medium text-white" style={{ background: "var(--color-primary)" }}>Sign In</Link>
+            <Button variant="primary" to="/login" size="sm">
+              Sign In
+            </Button>
           </div>
         </div>
       </nav>
@@ -46,20 +48,12 @@ export default function Landing() {
             Business Intelligence • Analytics • AI for modern manufacturing operations.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link
-              to="/login"
-              className="rounded-xl px-8 py-4 text-lg font-semibold text-white shadow-lg hover:opacity-90"
-              style={{ background: "var(--color-accent)" }}
-            >
+            <Button variant="primary" to="/login" size="lg">
               Request Demo
-            </Link>
-            <Link
-              to="/login"
-              className="rounded-xl border-2 px-8 py-4 text-lg font-semibold transition hover:bg-slate-100"
-              style={{ borderColor: "var(--color-primary)", color: "var(--color-primary)" }}
-            >
+            </Button>
+            <Button variant="secondary" to="/login" size="lg">
               Sign In
-            </Link>
+            </Button>
           </div>
           <p className="mt-6 text-sm text-slate-500">
             Companies are provisioned by GNS. Contact your administrator for access.
@@ -94,14 +88,18 @@ export default function Landing() {
               <h3 className="text-xl font-semibold text-slate-900">Starter</h3>
               <p className="mt-2 text-4xl font-bold" style={{ color: "var(--color-primary)" }}>Free</p>
               <p className="mt-2 text-sm text-slate-600">Demo access with sample data</p>
-              <Link to="/login" className="mt-6 block rounded-lg border-2 py-3 text-center font-medium" style={{ borderColor: "var(--color-primary)", color: "var(--color-primary)" }}>Try Demo</Link>
+              <Button variant="outline" to="/login" fullWidth className="mt-6">
+                Try Demo
+              </Button>
             </div>
             <div className="rounded-2xl border-2 bg-white p-8 shadow-lg w-72 relative" style={{ borderColor: "var(--color-primary)" }}>
               <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-xs font-semibold text-white" style={{ background: "var(--color-accent)" }}>Popular</span>
               <h3 className="text-xl font-semibold text-slate-900">Professional</h3>
               <p className="mt-2 text-4xl font-bold" style={{ color: "var(--color-primary)" }}>Custom</p>
               <p className="mt-2 text-sm text-slate-600">Full features, dedicated support</p>
-              <Link to="/login" className="mt-6 block rounded-lg py-3 text-center font-medium text-white" style={{ background: "var(--color-primary)" }}>Contact Sales</Link>
+              <Button variant="primary" to="/login" fullWidth className="mt-6">
+                Contact Sales
+              </Button>
             </div>
           </div>
         </div>
@@ -112,13 +110,9 @@ export default function Landing() {
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-bold text-white">Ready to Transform Your Factory?</h2>
           <p className="mt-4 text-slate-300">Get started with a free demo. No credit card required.</p>
-          <Link
-            to="/login"
-            className="mt-8 inline-block rounded-xl px-8 py-4 text-lg font-semibold text-white"
-            style={{ background: "var(--color-accent)" }}
-          >
+          <Button variant="primary" to="/login" size="lg" className="mt-8">
             Request Demo
-          </Link>
+          </Button>
         </div>
       </section>
 
@@ -132,8 +126,10 @@ export default function Landing() {
             nameStyle={{ color: "var(--color-dark-bg)" }}
           />
           <div className="flex gap-6 text-sm text-slate-600">
-            <Link to="/login" className="hover:text-slate-900">Login</Link>
-            <a href="#contact" className="hover:text-slate-900">Contact</a>
+            <Button variant="ghost" to="/login" size="sm" className="text-slate-600 hover:text-slate-900">
+              Login
+            </Button>
+            <a href="#contact" className="text-sm text-slate-600 hover:text-slate-900">Contact</a>
           </div>
         </div>
         <p className="mt-6 text-center text-sm text-slate-500">© 2026 Insights Iva. All rights reserved.</p>

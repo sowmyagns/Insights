@@ -1,7 +1,11 @@
 """Operator REST API — all /api/* endpoints."""
 
-from fastapi import APIRouter, Depends, Query, Request
+import logging
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.api.auth_deps import get_current_user
 from app.api.deps import get_db
@@ -11,7 +15,6 @@ from app.schemas.operator import (
     BatchUpdateRequest,
     MachineBreakdownRequest,
     OperatorLoginRequest,
-    ShopFloorUpdateRequest,
     WorkOrderActionRequest,
     WorkOrderProgressRequest,
 )
@@ -124,12 +127,14 @@ def api_login(
         role = assert_user_has_role(authenticated, payload.role)
     except HTTPException as exc:
         detail = str(exc.detail)
+        target_user = authenticated if 'authenticated' in locals() and authenticated else user
         AuditLogService.log_login_failed(
             db,
             request=request,
             email=email,
-            user=user,
+            user=target_user,
             details=detail if detail == ROLE_MISMATCH_MESSAGE else None,
+            role=payload.role,
         )
         return JSONResponse(
             status_code=exc.status_code,
@@ -172,25 +177,69 @@ def api_profile(
 @router.get("/dashboard")
 def api_dashboard(user_tenant: tuple[User, int] = Depends(require_tenant("dashboard")), db: Session = Depends(get_db)):
     user, tenant_id = user_tenant
-    return success_response("Dashboard retrieved", _svc(db, tenant_id).get_dashboard(user))
+    try:
+        return success_response("Dashboard retrieved", _svc(db, tenant_id).get_dashboard(user))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving dashboard for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve dashboard for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve dashboard") from exc
 
 
 @router.get("/dashboard/operator")
 def api_operator_dashboard(user_tenant: tuple[User, int] = Depends(require_tenant("dashboard")), db: Session = Depends(get_db)):
     user, tenant_id = user_tenant
-    return success_response("Operator dashboard retrieved", _svc(db, tenant_id).get_operator_dashboard(user))
+    try:
+        return success_response("Operator dashboard retrieved", _svc(db, tenant_id).get_operator_dashboard(user))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving operator dashboard for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve operator dashboard for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve operator dashboard") from exc
 
 
 @router.get("/dashboard/summary")
 def api_dashboard_summary(user_tenant: tuple[User, int] = Depends(require_tenant("dashboard")), db: Session = Depends(get_db)):
     user, tenant_id = user_tenant
-    return success_response("Dashboard summary retrieved", _svc(db, tenant_id).get_dashboard_summary(user))
+    try:
+        return success_response("Dashboard summary retrieved", _svc(db, tenant_id).get_dashboard_summary(user))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving dashboard summary for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve dashboard summary for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve dashboard summary") from exc
 
 
 @router.get("/dashboard/today")
 def api_dashboard_today(user_tenant: tuple[User, int] = Depends(require_tenant("dashboard")), db: Session = Depends(get_db)):
     user, tenant_id = user_tenant
-    return success_response("Today's dashboard retrieved", _svc(db, tenant_id).get_dashboard_today(user))
+    try:
+        return success_response("Today's dashboard retrieved", _svc(db, tenant_id).get_dashboard_today(user))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving today dashboard for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve today dashboard for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve today dashboard") from exc
 
 
 # ── Products ───────────────────────────────────────────────────────────────
@@ -199,7 +248,18 @@ def api_dashboard_today(user_tenant: tuple[User, int] = Depends(require_tenant("
 @router.get("/products")
 def api_list_products(user_tenant: tuple[User, int] = Depends(require_tenant("products")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Products retrieved", _svc(db, tenant_id).list_products())
+    try:
+        return success_response("Products retrieved", _svc(db, tenant_id).list_products())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error listing products for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to list products for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to list products") from exc
 
 
 @router.get("/products/search")
@@ -209,7 +269,18 @@ def api_search_products(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Product search completed", _svc(db, tenant_id).search_products(q))
+    try:
+        return success_response("Product search completed", _svc(db, tenant_id).search_products(q))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error searching products for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to search products for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to search products") from exc
 
 
 @router.get("/products/{product_id}")
@@ -219,7 +290,18 @@ def api_get_product(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Product retrieved", _svc(db, tenant_id).get_product(product_id))
+    try:
+        return success_response("Product retrieved", _svc(db, tenant_id).get_product(product_id))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving product_id=%s for tenant_id=%s: %s", product_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve product_id=%s for tenant_id=%s: %s", product_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve product") from exc
 
 
 # ── BOM ────────────────────────────────────────────────────────────────────
@@ -257,31 +339,96 @@ def api_get_bom(
 @router.get("/machines")
 def api_list_machines(user_tenant: tuple[User, int] = Depends(require_tenant("machines")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Machines retrieved", _svc(db, tenant_id).list_machines())
+    try:
+        return success_response("Machines retrieved", _svc(db, tenant_id).list_machines())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error listing machines for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to list machines for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to list machines") from exc
 
 
 @router.get("/machines/status")
 def api_machine_status(user_tenant: tuple[User, int] = Depends(require_tenant("machines")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Machine status retrieved", _svc(db, tenant_id).get_machine_status_summary())
+    try:
+        return success_response("Machine status retrieved", _svc(db, tenant_id).get_machine_status_summary())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving machine status summary for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve machine status summary for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve machine status summary") from exc
 
 
 @router.get("/machines/running")
 def api_running_machines(user_tenant: tuple[User, int] = Depends(require_tenant("machines")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Running machines retrieved", _svc(db, tenant_id).list_running_machines())
+    try:
+        return success_response("Running machines retrieved", _svc(db, tenant_id).list_running_machines())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving running machines for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve running machines for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve running machines") from exc
 
 
 @router.get("/machines/idle")
 def api_idle_machines(user_tenant: tuple[User, int] = Depends(require_tenant("machines")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Idle machines retrieved", _svc(db, tenant_id).list_idle_machines())
+    try:
+        return success_response("Idle machines retrieved", _svc(db, tenant_id).list_idle_machines())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving idle machines for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve idle machines for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve idle machines") from exc
 
 
 @router.get("/machines/breakdowns")
 def api_breakdown_machines(user_tenant: tuple[User, int] = Depends(require_tenant("machines")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Breakdown machines retrieved", _svc(db, tenant_id).list_breakdown_machines())
+    try:
+        return success_response("Breakdown machines retrieved", _svc(db, tenant_id).list_breakdown_machines())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving breakdown machines for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve breakdown machines for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve breakdown machines") from exc
+
+
+@router.post("/machines/breakdown")
+def api_report_breakdown(
+    payload: MachineBreakdownRequest,
+    user_tenant: tuple[User, int] = Depends(require_tenant("machines")),
+    db: Session = Depends(get_db),
+):
+    user, tenant_id = user_tenant
+    return success_response("Machine breakdown reported", _svc(db, tenant_id).report_breakdown(user, payload))
 
 
 @router.get("/machines/{machine_id}")
@@ -291,7 +438,18 @@ def api_get_machine(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Machine retrieved", _svc(db, tenant_id).get_machine(machine_id))
+    try:
+        return success_response("Machine retrieved", _svc(db, tenant_id).get_machine(machine_id))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving machine_id=%s for tenant_id=%s: %s", machine_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve machine_id=%s for tenant_id=%s: %s", machine_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve machine") from exc
 
 
 # ── Production Planning ────────────────────────────────────────────────────
@@ -357,7 +515,18 @@ def api_start_workorder(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    return success_response("Work order started", _svc(db, tenant_id).start_work_order(user, payload))
+    try:
+        return success_response("Work order started", _svc(db, tenant_id).start_work_order(user, payload))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error starting work order for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error during work order start operation") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to start work order for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to start work order operation") from exc
 
 
 @router.post("/workorders/pause")
@@ -367,7 +536,18 @@ def api_pause_workorder(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    return success_response("Work order paused", _svc(db, tenant_id).pause_work_order(user, payload))
+    try:
+        return success_response("Work order paused", _svc(db, tenant_id).pause_work_order(user, payload))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error pausing work order for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error during work order pause operation") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to pause work order for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to pause work order operation") from exc
 
 
 @router.post("/workorders/resume")
@@ -377,7 +557,18 @@ def api_resume_workorder(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    return success_response("Work order resumed", _svc(db, tenant_id).resume_work_order(user, payload))
+    try:
+        return success_response("Work order resumed", _svc(db, tenant_id).resume_work_order(user, payload))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error resuming work order for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error during work order resume operation") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to resume work order for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to resume work order operation") from exc
 
 
 @router.post("/workorders/complete")
@@ -387,7 +578,18 @@ def api_complete_workorder(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    return success_response("Work order completed", _svc(db, tenant_id).complete_work_order(user, payload))
+    try:
+        return success_response("Work order completed", _svc(db, tenant_id).complete_work_order(user, payload))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error completing work order for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error during work order complete operation") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to complete work order for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to complete work order operation") from exc
 
 
 @router.post("/workorders/progress")
@@ -397,48 +599,18 @@ def api_update_progress(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    return success_response("Production progress updated", _svc(db, tenant_id).update_production_progress(user, payload))
-
-
-# ── Shop Floor ─────────────────────────────────────────────────────────────
-
-
-@router.get("/shopfloor")
-def api_shopfloor(user_tenant: tuple[User, int] = Depends(require_tenant("shopfloor")), db: Session = Depends(get_db)):
-    _, tenant_id = user_tenant
-    return success_response("Shop floor retrieved", _svc(db, tenant_id).get_shop_floor())
-
-
-@router.get("/shopfloor/live")
-def api_shopfloor_live(user_tenant: tuple[User, int] = Depends(require_tenant("shopfloor")), db: Session = Depends(get_db)):
-    _, tenant_id = user_tenant
-    return success_response("Live shop floor retrieved", _svc(db, tenant_id).get_shop_floor_live())
-
-
-@router.get("/shopfloor/status")
-def api_shopfloor_status(user_tenant: tuple[User, int] = Depends(require_tenant("shopfloor")), db: Session = Depends(get_db)):
-    _, tenant_id = user_tenant
-    return success_response("Shop floor status retrieved", _svc(db, tenant_id).get_shop_floor_status())
-
-
-@router.post("/shopfloor/update")
-def api_shopfloor_update(
-    payload: ShopFloorUpdateRequest,
-    user_tenant: tuple[User, int] = Depends(require_tenant("shopfloor")),
-    db: Session = Depends(get_db),
-):
-    user, tenant_id = user_tenant
-    return success_response("Shop floor updated", _svc(db, tenant_id).update_shop_floor(user, payload))
-
-
-@router.post("/shopfloor/breakdown")
-def api_report_breakdown(
-    payload: MachineBreakdownRequest,
-    user_tenant: tuple[User, int] = Depends(require_tenant("shopfloor")),
-    db: Session = Depends(get_db),
-):
-    user, tenant_id = user_tenant
-    return success_response("Machine breakdown reported", _svc(db, tenant_id).report_breakdown(user, payload))
+    try:
+        return success_response("Production progress updated", _svc(db, tenant_id).update_production_progress(user, payload))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error updating work order progress for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error during work order progress update") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to update work order progress for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to update work order progress operation") from exc
 
 
 # ── Machine Allocation ─────────────────────────────────────────────────────
@@ -472,19 +644,52 @@ def api_allocation_machine(
 @router.get("/batches")
 def api_batches(user_tenant: tuple[User, int] = Depends(require_tenant("batches")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Batches retrieved", _svc(db, tenant_id).list_batches())
+    try:
+        return success_response("Batches retrieved", _svc(db, tenant_id).list_batches())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error listing batches for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to list batches for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to list batches") from exc
 
 
 @router.get("/batches/running")
 def api_batches_running(user_tenant: tuple[User, int] = Depends(require_tenant("batches")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Running batches retrieved", _svc(db, tenant_id).list_running_batches())
+    try:
+        return success_response("Running batches retrieved", _svc(db, tenant_id).list_running_batches())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving running batches for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve running batches for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve running batches") from exc
 
 
 @router.get("/batches/completed")
 def api_batches_completed(user_tenant: tuple[User, int] = Depends(require_tenant("batches")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Completed batches retrieved", _svc(db, tenant_id).list_completed_batches())
+    try:
+        return success_response("Completed batches retrieved", _svc(db, tenant_id).list_completed_batches())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving completed batches for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve completed batches for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve completed batches") from exc
 
 
 @router.get("/batches/{batch_id}")
@@ -494,7 +699,18 @@ def api_batch(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Batch retrieved", _svc(db, tenant_id).get_batch(batch_id))
+    try:
+        return success_response("Batch retrieved", _svc(db, tenant_id).get_batch(batch_id))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving batch_id=%s for tenant_id=%s: %s", batch_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve batch_id=%s for tenant_id=%s: %s", batch_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve batch") from exc
 
 
 @router.post("/batches/update")
@@ -518,10 +734,28 @@ def api_ai_chat(
 ):
     from app.llm.operator_agent import OperatorAgent
 
-    message = body.get("message") or body.get("content") or ""
-    agent = OperatorAgent()
-    result = agent.process_message(db, user_tenant[0], message)
-    return success_response("AI response generated", result)
+    user, tenant_id = user_tenant
+    try:
+        message = body.get("message") or body.get("content") or ""
+        agent = OperatorAgent()
+        result = agent.process_message(db, user, message)
+        return success_response("AI response generated", result)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error during AI chat processing for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(
+            status_code=500,
+            detail="Database error processing AI message",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Unexpected error during AI chat processing for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to process AI chat message",
+        ) from exc
 
 
 @router.get("/ai/suggestions")

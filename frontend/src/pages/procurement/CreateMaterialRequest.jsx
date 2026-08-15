@@ -8,6 +8,7 @@ import { createMaterialRequest } from "../../api/procurementApi";
 import { getInventoryDashboard } from "../../api/inventoryApi";
 import useTenantId from "../../hooks/useTenantId";
 import { fetchProductsWithFallback } from "../../utils/productOptions";
+import Button from "../../components/common/Button";
 import {
   MANUFACTURING_EVENTS,
   notifyManufacturingSpine,
@@ -208,15 +209,12 @@ export default function CreateMaterialRequest() {
           />
         </label>
         <div className="flex flex-wrap gap-3 pt-2">
-          <button type="submit" disabled={saving} className="ui-btn-primary disabled:opacity-50">
+          <Button variant="primary" type="submit" disabled={saving} className="disabled:opacity-50">
             {saving ? "Saving…" : "Create material request"}
-          </button>
-          <Link
-            to="/procurement/material-requests"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-600 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-          >
+          </Button>
+          <Button variant="secondary" to="/procurement/material-requests">
             Cancel
-          </Link>
+          </Button>
         </div>
       </form>
     </div>

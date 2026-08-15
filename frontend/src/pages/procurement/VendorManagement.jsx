@@ -32,6 +32,7 @@ import {
 } from "../../data/vendorsMasterData";
 import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
 
+import Button from "../../components/common/Button";
 function SummaryCard({ label, value, icon: Icon, color, format }) {
   const display = format === "currency" ? `₹${Number(value || 0).toLocaleString("en-IN")}` : value;
   return (
@@ -319,9 +320,9 @@ export default function VendorManagement() {
       <p className="mt-1 text-sm text-slate-400">
         Click &quot;Add Vendor&quot; to add your first vendor.
       </p>
-      <button type="button" onClick={() => setFormVendor({})} className="ui-btn-primary mt-4">
+      <Button variant="primary" type="button" onClick={() => setFormVendor({})} className="mt-4">
         <Plus className="h-4 w-4" /> Add Vendor
-      </button>
+      </Button>
     </div>
   );
 
@@ -333,21 +334,21 @@ export default function VendorManagement() {
         subtitle="Manage vendors, purchase history, outstanding payables, and performance ratings."
         action={
           <>
-            <button type="button" onClick={() => setFormVendor({})} className="ui-btn-primary">
+            <Button variant="primary" type="button" onClick={() => setFormVendor({})}>
             <Plus className="h-4 w-4" /> Add Vendor
-          </button>
-          <button type="button" onClick={handleDownloadTemplate} className="ui-btn-secondary">
+          </Button>
+          <Button variant="secondary" type="button" onClick={handleDownloadTemplate}>
             <Upload className="h-4 w-4" /> Import
-          </button>
-          <button type="button" onClick={handleExportExcel} className="ui-btn-secondary">
+          </Button>
+          <Button variant="secondary" type="button" onClick={handleExportExcel}>
             <Download className="h-4 w-4" /> Export Excel
-          </button>
-          <button type="button" onClick={handleExportPdf} className="ui-btn-secondary">
+          </Button>
+          <Button variant="secondary" type="button" onClick={handleExportPdf}>
             <FileText className="h-4 w-4" /> Export PDF
-          </button>
-          <button type="button" onClick={handlePrint} className="ui-btn-secondary">
+          </Button>
+          <Button variant="secondary" type="button" onClick={handlePrint}>
             <Printer className="h-4 w-4" /> Print
-          </button>
+          </Button>
           </>
         }
       />

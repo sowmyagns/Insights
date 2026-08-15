@@ -1,564 +1,760 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Package,
-  AlertTriangle,
-  ArrowLeft,
-  CheckCircle2,
-  Sparkles,
-  ChevronUp,
-  Plus,
-  Boxes,
-  Tag,
-  Warehouse as WarehouseIcon,
+  CalendarDays,
+  Save,
+  Upload,
 } from "lucide-react";
 
-import { createInventoryItem, getSuppliers, getWarehouses } from "../../api/inventoryApi";
+import Button from "../../components/common/Button";
+import PageHeader from "../../components/common/PageHeader";
+import { createInventoryItem, getWarehouses } from "../../api/inventoryApi";
+import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
+import { apiErrorMessage, asArray } from "../../utils/apiError";
 
-const RAW_MATERIAL_CATEGORIES = [
-  "Metals", "Plastics", "Chemicals", "Liquids", "Hardware", "Rubber", "Electrical", "Raw Materials", "Consumables"
+const TABS = [
+  { id: "basic", label: "Basic Information" },
+  { id: "units-pricing", label: "Units & Pricing" },
+  { id: "tax", label: "Tax & Accounting" },
+  { id: "inventory", label: "Inventory Details" },
+  { id: "additional", label: "Additional Information" },
 ];
 
-const FINISHED_GOOD_CATEGORIES = [
-  "Finished Goods", "Assemblies", "Machined Parts", "Hardware", "Electrical", "Spare Parts"
+const RAW_CATEGORIES = [
+  "Metals",
+  "Plastics",
+  "Chemicals",
+  "Liquids",
+  "Hardware",
+  "Rubber",
+  "Electrical",
+  "Raw Materials",
+  "Consumables",
+  "Packaging",
 ];
 
-const DEFAULT_WAREHOUSES = [
-  "Main Store",
-  "Raw Material Store",
-  "Production Store",
-  "FG Store",
-  "QC Store",
-  "Packing Material Warehouse",
-  "Water Storage Tank",
-  "Warehouse 1",
+const FG_CATEGORIES = [
+  "Finished Goods",
+  "Assemblies",
+  "Machined Parts",
+  "Hardware",
+  "Electrical",
+  "Spare Parts",
+  "Beverages",
 ];
 
-const PAGE_BG = "var(--color-bg)";
-const YELLOW = "var(--color-cta)";
+const UNITS = ["KG", "Nos", "Pcs", "Ltr", "Mtr", "Roll", "Box", "Sheet", "Drum", "Gms", "Sqmtr"];
 
-/* ─── Collapsible Section Component (matching Create Production) ─────────────── */
-function CollapsibleSection({ title, subtitle, expanded, onToggle, children }) {
+const GST_RATES = ["0", "5", "12", "18", "28"];
+const GST_TYPES = ["CGST/SGST", "IGST", "Exempt"];
+const TAX_TYPES = ["Taxable", "Nil Rated", "Exempt", "Non-GST"];
+
+const DEFAULT_WAREHOUSES = ["Main Warehouse", "RM Store", "FG Store", "Unit-1 Warehouse"];
+
+function Field({ label, required, hint, children, className = "" }) {
   return (
-    <div className="border-t border-slate-100 py-4">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <h3 className="text-[15px] font-semibold text-slate-900">{title}</h3>
-          {subtitle && <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>}
-        </div>
-        <button
-          type="button"
-          onClick={onToggle}
-          className="ml-4 flex items-center gap-1.5 rounded-full border border-[var(--color-cta)] bg-white px-4 py-1.5 text-[13px] font-semibold text-slate-800 hover:bg-yellow-50 transition-colors"
-        >
-          {expanded ? (
-            <><ChevronUp className="h-3.5 w-3.5" /> Hide</>
-          ) : (
-            <><Plus className="h-3.5 w-3.5" /> Add</>
-          )}
-        </button>
-      </div>
-      {expanded && (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {children}
-        </div>
-      )}
+    <div className={className}>
+      <label className="mb-1.5 block text-[12px] font-semibold text-[var(--color-text)]">
+        {label}
+        {required ? <span className="ml-0.5 text-[#ef4444]">*</span> : null}
+      </label>
+      {children}
+      {hint ? <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{hint}</p> : null}
     </div>
+  );
+}
+
+function Card({ id, title, children, className = "" }) {
+  return (
+    <section id={id} className={`ui-card scroll-mt-28 p-4 sm:p-5 ${className}`.trim()}>
+      <h3 className="mb-4 text-[14px] font-semibold text-[var(--color-text)]">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function CheckRow({ checked, onChange, label, hint }) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2.5">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-4 w-4 rounded border-[var(--color-border)] accent-[var(--color-action-teal)]"
+      />
+      <span>
+        <span className="block text-[13px] font-medium text-[var(--color-text)]">{label}</span>
+        {hint ? <span className="mt-0.5 block text-[11px] text-[var(--color-text-muted)]">{hint}</span> : null}
+      </span>
+    </label>
   );
 }
 
 export default function CreateItem() {
   const tenantId = useTenantId();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const [searchParams] = useSearchParams();
-  const initialType = searchParams.get("type") === "finished_good"
-    ? "finished_good"
-    : "raw_material";
+  const initialType = searchParams.get("type") === "finished_good" ? "finished_good" : "raw_material";
 
-  const [suppliers, setSuppliers] = useState([]);
-  const [warehouses, setWarehouses] = useState([]);
-
-  // Section collapse states
-  const [showStock, setShowStock] = useState(false);
-  const [showPricing, setShowPricing] = useState(false);
-  const [showFinishedDetails, setShowFinishedDetails] = useState(false);
-  const [showAll, setShowAll] = useState(false);
+  const [activeTab, setActiveTab] = useState("basic");
+  const [headerDate, setHeaderDate] = useState("2026-08-13");
+  const [warehouses, setWarehouses] = useState(DEFAULT_WAREHOUSES);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [imagePreview, setImagePreview] = useState(null);
+  const fileRef = useRef(null);
 
   const [form, setForm] = useState({
-    tenant_id: tenantId,
-    supplier_id: "",
-    sku: "",
-    barcode: "",
+    item_type: initialType,
+    category: "",
+    sku_suffix: "",
     name: "",
     description: "",
-    category: initialType === "finished_good" ? "Finished Goods" : "Metals",
-    warehouse_name: "Main Store",
+    hsn_sac: "",
+    brand: "",
+    model_part_no: "",
+    base_unit: "",
+    purchase_unit: "",
+    sales_unit: "",
+    conversion_factor: "1.0000",
+    purchase_price: "0.00",
+    sales_price: "0.00",
+    mrp: "0.00",
+    standard_cost: "0.00",
+    gst_rate: "",
+    gst_type: "",
+    tax_type: "",
+    tax_exempt: false,
+    reorder_level: "0.00",
+    reorder_qty: "0.00",
+    min_stock: "0.00",
+    max_stock: "0.00",
+    keep_stock: true,
+    is_active: true,
+    warehouse_name: "Main Warehouse",
     batch_number: "",
-    quantity: "0",
-    reserved: "0",
-    unit: initialType === "finished_good" ? "pcs" : "kg",
-    unit_cost: "",
-    reorder_level: "0",
-    status: "in_stock",
-    customer_name: "",
     serial_number: "",
-    expiry_date: "",
-    production_date: "",
     warranty: "",
-    item_type: initialType,
+    notes: "",
   });
 
   const isFinishedGood = form.item_type === "finished_good";
-  const backPath = isFinishedGood
-    ? "/inventory/finished-goods"
-    : "/inventory/raw-materials";
+  const backPath = isFinishedGood ? "/inventory/finished-goods" : "/inventory/raw-materials";
+  const skuPrefix = isFinishedGood ? "FG-" : "RM-";
+  const categories = isFinishedGood ? FG_CATEGORIES : RAW_CATEGORIES;
 
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState({});
+  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
   useEffect(() => {
-    getSuppliers(tenantId)
-      .then((r) => setSuppliers(r.data || []))
-      .catch(() => {});
-
     getWarehouses()
       .then((r) => {
-        const whList = r.data || [];
-        if (whList.length > 0) {
-          setWarehouses(whList.map((w) => w.name));
-          setForm((f) => ({ ...f, warehouse_name: whList[0].name }));
-        } else {
-          setWarehouses(DEFAULT_WAREHOUSES);
+        const names = asArray(r.data).map((w) => w.name).filter(Boolean);
+        if (names.length) {
+          setWarehouses(names);
+          setForm((f) => ({
+            ...f,
+            warehouse_name: names.includes(f.warehouse_name) ? f.warehouse_name : names[0],
+          }));
         }
       })
-      .catch(() => setWarehouses(DEFAULT_WAREHOUSES));
-  }, [tenantId]);
+      .catch(() => {});
+  }, []);
 
-  const handleTypeChange = (newType) => {
+  useEffect(() => {
     setForm((f) => ({
       ...f,
-      item_type: newType,
-      category: newType === "finished_good" ? "Finished Goods" : "Metals",
-      unit: newType === "finished_good" ? "pcs" : "kg",
+      item_type: initialType,
+      category: "",
+      sku_suffix: "",
     }));
+  }, [initialType]);
+
+  const goToTab = (id) => {
+    setActiveTab(id);
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const handleAutoGenerateSku = () => {
-    const prefix = isFinishedGood ? "FG" : "RM";
-    const rand = Math.floor(1000 + Math.random() * 9000);
-    const categoryCode = (form.category || "GEN").slice(0, 3).toUpperCase();
-    const newSku = `${prefix}-${categoryCode}-${rand}`;
-    setForm((f) => ({ ...f, sku: newSku }));
-    if (fieldErrors.sku) {
-      setFieldErrors((e) => ({ ...e, sku: null }));
+  const onImagePick = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      addToast("Image must be under 2MB", "error");
+      return;
     }
+    const url = URL.createObjectURL(file);
+    setImagePreview(url);
   };
 
-  const toggleShowAll = () => {
-    const next = !showAll;
-    setShowAll(next);
-    setShowStock(next);
-    setShowPricing(next);
-    setShowFinishedDetails(next);
+  const resolveSku = () => {
+    const suffix = (form.sku_suffix || "").trim().replace(/^RM-|^FG-/i, "");
+    if (suffix) return `${skuPrefix}${suffix}`;
+    return `${skuPrefix}${Math.floor(1000 + Math.random() * 9000)}`;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const errs = {};
-    if (!form.name?.trim()) errs.name = `${isFinishedGood ? "Product" : "Material"} Name is required`;
-    if (!form.sku?.trim()) errs.sku = `${isFinishedGood ? "Product" : "Material"} SKU is required`;
-    setFieldErrors(errs);
-    if (Object.keys(errs).length > 0) return;
+    setError("");
+    if (!form.name.trim()) {
+      setError("Item name is required");
+      goToTab("basic");
+      return;
+    }
+    if (!form.category) {
+      setError("Item category is required");
+      goToTab("basic");
+      return;
+    }
+    if (!form.base_unit) {
+      setError("Base unit is required");
+      goToTab("units-pricing");
+      return;
+    }
+    if (!form.gst_rate || !form.gst_type) {
+      setError("GST rate and GST type are required");
+      goToTab("tax");
+      return;
+    }
+
+    const sku = resolveSku();
+
+    const metaParts = [
+      form.hsn_sac && `HSN/SAC: ${form.hsn_sac}`,
+      form.brand && `Brand: ${form.brand}`,
+      form.model_part_no && `Model: ${form.model_part_no}`,
+      form.gst_rate && `GST: ${form.gst_rate}%`,
+      form.gst_type && `GST Type: ${form.gst_type}`,
+      form.tax_type && `Tax: ${form.tax_type}`,
+      form.tax_exempt && "Tax Exempt",
+      form.sales_price && `Sales Price: ₹${form.sales_price}`,
+      form.mrp && `MRP: ₹${form.mrp}`,
+      form.reorder_qty && `Reorder Qty: ${form.reorder_qty}`,
+      form.min_stock && `Min Stock: ${form.min_stock}`,
+      form.max_stock && `Max Stock: ${form.max_stock}`,
+      form.notes && form.notes,
+    ].filter(Boolean);
+
+    const description = [form.description.trim(), metaParts.length ? metaParts.join(" · ") : ""]
+      .filter(Boolean)
+      .join("\n");
 
     setSaving(true);
-    setError("");
     try {
       const payload = {
         tenant_id: Number(tenantId) || 1,
-        supplier_id: form.supplier_id ? Number(form.supplier_id) : null,
-        sku: form.sku.trim(),
-        barcode: form.barcode?.trim() || null,
+        supplier_id: null,
+        sku,
+        barcode: form.model_part_no?.trim() || null,
         name: form.name.trim(),
-        description: form.description?.trim() || null,
-        category: form.category || (isFinishedGood ? "Finished Goods" : "General"),
-        warehouse_name: form.warehouse_name || "Main Store",
+        description: description || null,
+        category: form.category,
+        warehouse_name: form.warehouse_name || "Main Warehouse",
         batch_number: form.batch_number?.trim() || null,
-        quantity: Number(form.quantity) || 0,
-        reserved: Number(form.reserved) || 0,
-        unit: form.unit || (isFinishedGood ? "pcs" : "kg"),
-        unit_cost: form.unit_cost ? Number(form.unit_cost) : null,
-        reorder_level: Number(form.reorder_level) || 0,
-        status: "in_stock",
-        customer_name: form.customer_name?.trim() || null,
+        quantity: form.keep_stock ? 0 : 0,
+        reserved: 0,
+        unit: form.base_unit || "Pcs",
+        unit_cost: Number(form.purchase_price) || Number(form.standard_cost) || null,
+        reorder_level: Math.round(Number(form.reorder_level) || 0),
+        status: form.keep_stock ? "in_stock" : "inactive",
+        customer_name: null,
         serial_number: form.serial_number?.trim() || null,
-        expiry_date: form.expiry_date || null,
-        production_date: form.production_date || null,
+        expiry_date: null,
+        production_date: null,
         warranty: form.warranty?.trim() || null,
         item_type: form.item_type,
+        is_active: form.is_active,
       };
       await createInventoryItem(payload);
+      addToast("Item created successfully");
       navigate(backPath);
     } catch (err) {
-      const detail = err.response?.data?.detail;
-      setError(
-        typeof detail === "string"
-          ? detail
-          : Array.isArray(detail)
-          ? detail.map((d) => d.msg || d.message).join(", ")
-          : `Failed to create ${isFinishedGood ? "finished good" : "raw material"}. Please try again.`
-      );
+      const msg = apiErrorMessage(err, "Failed to create item.");
+      setError(msg);
+      addToast(msg, "error");
     } finally {
       setSaving(false);
     }
   };
 
-  const categories = isFinishedGood ? FINISHED_GOOD_CATEGORIES : RAW_MATERIAL_CATEGORIES;
-
   return (
-    <div className="min-h-full py-8 pb-16" style={{ background: PAGE_BG }}>
-      {/* Centered Form Wrapper */}
-      <div className="mx-auto max-w-3xl px-4 sm:px-6">
-        {/* Back Link */}
-        <div className="mb-4">
-          <Link
-            to={backPath}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#2563EB] transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to {isFinishedGood ? "Finished Goods" : "Raw Materials"}
-          </Link>
-        </div>
-
-        {/* Page Header */}
-        <div className="mb-6">
-          <p className="mt-1 text-xs text-slate-500">
-            {isFinishedGood
-              ? "Add a new manufactured finished product to your inventory catalog."
-              : "Add a new raw material item to your inventory catalog."}
-          </p>
-        </div>
-
-        {/* Main Card Form styled like Create Production */}
-        <div className="rounded-2xl border border-[#e4e4ea] bg-white p-6 shadow-sm sm:p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-700 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                {error}
-              </div>
-            )}
-
-            {/* Top Mandatory Fields */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              {/* SKU */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    {isFinishedGood ? "Product Stock Keeping Unit (SKU)" : "Material Stock Keeping Unit (SKU)"} <span className="text-red-500">* *</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleAutoGenerateSku}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#2563EB] hover:underline"
-                  >
-                    <Sparkles className="h-3 w-3 text-amber-500" /> Auto-Generate
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  required
-                  placeholder={isFinishedGood ? "e.g. FG-GEAR-1001" : "e.g. RM-STEEL-001"}
-                  value={form.sku}
-                  onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
-                  className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
-                />
-                <p className="mt-1 text-[11px] text-slate-400">{isFinishedGood ? "Unique finished product code" : "Unique raw material code"}</p>
-                {fieldErrors.sku && <p className="mt-1 text-[11px] font-medium text-red-500">{fieldErrors.sku}</p>}
-              </div>
-
-              {/* Material Code / Barcode */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  {isFinishedGood ? "Product Code" : "Material Code"}
-                </label>
-                <input
-                  type="text"
-                  placeholder={isFinishedGood ? "Optional product code" : "Optional material code"}
-                  value={form.barcode}
-                  onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))}
-                  className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Material / Product Name */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                {isFinishedGood ? "Product Name" : "Material Name"} <span className="text-red-500">* *</span>
-              </label>
+    <div className="space-y-5 pb-28">
+      <PageHeader
+        title="Create Item"
+        showTitle
+        backTo={backPath}
+        backLabel="Back"
+        subtitle={
+          <span className="text-[12px] text-[var(--color-text-muted)]">
+            Inventory <span className="mx-1 text-[var(--color-text-faint)]">&gt;</span> Items{" "}
+            <span className="mx-1 text-[var(--color-text-faint)]">&gt;</span> Create Item
+          </span>
+        }
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="relative inline-flex items-center">
+              <CalendarDays className="pointer-events-none absolute left-3 h-4 w-4 text-[var(--color-text-muted)]" aria-hidden />
               <input
-                type="text"
-                required
-                placeholder={isFinishedGood ? "e.g. Precision Hydraulic Gearbox" : "e.g. Stainless Steel Sheet 2mm"}
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
+                type="date"
+                value={headerDate}
+                onChange={(e) => setHeaderDate(e.target.value)}
+                className="ui-input !w-auto min-w-[10.5rem] !pl-9"
+                aria-label="Date"
               />
-              {fieldErrors.name && <p className="mt-1 text-[11px] font-medium text-red-500">{fieldErrors.name}</p>}
-            </div>
+            </label>
+            <select
+              value={form.warehouse_name}
+              onChange={(e) => set("warehouse_name", e.target.value)}
+              className="ui-select !w-auto min-w-[11rem]"
+              aria-label="Warehouse"
+            >
+              {warehouses.map((w) => (
+                <option key={w} value={w}>{w}</option>
+              ))}
+            </select>
+          </div>
+        }
+      />
 
-            {/* Category & Warehouse */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Category</label>
+      <div className="overflow-x-auto border-b border-[var(--color-border-soft)]">
+        <nav className="flex min-w-max gap-1" aria-label="Create item sections">
+          {TABS.map((tab) => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => goToTab(tab.id)}
+                className={`whitespace-nowrap border-b-2 px-3.5 py-2.5 text-[13px] font-medium transition-colors ${
+                  active
+                    ? "border-[#16a34a] text-[#16a34a]"
+                    : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {error ? (
+        <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-4 py-3 text-[13px] font-medium text-[#b91c1c]">
+          {error}
+        </div>
+      ) : null}
+
+      <form id="create-item-form" onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid gap-4 xl:grid-cols-12">
+          <Card id="basic" title="Basic Information" className="xl:col-span-8">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Item Type" required>
+                <select
+                  value={form.item_type}
+                  onChange={(e) => {
+                    const t = e.target.value;
+                    setForm((f) => ({
+                      ...f,
+                      item_type: t,
+                      category: "",
+                      sku_suffix: "",
+                    }));
+                  }}
+                  className="ui-select w-full"
+                >
+                  <option value="raw_material">Raw Material</option>
+                  <option value="finished_good">Finished Good</option>
+                </select>
+              </Field>
+              <Field label="Item Category" required>
                 <select
                   value={form.category}
-                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                  className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none focus:border-[#2563EB] focus:bg-white transition-colors"
+                  onChange={(e) => set("category", e.target.value)}
+                  className="ui-select w-full"
                 >
+                  <option value="">Select Category</option>
                   {categories.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Warehouse</label>
-                <select
-                  value={form.warehouse_name}
-                  onChange={(e) => setForm((f) => ({ ...f, warehouse_name: e.target.value }))}
-                  className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none focus:border-[#2563EB] focus:bg-white transition-colors"
-                >
-                  {warehouses.map((w) => (
-                    <option key={w} value={w}>{w}</option>
-                  ))}
-                </select>
-              </div>
+              </Field>
+              <Field label="Item Code" required hint="Leave blank to auto-generate">
+                <div className="flex overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-white focus-within:border-[var(--color-action-teal)]">
+                  <span className="flex items-center bg-[var(--color-surface-muted)] px-3 text-[13px] font-semibold text-[var(--color-text-secondary)]">
+                    {skuPrefix}
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Auto generated"
+                    value={form.sku_suffix}
+                    onChange={(e) => set("sku_suffix", e.target.value)}
+                    className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2.5 text-[13px] outline-none"
+                  />
+                </div>
+              </Field>
             </div>
 
-            {/* ─── Collapsible Section 1: Stock Details ─────────────────────────── */}
-            <CollapsibleSection
-              title={isFinishedGood ? "Stock Details" : "Stock & Inventory Details"}
-              subtitle="Quantity (QTY), Reserved Qty, Unit, Batch Number"
-              expanded={showStock}
-              onToggle={() => setShowStock(!showStock)}
-            >
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Batch Number</label>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <Field label="Item Name" required>
                 <input
                   type="text"
-                  placeholder={isFinishedGood ? "e.g. BATCH-FG-001" : "e.g. BATCH-RM-001"}
-                  value={form.batch_number}
-                  onChange={(e) => setForm((f) => ({ ...f, batch_number: e.target.value }))}
-                  className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
+                  required
+                  placeholder="Enter item name"
+                  value={form.name}
+                  onChange={(e) => set("name", e.target.value)}
+                  className="ui-input w-full"
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Quantity (QTY)</label>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={form.quantity}
-                  onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
-                  onChange={(e) => {
-                    let val = e.target.value;
-                    if (/^0+[1-9]/.test(val)) val = val.replace(/^0+/, "");
-                    setForm((f) => ({ ...f, quantity: val }));
-                  }}
-                  className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
+              </Field>
+              <Field label="Item Description">
+                <textarea
+                  rows={3}
+                  placeholder="Enter item description"
+                  value={form.description}
+                  onChange={(e) => set("description", e.target.value)}
+                  className="ui-textarea w-full min-h-[88px]"
                 />
-                <p className="mt-1 text-[11px] text-slate-400">Initial physical stock count</p>
-              </div>
+              </Field>
+            </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Reserved Qty</label>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={form.reserved}
-                  onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
-                  onChange={(e) => {
-                    let val = e.target.value;
-                    if (/^0+[1-9]/.test(val)) val = val.replace(/^0+/, "");
-                    setForm((f) => ({ ...f, reserved: val }));
-                  }}
-                  className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
-                />
-                <p className="mt-1 text-[11px] text-slate-400">Allocated or reserved stock</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Unit</label>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <Field label="HSN / SAC Code">
                 <input
                   type="text"
-                  placeholder="KGS, GMS, LTR, MTR, SQMTR, SHEET, DRUM, PCS"
-                  value={form.unit}
-                  onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
-                  className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
+                  placeholder="Enter HSN / SAC code"
+                  value={form.hsn_sac}
+                  onChange={(e) => set("hsn_sac", e.target.value)}
+                  className="ui-input w-full"
                 />
-                <p className="mt-1 text-[11px] text-slate-400">Default: {isFinishedGood ? "PCS" : "KGS"}</p>
-              </div>
-            </CollapsibleSection>
+              </Field>
+              <Field label="Brand">
+                <input
+                  type="text"
+                  placeholder="Enter brand name"
+                  value={form.brand}
+                  onChange={(e) => set("brand", e.target.value)}
+                  className="ui-input w-full"
+                />
+              </Field>
+              <Field label="Model / Part No.">
+                <input
+                  type="text"
+                  placeholder="Enter model / part number"
+                  value={form.model_part_no}
+                  onChange={(e) => set("model_part_no", e.target.value)}
+                  className="ui-input w-full"
+                />
+              </Field>
+            </div>
+          </Card>
 
-            {/* ─── Collapsible Section 2: Pricing & Reorder ────────────────────── */}
-            <CollapsibleSection
-              title="Pricing & Reorder Details"
-              subtitle="Unit Cost (₹), Reorder Level, Preferred Supplier"
-              expanded={showPricing}
-              onToggle={() => setShowPricing(!showPricing)}
+          <Card id="item-image" title="Item Image" className="xl:col-span-4">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex min-h-[220px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-muted)]/40 px-4 py-8 text-center transition-colors hover:border-[var(--color-action-teal)] hover:bg-[var(--color-surface-muted)]"
             >
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Unit Cost (₹)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={form.unit_cost}
-                  onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
-                  onChange={(e) => {
-                    let val = e.target.value;
-                    if (/^0+[1-9]/.test(val)) val = val.replace(/^0+/, "");
-                    setForm((f) => ({ ...f, unit_cost: val }));
-                  }}
-                  className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Reorder Level</label>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={form.reorder_level}
-                  onFocus={(e) => { const t = e.target; setTimeout(() => t.select(), 0); }}
-                  onChange={(e) => {
-                    let val = e.target.value;
-                    if (/^0+[1-9]/.test(val)) val = val.replace(/^0+/, "");
-                    setForm((f) => ({ ...f, reorder_level: val }));
-                  }}
-                  className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
-                />
-                <p className="mt-1 text-[11px] text-slate-400">Alert when stock falls below this level</p>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Preferred Supplier</label>
-                <select
-                  value={form.supplier_id}
-                  onChange={(e) => setForm((f) => ({ ...f, supplier_id: e.target.value }))}
-                  className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none focus:border-[#2563EB] focus:bg-white transition-colors"
-                >
-                  <option value="">Select Preferred Supplier (Optional)</option>
-                  {suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-            </CollapsibleSection>
-
-            {/* ─── Collapsible Section 3: Finished Goods Additional Details ───── */}
-            {isFinishedGood && (
-              <CollapsibleSection
-                title="Production & Customer Details"
-                subtitle="Customer Name, Serial Number, Dates, Warranty"
-                expanded={showFinishedDetails}
-                onToggle={() => setShowFinishedDetails(!showFinishedDetails)}
-              >
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Customer Name</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Bosch / Tata Motors"
-                    value={form.customer_name}
-                    onChange={(e) => setForm((f) => ({ ...f, customer_name: e.target.value }))}
-                    className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Serial Number</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. SN-998210"
-                    value={form.serial_number}
-                    onChange={(e) => setForm((f) => ({ ...f, serial_number: e.target.value }))}
-                    className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Production Date</label>
-                  <input
-                    type="date"
-                    value={form.production_date}
-                    onChange={(e) => setForm((f) => ({ ...f, production_date: e.target.value }))}
-                    className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none focus:border-[#2563EB] focus:bg-white transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Expiry Date</label>
-                  <input
-                    type="date"
-                    value={form.expiry_date}
-                    onChange={(e) => setForm((f) => ({ ...f, expiry_date: e.target.value }))}
-                    className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none focus:border-[#2563EB] focus:bg-white transition-colors"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Warranty Period</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 12 Months / 2 Years"
-                    value={form.warranty}
-                    onChange={(e) => setForm((f) => ({ ...f, warranty: e.target.value }))}
-                    className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] px-4 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white transition-colors"
-                  />
-                </div>
-              </CollapsibleSection>
-            )}
-
-            {/* Show All Fields Toggle Button (Pill Button like image) */}
-            <div className="pt-2">
+              {imagePreview ? (
+                <img src={imagePreview} alt="Item preview" className="max-h-40 rounded-lg object-contain" />
+              ) : (
+                <>
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[var(--color-text-muted)] shadow-sm">
+                    <Upload className="h-5 w-5" />
+                  </span>
+                  <span className="text-[13px] font-semibold text-[var(--color-text)]">Upload Image</span>
+                  <span className="text-[11px] text-[var(--color-text-muted)]">PNG, JPG up to 2MB</span>
+                </>
+              )}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg"
+              className="hidden"
+              onChange={onImagePick}
+            />
+            {imagePreview ? (
               <button
                 type="button"
-                onClick={toggleShowAll}
-                className="rounded-full border border-purple-200 bg-white px-4 py-2 text-xs font-semibold text-purple-600 hover:bg-purple-50 transition-colors"
+                onClick={() => {
+                  setImagePreview(null);
+                  if (fileRef.current) fileRef.current.value = "";
+                }}
+                className="mt-2 text-[12px] font-semibold text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
               >
-                {showAll ? "− Hide Optional Fields" : "+ Show All Fields"}
+                Remove image
               </button>
-            </div>
+            ) : null}
+          </Card>
+        </div>
 
-            {/* Form Action Buttons */}
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-5">
-              <Link
-                to={backPath}
-                className="rounded-full border border-[#e4e4ea] bg-[#f3f3f6] px-5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-[#ececf0] transition-colors"
-              >
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                disabled={saving}
-                className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-xs font-semibold text-[#1a1a1f] shadow-xs disabled:opacity-60 transition-all hover:opacity-95"
-                style={{ background: YELLOW }}
-              >
-                <Plus className="h-4 w-4" />
-                {saving
-                  ? "Saving..."
-                  : isFinishedGood
-                  ? "Create Finished Good"
-                  : "Create Raw Material"}
-              </button>
+        <div id="units-pricing" className="grid scroll-mt-28 gap-4 lg:grid-cols-2">
+          <Card title="Unit & Measurement">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Base Unit" required>
+                <select
+                  value={form.base_unit}
+                  onChange={(e) => set("base_unit", e.target.value)}
+                  className="ui-select w-full"
+                >
+                  <option value="">Select Unit</option>
+                  {UNITS.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Purchase Unit">
+                <select
+                  value={form.purchase_unit}
+                  onChange={(e) => set("purchase_unit", e.target.value)}
+                  className="ui-select w-full"
+                >
+                  <option value="">Select Unit</option>
+                  {UNITS.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Sales Unit">
+                <select
+                  value={form.sales_unit}
+                  onChange={(e) => set("sales_unit", e.target.value)}
+                  className="ui-select w-full"
+                >
+                  <option value="">Select Unit</option>
+                  {UNITS.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Conversion Factor" required hint="Base Unit = 1">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.0001"
+                  value={form.conversion_factor}
+                  onChange={(e) => set("conversion_factor", e.target.value)}
+                  className="ui-input w-full"
+                />
+              </Field>
             </div>
-          </form>
+          </Card>
+
+          <Card title="Pricing Information">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Purchase Price (₹)" required>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.purchase_price}
+                  onChange={(e) => set("purchase_price", e.target.value)}
+                  className="ui-input w-full"
+                />
+              </Field>
+              <Field label="Sales Price (₹)" required>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.sales_price}
+                  onChange={(e) => set("sales_price", e.target.value)}
+                  className="ui-input w-full"
+                />
+              </Field>
+              <Field label="MRP (₹)">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.mrp}
+                  onChange={(e) => set("mrp", e.target.value)}
+                  className="ui-input w-full"
+                />
+              </Field>
+              <Field label="Standard Cost (₹)">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.standard_cost}
+                  onChange={(e) => set("standard_cost", e.target.value)}
+                  className="ui-input w-full"
+                />
+              </Field>
+            </div>
+          </Card>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card id="tax" title="Tax Information">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="GST Rate (%)" required>
+                <select
+                  value={form.gst_rate}
+                  onChange={(e) => set("gst_rate", e.target.value)}
+                  className="ui-select w-full"
+                >
+                  <option value="">Select GST Rate</option>
+                  {GST_RATES.map((r) => (
+                    <option key={r} value={r}>{r}%</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="GST Type" required>
+                <select
+                  value={form.gst_type}
+                  onChange={(e) => set("gst_type", e.target.value)}
+                  className="ui-select w-full"
+                >
+                  <option value="">Select GST Type</option>
+                  {GST_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Tax Type" className="sm:col-span-2">
+                <select
+                  value={form.tax_type}
+                  onChange={(e) => set("tax_type", e.target.value)}
+                  className="ui-select w-full"
+                >
+                  <option value="">Select Tax Type</option>
+                  {TAX_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <div className="mt-4">
+              <CheckRow
+                checked={form.tax_exempt}
+                onChange={(v) => set("tax_exempt", v)}
+                label="Is Exempted from Tax"
+                hint="Check if item is exempted from tax"
+              />
+            </div>
+          </Card>
+
+          <Card id="inventory" title="Inventory Details">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Reorder Level" required>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.reorder_level}
+                  onChange={(e) => set("reorder_level", e.target.value)}
+                  className="ui-input w-full"
+                />
+              </Field>
+              <Field label="Reorder Quantity" required>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.reorder_qty}
+                  onChange={(e) => set("reorder_qty", e.target.value)}
+                  className="ui-input w-full"
+                />
+              </Field>
+              <Field label="Minimum Stock Level">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.min_stock}
+                  onChange={(e) => set("min_stock", e.target.value)}
+                  className="ui-input w-full"
+                />
+              </Field>
+              <Field label="Maximum Stock Level">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.max_stock}
+                  onChange={(e) => set("max_stock", e.target.value)}
+                  className="ui-input w-full"
+                />
+              </Field>
+            </div>
+            <div className="mt-4">
+              <CheckRow
+                checked={form.keep_stock}
+                onChange={(v) => set("keep_stock", v)}
+                label="Keep Stock"
+                hint="Enable to track stock for this item"
+              />
+            </div>
+          </Card>
+        </div>
+
+        <Card id="additional" title="Additional Information">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Field label="Batch Number">
+              <input
+                type="text"
+                placeholder="Optional"
+                value={form.batch_number}
+                onChange={(e) => set("batch_number", e.target.value)}
+                className="ui-input w-full"
+              />
+            </Field>
+            <Field label="Serial Number">
+              <input
+                type="text"
+                placeholder="Optional"
+                value={form.serial_number}
+                onChange={(e) => set("serial_number", e.target.value)}
+                className="ui-input w-full"
+              />
+            </Field>
+            <Field label="Warranty">
+              <input
+                type="text"
+                placeholder="e.g. 12 Months"
+                value={form.warranty}
+                onChange={(e) => set("warranty", e.target.value)}
+                className="ui-input w-full"
+              />
+            </Field>
+            <Field label="Notes" className="sm:col-span-2 lg:col-span-3">
+              <textarea
+                rows={3}
+                placeholder="Any additional notes"
+                value={form.notes}
+                onChange={(e) => set("notes", e.target.value)}
+                className="ui-textarea w-full"
+              />
+            </Field>
+          </div>
+        </Card>
+      </form>
+
+      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-[var(--color-border-soft)] bg-white/95 px-4 py-3 backdrop-blur sm:px-6 lg:left-[var(--sidebar-width,0px)]">
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CheckRow
+            checked={form.is_active}
+            onChange={(v) => set("is_active", v)}
+            label="Item is Active"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" to={backPath}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="create-item-form"
+              variant="primary"
+              loading={saving}
+              disabled={saving}
+              className="!bg-[var(--color-action-teal)] hover:!bg-[var(--color-action-teal-hover)]"
+            >
+              <Save className="h-4 w-4" />
+              Save & Create Item
+            </Button>
+          </div>
         </div>
       </div>
     </div>

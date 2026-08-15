@@ -4,12 +4,12 @@ import { Link } from "react-router-dom";
 import { Calendar, ChevronLeft, ChevronRight, ListFilter, Plus, Receipt, Search } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
+import Button from "../../components/common/Button";
 import { useToast } from "../../context/ToastContext";
 import { deleteBizDocument, listBizDocuments } from "../../api/bizDocumentsApi";
 import { apiErrorMessage } from "../../utils/apiError";
 import { formatInr } from "../../data/salesMasterData";
 
-const ACCENT = "var(--color-action-teal)"; /* #0F6D84 */
 const PAGE_SIZES = [10, 20, 50];
 
 const SORT_OPTIONS = [
@@ -244,13 +244,13 @@ export default function PaymentsMade() {
                 className="w-[118px] border-0 bg-transparent p-0 text-[13px] focus:outline-none"
               />
             </div>
-            <Link
+            <Button
+              variant="primary"
               to="/purchases/payments-made/create"
-              className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
-              style={{ background: ACCENT }}
+              leftIcon={<Plus className="h-4 w-4" strokeWidth={2.5} />}
             >
-              <Plus className="h-4 w-4" strokeWidth={2.5} /> Make Payment
-            </Link>
+              Make Payment
+            </Button>
             <div className="relative">
               <button
                 type="button"
@@ -321,13 +321,14 @@ export default function PaymentsMade() {
                       <p className="mt-3 text-[14px] text-[#6b6b76]">
                         No Payment available, Make a new payment
                       </p>
-                      <Link
+                      <Button
+                        variant="primary"
                         to="/purchases/payments-made/create"
-                        className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
-                        style={{ background: ACCENT }}
+                        className="mt-4"
+                        leftIcon={<Plus className="h-4 w-4" />}
                       >
-                        <Plus className="h-4 w-4" /> Make Payment
-                      </Link>
+                        Make Payment
+                      </Button>
                     </td>
                   </tr>
                 ) : (

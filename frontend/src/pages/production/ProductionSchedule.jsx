@@ -1,11 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Calendar, CheckCircle2, ClipboardList, Clock, Download, Factory, Gauge, GanttChart, LayoutGrid, Plus, Table2, Target, Users, X, Zap } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  Calendar,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Download,
+  GanttChart,
+  LayoutGrid,
+  Plus,
+  Table2,
+  Target,
+  X,
+} from "lucide-react";
 
 import DataTable from "../../components/common/DataTable";
+import EmptyState from "../../components/common/EmptyState";
+import KpiCard from "../../components/common/KpiCard";
 import Loader from "../../components/common/Loader";
+import Button, { IconButton } from "../../components/common/Button";
+import StatusBadge from "../../components/common/StatusBadge";
 import { useToast } from "../../context/ToastContext";
 import {
-  getScheduleBottomKpis,
   getScheduleCalendar,
   getScheduleConflicts,
   getScheduleDashboard,
@@ -23,76 +40,96 @@ import useAuth from "../../hooks/useAuth";
 import { isOperator } from "../../config/permissions";
 import {
   CONFLICT_LABELS,
-  DEMO_BOTTOM_KPIS,
   DEMO_DASHBOARD,
   DEMO_KANBAN,
   KANBAN_COLUMNS,
-  SCHEDULE_FLOW_STEPS,
   TIMELINE_SLOTS,
   buildTableFromTimeline,
   formatScheduleDate,
-  machineStatusColor,
-  machineStatusDot,
   priorityBadge,
 } from "../../data/productionScheduleMasterData";
 import { exportToExcel } from "../../utils/exportUtils";
+import { cleanProductLabel } from "../../utils/productLabel";
 
 const VIEWS = [
-  { id: "calendar", label: "Calendar", icon: Calendar },
   { id: "timeline", label: "Timeline", icon: GanttChart },
-  { id: "kanban", label: "Kanban", icon: LayoutGrid },
-  { id: "table", label: "Table", icon: Table2 },
+  { id: "calendar", label: "Calendar", icon: Calendar },
+  { id: "kanban", label: "Board", icon: LayoutGrid },
+  { id: "table", label: "List", icon: Table2 },
 ];
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function SummaryCard({ label, value, sub, icon: Icon, iconWrap = "bg-sky-50 text-sky-700" }) {
+function ScheduleEmpty({ message, onCreate }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-xs font-medium text-slate-500">{label}</div>
-          <div className="mt-1 truncate text-xl font-bold tabular-nums text-[var(--color-text)] sm:text-2xl">{value}</div>
-          {sub && <div className="mt-0.5 text-[10px] text-slate-400">{sub}</div>}
-        </div>
-        {Icon ? (
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconWrap}`}>
-            <Icon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
-          </div>
-        ) : null}
-      </div>
-    </div>
+    <EmptyState
+      icon="clipboard"
+      title="Nothing scheduled"
+      description={message}
+      className="py-10"
+      actionLabel={onCreate ? "New Schedule" : undefined}
+      onAction={onCreate}
+    />
   );
 }
 
-function ProgressBar({ pct }) {
-  const filled = Math.min(Math.max(pct || 0, 0), 100);
-  const blocks = 10;
-  const active = Math.round(filled / 10);
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex gap-0.5">
-        {Array.from({ length: blocks }).map((_, i) => (
-          <span key={i} className={`inline-block h-3 w-3 rounded-sm ${i < active ? "bg-[var(--color-primary)]" : "bg-slate-200"}`} />
-        ))}
-      </div>
-      <span className="text-sm font-semibold text-slate-700">{filled}%</span>
-    </div>
-  );
+function statusTone(status) {
+  const s = String(status || "").toLowerCase();
+  if (s === "running" || s === "completed" || s === "done") return "success";
+  if (s === "maintenance" || s === "breakdown" || s === "delayed") return "danger";
+  if (s === "planned" || s === "idle" || s === "pending") return "pending";
+  if (s === "paused" || s === "queue") return "warning";
+  return "info";
 }
 
-function EmptyState({ message }) {
+function StatusDot({ status }) {
+  const tone = statusTone(status);
+  const color =
+    tone === "success"
+      ? "bg-[var(--color-success)]"
+      : tone === "danger"
+        ? "bg-[var(--color-danger)]"
+        : tone === "warning"
+          ? "bg-[var(--color-warning)]"
+          : "bg-[var(--color-text-muted)]";
+  return <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${color}`} aria-hidden />;
+}
+
+function ViewTabs({ view, onChange }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 py-12 text-center">
-      <ClipboardList className="mb-2 h-8 w-8 text-slate-300" />
-      <p className="text-sm text-slate-400">{message}</p>
+    <div
+      className="inline-flex flex-wrap rounded-full border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-1"
+      role="tablist"
+      aria-label="Schedule views"
+    >
+      {VIEWS.map((v) => {
+        const Icon = v.icon;
+        const active = view === v.id;
+        return (
+          <button
+            key={v.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(v.id)}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+              active
+                ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {v.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
 // ─── Timeline View ────────────────────────────────────────────────────────────
 
-function TimelineView({ rows, onDrop }) {
+function TimelineView({ rows, onDrop, onCreate }) {
   const [dragWo, setDragWo] = useState(null);
 
   const handleDragStart = (row) => {
@@ -108,61 +145,64 @@ function TimelineView({ rows, onDrop }) {
 
   if (!rows.length) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <EmptyState message="No machines or work orders found. Add machines and create work orders to see the timeline." />
-      </div>
+      <ScheduleEmpty
+        message="No machines or work orders found. Add machines and create work orders to see the timeline."
+        onCreate={onCreate}
+      />
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 grid min-w-[640px] grid-cols-[140px_repeat(6,1fr)] gap-1 text-center text-xs font-semibold text-slate-500">
-        <div />
+    <div className="overflow-x-auto">
+      <div className="mb-2 grid min-w-[720px] grid-cols-[9rem_repeat(6,1fr)] gap-1 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+        <div className="text-left normal-case tracking-normal">Machine</div>
         {TIMELINE_SLOTS.map((s) => (
           <div key={s}>{s}</div>
         ))}
       </div>
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {rows.map((row) => (
           <div
             key={row.machine_id}
-            className="grid min-w-[640px] grid-cols-[140px_repeat(6,1fr)] items-center gap-1"
+            className="grid min-w-[720px] grid-cols-[9rem_repeat(6,1fr)] items-center gap-1"
             onDragOver={(e) => e.preventDefault()}
             onDrop={() => handleDrop(row.machine_id)}
           >
-            <div className="pr-2 text-sm font-semibold text-slate-800 truncate">{row.machine_name}</div>
-            <div className="col-span-6 relative h-10 rounded-lg bg-slate-50">
-              {row.span_slots > 0 && (
+            <div className="flex min-w-0 items-center gap-2 pr-2">
+              <StatusDot status={row.status} />
+              <span className="truncate text-[13px] font-semibold text-[var(--color-text)]">{row.machine_name}</span>
+            </div>
+            <div className="relative col-span-6 h-11 rounded-lg border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]">
+              {row.span_slots > 0 ? (
                 <div
                   draggable={!!row.work_order_id}
                   onDragStart={() => handleDragStart(row)}
-                  className={`absolute inset-y-1 flex items-center rounded-md px-2 text-xs font-semibold text-white shadow-sm ${
+                  className={`absolute inset-y-1.5 flex items-center rounded-md px-2.5 text-xs font-semibold text-white shadow-sm ${
                     row.status === "maintenance"
-                      ? "bg-slate-500 cursor-default"
+                      ? "cursor-default bg-[var(--color-text-muted)]"
                       : row.status === "running"
-                        ? "bg-[var(--color-primary)] cursor-grab active:cursor-grabbing"
-                        : "bg-amber-500 cursor-grab active:cursor-grabbing"
+                        ? "cursor-grab bg-[var(--color-action-teal)] active:cursor-grabbing"
+                        : "cursor-grab bg-[var(--color-warning)] text-[var(--color-text)] active:cursor-grabbing"
                   }`}
                   style={{
                     left: `${(row.start_slot / 6) * 100}%`,
-                    width: `${(row.span_slots / 6) * 100}%`,
+                    width: `${Math.max((row.span_slots / 6) * 100, 12)}%`,
                   }}
-                  title={row.work_order_id ? "Drag to reschedule on another machine" : undefined}
+                  title={row.work_order_id ? "Drag onto another machine to reschedule" : undefined}
                 >
-                  <span className="truncate">{row.job_label}</span>
+                  <span className="truncate">{cleanProductLabel(row.job_label)}</span>
                 </div>
-              )}
-              {row.span_slots === 0 && (
-                <span className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
-                  {row.job_label}
+              ) : (
+                <span className="absolute inset-0 flex items-center justify-center text-xs text-[var(--color-text-muted)]">
+                  Idle
                 </span>
               )}
             </div>
           </div>
         ))}
       </div>
-      <p className="mt-3 text-xs text-slate-500">
-        Drag a job block onto another machine row to reschedule. Conflicts are checked automatically.
+      <p className="mt-3 text-[11px] text-[var(--color-text-muted)]">
+        Drag a job onto another machine row to reschedule. Conflicts are checked automatically.
       </p>
     </div>
   );
@@ -170,107 +210,329 @@ function TimelineView({ rows, onDrop }) {
 
 // ─── Calendar View ────────────────────────────────────────────────────────────
 
-function CalendarView({ events }) {
-  const today = new Date();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Monday
+function startOfMondayWeek(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay(); // 0 Sun … 6 Sat
+  const offset = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + offset);
+  return d;
+}
 
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(startOfWeek);
-    d.setDate(startOfWeek.getDate() + i);
+function sameDay(a, b) {
+  return a.toDateString() === b.toDateString();
+}
+
+function eventOnDay(event, day) {
+  if (!event?.start) return false;
+  const start = new Date(event.start);
+  start.setHours(0, 0, 0, 0);
+  const end = event.end ? new Date(event.end) : new Date(start);
+  end.setHours(0, 0, 0, 0);
+  const cell = new Date(day);
+  cell.setHours(0, 0, 0, 0);
+  return cell >= start && cell <= end;
+}
+
+function calendarStatusTone(status) {
+  const s = String(status || "").toLowerCase();
+  if (s === "running" || s === "in_progress" || s === "completed") return "success";
+  if (s === "cancelled" || s === "delayed") return "danger";
+  if (s === "paused" || s === "on_hold") return "warning";
+  return "info";
+}
+
+function calendarChipClass(status) {
+  const tone = calendarStatusTone(status);
+  if (tone === "success") return "border-[var(--color-success)]/35 bg-[var(--color-success-soft)]";
+  if (tone === "danger") return "border-[var(--color-danger)]/35 bg-[var(--color-danger-soft)]";
+  if (tone === "warning") return "border-[var(--color-warning)]/35 bg-[var(--color-warning-soft)]";
+  return "border-[var(--color-info)]/35 bg-[var(--color-info-soft)]";
+}
+
+function CalendarView({ events, onCreate }) {
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
     return d;
-  });
+  }, []);
+  const [weekStart, setWeekStart] = useState(() => startOfMondayWeek(new Date()));
+  const [selectedDay, setSelectedDay] = useState(() => new Date());
 
-  const statusColor = {
-    in_progress: "bg-green-100 border-green-400 text-green-800",
-    running: "bg-green-100 border-green-400 text-green-800",
-    planned: "bg-blue-100 border-blue-400 text-blue-800",
-    completed: "bg-slate-100 border-slate-400 text-slate-700",
-    cancelled: "bg-red-100 border-red-400 text-red-700",
-  };
+  const days = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(weekStart);
+        d.setDate(weekStart.getDate() + i);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      }),
+    [weekStart]
+  );
 
   const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+  const eventsByDay = useMemo(() => {
+    return days.map((d) => events.filter((e) => eventOnDay(e, d)));
+  }, [days, events]);
+
+  const weekEventCount = eventsByDay.reduce((n, list) => n + list.length, 0);
+
+  const selectedKey = selectedDay.toDateString();
+  const selectedIndex = days.findIndex((d) => d.toDateString() === selectedKey);
+  const selectedEvents =
+    selectedIndex >= 0 ? eventsByDay[selectedIndex] : events.filter((e) => eventOnDay(e, selectedDay));
+
+  // Keep selection inside the visible week when navigating
+  useEffect(() => {
+    if (!days.some((d) => sameDay(d, selectedDay))) {
+      const todayInWeek = days.find((d) => sameDay(d, today));
+      setSelectedDay(todayInWeek || days[0]);
+    }
+  }, [days, selectedDay, today]);
+
+  const goWeek = (delta) => {
+    setWeekStart((prev) => {
+      const next = new Date(prev);
+      next.setDate(prev.getDate() + delta * 7);
+      return next;
+    });
+  };
+
+  const goToday = () => {
+    const start = startOfMondayWeek(today);
+    setWeekStart(start);
+    setSelectedDay(new Date(today));
+  };
+
+  const weekLabel = `${days[0].toLocaleDateString("en-GB", { day: "2-digit", month: "short" })} – ${days[6].toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })}`;
+
+  const selectedLabel = selectedDay.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  if (!events.length) {
+    return (
+      <ScheduleEmpty
+        message="No production orders on the calendar yet. Create orders with start and due dates."
+        onCreate={onCreate}
+      />
+    );
+  }
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-800">Weekly Production Calendar</h3>
-        <p className="text-xs text-slate-500">
-          {startOfWeek.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} —{" "}
-          {days[6].toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-        </p>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--color-text)]">Week schedule</h3>
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+            {weekLabel}
+            {weekEventCount ? ` · ${weekEventCount} order${weekEventCount === 1 ? "" : "s"}` : " · No orders this week"}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <IconButton type="button" variant="ghost" aria-label="Previous week" onClick={() => goWeek(-1)}>
+            <ChevronLeft className="h-4 w-4" />
+          </IconButton>
+          <Button type="button" variant="secondary" size="sm" onClick={goToday}>
+            Today
+          </Button>
+          <IconButton type="button" variant="ghost" aria-label="Next week" onClick={() => goWeek(1)}>
+            <ChevronRight className="h-4 w-4" />
+          </IconButton>
+        </div>
       </div>
-      {events.length === 0 ? (
-        <EmptyState message="No production orders scheduled this week. Create a production order with start and due dates." />
-      ) : (
-        <div className="grid grid-cols-7 gap-2">
-          {days.map((d, di) => (
-            <div key={di} className="rounded-lg border border-slate-100 bg-slate-50 p-2 text-center text-xs font-semibold text-slate-600">
-              {dayNames[di]} {d.getDate()}
-            </div>
-          ))}
+
+      <div className="overflow-x-auto rounded-xl border border-[var(--color-border)]">
+        <div className="grid min-w-[640px] grid-cols-7 divide-x divide-[var(--color-border-soft)]">
           {days.map((d, di) => {
-            const dayEvents = events.filter((e) => {
-              const start = e.start ? new Date(e.start) : null;
-              const end = e.end ? new Date(e.end) : start;
-              if (!start) return false;
-              return d >= new Date(start.toDateString()) && d <= new Date((end || start).toDateString());
-            });
+            const dayEvents = eventsByDay[di];
+            const isToday = sameDay(d, today);
+            const isSelected = sameDay(d, selectedDay);
+            const visible = dayEvents.slice(0, 3);
+            const extra = dayEvents.length - visible.length;
             return (
-              <div key={`cell-${di}`} className="min-h-[100px] rounded-lg border border-slate-100 p-2">
-                {dayEvents.map((e) => (
-                  <div
-                    key={e.id}
-                    className={`mb-1 rounded border px-1.5 py-1 text-[10px] font-medium ${statusColor[e.status] || statusColor.planned}`}
+              <button
+                key={d.toISOString()}
+                type="button"
+                onClick={() => setSelectedDay(new Date(d))}
+                className={`min-h-[148px] px-2 py-2.5 text-left transition-colors ${
+                  isSelected
+                    ? "bg-[var(--color-action-teal)]/8"
+                    : isToday
+                      ? "bg-[var(--color-surface-muted)]/70"
+                      : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-muted)]/50"
+                }`}
+              >
+                <div className="mb-2 flex items-center justify-between gap-1">
+                  <span
+                    className={`text-[11px] font-semibold uppercase tracking-wide ${
+                      isToday || isSelected ? "text-[var(--color-action-teal)]" : "text-[var(--color-text-muted)]"
+                    }`}
                   >
-                    {e.product}
-                    <span className="block text-[9px] opacity-70">{e.planned_quantity} units</span>
-                  </div>
-                ))}
-              </div>
+                    {dayNames[di]}
+                  </span>
+                  <span
+                    className={`inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full px-1.5 text-xs font-bold tabular-nums ${
+                      isToday
+                        ? "bg-[var(--color-action-teal)] text-white"
+                        : isSelected
+                          ? "bg-[var(--color-action-teal)]/15 text-[var(--color-action-teal)]"
+                          : "text-[var(--color-text)]"
+                    }`}
+                  >
+                    {d.getDate()}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {visible.map((e) => (
+                    <div
+                      key={`${e.id}-${di}`}
+                      className={`rounded-md border px-1.5 py-1 ${calendarChipClass(e.status)}`}
+                    >
+                      <p className="truncate text-[11px] font-semibold text-[var(--color-text)]">
+                        {e.order_number || cleanProductLabel(e.product)}
+                      </p>
+                      <p className="truncate text-[10px] text-[var(--color-text-muted)]">
+                        {cleanProductLabel(e.product)}
+                      </p>
+                    </div>
+                  ))}
+                  {extra > 0 ? (
+                    <p className="px-0.5 text-[10px] font-semibold text-[var(--color-action-teal)]">+{extra} more</p>
+                  ) : null}
+                  {dayEvents.length === 0 ? (
+                    <p className="px-0.5 pt-4 text-center text-[10px] text-[var(--color-text-muted)]">—</p>
+                  ) : null}
+                </div>
+              </button>
             );
           })}
         </div>
-      )}
+      </div>
+
+      <div className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]/40 p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h4 className="text-sm font-semibold text-[var(--color-text)]">{selectedLabel}</h4>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              {selectedEvents.length
+                ? `${selectedEvents.length} production order${selectedEvents.length === 1 ? "" : "s"}`
+                : "No orders on this day"}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-[10px] text-[var(--color-text-muted)]">
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-[var(--color-info)]" /> Planned
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-[var(--color-success)]" /> Running / Done
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-[var(--color-danger)]" /> Delayed
+            </span>
+          </div>
+        </div>
+
+        {selectedEvents.length === 0 ? (
+          <div className="flex flex-col items-start gap-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-[var(--color-text-secondary)]">Nothing scheduled for this day.</p>
+            {onCreate ? (
+              <Button type="button" variant="success" size="sm" onClick={onCreate}>
+                <Plus className="h-3.5 w-3.5" />
+                New Schedule
+              </Button>
+            ) : null}
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {selectedEvents.map((e) => {
+              const product = cleanProductLabel(e.product);
+              const range = [e.start, e.end]
+                .filter(Boolean)
+                .map((v) =>
+                  new Date(v).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
+                )
+                .join(" → ");
+              return (
+                <li
+                  key={e.id}
+                  className="flex flex-col gap-2 rounded-lg border border-[var(--color-border-soft)] bg-[var(--color-surface)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+                      {e.order_number || e.title || "Order"}
+                    </p>
+                    <p className="truncate text-sm text-[var(--color-text)]" title={product}>
+                      {product}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                      {range || "Dates not set"}
+                      {e.planned_quantity != null ? ` · ${Number(e.planned_quantity).toLocaleString()} units` : ""}
+                    </p>
+                  </div>
+                  <StatusBadge tone={calendarStatusTone(e.status)}>
+                    {String(e.status || "planned").replace(/_/g, " ")}
+                  </StatusBadge>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
 
 // ─── Kanban View ──────────────────────────────────────────────────────────────
 
-function KanbanView({ items }) {
+function KanbanView({ items, onCreate }) {
   const hasAny = Object.values(items).some((arr) => arr.length > 0);
   if (!hasAny) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <EmptyState message="No work orders to display. Create work orders to populate the Kanban board." />
-      </div>
+      <ScheduleEmpty
+        message="No work orders to display. Create work orders to populate the board."
+        onCreate={onCreate}
+      />
     );
   }
   return (
-    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       {KANBAN_COLUMNS.map((col) => (
-        <div key={col.id} className={`rounded-2xl border-2 p-3 ${col.color}`}>
-          <h4 className="mb-3 text-sm font-bold text-slate-800">
-            {col.label}
-            <span className="ml-1.5 rounded-full bg-white px-1.5 text-xs text-slate-500">
+        <div key={col.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/50 p-3">
+          <h4 className="mb-3 flex items-center justify-between text-sm font-bold text-[var(--color-text)]">
+            <span>{col.label}</span>
+            <span className="rounded-full bg-[var(--color-surface)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-text-muted)]">
               {(items[col.id] || []).length}
             </span>
           </h4>
           <div className="space-y-2">
             {(items[col.id] || []).length === 0 ? (
-              <p className="text-center text-xs text-slate-400 py-4">Empty</p>
+              <p className="py-6 text-center text-xs text-[var(--color-text-muted)]">No jobs</p>
             ) : (
-              (items[col.id] || []).map((card) => (
-                <div key={card.id} className="rounded-xl border border-white bg-white p-3 shadow-sm">
-                  <p className="text-xs font-bold text-slate-800">{card.work_order_number}</p>
-                  <p className="text-sm text-slate-700">{card.product_name}</p>
-                  <p className="text-xs text-slate-500">{card.quantity} Qty · {card.machine_name}</p>
-                  <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${priorityBadge(card.priority).bg} ${priorityBadge(card.priority).text}`}>
-                    {priorityBadge(card.priority).label}
+              (items[col.id] || []).map((card) => {
+                const p = priorityBadge(card.priority);
+                return (
+                <div key={card.id} className="rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-surface)] p-3 shadow-sm">
+                  <p className="text-xs font-bold tabular-nums text-[var(--color-text)]">{card.work_order_number}</p>
+                  <p className="mt-0.5 truncate text-[13px] font-medium text-[var(--color-text)]" title={cleanProductLabel(card.product_name)}>
+                    {cleanProductLabel(card.product_name)}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">{card.quantity} Qty · {card.machine_name || "Unassigned"}</p>
+                  <span className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${p.bg} ${p.text}`}>
+                    <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" aria-hidden />
+                    {p.label}
                   </span>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -349,31 +611,23 @@ function NewScheduleModal({ onClose, onSuccess }) {
     }
   };
 
-  const labelCls = "block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1";
-  const inputCls = "w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-colors disabled:opacity-50 text-slate-900 dark:text-slate-100";
+  const labelCls = "ui-label";
+  const inputCls = "ui-input";
+  const selectCls = "ui-select";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10 dark:bg-slate-800 dark:ring-slate-700">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-6 py-4 dark:border-slate-700 dark:bg-slate-800/80">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-[var(--color-surface)] shadow-2xl ring-1 ring-slate-900/10">
+        <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] px-6 py-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/20 text-amber-700 dark:bg-amber-400/10 dark:text-amber-400">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-action-teal)]/15 text-[var(--color-action-teal)]">
               <Calendar className="h-5 w-5" />
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                New Schedule
-              </h3>
-            </div>
+            <h3 className="text-base font-bold text-[var(--color-text)]">New Schedule</h3>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200 transition-colors"
-          >
+          <IconButton variant="ghost" type="button" onClick={onClose} aria-label="Close">
             <X className="h-5 w-5" />
-          </button>
+          </IconButton>
         </div>
 
         {loading ? (
@@ -389,17 +643,17 @@ function NewScheduleModal({ onClose, onSuccess }) {
                 value={form.production_order_id}
                 onChange={handleChange}
                 required
-                className={inputCls}
+                className={selectCls}
               >
                 <option value="">— Select production order —</option>
                 {productionOrders.map((o) => (
                   <option key={o.id} value={o.id}>
-                    {o.order_number} — {o.product_name || o.product?.name || "Product"} ({o.planned_quantity} qty)
+                    {o.order_number} — {cleanProductLabel(o.product_name || o.product?.name || "Product")} ({o.planned_quantity} qty)
                   </option>
                 ))}
               </select>
               {productionOrders.length === 0 && (
-                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                <p className="mt-1 text-xs text-[var(--color-warning)]">
                   No active production orders found. Create a production order first.
                 </p>
               )}
@@ -407,7 +661,7 @@ function NewScheduleModal({ onClose, onSuccess }) {
 
             <div>
               <label className={labelCls}>Machine</label>
-              <select name="machine_id" value={form.machine_id} onChange={handleChange} className={inputCls}>
+              <select name="machine_id" value={form.machine_id} onChange={handleChange} className={selectCls}>
                 <option value="">— Unassigned —</option>
                 {machines.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -431,7 +685,7 @@ function NewScheduleModal({ onClose, onSuccess }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>Shift</label>
-                <select name="shift" value={form.shift} onChange={handleChange} className={inputCls}>
+                <select name="shift" value={form.shift} onChange={handleChange} className={selectCls}>
                   <option value="Morning">Morning</option>
                   <option value="Afternoon">Afternoon</option>
                   <option value="Night">Night</option>
@@ -440,31 +694,27 @@ function NewScheduleModal({ onClose, onSuccess }) {
               </div>
               <div>
                 <label className={labelCls}>Priority</label>
-                <select name="priority" value={form.priority} onChange={handleChange} className={inputCls}>
-                  <option value="high">🔴 High</option>
-                  <option value="medium">🟡 Medium</option>
-                  <option value="low">🟢 Low</option>
+                <select name="priority" value={form.priority} onChange={handleChange} className={selectCls}>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
                 </select>
               </div>
             </div>
 
-            {/* Footer Actions */}
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-700 mt-6">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
-              >
+            <div className="mt-6 flex items-center justify-end gap-3 border-t border-[var(--color-border)] pt-4">
+              <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                disabled={saving || productionOrders.length === 0}
-                className="flex items-center gap-2 rounded-xl bg-[var(--color-cta)] px-5 py-2.5 text-xs font-extrabold text-gray-900 shadow-md hover:bg-yellow-400 active:scale-95 transition-all disabled:opacity-50"
+                variant="success"
+                loading={saving}
+                disabled={productionOrders.length === 0}
               >
-                <CheckCircle2 className="h-4 w-4 text-gray-900" />
-                {saving ? "Creating…" : "Create Schedule"}
-              </button>
+                <CheckCircle2 className="h-4 w-4" />
+                Create Schedule
+              </Button>
             </div>
           </form>
         )}
@@ -488,61 +738,40 @@ export default function ProductionSchedule() {
   const [queue, setQueue] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [conflicts, setConflicts] = useState([]);
-  const [bottomKpis, setBottomKpis] = useState(DEMO_BOTTOM_KPIS);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [kanban, setKanban] = useState(DEMO_KANBAN);
   const [tableSearch, setTableSearch] = useState("");
   const [showNewModal, setShowNewModal] = useState(false);
 
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const load = useCallback(async (isRefresh = false) => {
-    if (!isRefresh) setLoading(true);
+    if (!isRefresh && timeline.length === 0) {
+      setLoading(true);
+    }
     try {
-      const [
-        dashRes, timelineRes, shiftRes, liveRes, queueRes,
-        matRes, conflictRes, bottomRes, calRes,
-      ] = await Promise.allSettled([
+      // 1. Fetch core primary data first for instant page availability
+      const [dashRes, timelineRes] = await Promise.allSettled([
         getScheduleDashboard(),
         getScheduleTimeline(),
-        getScheduleShifts(),
-        getScheduleLiveMachines(),
-        getScheduleQueue(),
-        getScheduleMaterials(),
-        getScheduleConflicts(),
-        getScheduleBottomKpis(),
-        getScheduleCalendar(),
       ]);
 
+      if (!isMountedRef.current) return;
 
       if (dashRes.status === "fulfilled" && dashRes.value?.data) {
         setDashboard({ ...DEMO_DASHBOARD, ...dashRes.value.data });
       }
       if (timelineRes.status === "fulfilled" && Array.isArray(timelineRes.value?.data)) {
-        setTimeline(timelineRes.value.data);
-      }
-      if (shiftRes.status === "fulfilled" && Array.isArray(shiftRes.value?.data)) {
-        setShifts(shiftRes.value.data);
-      }
-      if (liveRes.status === "fulfilled" && Array.isArray(liveRes.value?.data)) {
-        setLiveMachines(liveRes.value.data);
-      }
-      if (queueRes.status === "fulfilled" && Array.isArray(queueRes.value?.data)) {
-        setQueue(queueRes.value.data);
-      }
-      if (matRes.status === "fulfilled" && Array.isArray(matRes.value?.data)) {
-        setMaterials(matRes.value.data);
-      }
-      if (conflictRes.status === "fulfilled" && Array.isArray(conflictRes.value?.data)) {
-        setConflicts(conflictRes.value.data);
-      }
-      if (bottomRes.status === "fulfilled" && bottomRes.value?.data) {
-        setBottomKpis({ ...DEMO_BOTTOM_KPIS, ...bottomRes.value.data });
-      }
-      if (calRes.status === "fulfilled" && Array.isArray(calRes.value?.data)) {
-        setCalendarEvents(calRes.value.data);
-      }
-      // Build Kanban from work orders in timeline
-      if (timelineRes.status === "fulfilled" && Array.isArray(timelineRes.value?.data)) {
         const rows = timelineRes.value.data;
+        setTimeline(rows);
+
         const kb = { planned: [], ready: [], running: [], quality: [], completed: [] };
         rows.forEach((r) => {
           const status = r.status === "in_progress" ? "running" : r.status;
@@ -559,16 +788,57 @@ export default function ProductionSchedule() {
         });
         setKanban(kb);
       }
+
+      // Unblock page loading as soon as core view data is ready
+      setLoading(false);
+
+      // 2. Fetch secondary panel widget data concurrently in background
+      const [
+        shiftRes, liveRes, queueRes,
+        matRes, conflictRes, calRes,
+      ] = await Promise.allSettled([
+        getScheduleShifts(),
+        getScheduleLiveMachines(),
+        getScheduleQueue(),
+        getScheduleMaterials(),
+        getScheduleConflicts(),
+        getScheduleCalendar(),
+      ]);
+
+      if (!isMountedRef.current) return;
+
+      if (shiftRes.status === "fulfilled" && Array.isArray(shiftRes.value?.data)) {
+        setShifts(shiftRes.value.data);
+      }
+      if (liveRes.status === "fulfilled" && Array.isArray(liveRes.value?.data)) {
+        setLiveMachines(liveRes.value.data);
+      }
+      if (queueRes.status === "fulfilled" && Array.isArray(queueRes.value?.data)) {
+        setQueue(queueRes.value.data);
+      }
+      if (matRes.status === "fulfilled" && Array.isArray(matRes.value?.data)) {
+        setMaterials(matRes.value.data);
+      }
+      if (conflictRes.status === "fulfilled" && Array.isArray(conflictRes.value?.data)) {
+        setConflicts(conflictRes.value.data);
+      }
+      if (calRes.status === "fulfilled" && Array.isArray(calRes.value?.data)) {
+        setCalendarEvents(calRes.value.data);
+      }
     } catch {
       // silently handled
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
-  }, []);
+  }, [timeline.length]);
 
   usePageRefresh(() => load(true));
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const tableRows = useMemo(
     () => buildTableFromTimeline(timeline, shifts),
@@ -623,29 +893,63 @@ export default function ProductionSchedule() {
   };
 
   const tableColumns = [
-    { key: "schedule_id", label: "Schedule ID" },
-    { key: "work_order_number", label: "Work Order" },
-    { key: "product_name", label: "Product" },
-    { key: "machine_name", label: "Machine" },
-    { key: "operator_name", label: "Operator" },
-    { key: "shift", label: "Shift", render: (r) => typeof r.shift === "object" ? (r.shift?.label || r.shift?.id || "—") : (r.shift || "—") },
-    { key: "start", label: "Start" },
-    { key: "end", label: "End" },
-    { key: "quantity", label: "Qty" },
+    {
+      key: "work_order_number",
+      label: "Work Order",
+      render: (r) => (
+        <div className="min-w-[7rem]">
+          <p className="text-[13px] font-semibold tabular-nums text-[var(--color-text)]">{r.work_order_number || r.schedule_id || "—"}</p>
+          <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
+            {typeof r.shift === "object" ? r.shift?.label || r.shift?.id || "—" : r.shift || "General"}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "product_name",
+      label: "Product",
+      render: (r) => {
+        const product = cleanProductLabel(r.product_name);
+        const meta = [r.machine_name, r.operator_name].filter((x) => x && x !== "—").join(" · ");
+        return (
+          <div className="max-w-[220px]">
+            <p className="truncate text-[13px] font-medium text-[var(--color-text)]" title={product}>{product}</p>
+            <p className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]" title={meta || undefined}>
+              {meta || "No machine / operator"}
+            </p>
+          </div>
+        );
+      },
+    },
+    {
+      key: "quantity",
+      label: "Qty",
+      render: (r) => <span className="tabular-nums text-[13px] font-semibold">{r.quantity ?? "—"}</span>,
+    },
     {
       key: "priority",
       label: "Priority",
       render: (row) => {
         const p = priorityBadge(row.priority);
-        return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${p.bg} ${p.text}`}>{p.label}</span>;
+        return (
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${p.bg} ${p.text}`}>
+            <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" aria-hidden />
+            {p.label}
+          </span>
+        );
       },
     },
     {
       key: "status",
       label: "Status",
-      render: (row) => (
-        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${machineStatusColor(row.status)}`}>
-          {row.status}
+      render: (row) => <StatusBadge tone={statusTone(row.status)}>{row.status || "—"}</StatusBadge>,
+    },
+    {
+      key: "end",
+      label: "Due",
+      render: (r) => (
+        <span className="whitespace-nowrap text-[12px] tabular-nums text-[var(--color-text-secondary)]">
+          {r.end || r.start || "—"}
         </span>
       ),
     },
@@ -658,239 +962,164 @@ export default function ProductionSchedule() {
     addToast("Schedule exported to Excel", "success");
   };
 
-const PAGE_BG = "var(--color-bg)";
+  const openCreate = !operatorMode ? () => setShowNewModal(true) : undefined;
+  const runningMachines = liveMachines.filter((m) => String(m.status).toLowerCase() === "running").length;
+  const showFloorStrip =
+    liveMachines.length > 0 || queue.length > 0 || shifts.length > 0 || materials.length > 0;
 
-  if (loading) return <Loader />;
+  if (loading) return <Loader label="Loading production schedule…" />;
 
   return (
-    <div className="min-h-full pb-8" style={{ background: PAGE_BG }}>
-      <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6 lg:px-8">
-        {/* Header */}
-        <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {!operatorMode && (
-              <button
-                type="button"
-                onClick={() => setShowNewModal(true)}
-                className="ui-btn-primary"
-              >
-                <Plus className="h-4 w-4" /> New Schedule
-              </button>
-            )}
-          <button
-            type="button"
-            onClick={handleExport}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <Download className="h-4 w-4" /> Export
-          </button>
+    <div className="space-y-5 pb-4">
+      <div className="ui-grid-kpi">
+        <KpiCard label="Target" value={(dashboard.production_target ?? 0).toLocaleString()} icon={Target} tone="primary" />
+        <KpiCard label="Completed" value={(dashboard.completed ?? 0).toLocaleString()} icon={CheckCircle2} tone="success" />
+        <KpiCard label="Pending" value={(dashboard.pending ?? 0).toLocaleString()} icon={ClipboardList} tone="warning" />
+        <KpiCard label="Delayed" value={dashboard.delayed_orders ?? 0} icon={AlertTriangle} tone="danger" />
+      </div>
+
+      {conflicts.length > 0 ? (
+        <div className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-[var(--color-warning)]/40 bg-[var(--color-warning-soft)] px-4 py-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-warning)]" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-[var(--color-text)]">
+              {conflicts.length} schedule conflict{conflicts.length > 1 ? "s" : ""}
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+              {CONFLICT_LABELS[conflicts[0].conflict_type] || conflicts[0].conflict_type}: {conflicts[0].message}
+              {conflicts.length > 1 ? ` · +${conflicts.length - 1} more` : ""}
+            </p>
+          </div>
         </div>
-      </header>
+      ) : null}
 
-      {/* Today badge */}
-      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700">
-        <span className="font-semibold">Today:</span> {formatScheduleDate(dashboard.today)}
-      </div>
+      <div className="ui-card overflow-hidden p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <ViewTabs view={view} onChange={setView} />
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Today · {formatScheduleDate(dashboard.today)}
+              {dashboard.machine_utilization_pct != null ? ` · ${dashboard.machine_utilization_pct}% util.` : ""}
+              {runningMachines ? ` · ${runningMachines} running` : ""}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="secondary" onClick={handleExport}>
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+            {openCreate ? (
+              <Button type="button" variant="success" onClick={openCreate}>
+                <Plus className="h-4 w-4" />
+                New Schedule
+              </Button>
+            ) : null}
+          </div>
+        </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
-        <SummaryCard label="Production Target" value={(dashboard.production_target ?? 0).toLocaleString()} icon={Target} iconWrap="bg-sky-50 text-sky-700" />
-        <SummaryCard label="Completed" value={(dashboard.completed ?? 0).toLocaleString()} icon={CheckCircle2} iconWrap="bg-emerald-50 text-emerald-700" />
-        <SummaryCard label="Pending" value={(dashboard.pending ?? 0).toLocaleString()} icon={ClipboardList} iconWrap="bg-amber-50 text-amber-700" />
-        <SummaryCard label="Overall Progress" value={<ProgressBar pct={dashboard.overall_progress_pct} />} icon={Gauge} iconWrap="bg-indigo-50 text-indigo-700" />
-        <SummaryCard label="Machine Utilization" value={`${dashboard.machine_utilization_pct ?? 0}%`} icon={Zap} iconWrap="bg-[var(--color-success-soft)] text-[var(--color-success)]" />
-        <SummaryCard label="Operators Present" value={dashboard.operators_present ?? 0} icon={Users} iconWrap="bg-blue-50 text-blue-700" />
-        <SummaryCard label="Delayed Orders" value={dashboard.delayed_orders ?? 0} icon={AlertTriangle} iconWrap="bg-rose-50 text-rose-700" />
-        <SummaryCard label="Material Shortage" value={dashboard.material_shortage ?? 0} icon={AlertTriangle} iconWrap="bg-orange-50 text-orange-700" />
-      </div>
-
-      {/* View tabs */}
-      <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-2">
-        {VIEWS.map((v) => {
-          const Icon = v.icon;
-          const active = view === v.id;
-          return (
-            <button
-              key={v.id}
-              type="button"
-              onClick={() => setView(v.id)}
-              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                active ? "bg-[var(--color-primary)] text-white" : "text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              <Icon className="h-4 w-4" /> {v.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Main content + right sidebar */}
-      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <div>
-          {view === "timeline" && <TimelineView rows={timeline} onDrop={handleReschedule} />}
-          {view === "calendar" && <CalendarView events={calendarEvents} />}
-          {view === "kanban" && <KanbanView items={kanban} />}
-          {view === "table" && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        {view === "timeline" ? (
+          <TimelineView rows={timeline} onDrop={handleReschedule} onCreate={openCreate} />
+        ) : null}
+        {view === "calendar" ? <CalendarView events={calendarEvents} onCreate={openCreate} /> : null}
+        {view === "kanban" ? <KanbanView items={kanban} onCreate={openCreate} /> : null}
+        {view === "table" ? (
+          <div>
+            <div className="relative mb-4 max-w-md">
               <input
                 type="search"
-                placeholder="Search schedules…"
+                placeholder="Search WO, product, machine…"
                 value={tableSearch}
                 onChange={(e) => setTableSearch(e.target.value)}
-                className="mb-4 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                className="ui-input !rounded-full"
               />
-              {filteredTable.length === 0 ? (
-                <EmptyState message="No schedule data found. Create work orders and assign them to machines." />
-              ) : (
+            </div>
+            {filteredTable.length === 0 ? (
+              <ScheduleEmpty
+                message="No schedule rows yet. Create a schedule or assign work orders to machines."
+                onCreate={openCreate}
+              />
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-[var(--color-border-soft)]">
                 <DataTable
                   columns={tableColumns}
                   data={filteredTable}
                   searchKeys={["work_order_number", "product_name", "machine_name"]}
                   showSearch={false}
                 />
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right sidebar */}
-        <aside className="space-y-4">
-          {/* Shift Schedule */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="mb-3 text-sm font-bold text-slate-800">Shift Schedule</h3>
-            {shifts.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-4">No active shifts. Assign shifts to work orders.</p>
-            ) : (
-              <div className="space-y-3">
-                {shifts.map((s, i) => (
-                  <div key={i} className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs">
-                    <p className="font-bold text-slate-800">{s.shift_name}</p>
-                    <p className="text-slate-600">{s.machine_name} · {s.operator_name}</p>
-                    <p className="text-slate-700">{s.product_name} — {s.quantity} Qty</p>
-                    <span className={`mt-1 inline-block rounded-full px-2 py-0.5 font-semibold capitalize ${machineStatusColor(s.status)}`}>
-                      {s.status}
-                    </span>
-                  </div>
-                ))}
               </div>
             )}
-          </section>
+          </div>
+        ) : null}
+      </div>
 
-          {/* Live Machine Status */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="mb-3 text-sm font-bold text-slate-800">Live Machine Status</h3>
-            {liveMachines.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-4">No machines found. Add machines in Masters.</p>
-            ) : (
-              <div className="space-y-2">
-                {liveMachines.map((m) => (
-                  <div key={m.machine_id} className="rounded-lg border border-slate-100 p-3">
-                    <p className="text-sm font-bold text-slate-800">
-                      {machineStatusDot(m.status)} {m.machine_name}
-                    </p>
-                    <p className="text-xs capitalize text-slate-600">{m.status}</p>
-                    {m.job && <p className="text-xs text-slate-500">Job: {m.job}</p>}
-                    {m.progress_pct > 0 && (
-                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200">
-                        <div className="h-full bg-green-500 transition-all" style={{ width: `${m.progress_pct}%` }} />
-                      </div>
-                    )}
-                  </div>
+      {showFloorStrip ? (
+        <div className="grid gap-4 lg:grid-cols-3">
+          {liveMachines.length > 0 ? (
+            <section className="ui-card p-4">
+              <h3 className="mb-3 text-sm font-semibold text-[var(--color-text)]">Machines</h3>
+              <ul className="space-y-2">
+                {liveMachines.slice(0, 6).map((m) => (
+                  <li key={m.machine_id} className="flex items-center gap-2 text-sm">
+                    <StatusDot status={m.status} />
+                    <span className="min-w-0 flex-1 truncate font-medium text-[var(--color-text)]">{m.machine_name}</span>
+                    <span className="shrink-0 capitalize text-xs text-[var(--color-text-muted)]">{m.status}</span>
+                  </li>
                 ))}
-              </div>
-            )}
-          </section>
+              </ul>
+            </section>
+          ) : null}
 
-          {/* Production Queue */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="mb-3 text-sm font-bold text-slate-800">Production Queue</h3>
-            {queue.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-4">Queue is empty. Planned work orders will appear here.</p>
-            ) : (
+          {queue.length > 0 ? (
+            <section className="ui-card p-4">
+              <h3 className="mb-3 text-sm font-semibold text-[var(--color-text)]">Queue</h3>
               <ol className="space-y-2">
-                {queue.map((q) => (
-                  <li key={q.position} className="flex items-start gap-2 rounded-lg border border-slate-100 p-2 text-xs">
-                    <span className="font-bold text-[#2563EB]">{q.position}.</span>
-                    <div>
-                      <p className="font-semibold text-slate-800">{q.product_name}</p>
-                      <p className="text-slate-600">{q.quantity} Qty</p>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${priorityBadge(q.priority).bg} ${priorityBadge(q.priority).text}`}>
-                        Priority: {priorityBadge(q.priority).label}
-                      </span>
+                {queue.slice(0, 5).map((q) => (
+                  <li key={q.position} className="flex items-start gap-2 text-sm">
+                    <span className="font-bold tabular-nums text-[var(--color-action-teal)]">{q.position}.</span>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-[var(--color-text)]">{cleanProductLabel(q.product_name)}</p>
+                      <p className="text-xs text-[var(--color-text-muted)]">{q.quantity} qty</p>
                     </div>
                   </li>
                 ))}
               </ol>
-            )}
-          </section>
+            </section>
+          ) : null}
 
-          {/* Material Availability */}
-          {materials.length > 0 && (
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-sm font-bold text-slate-800">Material Availability</h3>
-              <ul className="space-y-2 text-sm">
+          {shifts.length > 0 ? (
+            <section className="ui-card p-4">
+              <h3 className="mb-3 text-sm font-semibold text-[var(--color-text)]">Shifts</h3>
+              <ul className="space-y-2">
+                {shifts.slice(0, 5).map((s, i) => (
+                  <li key={i} className="text-sm">
+                    <p className="font-medium text-[var(--color-text)]">{s.shift_name}</p>
+                    <p className="truncate text-xs text-[var(--color-text-muted)]">
+                      {s.machine_name} · {cleanProductLabel(s.product_name)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {materials.length > 0 ? (
+            <section className="ui-card p-4 lg:col-span-3">
+              <h3 className="mb-3 text-sm font-semibold text-[var(--color-text)]">Materials</h3>
+              <div className="flex flex-wrap gap-2">
                 {materials.map((m) => (
-                  <li key={m.product_name} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2">
-                    <span className="font-medium text-slate-800">{m.product_name}</span>
-                    <span className={m.available ? "text-green-600" : "text-amber-600"}>
-                      {m.available ? "✔ Issued" : "⚠ Pending"}
-                    </span>
-                  </li>
+                  <StatusBadge key={m.product_name} tone={m.available ? "success" : "warning"}>
+                    {cleanProductLabel(m.product_name)} · {m.available ? "Issued" : "Pending"}
+                  </StatusBadge>
                 ))}
-              </ul>
+              </div>
             </section>
-          )}
+          ) : null}
+        </div>
+      ) : null}
 
-          {/* Schedule Conflicts */}
-          {conflicts.length > 0 && (
-            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-              <h3 className="mb-3 text-sm font-bold text-amber-900">Schedule Conflicts</h3>
-              <ul className="space-y-2 text-xs">
-                {conflicts.map((c, i) => (
-                  <li key={i} className="flex items-start gap-2 text-amber-900">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <div>
-                      <p className="font-semibold">{CONFLICT_LABELS[c.conflict_type] || c.conflict_type}</p>
-                      <p className="text-amber-800">{c.message}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-        </aside>
-      </div>
-
-      {/* Bottom KPI row */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
-        <SummaryCard label="Today's Production" value={(bottomKpis.todays_production ?? 0).toLocaleString()} icon={Factory} iconWrap="bg-emerald-50 text-emerald-700" />
-        <SummaryCard label="Pending Orders" value={(bottomKpis.pending_orders ?? 0).toLocaleString()} icon={Clock} iconWrap="bg-amber-50 text-amber-700" />
-        <SummaryCard label="Machine Efficiency" value={`${bottomKpis.machine_efficiency_pct ?? 0}%`} icon={Zap} iconWrap="bg-violet-50 text-violet-700" />
-        <SummaryCard label="Shift Efficiency" value={`${bottomKpis.shift_efficiency_pct ?? 0}%`} icon={Gauge} iconWrap="bg-sky-50 text-sky-700" />
-        <SummaryCard label="Downtime" value={`${bottomKpis.downtime_minutes ?? 0} min`} icon={AlertTriangle} iconWrap="bg-rose-50 text-rose-700" />
-        <SummaryCard label="Power Consumption" value={`${bottomKpis.power_kwh ?? 0} kWh`} icon={Zap} iconWrap="bg-orange-50 text-orange-700" />
-        <SummaryCard label="OEE" value={`${bottomKpis.oee_pct ?? 0}%`} icon={Target} iconWrap="bg-[var(--color-success-soft)] text-[var(--color-success)]" />
-        <SummaryCard label="Quality Rate" value={`${bottomKpis.quality_rate_pct ?? 0}%`} icon={CheckCircle2} iconWrap="bg-emerald-50 text-emerald-700" />
-      </div>
-
-      {/* Workflow bar */}
-      <div className="flex flex-wrap gap-2 rounded-xl bg-slate-50 px-4 py-3">
-        {SCHEDULE_FLOW_STEPS.map((step, i) => (
-          <span key={step} className="flex items-center gap-2 text-xs text-slate-600">
-            <span className="font-semibold text-[#2563EB]">{step}</span>
-            {i < SCHEDULE_FLOW_STEPS.length - 1 && <span className="text-slate-300">→</span>}
-          </span>
-        ))}
-      </div>
-
-      {/* New Schedule modal */}
-      {!operatorMode && showNewModal && (
-        <NewScheduleModal
-          onClose={() => setShowNewModal(false)}
-          onSuccess={load}
-        />
-      )}
-      </div>
+      {!operatorMode && showNewModal ? (
+        <NewScheduleModal onClose={() => setShowNewModal(false)} onSuccess={load} />
+      ) : null}
     </div>
   );
 }

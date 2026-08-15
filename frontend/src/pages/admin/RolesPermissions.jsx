@@ -11,6 +11,7 @@ import usePermissions from "../../hooks/usePermissions";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { countModulePermissions, permissionLabel } from "../../config/permissions";
 import { useToast } from "../../context/ToastContext";
+import Button from "../../components/common/Button";
 import {
   getRoles,
   getModules,
@@ -155,14 +156,10 @@ export default function RolesPermissions() {
         }
         action={
           permissionsOnly ? null : (
-            <button
-              type="button"
-              onClick={openCreate}
-              className="ui-btn-primary"
-            >
+            <Button variant="primary" type="button" onClick={openCreate}>
               <Plus className="h-4 w-4" />
               Add Role
-            </button>
+            </Button>
           )
         }
       />

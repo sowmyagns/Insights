@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
+import Button from "../common/Button";
 import { useToast } from "../../context/ToastContext";
 
 const input =
@@ -187,19 +188,12 @@ export default function ContraEntryModal({
         </div>
 
         <div className="grid grid-cols-2 gap-3 bg-white px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-[#d0d0d8] bg-white py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
-          >
+          <Button type="button" variant="secondary" onClick={onClose} fullWidth>
             Cancel
-          </button>
-          <button
-            type="submit"
-            className="rounded-lg bg-[var(--color-cta)] py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
-          >
+          </Button>
+          <Button type="submit" variant="primary" fullWidth>
             Confirm
-          </button>
+          </Button>
         </div>
       </form>
     </div>,

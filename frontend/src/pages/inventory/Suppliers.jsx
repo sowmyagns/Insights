@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
 
@@ -11,6 +10,7 @@ import { getSuppliers } from "../../api/inventoryApi";
 import useTenantId from "../../hooks/useTenantId";
 import usePageRefresh from "../../hooks/usePageRefresh";
 
+import Button from "../../components/common/Button";
 export default function Suppliers() {
   const tenantId = useTenantId();
   const { t } = useTranslation();
@@ -65,10 +65,10 @@ export default function Suppliers() {
   );
 
   const createAction = (
-    <Link to="/inventory/suppliers/create" className="ui-btn-primary">
+    <Button variant="primary" to="/inventory/suppliers/create">
       <Plus className="h-4 w-4" />
       Create supplier
-    </Link>
+    </Button>
   );
 
   return (

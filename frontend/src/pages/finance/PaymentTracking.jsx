@@ -12,7 +12,7 @@ import { useToast } from "../../context/ToastContext";
 import { getPaymentSummary, getPaymentsEnriched } from "../../api/accountsApi";
 import { formatInr, statusColor } from "../../data/financeMasterData";
 
-
+import Button from "../../components/common/Button";
 const INITIAL_PAY_SUMMARY = {
   cash_received_today: 0,
   online_payments: 0,
@@ -166,13 +166,13 @@ export default function PaymentTracking() {
         subtitle="Customer receipts and vendor payments — UPI, NEFT, RTGS, cash, and bank transfers."
         action={
           <>
-            <button
+            <Button
+            variant="primary"
             type="button"
             onClick={() => setShowPaymentModal(true)}
-            className="ui-btn-primary"
           >
             <Plus className="h-4 w-4" /> Record Payment
-          </button>
+          </Button>
           </>
         }
       />

@@ -11,7 +11,6 @@ from app.models.user import User
 from app.schemas.operator import (
     BatchUpdateRequest,
     MachineBreakdownRequest,
-    ShopFloorUpdateRequest,
     WorkOrderActionRequest,
     WorkOrderProgressRequest,
 )
@@ -512,13 +511,13 @@ API_ENDPOINT_MAP = {
     "get_my_attendance": "GET /api/operator/attendance",
     "work_order_action": "POST /api/workorders/{action}",
     "update_production_progress": "POST /api/workorders/progress",
-    "report_machine_breakdown": "POST /api/shopfloor/breakdown",
+    "report_machine_breakdown": "POST /api/machines/breakdown",
     # Deep intelligence tools
     "get_machine_deep_status": "GET /api/machines/deep",
     "get_work_order_deep": "GET /api/workorders/deep",
     "get_batch_deep": "GET /api/batches/deep",
     "get_production_plan_deep": "GET /api/production/plans/deep",
-    "get_shopfloor_deep": "GET /api/shopfloor/deep",
+    "get_shopfloor_deep": "GET /api/production/overview/deep",
     "get_attendance_deep": "GET /api/operator/attendance/deep",
     "get_production_overview_deep": "GET /api/production/overview/deep",
     "get_schedule_deep": "GET /api/production/schedule/deep",
@@ -598,18 +597,23 @@ def execute_tool(db: Session, user: User, tool_name: str, arguments: dict) -> di
         return {"success": True, "found": True, "work_order": detail, "endpoint": endpoint}
 
     if tool_name == "get_todays_production":
-        summary = svc.get_shop_floor_status()
-        data = summary if isinstance(summary, dict) else {}
-        target = data.get("todays_target")
-        completed = data.get("todays_production")
-        if target is None:
-            target = getattr(summary, "todays_target", 0)
-        if completed is None:
-            completed = getattr(summary, "todays_production", 0)
+        from sqlalchemy import select
+        from app.models.production import DailyProductionReport
+
+        reports = list(
+            svc.db.scalars(
+                select(DailyProductionReport).where(
+                    DailyProductionReport.tenant_id == svc.tenant_id,
+                    DailyProductionReport.report_date == date.today(),
+                )
+            ).all()
+        )
+        completed = int(sum(float(r.produced_quantity or 0) for r in reports))
+        target = int(sum(float(r.planned_quantity or 0) for r in reports))
         return {
             "success": True,
-            "todays_target": target or 0,
-            "todays_production": completed or 0,
+            "todays_target": target,
+            "todays_production": completed,
             "endpoint": endpoint,
         }
 

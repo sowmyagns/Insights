@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import Button from "./Button";
 
 export default function ConfirmationDialog({
   open,
@@ -24,10 +25,7 @@ export default function ConfirmationDialog({
 
   if (!open) return null;
 
-  const confirmClass =
-    confirmVariant === "danger"
-      ? "ui-btn-danger"
-      : "ui-btn-primary";
+  const variant = confirmVariant === "danger" ? "danger" : "primary";
 
   return (
     <div
@@ -51,21 +49,12 @@ export default function ConfirmationDialog({
           {message}
         </p>
         <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="ui-btn-secondary"
-          >
+          <Button type="button" variant="secondary" onClick={onCancel}>
             {cancelLabel}
-          </button>
-          <button
-            ref={confirmRef}
-            type="button"
-            onClick={onConfirm}
-            className={confirmClass}
-          >
+          </Button>
+          <Button ref={confirmRef} type="button" variant={variant} onClick={onConfirm}>
             {confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

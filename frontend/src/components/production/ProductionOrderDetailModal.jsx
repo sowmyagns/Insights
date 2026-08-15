@@ -18,6 +18,7 @@ import {
 import useAuth from "../../hooks/useAuth";
 import { printProductionOrder } from "../../utils/printUtils";
 
+import Button from "../common/Button";
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "work_orders", label: "Work Orders" },
@@ -93,14 +94,10 @@ export function StartCheckModal({ order, checks, onClose, onConfirm, loading }) 
         </ul>
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-semibold text-slate-600">Cancel</button>
-          <button
-            type="button"
-            disabled={!allReady || loading}
-            onClick={onConfirm}
-            className="ui-btn-primary disabled:opacity-50"
-          >
+          <Button variant="primary" type="button" disabled={!allReady || loading}
+      onClick={onConfirm} className="disabled:opacity-50">
             {loading ? "Starting..." : "Start Production"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -122,7 +119,7 @@ export function CompleteWorkflowModal({ order, steps, onClose }) {
             </li>
           ))}
         </ol>
-        <button type="button" onClick={onClose} className="ui-btn-primary mt-4 w-full">Done</button>
+        <Button variant="primary" type="button" onClick={onClose} className="mt-4 w-full">Done</Button>
       </div>
     </div>
   );

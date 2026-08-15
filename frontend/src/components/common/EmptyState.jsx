@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Button from "./Button";
 
 const icons = {
   clipboard: (
@@ -55,16 +55,16 @@ export default function EmptyState({
         </p>
       ) : null}
       {actionLabel && actionHref ? (
-        <Link to={actionHref} className="mt-6 ui-btn-primary">
+        <Button variant="primary" to={actionHref} className="mt-6">
           <span aria-hidden>+</span>
           {actionLabel}
-        </Link>
+        </Button>
       ) : null}
       {actionLabel && !actionHref && onAction ? (
-        <button type="button" onClick={onAction} className="mt-6 ui-btn-primary">
+        <Button variant="primary" type="button" onClick={onAction} className="mt-6">
           <span aria-hidden>+</span>
           {actionLabel}
-        </button>
+        </Button>
       ) : null}
     </div>
   );

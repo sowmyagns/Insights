@@ -12,7 +12,6 @@ from app.models.procurement import GoodsReceipt
 from app.models.sales import Invoice, SalesOrder
 from app.models.user import User
 from app.services.notification_management_service import get_user_notifications
-from app.services.shop_floor_service import get_shop_floor_summary
 
 
 def _user_role_names(user: User | None) -> list[str]:
@@ -324,7 +323,6 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
     yesterday_reject = int(sum(float(r.get("scrap_quantity", 0) or 0) for r in yesterday_reports))
     reject_trend, reject_up = _trend_pct(reject_qty, yesterday_reject)
 
-    shop = get_shop_floor_summary(db, tenant_id)
     overview = _production_overview(db, tenant_id, 7)
 
     # Inventory blocks for dashboard (real stock only)
@@ -597,14 +595,7 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
         },
         "alerts_feed": alerts_feed,
         "recent_work_orders": recent_work_orders,
-        "shop_floor": {
-            "running_jobs": shop.running_jobs,
-            "active_machines": shop.active_machines,
-            "operators_working": shop.operators_working,
-            "todays_production": shop.todays_production,
-            "todays_target": shop.todays_target,
-            "oee_pct": shop.oee_pct,
-        },
+        "shop_floor": {},
         "recent_production_orders": recent_orders,
         "inventory_blocks": inventory_blocks,
         "warehouse_locations": warehouse_locations,
@@ -643,8 +634,8 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
         "reject_up": reject_up,
         "eff_pct": eff_pct,
         "total_planned_today": total_planned_today,
-        "todays_target": getattr(shop, "todays_target", 0) or 0,
-        "oee_pct": getattr(shop, "oee_pct", 0) or 0,
+        "todays_target": total_planned_today,
+        "oee_pct": machine_pct,
         "inventory_value": inventory_value,
         "raw_count": raw_count,
         "raw_qty": raw_qty,

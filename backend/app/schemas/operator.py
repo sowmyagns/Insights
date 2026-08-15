@@ -18,15 +18,6 @@ class WorkOrderProgressRequest(BaseModel):
     notes: str | None = None
 
 
-class ShopFloorUpdateRequest(BaseModel):
-    machine_id: int | None = None
-    machine_code: str | None = None
-    work_order_id: int | None = None
-    status: str | None = None
-    produced_quantity: float | None = None
-    notes: str | None = None
-
-
 class BatchUpdateRequest(BaseModel):
     batch_id: int
     quantity: float | None = None

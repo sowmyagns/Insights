@@ -22,6 +22,7 @@ import {
 import { statusColor } from "../../data/procurementMasterData";
 
 
+import Button from "../../components/common/Button";
 function WorkflowStrip() {
   const steps = [
     "Material Request",
@@ -130,20 +131,12 @@ function CreateRfqModal({ isOpen, onClose, onCreated, materialRequests }) {
             />
           </div>
           <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-1/2 rounded-lg border px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-            >
+            <Button type="button" variant="secondary" onClick={onClose} className="w-1/2">
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-1/2 ui-btn-primary"
-            >
+            </Button>
+            <Button variant="primary" type="submit" disabled={submitting} className="w-1/2">
               {submitting ? "Creating..." : "Create RFQ"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -254,20 +247,12 @@ function AddQuotationModal({ isOpen, onClose, rfqId, suppliers, onAdded }) {
             />
           </div>
           <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-1/2 rounded-lg border px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-            >
+            <Button type="button" variant="secondary" onClick={onClose} className="w-1/2">
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-1/2 ui-btn-primary"
-            >
+            </Button>
+            <Button variant="primary" type="submit" disabled={submitting} className="w-1/2">
               {submitting ? "Saving..." : "Add Quotation"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -527,13 +512,13 @@ export default function RFQ() {
         subtitle="Send Request for Quotation (RFQ)s to multiple vendors and automatically compare quotations."
         action={
           <>
-            <button
+            <Button
+            variant="primary"
             type="button"
             onClick={() => setIsCreateOpen(true)}
-            className="ui-btn-primary"
           >
             <Plus className="h-4 w-4" /> Create Request for Quotation (RFQ)
-          </button>
+          </Button>
           </>
         }
       />

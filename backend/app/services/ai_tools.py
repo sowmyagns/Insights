@@ -13,12 +13,11 @@ from sqlalchemy.orm import Session
 
 from app.core.permissions import get_role_names, user_has_permission, user_is_admin
 from app.models.machine import Machine
-from app.models.production import Batch, DailyProductionReport, WorkOrder
+from app.models.production import Batch, DailyProductionReport, ProductionOrder, WorkOrder
 from app.models.user import User
 from app.services.data_scope import operator_can_access_work_order, scope_work_orders
 from app.services.production_service import get_work_order, list_work_orders, update_work_order
 from app.services.schedule_service import get_schedule_dashboard
-from app.services.shop_floor_service import get_shop_floor_summary
 from app.services.work_order_service import get_work_order_detail, list_work_orders_enriched
 
 logger = logging.getLogger(__name__)
@@ -50,7 +49,7 @@ TOOL_DEFINITIONS: list[dict] = [
         "type": "function",
         "function": {
             "name": "get_todays_production_target",
-            "description": "Get today's production target and completed quantity from shop floor.",
+            "description": "Get today's production target and completed quantity from daily production reports.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
@@ -179,6 +178,31 @@ def _serialize(obj: Any) -> Any:
     return obj
 
 
+def _todays_production_totals(db: Session, tenant_id: int) -> tuple[int, int]:
+    """Return (produced, target) from today's daily production reports."""
+    today = date.today()
+    reports = list(
+        db.scalars(
+            select(DailyProductionReport).where(
+                DailyProductionReport.tenant_id == tenant_id,
+                DailyProductionReport.report_date == today,
+            )
+        ).all()
+    )
+    produced = int(sum(float(r.produced_quantity or 0) for r in reports))
+    target = int(sum(float(r.planned_quantity or 0) for r in reports))
+    if target <= 0:
+        target = int(
+            sum(
+                float(o.planned_quantity or 0)
+                for o in db.scalars(
+                    select(ProductionOrder).where(ProductionOrder.tenant_id == tenant_id)
+                ).all()
+            )
+        )
+    return produced, target
+
+
 def _find_wo_by_number(db: Session, tenant_id: int, number: str, user: User) -> WorkOrder | None:
     normalized = number.strip().upper()
     stmt = select(WorkOrder).where(
@@ -228,22 +252,22 @@ def execute_tool(db: Session, user: User, tool_name: str, arguments: dict) -> di
             }
 
         if tool_name == "get_todays_production_target":
-            summary = get_shop_floor_summary(db, tenant_id)
+            produced, target = _todays_production_totals(db, tenant_id)
             return {
                 "success": True,
-                "todays_target": summary.todays_target,
-                "todays_production": summary.todays_production,
-                "remaining": max(summary.todays_target - summary.todays_production, 0),
-                "navigation": "/factory-monitor/live-production",
+                "todays_target": target,
+                "todays_production": produced,
+                "remaining": max(target - produced, 0),
+                "navigation": "/factory-monitor/machine-status",
             }
 
         if tool_name == "get_todays_production":
-            summary = get_shop_floor_summary(db, tenant_id)
+            produced, target = _todays_production_totals(db, tenant_id)
             return {
                 "success": True,
-                "completed_quantity": summary.todays_production,
-                "target": summary.todays_target,
-                "remaining_quantity": max(summary.todays_target - summary.todays_production, 0),
+                "completed_quantity": produced,
+                "target": target,
+                "remaining_quantity": max(target - produced, 0),
             }
 
         if tool_name == "get_machine_status":

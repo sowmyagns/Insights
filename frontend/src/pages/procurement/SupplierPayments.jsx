@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
-import { Link } from "react-router-dom";
 
 import Loader from "../../components/common/Loader";
+import Button from "../../components/common/Button";
 import PageHeader from "../../components/common/PageHeader";
 import DataTable from "../../components/common/DataTable";
 import EmptyState from "../../components/common/EmptyState";
@@ -100,13 +100,9 @@ export default function SupplierPayments() {
         title="Supplier Payments"
         subtitle={`Total paid: ₹${total.toLocaleString()}`}
         action={
-          <Link
-            to="/procurement/supplier-payments/create"
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:opacity-90"
-            style={{ backgroundColor: "var(--color-primary)" }}
-          >
+          <Button variant="primary" to="/procurement/supplier-payments/create">
             + Record Payment
-          </Link>
+          </Button>
         }
       />
       <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">

@@ -144,10 +144,13 @@ def test_audit_logs(client, register_admin):
     admin = register_admin()
     headers = admin["headers"]
 
-    client.post(
+    login_resp = client.post(
         "/auth/login",
         json={"email": admin["email"], "password": admin["password"], "role": "Admin"},
     )
+    assert login_resp.status_code == 200
+    new_token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {new_token}"}
 
     logs = client.get("/admin/access-logs", headers=headers)
     assert logs.status_code == 200
