@@ -52,7 +52,6 @@ export default function CreateWarehouse() {
         Back to warehouses
       </Link>
       <PageHeader
-        title="Create warehouse"
         subtitle="Add a new warehouse to organize and track stock by location."
       />
       <form onSubmit={handleSubmit} className="ui-card space-y-4 p-6">

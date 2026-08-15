@@ -68,6 +68,26 @@
   --color-stopped: #dc2626;
   --color-maintenance: #f9c80a;
 
+  /* Dashboard KPI accents — icon well + top bar stay in sync */
+  --kpi-primary: var(--color-primary);
+  --kpi-primary-soft: var(--color-primary-soft);
+  --kpi-success: #15803d;
+  --kpi-success-soft: #e8f8ef;
+  --kpi-teal: #0f766e;
+  --kpi-teal-soft: #e6f4f4;
+  --kpi-violet: #6d28d9;
+  --kpi-violet-soft: #f3eefc;
+  --kpi-warning: #b45309;
+  --kpi-warning-soft: #fff6e5;
+  --kpi-danger: #ef4444;
+  --kpi-danger-soft: #fde8e8;
+  --kpi-info: #2563eb;
+  --kpi-info-soft: #e8f1ff;
+  --kpi-orange: #c2410c;
+  --kpi-orange-soft: #fff1e8;
+  --kpi-neutral: #6b6b76;
+  --kpi-neutral-soft: #f3f3f6;
+
   /* Navigation / chrome */
   --color-nav-bg: #012f46;
   --color-nav-bg-hover: #033858;
@@ -668,6 +688,7 @@ select.pl-10 {
 .ui-page {
   width: 100%;
   max-width: var(--page-max);
+  min-width: 0;
   margin-left: auto;
   margin-right: auto;
   padding: var(--space-5) var(--space-4) var(--space-12);
@@ -714,7 +735,7 @@ select.pl-10 {
 }
 .ui-title {
   font-size: var(--text-xl);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: var(--tracking-tight);
   line-height: var(--leading-tight);
   color: var(--color-text);
@@ -722,6 +743,20 @@ select.pl-10 {
 @media (min-width: 640px) {
   .ui-title {
     font-size: var(--text-2xl);
+  }
+}
+/* Navbar chrome title — one step below in-page ui-title, never numeric font */
+.app-page-title {
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  color: var(--color-text);
+}
+@media (min-width: 640px) {
+  .app-page-title {
+    font-size: var(--text-xl);
   }
 }
 .ui-section-title {
@@ -854,6 +889,72 @@ select.pl-10 {
   border: 1px solid var(--color-border-muted);
   background: var(--color-surface);
 }
+.ui-table-wrap--scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+.inventory-table-scroll,
+.raw-materials-table-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.55) var(--color-surface-muted);
+}
+.inventory-table-scroll::-webkit-scrollbar,
+.raw-materials-table-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+.inventory-table-scroll::-webkit-scrollbar-track,
+.raw-materials-table-scroll::-webkit-scrollbar-track {
+  margin: 0 4px;
+  background: var(--color-surface-muted);
+  border-radius: 999px;
+}
+.inventory-table-scroll::-webkit-scrollbar-thumb,
+.raw-materials-table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.55);
+  border-radius: 999px;
+}
+.inventory-table-scroll::-webkit-scrollbar-thumb:hover,
+.raw-materials-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(71, 85, 105, 0.75);
+}
+.inventory-table-scroll .ui-table-wrap,
+.raw-materials-table-scroll .ui-table-wrap {
+  overflow: visible;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+.inventory-table-scroll--materials .ui-table-wrap table,
+.inventory-table-scroll--finished-goods .ui-table-wrap table,
+.raw-materials-table-scroll .ui-table-wrap table {
+  min-width: 1280px;
+}
+.inventory-table-scroll--transfer .ui-table-wrap table,
+.inventory-table-scroll--adjustment .ui-table-wrap table {
+  min-width: 1100px;
+}
+.inventory-table-scroll--ledger .ui-table-wrap table {
+  min-width: 1400px;
+}
+.inventory-table-scroll--warehouses .ui-table-wrap table {
+  min-width: 1200px;
+}
+.planning-table-panel {
+  min-width: 0;
+  width: 100%;
+}
+.planning-table-panel .ui-table-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+.planning-table-panel .ui-table-wrap table {
+  min-width: 960px;
+}
 .ui-empty {
   padding: var(--space-12) var(--space-4);
   text-align: center;
@@ -894,6 +995,10 @@ select.pl-10 {
   color: #0751b2;
   background: white;
   font-weight: 600;
+}
+.ui-pagination .ui-num,
+.ui-page-btn--active.ui-num {
+  letter-spacing: 0.01em;
 }
 
 /* Toolbar row under page header */

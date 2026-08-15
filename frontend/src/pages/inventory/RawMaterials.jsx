@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowDownToLine,
   CalendarDays,
-  Eye,
   Filter,
-  MoreVertical,
   Package,
   PackageX,
-  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -21,160 +17,32 @@ import EmptyState from "../../components/common/EmptyState";
 import KpiCard from "../../components/common/KpiCard";
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
+import SkeletonCard from "../../components/common/SkeletonCard";
 import StatusBadge from "../../components/common/StatusBadge";
+import ConfirmDialog from "../../components/admin/ConfirmDialog";
+import InventoryRowActionsMenu from "../../components/inventory/InventoryRowActionsMenu";
 import MaterialDetailModal from "../../components/inventory/MaterialDetailModal";
+import MaterialFormModal from "../../components/inventory/MaterialFormModal";
 import { useToast } from "../../context/ToastContext";
-import { getRawMaterialDetail, getRawMaterials, getRawMaterialsSummary, getWarehouses } from "../../api/inventoryApi";
+import useTenantId from "../../hooks/useTenantId";
+import {
+  deleteInventoryItem,
+  getRawMaterialDetail,
+  getRawMaterials,
+  getRawMaterialsSummary,
+  getWarehouses,
+} from "../../api/inventoryApi";
 import { stockStatusLabel, stockStatusTone } from "../../data/inventoryMasterData";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 import { asArray } from "../../utils/apiError";
+import { notifyManufacturingSpine, MANUFACTURING_EVENTS } from "../../utils/manufacturingEvents";
 
-/** Preview rows from the Raw Materials design mockup (used only when live list is empty). */
-const MOCKUP_ROWS = [
-  {
-    id: "rm-1",
-    name: "PET Resin",
-    description: "Polyethylene Terephthalate",
-    sku: "RM-0001",
-    category: "Plastics",
-    unit: "KG",
-    available: 1250,
-    reserved: 150,
-    reorder_level: 500,
-    status: "available",
-    warehouse_name: "Main Warehouse",
-    last_updated: "2026-08-13T16:30:00",
-    quantity: 1400,
-    unit_cost: 90,
-    thumb: "#22c55e",
-  },
-  {
-    id: "rm-2",
-    name: "Color Masterbatch - Blue",
-    description: "Blue pigment concentrate",
-    sku: "RM-0002",
-    category: "Chemicals",
-    unit: "KG",
-    available: 84.5,
-    reserved: 2,
-    reorder_level: 100,
-    status: "low_stock",
-    warehouse_name: "Main Warehouse",
-    last_updated: "2026-08-13T14:10:00",
-    quantity: 86.5,
-    unit_cost: 320,
-    thumb: "#2563eb",
-  },
-  {
-    id: "rm-3",
-    name: "HDPE Granules",
-    description: "High-density polyethylene",
-    sku: "RM-0003",
-    category: "Plastics",
-    unit: "KG",
-    available: 980,
-    reserved: 40,
-    reorder_level: 300,
-    status: "available",
-    warehouse_name: "Main Warehouse",
-    last_updated: "2026-08-12T11:05:00",
-    quantity: 1020,
-    unit_cost: 75,
-    thumb: "#0ea5e9",
-  },
-  {
-    id: "rm-4",
-    name: "PP Caps 28mm",
-    description: "Bottle closure caps",
-    sku: "RM-0004",
-    category: "Packaging",
-    unit: "Nos",
-    available: 12500,
-    reserved: 800,
-    reorder_level: 5000,
-    status: "available",
-    warehouse_name: "Unit-1 Warehouse",
-    last_updated: "2026-08-13T09:40:00",
-    quantity: 13300,
-    unit_cost: 1.2,
-    thumb: "#a855f7",
-  },
-  {
-    id: "rm-5",
-    name: "Shrink Film",
-    description: "Heat shrink wrap",
-    sku: "RM-0005",
-    category: "Packaging",
-    unit: "KG",
-    available: 48,
-    reserved: 0,
-    reorder_level: 200,
-    status: "low_stock",
-    warehouse_name: "Main Warehouse",
-    last_updated: "2026-08-11T18:20:00",
-    quantity: 48,
-    unit_cost: 140,
-    thumb: "#f59e0b",
-  },
-  {
-    id: "rm-6",
-    name: "Label Roll - Product A",
-    description: "Printed adhesive labels",
-    sku: "RM-0006",
-    category: "Packaging",
-    unit: "Roll",
-    available: 220,
-    reserved: 15,
-    reorder_level: 50,
-    status: "available",
-    warehouse_name: "Unit-2 Warehouse",
-    last_updated: "2026-08-13T08:15:00",
-    quantity: 235,
-    unit_cost: 45,
-    thumb: "#14b8a6",
-  },
-  {
-    id: "rm-7",
-    name: "Silicone Lubricant",
-    description: "Machine grade lubricant",
-    sku: "RM-0007",
-    category: "Chemicals",
-    unit: "Ltr",
-    available: 6,
-    reserved: 0,
-    reorder_level: 25,
-    status: "low_stock",
-    warehouse_name: "Main Warehouse",
-    last_updated: "2026-08-10T12:00:00",
-    quantity: 6,
-    unit_cost: 280,
-    thumb: "#64748b",
-  },
-  {
-    id: "rm-8",
-    name: "Corrugated Sheet",
-    description: "Carton packing sheet",
-    sku: "RM-0008",
-    category: "Packaging",
-    unit: "Nos",
-    available: 0,
-    reserved: 0,
-    reorder_level: 300,
-    status: "out_of_stock",
-    warehouse_name: "Unit-1 Warehouse",
-    last_updated: "2026-08-09T17:45:00",
-    quantity: 0,
-    unit_cost: 18,
-    thumb: "#ef4444",
-  },
-];
-
-const MOCKUP_SUMMARY = {
-  total_items: 142,
-  stock_value: 4875320,
-  low_stock: 18,
-  out_of_stock: 6,
-  total_quantity: 5562,
+const EMPTY_SUMMARY = {
+  total_items: 0,
+  stock_value: 0,
+  low_stock: 0,
+  out_of_stock: 0,
+  total_quantity: 0,
 };
 
 function formatInrAmount(value) {
@@ -215,8 +83,10 @@ function todayISO() {
 }
 
 export default function RawMaterials() {
+  const tenantId = useTenantId();
   const { addToast } = useToast();
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState({});
   const [materials, setMaterials] = useState([]);
   const [warehousesApi, setWarehousesApi] = useState([]);
@@ -229,30 +99,52 @@ export default function RawMaterials() {
   const [headerWarehouse, setHeaderWarehouse] = useState("");
   const [selected, setSelected] = useState(null);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [formModal, setFormModal] = useState({ open: false, mode: "add", material: null });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [sumRes, listRes, whRes] = await Promise.allSettled([
-        getRawMaterialsSummary(),
-        getRawMaterials(),
-        getWarehouses(),
-      ]);
-      if (sumRes.status === "fulfilled" && sumRes.value?.data) setSummary(sumRes.value.data);
-      else setSummary({});
-      if (listRes.status === "fulfilled") setMaterials(asArray(listRes.value?.data));
-      else setMaterials([]);
-      if (whRes.status === "fulfilled") setWarehousesApi(asArray(whRes.value?.data));
-      else setWarehousesApi([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const load = useCallback(
+    async ({ background = false } = {}) => {
+      if (background) setRefreshing(true);
+      else setInitialLoading(true);
+
+      try {
+        const [sumRes, listRes, whRes] = await Promise.allSettled([
+          getRawMaterialsSummary(),
+          getRawMaterials(),
+          getWarehouses(),
+        ]);
+
+        if (sumRes.status === "fulfilled" && sumRes.value?.data) setSummary(sumRes.value.data);
+        else setSummary({});
+
+        if (listRes.status === "fulfilled") setMaterials(asArray(listRes.value?.data));
+        else setMaterials([]);
+
+        if (whRes.status === "fulfilled") setWarehousesApi(asArray(whRes.value?.data));
+        else setWarehousesApi([]);
+
+        if (!background) {
+          const failed = [sumRes, listRes, whRes].filter((res) => res.status === "rejected");
+          if (failed.length === 3) {
+            addToast("Could not load raw materials. Check your connection and try again.", "error");
+          }
+        }
+      } finally {
+        if (background) setRefreshing(false);
+        else setInitialLoading(false);
+      }
+    },
+    [addToast]
+  );
 
   useEffect(() => {
     load();
   }, [load]);
-  useManufacturingRefresh(load);
+
+  const refreshSilently = useCallback(() => load({ background: true }), [load]);
+  useManufacturingRefresh(refreshSilently);
 
   useEffect(() => {
     if (!headerWarehouse && warehousesApi.length) {
@@ -260,11 +152,9 @@ export default function RawMaterials() {
     }
   }, [warehousesApi, headerWarehouse]);
 
-  const hasLiveData = materials.length > 0;
-
-  const rows = useMemo(() => {
-    if (hasLiveData) {
-      return materials.map((m) => {
+  const rows = useMemo(
+    () =>
+      materials.map((m) => {
         const available = Number(m.available ?? Math.max((Number(m.quantity) || 0) - (Number(m.reserved) || 0), 0));
         return {
           ...m,
@@ -275,13 +165,11 @@ export default function RawMaterials() {
           thumb: thumbColor(m.name || m.sku || ""),
           live: true,
         };
-      });
-    }
-    return MOCKUP_ROWS.map((r) => ({ ...r, live: false }));
-  }, [hasLiveData, materials]);
+      }),
+    [materials]
+  );
 
   const kpis = useMemo(() => {
-    if (!hasLiveData) return MOCKUP_SUMMARY;
     let low = 0;
     let out = 0;
     let stockValue = Number(summary.stock_value) || 0;
@@ -304,7 +192,7 @@ export default function RawMaterials() {
       out_of_stock: summary.out_of_stock ?? out,
       total_quantity: totalQty,
     };
-  }, [hasLiveData, rows, summary]);
+  }, [rows, summary]);
 
   const categories = useMemo(() => {
     const set = new Set(rows.map((r) => r.category).filter(Boolean));
@@ -340,18 +228,77 @@ export default function RawMaterials() {
     setSelectedIds(new Set());
   };
 
-  const openDetail = async (row) => {
+  const openDetail = async (row, readOnly = true) => {
     if (row.live && typeof row.id === "number") {
       try {
         const res = await getRawMaterialDetail(row.id);
-        setSelected(res.data);
+        setSelected({
+          ...res.data,
+          quantity: row.quantity,
+          available: row.available,
+          reserved: row.reserved,
+          reorder_level: row.reorder_level ?? res.data.reorder_level,
+          readOnly,
+        });
         return;
       } catch {
         addToast("Could not load material detail", "error");
       }
     }
-    setSelected({ ...row });
+    setSelected({ ...row, readOnly });
   };
+
+  const requireLiveRow = (row, actionLabel = "This action") => {
+    if (row.live && typeof row.id === "number") return true;
+    addToast(`${actionLabel} is only available for live inventory items.`, "warning");
+    return false;
+  };
+
+  const handleView = (row) => {
+    openDetail(row, true);
+  };
+
+  const handleEdit = (row) => {
+    if (!requireLiveRow(row, "Edit")) return;
+    setFormModal({ open: true, mode: "edit", material: row });
+  };
+
+  const handleAdd = () => {
+    setFormModal({ open: true, mode: "add", material: null });
+  };
+
+  const handleDeleteRequest = (row) => {
+    if (!requireLiveRow(row, "Delete")) return;
+    setDeleteTarget(row);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget?.id) return;
+    const itemId = deleteTarget.id;
+    setDeleting(true);
+    try {
+      await deleteInventoryItem(itemId);
+      addToast("Material deleted successfully");
+      setDeleteTarget(null);
+      notifyManufacturingSpine(MANUFACTURING_EVENTS.INVENTORY_CHANGED, { item_id: itemId });
+      await load({ background: true });
+    } catch {
+      addToast("Could not delete material", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleFormSaved = async () => {
+    addToast(formModal.mode === "edit" ? "Material updated successfully" : "Material added successfully");
+    notifyManufacturingSpine(MANUFACTURING_EVENTS.INVENTORY_CHANGED, {});
+    await load({ background: true });
+  };
+
+  const defaultWarehouseName =
+    warehousesApi.find((w) => String(w.id) === String(headerWarehouse))?.name ||
+    warehousesApi[0]?.name ||
+    "Main Warehouse";
 
   const toggleRow = (id) => {
     setSelectedIds((prev) => {
@@ -458,48 +405,36 @@ export default function RawMaterials() {
       key: "actions",
       label: "Actions",
       sortable: false,
+      className: "min-w-[4.5rem] w-[4.5rem] whitespace-nowrap",
       render: (r) => (
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => openDetail(r)}
-            className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-action-teal)]"
-            aria-label="View"
-            title="View"
-          >
-            <Eye className="h-4 w-4" />
-          </button>
-          <Link
-            to={r.live ? `/inventory/items/create?type=raw_material&edit=${r.id}` : "/inventory/items/create?type=raw_material"}
-            className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]"
-            aria-label="Edit"
-            title="Edit"
-          >
-            <Pencil className="h-4 w-4" />
-          </Link>
-          <button
-            type="button"
-            className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
-            aria-label="More"
-            title="More"
-          >
-            <MoreVertical className="h-4 w-4" />
-          </button>
+        <div className="flex items-center justify-end whitespace-nowrap">
+          <InventoryRowActionsMenu
+            rowId={r.id}
+            isOpen={openMenuId === r.id}
+            onOpen={setOpenMenuId}
+            onClose={() => setOpenMenuId(null)}
+            onView={() => handleView(r)}
+            onEdit={() => handleEdit(r)}
+            onAdd={handleAdd}
+            onDelete={() => handleDeleteRequest(r)}
+          />
         </div>
       ),
     },
   ];
 
-  if (loading) return <Loader label="Loading raw materials…" />;
-
   return (
-    <div className="space-y-5 pb-4">
+    <div className="min-w-0 space-y-5 pb-4">
       <PageHeader
-        title="Raw Materials"
-        showTitle
         subtitle="Manage and track your raw materials inventory"
         action={
           <div className="flex flex-wrap items-center gap-2">
+            {refreshing ? (
+              <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--color-text-muted)]">
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                Refreshing…
+              </span>
+            ) : null}
             <label className="relative inline-flex items-center">
               <CalendarDays className="pointer-events-none absolute left-3 h-4 w-4 text-[var(--color-text-muted)]" aria-hidden />
               <input
@@ -531,14 +466,20 @@ export default function RawMaterials() {
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <KpiCard label="Total Items" value={Number(kpis.total_items).toLocaleString("en-IN")} icon={Package} tone="info" meta="All raw materials" />
-        <KpiCard label="Total Stock Value" value={formatInrAmount(kpis.stock_value)} icon={Package} tone="success" meta="Across all warehouses" />
-        <KpiCard label="Low Stock Items" value={kpis.low_stock} icon={AlertTriangle} tone="warning" meta="Reorder level reached" />
-        <KpiCard label="Out of Stock" value={kpis.out_of_stock} icon={PackageX} tone="danger" meta="Stock not available" />
-        <KpiCard label="Total Quantity" value={formatQty(kpis.total_quantity)} icon={ArrowDownToLine} tone="info" meta="Across all items" />
+        {initialLoading ? (
+          Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+        ) : (
+          <>
+            <KpiCard label="Total Items" value={Number(kpis.total_items).toLocaleString("en-IN")} icon={Package} tone="info" meta="All raw materials" />
+            <KpiCard label="Total Stock Value" value={formatInrAmount(kpis.stock_value)} icon={Package} tone="success" meta="Across all warehouses" />
+            <KpiCard label="Low Stock Items" value={kpis.low_stock} icon={AlertTriangle} tone="warning" meta="Reorder level reached" />
+            <KpiCard label="Out of Stock" value={kpis.out_of_stock} icon={PackageX} tone="danger" meta="Stock not available" />
+            <KpiCard label="Total Quantity" value={formatQty(kpis.total_quantity)} icon={ArrowDownToLine} tone="info" meta="Across all items" />
+          </>
+        )}
       </div>
 
-      <div className="ui-card p-4 sm:p-5">
+      <div className="ui-card min-w-0 p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="relative min-w-0 flex-1 xl:max-w-lg">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
@@ -584,32 +525,61 @@ export default function RawMaterials() {
                 </Button>
               </>
             ) : null}
-            <Button variant="primary" to="/inventory/items/create?type=raw_material">
+            <Button type="button" variant="primary" onClick={handleAdd}>
               <Plus className="h-4 w-4" /> Add Raw Material
             </Button>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-[var(--color-border-soft)]">
-          <DataTable
-            columns={columns}
-            data={filtered}
-            showSearch={false}
-            pageSize={10}
-            emptyState={
-              <EmptyState
-                icon="cube"
-                title="No raw materials found"
-                description="Add your first raw material to start tracking stock."
-                actionLabel="Add Raw Material"
-                actionHref="/inventory/items/create?type=raw_material"
-              />
-            }
-          />
+        <div className="inventory-table-scroll inventory-table-scroll--materials rounded-lg border border-[var(--color-border-soft)]">
+          {initialLoading ? (
+            <Loader label="Loading raw materials…" />
+          ) : (
+            <DataTable
+              columns={columns}
+              data={filtered}
+              showSearch={false}
+              pageSize={10}
+              emptyState={
+                <EmptyState
+                  icon="cube"
+                  title="No raw materials found"
+                  description="Add your first raw material to start tracking stock."
+                  actionLabel="Add Raw Material"
+                  actionHref="/inventory/items/create?type=raw_material"
+                />
+              }
+            />
+          )}
         </div>
       </div>
 
-      {selected ? <MaterialDetailModal material={selected} onClose={() => setSelected(null)} /> : null}
+      {selected ? (
+        <MaterialDetailModal material={selected} readOnly={selected.readOnly !== false} onClose={() => setSelected(null)} />
+      ) : null}
+
+      <MaterialFormModal
+        open={formModal.open}
+        mode={formModal.mode}
+        material={formModal.material}
+        tenantId={tenantId}
+        warehouseName={defaultWarehouseName}
+        onClose={() => setFormModal({ open: false, mode: "add", material: null })}
+        onSaved={handleFormSaved}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete record"
+        message="Are you sure you want to delete this record?"
+        confirmLabel="Delete"
+        destructive
+        loading={deleting}
+        onConfirm={handleDeleteConfirm}
+        onClose={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

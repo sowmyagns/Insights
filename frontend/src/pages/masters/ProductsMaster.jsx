@@ -16,6 +16,7 @@ import useAuth from "../../hooks/useAuth";
 import { isProductionManager } from "../../config/permissions";
 import AddNewItemModal from "../../components/sales/AddNewItemModal";
 import Loader from "../../components/common/Loader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import { useToast } from "../../context/ToastContext";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { deleteProduct, getProducts } from "../../api/productsApi";
@@ -210,55 +211,6 @@ export default function ProductsMaster() {
           </div>
         </div>
 
-        {/* Product Categories Chart */}
-        {categoryChart.length > 0 && (
-          <div className="mb-5 rounded-xl border border-[#e8e8ee] bg-white p-4 sm:p-5 shadow-sm">
-            <h3 className="text-sm font-bold text-[#1a1a1f]">Product Categories Chart</h3>
-            <p className="text-xs text-[#6b6b76]">Breakdown of products by category</p>
-            <div className="mt-4 flex flex-col items-center gap-6 sm:flex-row">
-              <div className="h-44 w-44 shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={categoryChart}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={45}
-                      outerRadius={70}
-                      paddingAngle={2}
-                    >
-                      {categoryChart.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} stroke="none" />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: 8,
-                        border: "1px solid #e4e4ea",
-                        fontSize: 12,
-                      }}
-                      formatter={(value, name) => [`${value} products`, name]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <ul className="flex-1 space-y-2 text-xs">
-                {categoryChart.map((item) => (
-                  <li key={item.name} className="flex items-center justify-between gap-3">
-                    <span className="flex items-center gap-2 text-[#4a4a55]">
-                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span className="font-medium">{item.name}</span>
-                    </span>
-                    <span className="font-bold text-[#1a1a1f]">{item.value}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
         <div className="ui-card p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center gap-2.5">
             <div className="relative min-w-[220px] flex-1">
@@ -304,6 +256,7 @@ export default function ProductsMaster() {
               <table className="w-full min-w-[880px] border-collapse text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-[var(--color-border-soft)] bg-[var(--color-surface-thead)] text-[12px] font-medium text-[var(--color-text-muted)]">
+                    <SerialNumberHeader />
                     <th className="px-4 py-3 font-medium">Product Name</th>
                     <th className="px-4 py-3 font-medium">Category</th>
                     <th className="px-4 py-3 font-medium">Description</th>
@@ -316,7 +269,7 @@ export default function ProductsMaster() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((p) => {
+                  {rows.map((p, rowIndex) => {
                     const category = p.category || "Finished Goods";
                     const desc = blankOr(p.description);
                     const hsn = blankOr(p.hsn_code);
@@ -334,6 +287,7 @@ export default function ProductsMaster() {
                         : `${p.cess_percent} %`;
                     return (
                       <tr key={p.id} className="border-b border-[#f0f0f4] text-[#1a1a1f] last:border-b-0">
+                        <SerialNumberCell rowIndex={rowIndex} page={page} pageSize={pageSize} />
                         <td className="px-4 py-3.5 font-normal">{p.name || ""}</td>
                         <td className="px-4 py-3.5 text-[#4a4a55]">
                           <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
@@ -431,6 +385,55 @@ export default function ProductsMaster() {
             </div>
           </div>
         </div>
+
+        {/* Product Categories Chart */}
+        {categoryChart.length > 0 && (
+          <div className="mt-5 rounded-xl border border-[#e8e8ee] bg-white p-4 sm:p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-[#1a1a1f]">Product Categories Chart</h3>
+            <p className="text-xs text-[#6b6b76]">Breakdown of products by category</p>
+            <div className="mt-4 flex flex-col items-center gap-6 sm:flex-row">
+              <div className="h-44 w-44 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categoryChart}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={70}
+                      paddingAngle={2}
+                    >
+                      {categoryChart.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: 8,
+                        border: "1px solid #e4e4ea",
+                        fontSize: 12,
+                      }}
+                      formatter={(value, name) => [`${value} products`, name]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <ul className="flex-1 space-y-2 text-xs">
+                {categoryChart.map((item) => (
+                  <li key={item.name} className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-2 text-[#4a4a55]">
+                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="font-medium">{item.name}</span>
+                    </span>
+                    <span className="font-bold text-[#1a1a1f]">{item.value}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
 
       <AddNewItemModal

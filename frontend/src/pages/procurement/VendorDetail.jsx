@@ -20,6 +20,7 @@ import { starRating } from "../../data/vendorsMasterData";
 import { useToast } from "../../context/ToastContext";
 
 import Button from "../../components/common/Button";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "purchase", label: "Purchase History" },
@@ -382,6 +383,7 @@ function HistoryTable({ rows, columns, empty }) {
       <table className="min-w-full text-left text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+            <SerialNumberHeader className="px-3 py-2" />
             {columns.map((c) => (
               <th key={c.key} className="px-3 py-2 font-semibold">
                 {c.label}
@@ -392,6 +394,7 @@ function HistoryTable({ rows, columns, empty }) {
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.id || i} className="border-b border-slate-100">
+              <SerialNumberCell rowIndex={i} className="px-3 py-2.5" />
               {columns.map((c) => (
                 <td key={c.key} className="px-3 py-2.5 text-slate-800">
                   {c.render ? c.render(r) : r[c.key] ?? "—"}

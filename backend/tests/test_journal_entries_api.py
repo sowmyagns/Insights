@@ -18,7 +18,7 @@ def test_create_journal_entry_accepts_reference_and_description_fields(client, r
     }
 
     response = client.post("/accounts/journal-entries", headers=headers, json=payload)
-    assert response.status_code == 200, response.text
+    assert response.status_code == 201, response.text
 
     db = SessionLocal()
     try:

@@ -39,6 +39,8 @@ from app.api.inventory import router as inventory_router
 from app.api.inventory_v2 import router as inventory_v2_router
 from app.api.iot import router as iot_router
 from app.api.maintenance import router as maintenance_router
+from app.api.meetings import google_router as google_calendar_router
+from app.api.meetings import router as meetings_router
 from app.api.procurement import router as procurement_router
 from app.api.production_scheduling import router as production_scheduling_router
 from app.api.quality import router as quality_router
@@ -72,6 +74,7 @@ from app.models import (  # noqa: F401
     inventory,
     machine,
     maintenance,
+    meeting,
     notification,
     permission,
     platform,
@@ -857,6 +860,8 @@ app.include_router(dispatch_addresses_router)
 app.include_router(factory_monitor_router)
 app.include_router(forecasting_router)
 app.include_router(integration_router)
+app.include_router(meetings_router)
+app.include_router(google_calendar_router)
 app.include_router(iot_router)
 app.include_router(production_scheduling_router)
 app.include_router(task_management_router)

@@ -15,6 +15,7 @@ MODULE_CATALOG = [
     {"code": "analytics", "label": "Analytics"},
     {"code": "alerts", "label": "Alerts & Notifications"},
     {"code": "documents", "label": "Documents"},
+    {"code": "meetings", "label": "Meetings"},
     {"code": "factoryMonitor", "label": "Factory Monitor"},
     {"code": "iot", "label": "IoT & Smart Factory"},
     {"code": "settings", "label": "Settings"},
@@ -62,6 +63,7 @@ PERMISSION_MATRIX = {
             "alerts",
             "documents",
             "analytics",
+            "meetings",
         ],
         "description": (
             "Leads, quotations, sales orders, customers, dispatch follow-up, and sales KPIs."
@@ -76,6 +78,7 @@ PERMISSION_MATRIX = {
             "factoryMonitor",
             "alerts",
             "documents",
+            "meetings",
             "masters",
             "inventory",
             "maintenance",
@@ -133,7 +136,7 @@ PERMISSION_MATRIX = {
         "description": "Full Vendor Master and procurement operations access.",
     },
     "HR Manager": {
-        "modules": ["dashboard", "hr", "attendance", "analytics", "alerts", "documents", "masters"],
+        "modules": ["dashboard", "hr", "attendance", "analytics", "alerts", "documents", "masters", "meetings"],
         "description": "Dashboard, Employees, Attendance, Leave, Payroll, HR Reports.",
     },
     "Accountant": {
@@ -145,6 +148,7 @@ PERMISSION_MATRIX = {
             "analytics",
             "alerts",
             "masters",
+            "meetings",
         ],
         "description": "Tax invoice, payments, AR/AP, and financial transactions.",
     },
@@ -243,7 +247,6 @@ SIDEBAR_MENU_CATALOG = [
         "module": "production",
         "children": [
             {"label": "Production Planning", "path": "/production/planning", "module": "production"},
-            {"label": "MRP", "path": "/production/mrp", "module": "production"},
             {"label": "Work Orders", "path": "/production/work-orders", "module": "production"},
             {"label": "Job Card", "path": "/production/job-card", "module": "production"},
             {"label": "Production Schedule", "path": "/production/schedule", "module": "production"},
@@ -309,13 +312,101 @@ SIDEBAR_MENU_CATALOG = [
         "children": [
             {"label": "HR Dashboard", "path": "/hr", "module": "hr"},
             {"label": "Employees", "path": "/hr/employees", "module": "hr"},
-            {"label": "Attendance", "path": "/hr/attendance", "module": "attendance"},
-            {"label": "Shifts", "path": "/hr/shifts", "module": "hr"},
-            {"label": "Leave", "path": "/hr/leave", "module": "hr"},
-            {"label": "Payroll", "path": "/hr/payroll", "module": "hr"},
-            {"label": "Performance", "path": "/hr/performance", "module": "hr"},
             {"label": "Asset Management", "path": "/hr/assets", "module": "hr"},
             {"label": "Incident Reports", "path": "/hr/incidents", "module": "hr"},
+        ],
+    },
+    {
+        "key": "attendance",
+        "label": "Attendance",
+        "path": None,
+        "module": "attendance",
+        "children": [
+            {"label": "Attendance Dashboard", "path": "/hr/attendance", "module": "attendance"},
+            {"label": "Daily Attendance", "path": "/hr/attendance/daily", "module": "attendance"},
+            {"label": "Attendance Calendar", "path": "/hr/attendance/calendar", "module": "attendance"},
+            {"label": "Leave Summary", "path": "/hr/attendance/leave-summary", "module": "attendance"},
+            {"label": "Attendance Reports", "path": "/hr/attendance/reports", "module": "attendance"},
+        ],
+    },
+    {
+        "key": "leaveManagement",
+        "label": "Leave Management",
+        "path": None,
+        "module": "hr",
+        "children": [
+            {"label": "Leave Dashboard", "path": "/hr/leave", "module": "hr"},
+            {"label": "Apply Leave", "path": "/hr/leave/create", "module": "hr"},
+            {"label": "Leave Calendar", "path": "/hr/leave", "module": "hr"},
+            {"label": "Leave Reports", "path": "/hr/leave", "module": "hr"},
+        ],
+    },
+    {
+        "key": "hrPayroll",
+        "label": "Payroll",
+        "path": None,
+        "module": "hr",
+        "children": [
+            {"label": "Payroll Dashboard", "path": "/hr/payroll", "module": "hr"},
+            {"label": "Run Payroll", "path": "/hr/payroll/create", "module": "hr"},
+            {"label": "Payslips", "path": "/hr/payroll", "module": "hr"},
+            {"label": "Payroll Reports", "path": "/hr/payroll", "module": "hr"},
+        ],
+    },
+    {
+        "key": "hrPerformance",
+        "label": "Performance",
+        "path": None,
+        "module": "hr",
+        "children": [
+            {"label": "Performance Dashboard", "path": "/hr/performance", "module": "hr"},
+            {"label": "Performance Reviews", "path": "/hr/performance", "module": "hr"},
+            {"label": "Appraisals", "path": "/hr/performance/create", "module": "hr"},
+        ],
+    },
+    {
+        "key": "recruitment",
+        "label": "Recruitment",
+        "path": None,
+        "module": "hr",
+        "children": [
+            {"label": "Open Positions", "path": "/hr/recruitment", "module": "hr"},
+            {"label": "Candidates", "path": "/hr/recruitment/candidates", "module": "hr"},
+            {"label": "Interviews", "path": "/hr/recruitment/interviews", "module": "hr"},
+        ],
+    },
+    {
+        "key": "training",
+        "label": "Training",
+        "path": None,
+        "module": "hr",
+        "children": [
+            {"label": "Training Programs", "path": "/hr/training", "module": "hr"},
+            {"label": "Training Sessions", "path": "/hr/training/sessions", "module": "hr"},
+        ],
+    },
+    {
+        "key": "hrReports",
+        "label": "Reports",
+        "path": None,
+        "module": "hr",
+        "children": [
+            {"label": "Attendance Reports", "path": "/hr/attendance/reports", "module": "attendance"},
+            {"label": "Payroll Reports", "path": "/hr/payroll", "module": "hr"},
+            {"label": "Leave Reports", "path": "/hr/leave", "module": "hr"},
+            {"label": "HR Summary", "path": "/hr", "module": "hr"},
+        ],
+    },
+    {
+        "key": "hrSettings",
+        "label": "Settings",
+        "path": None,
+        "module": "hr",
+        "children": [
+            {"label": "Settings", "path": "/hr/settings", "module": "hr"},
+            {"label": "Shifts", "path": "/hr/shifts", "module": "hr"},
+            {"label": "HR Documents", "path": "/hr/documents", "module": "hr"},
+            {"label": "Departments", "path": "/masters/departments", "module": "masters"},
         ],
     },
     {
@@ -363,6 +454,7 @@ SIDEBAR_MENU_CATALOG = [
         "module": "maintenance",
         "children": [
             {"label": "Maintenance Dashboard", "path": "/maintenance", "module": "maintenance"},
+            {"label": "Equipment & Spare Parts", "path": "/maintenance/equipment", "module": "maintenance"},
             {"label": "Preventive Maintenance", "path": "/maintenance/preventive", "module": "maintenance"},
             {"label": "Breakdown Maintenance", "path": "/maintenance/breakdowns", "module": "maintenance"},
             {"label": "Machine History", "path": "/maintenance/machine-history", "module": "maintenance"},
@@ -398,6 +490,15 @@ SIDEBAR_MENU_CATALOG = [
             {"label": "Production", "path": "/documents/production", "module": "documents"},
             {"label": "Quality", "path": "/documents/quality", "module": "documents"},
             {"label": "Reports", "path": "/documents/reports", "module": "documents"},
+        ],
+    },
+    {
+        "key": "meetings",
+        "label": "Meetings",
+        "path": None,
+        "module": "meetings",
+        "children": [
+            {"label": "All Meetings", "path": "/meetings", "module": "meetings"},
         ],
     },
     {

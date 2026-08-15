@@ -82,6 +82,12 @@ class Settings(BaseSettings):
     llm_timeout_seconds: int = 30
     ai_assistant_enabled: bool = True
 
+    # Google Calendar / Meet OAuth (server-side only — never expose secrets to frontend)
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_oauth_redirect_uri: str = ""
+    google_calendar_default_timezone: str = "Asia/Kolkata"
+
     @field_validator("database_url")
     @classmethod
     def require_sqlite(cls, value: str) -> str:
@@ -114,6 +120,19 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment.lower() == "production"
+
+    @property
+    def google_oauth_redirect(self) -> str:
+        if self.google_oauth_redirect_uri.strip():
+            return self.google_oauth_redirect_uri.strip()
+        base = self.frontend_base_url.rstrip("/")
+        if ":5173" in base or ":5174" in base:
+            return "http://localhost:8000/integrations/google/calendar/callback"
+        return f"{base.rsplit(':', 1)[0] if '://' in base else base}/integrations/google/calendar/callback"
+
+    @property
+    def google_calendar_configured(self) -> bool:
+        return bool(self.google_client_id.strip() and self.google_client_secret.strip())
 
     @property
     def email_verification_required(self) -> bool:

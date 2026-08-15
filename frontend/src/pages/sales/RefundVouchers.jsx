@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { AlertCircle, Calendar, ChevronDown, ChevronLeft, ChevronRight, Plus, RotateCcw, Search, X } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
 import usePageRefresh from "../../hooks/usePageRefresh";
@@ -501,6 +502,7 @@ export default function RefundVouchers() {
           <table className="min-w-full border-collapse text-left text-[13px]">
             <thead className="bg-[#f3f3f6] text-[12px] font-semibold uppercase tracking-wide text-[#6b6b76]">
               <tr>
+                <SerialNumberHeader className="border-b border-r border-[#d0d0d8]" />
                 <th className="border-b border-r border-[#d0d0d8] px-4 py-3 last:border-r-0">Voucher No.</th>
                 <th className="border-b border-r border-[#d0d0d8] px-4 py-3 last:border-r-0">Date Created</th>
                 <th className="border-b border-r border-[#d0d0d8] px-4 py-3 last:border-r-0">Amount</th>
@@ -512,7 +514,7 @@ export default function RefundVouchers() {
             <tbody>
               {pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center">
+                  <td colSpan={7} className="px-4 py-16 text-center">
                     <RotateCcw className="mx-auto h-12 w-12 text-[#c4c4cc]" />
                     <p className="mt-3 text-[14px] text-[#6b6b76]">
                       No refund vouchers available, Create new refund voucher
@@ -528,8 +530,14 @@ export default function RefundVouchers() {
                   </td>
                 </tr>
               ) : (
-                pageRows.map((r) => (
+                pageRows.map((r, rowIndex) => (
                   <tr key={r.id} className="hover:bg-[#fafafa]">
+                    <SerialNumberCell
+                      rowIndex={rowIndex}
+                      page={page}
+                      pageSize={pageSize}
+                      className="border-t border-r border-[#d0d0d8]"
+                    />
                     <td className="border-t border-r border-[#d0d0d8] px-4 py-3 font-semibold text-[#6b4eff]">{r.voucher_number}</td>
                     <td className="border-t border-r border-[#d0d0d8] px-4 py-3 text-[#4a4a55]">
                       {fmtDate(r.voucher_date || r.created_at)}

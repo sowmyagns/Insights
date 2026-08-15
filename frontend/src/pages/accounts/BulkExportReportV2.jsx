@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { useToast } from "../../context/ToastContext";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import { BULK_EXPORT_DOCUMENTS } from "../../data/reportViews";
 
 const PAGE_BG = "var(--color-bg)";
@@ -162,6 +163,7 @@ export default function BulkExportReportV2() {
             <table className="min-w-full text-left">
               <thead>
                 <tr className="bg-[#f0f0f4] text-[12px] font-semibold text-[#6b6b76]">
+                  <SerialNumberHeader />
                   <th className="px-5 py-3.5 text-center font-semibold">Document Type</th>
                   <th className="px-5 py-3.5 text-center font-semibold">Requested On</th>
                   <th className="px-5 py-3.5 text-center font-semibold">Status</th>
@@ -169,11 +171,12 @@ export default function BulkExportReportV2() {
                 </tr>
               </thead>
               <tbody>
-                {pageRows.map((row) => (
+                {pageRows.map((row, rowIndex) => (
                   <tr
                     key={row.id}
                     className="border-t border-[#ececf0] text-center text-[13px] text-[#1a1a1f]"
                   >
+                    <SerialNumberCell rowIndex={rowIndex} page={safePage} pageSize={pageSize} />
                     <td className="px-5 py-3.5">{row.document_type}</td>
                     <td className="px-5 py-3.5">{row.requested_on}</td>
                     <td className="px-5 py-3.5">{row.status}</td>

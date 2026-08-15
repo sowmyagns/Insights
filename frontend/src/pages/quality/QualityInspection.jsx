@@ -1,7 +1,6 @@
 import ResourcePage from "../../components/common/ResourcePage";
 import { StatusBadge } from "../../components/common/Table";
 import { getInspections, createInspection } from "../../api/qualityApi";
-import { DEMO_INCOMING_LIST } from "../../data/qualityMasterData";
 
 export default function QualityInspection() {
   return (
@@ -10,7 +9,6 @@ export default function QualityInspection() {
       subtitle="Perform and record quality inspections."
       fetcher={getInspections}
       createFn={createInspection}
-      fallbackData={DEMO_INCOMING_LIST}
       createLabel="+ New Inspection"
       emptyTitle="No inspections yet"
       emptyDescription="Record your first quality inspection."

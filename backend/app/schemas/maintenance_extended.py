@@ -60,6 +60,8 @@ class MachineHistoryRead(BaseModel):
     spare_parts: str | None = None
     downtime_minutes: int | None = None
     remarks: str | None = None
+    status: str | None = None
+    description: str | None = None
 
 
 class SparePartRead(BaseModel):
@@ -97,6 +99,11 @@ class MaintenanceHubRead(BaseModel):
     spare_cost: float = 0
     external_cost: float = 0
     total_cost: float = 0
+    total_requests: int = 0
+    open_requests: int = 0
+    in_progress_requests: int = 0
+    completed_requests: int = 0
+    overdue_requests: int = 0
     calendar_events: list[dict] = []
     machine_health: list[dict] = []
     downtime_trend: list[dict] = []
@@ -106,6 +113,9 @@ class MaintenanceHubRead(BaseModel):
     mttr_trend: list[dict] = []
     mtbf_trend: list[dict] = []
     preventive_vs_breakdown: list[dict] = []
+    maintenance_overview: list[dict] = []
+    equipment_status: list[dict] = []
     spare_parts: list[dict] = []
     work_orders: list[dict] = []
+    recent_requests: list[dict] = []
     alerts: list[dict] = []

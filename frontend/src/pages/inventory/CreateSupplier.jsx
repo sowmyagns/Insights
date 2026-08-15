@@ -61,7 +61,6 @@ export default function CreateSupplier() {
         Back to suppliers
       </Link>
       <PageHeader
-        title="Create supplier"
         subtitle="Add a new supplier to link with materials and purchase orders."
       />
       <form onSubmit={handleSubmit} className="ui-card space-y-4 p-6">

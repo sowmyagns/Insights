@@ -5,14 +5,18 @@ import {
   BarChart3,
   Bell,
   Boxes,
+  CalendarDays,
   CheckCircle2,
   Factory,
   FolderOpen,
+  GraduationCap,
   Landmark,
   Layers,
   LayoutDashboard,
+  Palmtree,
   Settings,
   ShoppingCart,
+  UserPlus,
   Users,
   Wallet,
   Wrench,
@@ -39,6 +43,14 @@ const ICON_BY_KEY = {
   procurement: ShoppingCart,
   sales: Wallet,
   hr: Users,
+  attendance: CalendarDays,
+  leaveManagement: Palmtree,
+  hrPayroll: Wallet,
+  hrPerformance: Users,
+  recruitment: UserPlus,
+  training: GraduationCap,
+  hrReports: BarChart3,
+  hrSettings: Settings,
   finance: Landmark,
   accountant: Landmark,
   quality: CheckCircle2,
@@ -151,7 +163,6 @@ const PROD_MANAGER_ALLOWED_CHILDREN = new Set([
   "/production/create",
   "/production/machines",
   "/production/planning",
-  "/production/mrp",
   "/production/work-orders",
   "/production/work-orders/create-quick",
   "/production/job-card",
@@ -170,6 +181,7 @@ const PROD_MANAGER_ALLOWED_CHILDREN = new Set([
   "/quality/final",
   "/quality/defects",
   "/maintenance/preventive",
+  "/maintenance/equipment",
   "/maintenance/breakdowns",
   "/maintenance/machine-history",
   "/alerts",
@@ -334,8 +346,10 @@ export default function Sidebar({ collapsed = false, onToggleCollapse, onClose }
   };
 
   /* Selected nav item: #195CCF */
+  const navItemPad = collapsed ? "justify-center px-2" : "px-3";
+
   const topLinkClass = ({ isActive }) =>
-    `relative flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-all ${
+    `relative flex items-center gap-2.5 rounded-lg py-2.5 text-sm transition-all ${navItemPad} ${
       isActive
         ? "bg-[#195CCF] font-medium text-white"
         : "text-slate-300 hover:bg-white/10 hover:text-white"
@@ -349,14 +363,17 @@ export default function Sidebar({ collapsed = false, onToggleCollapse, onClose }
     }`;
 
   const sectionButtonClass = (_isOpen, hasActive) =>
-    `relative flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+    `relative flex w-full items-center rounded-lg py-2.5 text-sm font-medium transition-colors ${navItemPad} ${
+      collapsed ? "justify-center" : "justify-between gap-2"
+    } ${
       hasActive
         ? "bg-[var(--color-nav-active)] text-white"
         : "text-slate-300 hover:bg-white/10 hover:text-white"
     }`;
 
-  const actionButtonClass =
-    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-slate-300 transition-colors hover:bg-white/10 hover:text-white";
+  const actionButtonClass = `flex w-full items-center rounded-lg py-2.5 text-sm text-slate-300 transition-colors hover:bg-white/10 hover:text-white ${navItemPad} ${
+    collapsed ? "justify-center" : "gap-2.5"
+  }`;
 
   const sectionLabel = (section) => section.label || (section.labelKey ? t(section.labelKey) : section.key);
   const childLabel = (child) => child.label || (child.labelKey ? t(child.labelKey) : child.to);
@@ -392,7 +409,7 @@ export default function Sidebar({ collapsed = false, onToggleCollapse, onClose }
         </Link>
       </div>
 
-      <nav className="sidebar-scroll flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
+      <nav className={`sidebar-scroll flex-1 space-y-0.5 overflow-y-auto py-4 ${collapsed ? "px-2" : "px-3"}`}>
         {visibleNav.map((section) => {
           if (section.action === "logout") {
             const Icon = section.icon || LayoutDashboard;
@@ -440,8 +457,9 @@ export default function Sidebar({ collapsed = false, onToggleCollapse, onClose }
                 onClick={() => toggleSection(section.key)}
                 className={sectionButtonClass(isOpen, hasActive)}
                 aria-expanded={isOpen}
+                title={collapsed ? label : undefined}
               >
-                <span className="flex min-w-0 items-center gap-2.5">
+                <span className={`flex min-w-0 items-center ${collapsed ? "justify-center" : "gap-2.5"}`}>
                   <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
                   {!collapsed && <span className="truncate text-left">{label}</span>}
                 </span>

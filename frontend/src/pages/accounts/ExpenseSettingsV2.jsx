@@ -4,14 +4,20 @@ import { ChevronLeft } from "lucide-react";
 
 import ExpenseCategoryModal from "../../components/accounts/ExpenseCategoryModal";
 import {
+  AccountsCard,
+  AccountsPageShell,
+  AccountsPrimaryButton,
+  ACCOUNTS_TEXT,
+  ACCOUNTS_TEXT_MUTED,
+} from "../../components/accounts/accountsDesignSystem";
+import Loader from "../../components/common/Loader";
+import {
   categoryIcon,
   fetchExpenseCategories,
   saveExpenseCategories,
 } from "../../data/expenseCategories";
 import { useToast } from "../../context/ToastContext";
 import { apiErrorMessage } from "../../utils/apiError";
-
-const PAGE_BG = "var(--color-bg)";
 
 export default function ExpenseSettingsV2() {
   const { addToast } = useToast();
@@ -69,56 +75,61 @@ export default function ExpenseSettingsV2() {
 
   if (loading) {
     return (
-      <div className="grid min-h-[40vh] place-items-center text-sm text-[#6b6b76]" style={{ background: PAGE_BG }}>
-        Loading categories…
-      </div>
+      <AccountsPageShell>
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <Loader label="Loading categories…" />
+        </div>
+      </AccountsPageShell>
     );
   }
 
   return (
-    <div className="min-h-full" style={{ background: PAGE_BG }}>
-      <div className="mx-auto max-w-[900px] px-4 py-5 sm:px-6">
+    <AccountsPageShell>
+      <div className="mx-auto max-w-[900px]">
         <div className="mb-4 flex items-center gap-2">
           <Link
             to="/accounts/expenses"
-            className="grid h-9 w-9 place-items-center rounded-lg border border-[#e4e4ea] bg-white"
+            className="grid h-9 w-9 place-items-center rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC]"
+            aria-label="Back to expenses"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4" style={{ color: ACCOUNTS_TEXT }} />
           </Link>
         </div>
 
         <div className="mb-4 flex justify-end">
-          <button
-            type="button"
+          <AccountsPrimaryButton
             onClick={() => {
               setEditCategory(null);
               setModalOpen(true);
             }}
-            className="rounded-lg bg-[#0f6d84] px-4 py-2.5 text-[13px] font-semibold"
           >
             Add Category
-          </button>
+          </AccountsPrimaryButton>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-[#e4e4ea] bg-white">
-          <ul className="divide-y divide-[#ececf0]">
+        <AccountsCard>
+          <ul className="divide-y divide-[#E2E8F0]">
             {categories.map((cat) => {
               const Icon = categoryIcon(cat.icon);
               return (
-                <li key={cat.id} className="flex items-center gap-3 px-4 py-3">
+                <li key={cat.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
                   <span
                     className="grid h-9 w-9 place-items-center rounded-lg text-white"
-                    style={{ background: cat.color || "#6b6b76" }}
+                    style={{ background: cat.color || "#64748B" }}
                   >
                     <Icon className="h-4 w-4" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[14px] font-semibold">{cat.name}</p>
-                    <p className="text-[12px] text-[#6b6b76]">{cat.account_group}</p>
+                    <p className="text-[14px] font-semibold" style={{ color: ACCOUNTS_TEXT }}>
+                      {cat.name}
+                    </p>
+                    <p className="text-[12px]" style={{ color: ACCOUNTS_TEXT_MUTED }}>
+                      {cat.account_group}
+                    </p>
                   </div>
                   <button
                     type="button"
-                    className="text-[12px] font-semibold text-[#6b4eff]"
+                    className="text-[12px] font-semibold text-[#6C4CFF] hover:text-[#5a3fe0]"
                     onClick={() => {
                       setEditCategory(cat);
                       setModalOpen(true);
@@ -128,7 +139,7 @@ export default function ExpenseSettingsV2() {
                   </button>
                   <button
                     type="button"
-                    className="text-[12px] font-semibold text-[#dc2626]"
+                    className="text-[12px] font-semibold text-[#dc2626] hover:text-[#b91c1c]"
                     onClick={() => onDelete(cat)}
                   >
                     Delete
@@ -137,7 +148,7 @@ export default function ExpenseSettingsV2() {
               );
             })}
           </ul>
-        </div>
+        </AccountsCard>
       </div>
 
       <ExpenseCategoryModal
@@ -149,6 +160,6 @@ export default function ExpenseSettingsV2() {
         category={editCategory}
         onSave={onSave}
       />
-    </div>
+    </AccountsPageShell>
   );
 }

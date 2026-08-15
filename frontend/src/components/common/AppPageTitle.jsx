@@ -4,7 +4,7 @@
  */
 export default function AppPageTitle({ title }) {
   return (
-    <h1 className="truncate text-[var(--text-lg)] font-bold tracking-[var(--tracking-tight)] text-[var(--color-text)] sm:text-[var(--text-xl)]">
+    <h1 className="app-page-title truncate">
       {title}
     </h1>
   );

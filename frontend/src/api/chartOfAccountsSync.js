@@ -16,6 +16,33 @@ const SIDE_BY_TYPE = {
   Equity: "CR",
 };
 
+function isTransientNetworkError(err) {
+  if (err?.response) return false;
+  const code = String(err?.code || "");
+  const message = String(err?.message || "");
+  return (
+    code === "ERR_NETWORK" ||
+    code === "ECONNABORTED" ||
+    message.includes("Network Error") ||
+    message.includes("ERR_CONNECTION_RESET")
+  );
+}
+
+/** Retry when the backend restarts mid-request (common during dev hot reload). */
+async function withTransientRetry(fn, { attempts = 3, baseDelayMs = 400 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (!isTransientNetworkError(err) || attempt === attempts - 1) throw err;
+      await new Promise((resolve) => setTimeout(resolve, baseDelayMs * (attempt + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 function parseStatus(status) {
   const raw = String(status || "Active");
   const [st, side] = raw.split("|");
@@ -47,6 +74,20 @@ export function mapGlToUi(row) {
   };
 }
 
+/** Keep one main account per code when the API returns duplicate rows. */
+export function dedupeGlRows(rows) {
+  const byCode = new Map();
+  for (const row of rows) {
+    const code = String(row?.code || "");
+    if (!code) continue;
+    const prev = byCode.get(code);
+    if (!prev || Number(row.id) < Number(prev.id)) {
+      byCode.set(code, row);
+    }
+  }
+  return [...byCode.values()];
+}
+
 export function mapUiToGlPayload(account, { isSub = false, parentCode = null } = {}) {
   const side = account.side || SIDE_BY_TYPE[account.type] || "DR";
   const code = isSub
@@ -63,15 +104,15 @@ export function mapUiToGlPayload(account, { isSub = false, parentCode = null } =
 }
 
 export async function fetchChartOfAccounts() {
-  let res = await listGLAccounts();
+  let res = await withTransientRetry(() => listGLAccounts());
   let rows = asArray(res.data);
   if (!rows.length) {
     try {
-      res = await seedGLAccounts();
+      res = await withTransientRetry(() => seedGLAccounts());
       rows = asArray(res.data);
     } catch {
       /* seed may fail if race; fall through */
-      res = await listGLAccounts();
+      res = await withTransientRetry(() => listGLAccounts());
       rows = asArray(res.data);
     }
   }
@@ -79,6 +120,7 @@ export async function fetchChartOfAccounts() {
     // Last resort: show defaults in UI but they are not persisted until seed works
     return DEFAULT_CHART_OF_ACCOUNTS.map((a) => ({ ...a }));
   }
+  rows = dedupeGlRows(rows);
   const mapped = rows.map(mapGlToUi);
   const mains = mapped.filter((a) => !a.isSubAccount);
   const subs = mapped.filter((a) => a.isSubAccount);
@@ -89,8 +131,9 @@ export async function fetchChartOfAccounts() {
 }
 
 export async function fetchSubAccounts(parentCode) {
-  const res = await listGLAccounts();
-  return asArray(res.data)
+  const res = await withTransientRetry(() => listGLAccounts());
+  const rows = dedupeGlRows(asArray(res.data));
+  return rows
     .map(mapGlToUi)
     .filter((a) => a.isSubAccount && (a.parentId === parentCode || a.group === parentCode));
 }

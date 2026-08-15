@@ -22,9 +22,9 @@ def test_accountant_permission_includes_matrix_modules():
     )
 
     perms_custom = get_user_permissions(user_custom)
-    assert "accounts" in perms_custom
-    assert "analytics" in perms_custom
+    assert perms_custom == {"accounts"}
     assert user_has_permission(user_custom, "accounts")
+    assert not user_has_permission(user_custom, "analytics")
 
     user_default = SimpleNamespace(
         roles=[SimpleNamespace(name="Accountant", permissions=[])],

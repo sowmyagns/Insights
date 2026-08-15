@@ -87,7 +87,7 @@ export default function Landing() {
             <div className="rounded-2xl border-2 border-slate-200 bg-white p-8 shadow-sm w-72">
               <h3 className="text-xl font-semibold text-slate-900">Starter</h3>
               <p className="mt-2 text-4xl font-bold" style={{ color: "var(--color-primary)" }}>Free</p>
-              <p className="mt-2 text-sm text-slate-600">Demo access with sample data</p>
+              <p className="mt-2 text-sm text-slate-600">Secure tenant access for your organization</p>
               <Button variant="outline" to="/login" fullWidth className="mt-6">
                 Try Demo
               </Button>

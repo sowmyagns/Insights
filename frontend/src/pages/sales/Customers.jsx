@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 
 import Button from "../../components/common/Button";
 import Loader from "../../components/common/Loader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import AddNewPartyModal from "../../components/sales/AddNewPartyModal";
 import { useToast } from "../../context/ToastContext";
 import usePageRefresh from "../../hooks/usePageRefresh";
@@ -250,6 +251,7 @@ export default function Customers() {
               <table className="w-full min-w-[980px] border-collapse text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-[#e8e8ee] bg-[#f5f5f5] text-[12px] font-medium text-[#6b6b76]">
+                    <SerialNumberHeader />
                     <th className="px-4 py-3 font-medium">Customer Name</th>
                     <th className="px-4 py-3 font-medium">GSTIN</th>
                     <th className="px-4 py-3 font-medium">Email</th>
@@ -262,8 +264,9 @@ export default function Customers() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((c) => (
+                  {rows.map((c, rowIndex) => (
                     <tr key={c.id} className="border-b border-[#f0f0f4] text-[#1a1a1f] last:border-b-0">
+                      <SerialNumberCell rowIndex={rowIndex} page={page} pageSize={pageSize} />
                       <td className="max-w-[220px] truncate px-4 py-3.5 font-medium text-[#1a1a1f]" title={c.company || c.name || ""}>
                         {c.company || c.name || ""}
                       </td>

@@ -18,6 +18,8 @@ import { apiErrorMessage, asArray } from "../../utils/apiError";
 import SearchableSelect from "../../components/common/SearchableSelect";
 
 const darkButton = "rounded-md bg-[#2d2a4a] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#1a1a1f] disabled:cursor-not-allowed disabled:opacity-50";
+const blueButton =
+  "rounded-md border border-[var(--color-action-blue)] bg-[var(--color-action-blue)] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[var(--color-action-blue-hover)] active:bg-[var(--color-action-blue-active)] disabled:cursor-not-allowed disabled:opacity-50";
 const outlineButton = "rounded-md border border-[#2d2a4a] bg-white px-4 py-2.5 text-sm font-bold text-[#2d2a4a] hover:bg-[#f7f5fb]";
 const softButton = "rounded-md border border-[#d0d0d8] bg-[#f0f0f4] px-4 py-2.5 text-sm font-bold text-[#2d2a4a] hover:bg-[#e8e8ee]";
 const underline = "w-full border-0 border-b border-slate-400 bg-transparent px-0 py-2 text-sm text-slate-900 outline-none focus:border-[#2d2a4a]";
@@ -1080,7 +1082,7 @@ export default function CreatePurchaseOrder() {
             <button type="button" className={`${outlineButton} w-full`} onClick={closeProductModal}>
               Cancel
             </button>
-            <button type="button" className={`${darkButton} w-full`} onClick={addLocalProduct}>
+            <button type="button" className={`${blueButton} w-full`} onClick={addLocalProduct}>
               Add
             </button>
           </div>

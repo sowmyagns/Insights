@@ -281,8 +281,6 @@ export default function CreateItem() {
   return (
     <div className="space-y-5 pb-28">
       <PageHeader
-        title="Create Item"
-        showTitle
         backTo={backPath}
         backLabel="Back"
         subtitle={

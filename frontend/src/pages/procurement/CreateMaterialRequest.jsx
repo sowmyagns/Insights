@@ -208,12 +208,12 @@ export default function CreateMaterialRequest() {
             className={inputClass}
           />
         </label>
-        <div className="flex flex-wrap gap-3 pt-2">
-          <Button variant="primary" type="submit" disabled={saving} className="disabled:opacity-50">
-            {saving ? "Saving…" : "Create material request"}
-          </Button>
+        <div className="flex flex-wrap justify-end gap-3 border-t border-[var(--color-border-soft)] pt-4">
           <Button variant="secondary" to="/procurement/material-requests">
             Cancel
+          </Button>
+          <Button variant="primary" type="submit" disabled={saving} className="disabled:opacity-50">
+            {saving ? "Saving…" : "Create material request"}
           </Button>
         </div>
       </form>

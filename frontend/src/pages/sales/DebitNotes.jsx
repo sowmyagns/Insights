@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Calendar, ChevronLeft, ChevronRight, FileText, Filter, ListFilter, Plus, Search, X } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import { useToast } from "../../context/ToastContext";
 import { cancelInvoice, getInvoicesV2 } from "../../api/salesApi";
 import { apiErrorMessage } from "../../utils/apiError";
@@ -401,6 +402,7 @@ export default function DebitNotes() {
             <table className="min-w-full border-collapse text-left text-[13px]">
               <thead className="bg-[#efeaf8] text-[12px] font-semibold uppercase tracking-wide text-[#6b6b76]">
                 <tr>
+                  <SerialNumberHeader className="border-b border-r border-[#d0d0d8]" />
                   {["SDN No.", "Date", "Buyer Name", "Due In", "Amount", "Status", "Actions"].map(
                     (h) => (
                       <th
@@ -416,7 +418,7 @@ export default function DebitNotes() {
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="border-t border-[#e4e4ea] px-4 py-16 text-center">
+                    <td colSpan={8} className="border-t border-[#e4e4ea] px-4 py-16 text-center">
                       <FileText className="mx-auto h-12 w-12 text-[#c4c4cc]" />
                       <p className="mt-3 text-[14px] text-[#9a9aa5]">
                         No sales debit notes yet. Create your first one.
@@ -431,11 +433,17 @@ export default function DebitNotes() {
                     </td>
                   </tr>
                 ) : (
-                  pageRows.map((r) => {
+                  pageRows.map((r, rowIndex) => {
                     const pay = paymentStatus(r);
                     const totalAmt = Number(r.grand_total ?? r.total_amount) || 0;
                     return (
                       <tr key={r.id} className="hover:bg-[#fafafa]">
+                        <SerialNumberCell
+                          rowIndex={rowIndex}
+                          page={page}
+                          pageSize={pageSize}
+                          className="border-t border-r border-[#d0d0d8]"
+                        />
                         <td className="border-t border-r border-[#d0d0d8] px-4 py-3 font-semibold text-[#6b4eff]">
                           {r.invoice_number}
                         </td>

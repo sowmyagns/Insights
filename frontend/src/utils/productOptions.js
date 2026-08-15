@@ -1,5 +1,6 @@
-import { getProducts } from "../api/productionApi";
+import { getProducts } from "../api/productsApi";
 import { enrichApiProduct } from "../data/productsMasterData";
+import { asArray } from "./apiError";
 import { cleanProductLabel, isFinishedGoodProduct } from "./productLabel";
 
 export { cleanProductLabel, isFinishedGoodProduct } from "./productLabel";
@@ -7,27 +8,26 @@ export { cleanProductLabel, isFinishedGoodProduct } from "./productLabel";
 /** Load products from API and local storage (smrt_products). */
 export async function fetchProductsWithFallback() {
   try {
-    const res = await getProducts().catch(() => null);
-    if (res !== null) {
-      const apiProds = Array.isArray(res) ? res : (res?.data || []);
+    const res = await getProducts();
+    const apiProds = asArray(res?.data);
+    if (apiProds.length) {
       return apiProds.map((p, i) => {
         const enriched = enrichApiProduct(p, i);
         return { ...enriched, name: cleanProductLabel(enriched.name) };
       });
     }
+  } catch {
+    /* fall through to local cache */
+  }
+  try {
     const stored = localStorage.getItem("smrt_products");
     const localProds = stored ? JSON.parse(stored) : [];
-    return localProds.map((p, i) => {
+    return asArray(localProds).map((p, i) => {
       const enriched = enrichApiProduct(p, i);
       return { ...enriched, name: cleanProductLabel(enriched.name) };
     });
   } catch {
-    const stored = localStorage.getItem("smrt_products");
-    const localProds = stored ? JSON.parse(stored) : [];
-    return localProds.map((p, i) => {
-      const enriched = enrichApiProduct(p, i);
-      return { ...enriched, name: cleanProductLabel(enriched.name) };
-    });
+    return [];
   }
 }
 

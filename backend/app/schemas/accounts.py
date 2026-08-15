@@ -71,6 +71,16 @@ class JournalEntryCreate(BaseModel):
     branch: str | None = "Head Office"
     legs: list[JournalLegCreate] = Field(default_factory=list)
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_legacy_field_names(cls, data):
+        if isinstance(data, dict):
+            if data.get("ref") in (None, "") and data.get("reference") not in (None, ""):
+                data = {**data, "ref": data.get("reference")}
+            if data.get("desc") in (None, "") and data.get("description") not in (None, ""):
+                data = {**data, "desc": data.get("description")}
+        return data
+
     @model_validator(mode="after")
     def validate_legs(self):
         if len(self.legs) < 2:

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { getUsers } from "../../api/adminApi";
+import { getGoogleCalendarStatus } from "../../api/meetingsApi";
 import { getCompanySettings, updateCompanySettings } from "../../api/settingsApi";
 import { CURRENCY_OPTIONS } from "../../data/currencies";
 import useAuth from "../../hooks/useAuth";
@@ -921,13 +922,27 @@ function DocumentsSection() {
 }
 
 function IntegrationsSection() {
+  const [googleCal, setGoogleCal] = useState({ configured: false, connected: false });
+
+  useEffect(() => {
+    getGoogleCalendarStatus()
+      .then((res) => setGoogleCal(res?.data || {}))
+      .catch(() => setGoogleCal({ configured: false, connected: false }));
+  }, []);
+
+  const googleStatus = !googleCal.configured
+    ? "Configure in backend/.env"
+    : googleCal.connected
+      ? `Connected${googleCal.account_email ? ` (${googleCal.account_email})` : ""}`
+      : "Ready — connect in Meetings";
+
   const items = [
-    { name: "Email (SMTP)", status: "Configured via .env" },
-    { name: "SMS OTP", status: "Optional" },
-    { name: "WhatsApp", status: "Coming soon" },
-    { name: "Google", status: "Coming soon" },
-    { name: "Microsoft", status: "Coming soon" },
-    { name: "Payment Gateway", status: "Coming soon" },
+    { name: "Email (SMTP)", status: "Configured via .env", href: null },
+    { name: "SMS OTP", status: "Optional", href: null },
+    { name: "WhatsApp", status: "Coming soon", href: null },
+    { name: "Google Calendar & Meet", status: googleStatus, href: "/meetings" },
+    { name: "Microsoft", status: "Coming soon", href: null },
+    { name: "Payment Gateway", status: "Coming soon", href: null },
   ];
   return (
     <PanelShell title="Integrations" description="Connect email, messaging, identity, and payment services.">
@@ -941,7 +956,16 @@ function IntegrationsSection() {
               <p className="font-medium text-slate-900 dark:text-slate-100">{item.name}</p>
               <p className="text-xs text-slate-500">{item.status}</p>
             </div>
-            <PuzzleBadge />
+            {item.href ? (
+              <Link
+                to={item.href}
+                className="rounded-full bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
+              >
+                Open
+              </Link>
+            ) : (
+              <PuzzleBadge />
+            )}
           </div>
         ))}
       </div>

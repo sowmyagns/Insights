@@ -22,13 +22,25 @@ const EMPTY = {
   payment_mode: "",
 };
 
-export default function AddExpenseModal({ open, onClose, onSave, categories = [] }) {
+export default function AddExpenseModal({ open, onClose, onSave, categories = [], expense = null }) {
   const [form, setForm] = useState(EMPTY);
+  const isEdit = Boolean(expense?.id);
 
   useEffect(() => {
     if (!open) return;
-    setForm({ ...EMPTY, date: todayIso() });
-  }, [open]);
+    if (expense) {
+      setForm({
+        spend_for: expense.spend_for || "",
+        amount: expense.amount != null ? String(expense.amount) : "",
+        category_id: expense.category_id || "",
+        date: expense.date || todayIso(),
+        note: expense.note || "",
+        payment_mode: expense.payment_mode || "",
+      });
+    } else {
+      setForm({ ...EMPTY, date: todayIso() });
+    }
+  }, [open, expense]);
 
   if (!open) return null;
 
@@ -41,7 +53,7 @@ export default function AddExpenseModal({ open, onClose, onSave, categories = []
     }
     const cat = categories.find((c) => c.id === form.category_id);
     onSave?.({
-      id: `exp-${Date.now()}`,
+      id: expense?.id || `exp-${Date.now()}`,
       spend_for: form.spend_for.trim(),
       amount: Number(form.amount) || 0,
       category_id: form.category_id,
@@ -67,7 +79,7 @@ export default function AddExpenseModal({ open, onClose, onSave, categories = []
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 pt-5">
-          <h2 className="text-[18px] font-bold text-[#1a1a1f]">Add Expense</h2>
+          <h2 className="text-[18px] font-bold text-[#1a1a1f]">{isEdit ? "Edit Expense" : "Add Expense"}</h2>
           <button type="button" onClick={onClose} className="rounded p-1 text-[#6b6b76] hover:bg-[#f5f5f7]" aria-label="Close">
             <X className="h-5 w-5" />
           </button>
@@ -180,7 +192,7 @@ export default function AddExpenseModal({ open, onClose, onSave, categories = []
             Cancel
           </Button>
           <Button type="submit" variant="primary">
-            Add Expense
+            {isEdit ? "Save Changes" : "Add Expense"}
           </Button>
         </div>
       </form>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, Factory, Package } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Factory } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
@@ -203,9 +203,6 @@ export default function SalesOrderDetail() {
         )}
         <Button variant="secondary" to={createProductionHref} className="inline-flex items-center gap-2">
           <Factory className="h-4 w-4" /> Create Production Order
-        </Button>
-        <Button variant="secondary" to="/production/mrp" className="inline-flex items-center gap-2">
-          <Package className="h-4 w-4" /> Open MRP
         </Button>
         <Button variant="secondary" to="/production/planning">
           Production Planning

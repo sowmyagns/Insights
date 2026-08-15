@@ -71,7 +71,6 @@ const pathLabels = {
   "machine-status": "Machine Status",
   "production-lines": "Production Lines",
   iot: "Internet of Things (IoT)",
-  mrp: "MRP",
   schedule: "Schedule",
   "assign-tasks": "Assign Tasks",
   dashboard: "Dashboard",
@@ -94,7 +93,7 @@ const pathLabels = {
   "cost-allocation": "Cost Allocation",
   "credit-notes": "Credit Notes",
   "debit-notes": "Debit Notes",
-  defects: "Defect Tracking",
+  defects: "Rejections",
   "delivery-challans": "Delivery Challans",
   departments: "Departments",
   "digital-signature": "Digital Signature",
@@ -123,6 +122,7 @@ const pathLabels = {
   "machine-efficiency": "Machine Efficiency",
   "machine-failure": "Machine Failure",
   "machine-history": "Machine History",
+  equipment: "Equipment & Spare Parts",
   maintenance: "Maintenance",
   "material-requests": "Material Requests",
   "payment-receipts": "Payment Receipts",
@@ -152,9 +152,35 @@ const pathLabels = {
   wearables: "Wearables",
 };
 
+/** Exact pathname → navbar title (inventory and other routes where segment labels are ambiguous). */
+const PAGE_TITLE_OVERRIDES = {
+  "/inventory": "Inventory",
+  "/inventory/dashboard": "Store Dashboard",
+  "/inventory/settings": "Inventory Settings",
+  "/inventory/list": "Inventory List",
+  "/inventory/raw-materials": "Raw Materials",
+  "/inventory/finished-goods": "Finished Goods",
+  "/inventory/stock-transfer": "Stock Transfer",
+  "/inventory/stock-adjustment": "Stock Adjustment",
+  "/inventory/stock-ledger": "Stock Ledger",
+  "/inventory/stock-movement": "Stock Movement",
+  "/inventory/stock-in": "Stock In",
+  "/inventory/stock-return": "Stock Return",
+  "/inventory/material-requests": "Material Requests",
+  "/inventory/issue-materials": "Issue Materials",
+  "/inventory/history": "Inventory History",
+  "/inventory/warehouses": "Warehouses",
+  "/inventory/suppliers": "Suppliers",
+  "/inventory/items/create": "Create Item",
+  "/inventory/warehouses/create": "Create Warehouse",
+  "/inventory/suppliers/create": "Create Supplier",
+  "/meetings": "Meetings",
+};
+
 function getLabel(segment, segments, index) {
   const prev = index > 0 ? segments[index - 1] : null;
   if (segment === "dashboard" && prev === "inventory") return "Store Dashboard";
+  if (segment === "settings" && prev === "inventory") return "Inventory Settings";
   if (segment === "create" && prev === "items") return "Create Item";
   if (segment === "create" && prev === "warehouses") return "Create Warehouse";
   if (segment === "create" && prev === "suppliers") return "Create Supplier";
@@ -201,6 +227,10 @@ export function getBreadcrumbTrail(pathname) {
 
 /** Current page title from the last breadcrumb segment. */
 export function getPageTitle(pathname) {
+  const path = (pathname || "/").replace(/\/$/, "") || "/";
+  if (PAGE_TITLE_OVERRIDES[path]) return PAGE_TITLE_OVERRIDES[path];
+  if (/^\/inventory\/items\/[^/]+$/.test(path)) return "Item Details";
+  if (/^\/meetings\/[^/]+$/.test(path)) return "Meeting Details";
   const trail = getBreadcrumbTrail(pathname);
   return trail[trail.length - 1]?.label || "Dashboard";
 }

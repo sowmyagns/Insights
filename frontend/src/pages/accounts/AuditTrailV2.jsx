@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, ChevronDown, Search } from "lucide-react";
 
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
+
 const PAGE_BG = "var(--color-bg)";
 const ACCENT = "#0f6d84";
 
@@ -286,6 +288,8 @@ export default function AuditTrailV2() {
   const total = rows.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
   const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * pageSize;
+  const pageRows = rows.slice(start, start + pageSize);
 
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
@@ -319,6 +323,7 @@ export default function AuditTrailV2() {
             <table className="min-w-full text-left">
               <thead>
                 <tr className="bg-[#f0f0f4] text-[12px] font-semibold text-[#6b6b76]">
+                  <SerialNumberHeader />
                   <th className="px-5 py-3.5 text-left font-semibold">Date &amp; Time</th>
                   <th className="px-5 py-3.5 text-left font-semibold">Activity</th>
                   <th className="px-5 py-3.5 text-center font-semibold">Document Link</th>
@@ -326,11 +331,12 @@ export default function AuditTrailV2() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
+                {pageRows.map((row, rowIndex) => (
                   <tr
                     key={row.id}
                     className="border-t border-[#ececf0] text-[13px] text-[#1a1a1f]"
                   >
+                    <SerialNumberCell rowIndex={rowIndex} page={safePage} pageSize={pageSize} />
                     <td className="px-5 py-3.5 text-left">{row.date_time}</td>
                     <td className="px-5 py-3.5 text-left">{row.activity}</td>
                     <td className="px-5 py-3.5 text-center">

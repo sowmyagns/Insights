@@ -271,8 +271,15 @@ function KpiStrip({ cards = [] }) {
       </div>
     );
   }
+  const linkedCount = cards.filter((c) => c.link).length;
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="space-y-2">
+      {linkedCount > 0 ? (
+        <p className="text-[12px] font-medium text-[#8a8a96]">
+          {t("refDashboard.kpiClickHint", "Click a metric card to view details")}
+        </p>
+      ) : null}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {cards.map((card) => {
         const titleKey = KPI_TITLE_KEYS[card.id];
         const trendKey = TREND_LABEL_KEYS[card.trendLabel];
@@ -284,12 +291,13 @@ function KpiStrip({ cards = [] }) {
           : trendKey
             ? t(`refDashboard.${trendKey}`)
             : card.trendLabel;
-
+        const cardTitle = titleKey ? t(`refDashboard.${titleKey}`) : card.title;
         const targetLink = card.link || DEFAULT_CARD_LINKS[card.id];
-        const borderClass = accent.border || "border-[#e4e4ea] hover:border-[var(--color-primary)] dark:border-slate-800";
-
-        const cls = `group relative flex h-full min-h-[7.5rem] flex-col overflow-hidden rounded-xl border bg-white dark:bg-[#1a1d24] p-4 shadow-sm cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md kpi-card-interactive ${borderClass}`;
-
+        const linkCardCls =
+          "group relative flex h-full min-h-[7.5rem] flex-col overflow-hidden ui-card p-4 cursor-pointer transition-all duration-200 ease-out hover:-translate-y-1 hover:border-[var(--color-primary)]/35 hover:bg-[#fafafa] hover:shadow-lg active:translate-y-0 active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]";
+        const staticCardCls =
+          "group relative flex h-full min-h-[7.5rem] flex-col overflow-hidden ui-card p-4";
+        const cls = targetLink ? linkCardCls : staticCardCls;
         const inner = (
           <>
             <span className={`absolute inset-x-0 top-0 h-1 ${accent.bar}`} aria-hidden />
@@ -297,8 +305,8 @@ function KpiStrip({ cards = [] }) {
               <KpiIconWell id={card.id} />
               <div className="flex min-w-0 flex-1 flex-col self-stretch">
                 <div className="flex items-center justify-between gap-1">
-                  <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-[#6b6b76] dark:text-slate-400">
-                    {titleKey ? t(`refDashboard.${titleKey}`) : card.title}
+                  <p className="line-clamp-2 text-[11px] font-medium leading-snug text-[#6b6b76] dark:text-slate-400">
+                    {cardTitle}
                   </p>
                   {targetLink ? (
                     <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#9a9aa5] transition-all duration-200 group-hover:translate-x-0.5 dark:text-slate-500" />
@@ -311,20 +319,31 @@ function KpiStrip({ cards = [] }) {
                     <span className="ml-1 text-lg font-semibold text-[#9a9aa5]">{card.suffix}</span>
                   ) : null}
                 </p>
-                <div className="mt-auto pt-3">
+                <div className="mt-auto flex items-end justify-between gap-2 pt-3">
                   <TrendBadge
                     up={card.trendUp}
                     value={card.trend}
                     label={trendLabel}
                     mode={isMachines ? "utilization" : trendIsPct ? "change" : "info"}
                   />
+                  {card.link ? (
+                    <span className="inline-flex shrink-0 items-center gap-0.5 text-[11px] font-semibold text-[#9a9aa5] transition-colors group-hover:text-[var(--color-primary)]">
+                      {t("common.view", "View")}
+                      <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                    </span>
+                  ) : null}
                 </div>
               </div>
             </div>
           </>
         );
         return targetLink ? (
-          <Link key={card.id} to={targetLink} className={cls}>
+          <Link
+            key={card.id}
+            to={targetLink}
+            className={cls}
+            aria-label={t("refDashboard.openKpiDetails", "View {{title}} details", { title: cardTitle })}
+          >
             {inner}
           </Link>
         ) : (
@@ -333,6 +352,7 @@ function KpiStrip({ cards = [] }) {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

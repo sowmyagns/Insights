@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.inventory import InventoryItem
 from app.models.machine import Machine
 from app.models.maintenance import BreakdownReport, MaintenanceRecord, PreventiveMaintenance
 from app.schemas.maintenance_extended import (
@@ -162,6 +163,8 @@ def list_machine_history(db: Session, tenant_id: int) -> list[MachineHistoryRead
                 spare_parts=r.spare_parts,
                 downtime_minutes=r.downtime_minutes,
                 remarks=r.remarks or r.description,
+                status=r.status,
+                description=r.description or r.remarks,
             )
         )
     for b in breakdowns:
@@ -177,74 +180,254 @@ def list_machine_history(db: Session, tenant_id: int) -> list[MachineHistoryRead
                 spare_parts=None,
                 downtime_minutes=b.downtime_minutes,
                 remarks=b.cause or b.description,
+                status=b.status,
+                description=b.cause or b.description,
             )
         )
     return sorted(result, key=lambda x: x.event_date or "", reverse=True)
 
 
 def get_maintenance_hub(db: Session, tenant_id: int) -> MaintenanceHubRead:
+    today = date.today()
     machines = list(db.scalars(select(Machine).where(Machine.tenant_id == tenant_id, Machine.is_active)).all())
     prev_sum = get_preventive_summary(db, tenant_id)
     bd_sum = get_breakdown_summary(db, tenant_id)
+    preventive_tasks = list(
+        db.scalars(select(PreventiveMaintenance).where(PreventiveMaintenance.tenant_id == tenant_id)).all()
+    )
+    breakdowns = list(db.scalars(select(BreakdownReport).where(BreakdownReport.tenant_id == tenant_id)).all())
+    records = list(db.scalars(select(MaintenanceRecord).where(MaintenanceRecord.tenant_id == tenant_id)).all())
+
     running = sum(1 for m in machines if m.status == "running")
-    maintenance = sum(1 for m in machines if m.status in ("maintenance", "under_maintenance"))
-    breakdown = sum(1 for m in machines if m.status == "breakdown")
+    maintenance_count = sum(1 for m in machines if m.status in ("maintenance", "under_maintenance"))
+    breakdown_machines = sum(1 for m in machines if m.status == "breakdown")
     idle = sum(1 for m in machines if m.status == "idle")
     health_scores = [float(m.health_score) for m in machines if m.health_score is not None]
-    health_pct = sum(health_scores) / len(health_scores) if health_scores else 87.5
-    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
-    calendar = [
-        {"day": 1, "machine": "CNC-01", "type": "Preventive"},
-        {"day": 3, "machine": "Press-03", "type": "Inspection"},
-        {"day": 5, "machine": "Lathe-02", "type": "Calibration"},
-        {"day": 8, "machine": "CNC-01", "type": "Preventive"},
-        {"day": 12, "machine": "Mill-04", "type": "Inspection"},
+    health_pct = sum(health_scores) / len(health_scores) if health_scores else 0.0
+
+    open_status = {"scheduled", "reported", "open"}
+    progress_status = {"in_progress", "assigned"}
+    done_status = {"completed", "resolved", "closed", "verified"}
+
+    def _status_bucket(status: str | None) -> str:
+        s = (status or "").lower()
+        if s in open_status:
+            return "open"
+        if s in progress_status:
+            return "in_progress"
+        if s in done_status:
+            return "completed"
+        return "open"
+
+    all_requests: list[tuple[str, object]] = (
+        [("preventive", t) for t in preventive_tasks]
+        + [("breakdown", b) for b in breakdowns]
+        + [("maintenance", r) for r in records]
+    )
+    total_requests = len(all_requests)
+    open_requests = sum(
+        1 for _, item in all_requests if _status_bucket(getattr(item, "status", None)) == "open"
+    )
+    in_progress_requests = sum(
+        1 for _, item in all_requests if _status_bucket(getattr(item, "status", None)) == "in_progress"
+    )
+    completed_requests = sum(
+        1 for _, item in all_requests if _status_bucket(getattr(item, "status", None)) == "completed"
+    )
+    overdue_requests = sum(
+        1
+        for t in preventive_tasks
+        if t.schedule_date < today and (t.status or "").lower() not in done_status
+    )
+
+    labour_cost = float(sum(float(r.cost or 0) for r in records))
+    spare_cost = 0.0
+    external_cost = 0.0
+    total_cost = labour_cost + spare_cost + external_cost
+
+    month_labels: list[str] = []
+    cost_by_month: dict[str, float] = {}
+    downtime_by_month: dict[str, float] = {}
+    breakdown_by_month: dict[str, int] = {}
+    for i in range(5, -1, -1):
+        d = today.replace(day=1) - timedelta(days=i * 28)
+        key = d.strftime("%b")
+        month_labels.append(key)
+        cost_by_month[key] = 0.0
+        downtime_by_month[key] = 0.0
+        breakdown_by_month[key] = 0
+
+    for r in records:
+        if r.maintenance_date:
+            key = r.maintenance_date.strftime("%b")
+            if key in cost_by_month:
+                cost_by_month[key] += float(r.cost or 0)
+    for b in breakdowns:
+        if b.reported_at:
+            key = b.reported_at.strftime("%b")
+            if key in downtime_by_month:
+                downtime_by_month[key] += float(b.downtime_minutes or 0) / 60
+            if key in breakdown_by_month:
+                breakdown_by_month[key] += 1
+
+    calendar_events = []
+    for t in preventive_tasks:
+        if t.schedule_date and t.schedule_date.month == today.month and t.schedule_date.year == today.year:
+            machine = db.get(Machine, t.machine_id)
+            calendar_events.append(
+                {
+                    "day": t.schedule_date.day,
+                    "machine": machine.name if machine else f"Machine {t.machine_id}",
+                    "type": t.maintenance_type or "Preventive",
+                }
+            )
+
+    machine_health = [
+        {"name": m.name, "health": float(m.health_score) if m.health_score is not None else 0.0, "code": m.code}
+        for m in machines[:8]
     ]
+
+    preventive_done = sum(1 for t in preventive_tasks if (t.status or "").lower() in done_status)
+    corrective_done = sum(
+        1 for r in records if (r.maintenance_type or "").lower() in ("corrective", "repair")
+    )
+    breakdown_done = sum(1 for b in breakdowns if (b.status or "").lower() in done_status)
+
+    equipment_status = [
+        {"name": "Running", "count": running, "color": "#15803d"},
+        {"name": "Under Maintenance", "count": maintenance_count, "color": "#c2410c"},
+        {"name": "Out of Service", "count": breakdown_machines, "color": "#ef4444"},
+        {"name": "Idle", "count": idle, "color": "#6b6b76"},
+    ]
+
+    maintenance_overview = [
+        {"name": "Preventive", "count": preventive_done, "color": "#6d28d9"},
+        {"name": "Corrective", "count": corrective_done, "color": "#0f766e"},
+        {"name": "Breakdown", "count": breakdown_done, "color": "#ef4444"},
+    ]
+
+    spare_items = list(
+        db.scalars(
+            select(InventoryItem).where(
+                InventoryItem.tenant_id == tenant_id,
+                InventoryItem.category.ilike("%spare%"),
+            )
+        ).all()
+    )
+    spare_parts = [
+        {
+            "id": item.id,
+            "part_number": item.sku or item.barcode or f"SP-{item.id}",
+            "spare_name": item.name,
+            "stock": int(item.quantity or 0),
+            "minimum_stock": int(item.reorder_level or 0),
+            "vendor": item.warehouse_name or "—",
+            "cost": float(item.unit_cost or 0),
+            "is_low_stock": bool(
+                item.reorder_level is not None
+                and item.quantity is not None
+                and item.quantity <= item.reorder_level
+            ),
+        }
+        for item in spare_items[:50]
+    ]
+
+    recent_requests: list[dict] = []
+    for t in preventive_tasks[:20]:
+        machine = db.get(Machine, t.machine_id)
+        recent_requests.append(
+            {
+                "id": f"pm-{t.id}",
+                "request_number": f"PM-{t.id:04d}",
+                "machine_name": machine.name if machine else f"Machine {t.machine_id}",
+                "request_type": "Preventive",
+                "priority": "medium",
+                "status": t.status,
+                "assigned_to": t.assigned_engineer or "—",
+                "due_date": t.schedule_date.isoformat() if t.schedule_date else None,
+                "sort_date": t.schedule_date.isoformat() if t.schedule_date else "",
+            }
+        )
+    for b in breakdowns[:20]:
+        machine = db.get(Machine, b.machine_id)
+        recent_requests.append(
+            {
+                "id": f"bd-{b.id}",
+                "request_number": b.breakdown_number or f"BD-{b.id:04d}",
+                "machine_name": machine.name if machine else f"Machine {b.machine_id}",
+                "request_type": "Breakdown",
+                "priority": getattr(b, "priority", "medium") or "medium",
+                "status": b.status,
+                "assigned_to": b.engineer or "—",
+                "due_date": b.estimated_completion.date().isoformat() if getattr(b, "estimated_completion", None) else None,
+                "sort_date": b.reported_at.isoformat() if b.reported_at else "",
+            }
+        )
+    recent_requests.sort(key=lambda x: x.get("sort_date") or "", reverse=True)
+    recent_requests = recent_requests[:12]
+
+    alerts: list[dict] = []
+    for t in preventive_tasks:
+        if t.schedule_date == today + timedelta(days=1) and (t.status or "").lower() not in done_status:
+            machine = db.get(Machine, t.machine_id)
+            alerts.append(
+                {
+                    "type": "due",
+                    "message": f"Preventive maintenance due tomorrow — {machine.name if machine else t.machine_id}",
+                }
+            )
+    for b in breakdowns:
+        if (b.status or "").lower() in progress_status:
+            machine = db.get(Machine, b.machine_id)
+            hrs = round((b.downtime_minutes or 0) / 60, 1)
+            alerts.append(
+                {
+                    "type": "breakdown",
+                    "message": f"{machine.name if machine else b.machine_id} breakdown — {hrs}h downtime",
+                }
+            )
+    for sp in spare_parts:
+        if sp["is_low_stock"]:
+            alerts.append(
+                {"type": "spare", "message": f"Low stock: {sp['spare_name']} ({sp['stock']}/{sp['minimum_stock']})"}
+            )
+
+    avail_pct = prev_sum.machine_availability_pct if machines else 0.0
+
     return MaintenanceHubRead(
         total_machines=len(machines),
         running=running,
-        under_maintenance=maintenance,
-        breakdown=breakdown or 1,
+        under_maintenance=maintenance_count,
+        breakdown=breakdown_machines,
         idle=idle,
         machine_health_pct=round(health_pct, 1),
         mttr_hours=bd_sum.avg_repair_time_mttr,
-        mtbf_hours=168.0,
-        labour_cost=185_000,
-        spare_cost=92_000,
-        external_cost=45_000,
-        total_cost=322_000,
-        calendar_events=calendar,
-        machine_health=[
-            {"name": m.name, "health": float(m.health_score) if m.health_score is not None else 0.0, "code": m.code}
-            for m in machines[:6]
-        ] or [
-            {"name": "CNC-01", "health": 95, "code": "CNC-01"},
-            {"name": "Press-03", "health": 72, "code": "PR-03"},
-            {"name": "Lathe-02", "health": 88, "code": "LT-02"},
-        ],
-        downtime_trend=[{"month": m, "hours": 40 + i * 5} for i, m in enumerate(months)],
-        availability_trend=[{"month": m, "pct": 88 + i * 0.8} for i, m in enumerate(months)],
-        cost_trend=[{"month": m, "cost": 280000 + i * 15000} for i, m in enumerate(months)],
-        breakdown_frequency=[{"month": m, "count": 6 - i} for i, m in enumerate(months)],
-        mttr_trend=[{"month": m, "hours": 3.2 - i * 0.1} for i, m in enumerate(months)],
-        mtbf_trend=[{"month": m, "hours": 150 + i * 5} for i, m in enumerate(months)],
+        mtbf_hours=0.0,
+        labour_cost=labour_cost,
+        spare_cost=spare_cost,
+        external_cost=external_cost,
+        total_cost=total_cost,
+        total_requests=total_requests,
+        open_requests=open_requests,
+        in_progress_requests=in_progress_requests,
+        completed_requests=completed_requests,
+        overdue_requests=overdue_requests,
+        calendar_events=calendar_events[:14],
+        machine_health=machine_health,
+        downtime_trend=[{"month": m, "hours": round(downtime_by_month.get(m, 0), 1)} for m in month_labels],
+        availability_trend=[{"month": m, "pct": round(avail_pct, 1)} for m in month_labels],
+        cost_trend=[{"month": m, "cost": round(cost_by_month.get(m, 0), 2)} for m in month_labels],
+        breakdown_frequency=[{"month": m, "count": breakdown_by_month.get(m, 0)} for m in month_labels],
+        mttr_trend=[{"month": m, "hours": bd_sum.avg_repair_time_mttr} for m in month_labels],
+        mtbf_trend=[{"month": m, "hours": 0} for m in month_labels],
         preventive_vs_breakdown=[
-            {"name": "Preventive", "count": prev_sum.completed_this_month},
-            {"name": "Breakdown", "count": bd_sum.active_breakdowns + 8},
+            {"name": "Preventive", "count": preventive_done},
+            {"name": "Breakdown", "count": len(breakdowns)},
         ],
-        spare_parts=[
-            {"part_number": "SP-8842", "spare_name": "Bearing 6205", "stock": 12, "minimum_stock": 20, "vendor": "SKF India", "cost": 850},
-            {"part_number": "SP-8838", "spare_name": "Hydraulic Seal", "stock": 5, "minimum_stock": 10, "vendor": "Bosch", "cost": 1200},
-            {"part_number": "SP-8830", "spare_name": "Cutting Tool Insert", "stock": 45, "minimum_stock": 30, "vendor": "Sandvik", "cost": 320},
-        ],
-        work_orders=[
-            {"work_order_number": "MWO-0042", "machine": "CNC-01", "priority": "high", "assigned_to": "Mahesh Patel", "status": "in_progress"},
-            {"work_order_number": "MWO-0041", "machine": "Press-03", "priority": "critical", "assigned_to": "Ravi Kumar", "status": "assigned"},
-        ],
-        alerts=[
-            {"type": "due", "message": "Preventive maintenance due tomorrow — CNC-01"},
-            {"type": "breakdown", "message": "Press-03 breakdown — 4.5h downtime"},
-            {"type": "spare", "message": "Low stock: Bearing 6205 (12/20)"},
-            {"type": "completed", "message": "Lathe-02 maintenance completed by Ravi Kumar"},
-        ],
+        maintenance_overview=maintenance_overview,
+        equipment_status=equipment_status,
+        spare_parts=spare_parts,
+        work_orders=[],
+        recent_requests=recent_requests,
+        alerts=alerts[:8],
     )

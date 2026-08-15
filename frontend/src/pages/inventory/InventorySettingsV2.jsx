@@ -202,10 +202,8 @@ export default function InventorySettingsV2() {
   }
 
   return (
-    <div className="space-y-5 pb-24">
+    <div className="space-y-5 px-2 pb-24 sm:px-4 lg:px-6">
       <PageHeader
-        title="Inventory Settings"
-        showTitle
         subtitle="Configure system preferences and inventory rules"
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -257,7 +255,7 @@ export default function InventorySettingsV2() {
         </nav>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 md:gap-5 xl:gap-6">
         <SettingsCard
           id="general"
           icon={Settings}

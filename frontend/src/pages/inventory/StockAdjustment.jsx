@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ArrowDown,
   ArrowRight,
@@ -6,10 +7,8 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardList,
-  Eye,
   Filter,
   Info,
-  MoreVertical,
   Plus,
   RefreshCw,
   Search,
@@ -22,6 +21,9 @@ import EmptyState from "../../components/common/EmptyState";
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
 import StatusBadge from "../../components/common/StatusBadge";
+import ConfirmDialog from "../../components/admin/ConfirmDialog";
+import InventoryRowActionsMenu from "../../components/inventory/InventoryRowActionsMenu";
+import RecordDetailModal from "../../components/inventory/RecordDetailModal";
 import StoreManagerNav from "../../components/inventory/StoreManagerNav";
 import { useToast } from "../../context/ToastContext";
 import useAuth from "../../hooks/useAuth";
@@ -46,89 +48,6 @@ const REASON_OPTIONS = [
   "Stock Count Adjustment",
   ...ADJUSTMENT_REASONS.filter((r) => r !== "Physical Count"),
   "Damaged Goods",
-];
-
-const MOCKUP_ADJUSTMENTS = [
-  {
-    id: "a1",
-    adjustment_number: "ADJ-2026-0018",
-    adjustment_date: "2026-08-13T10:30:00",
-    item_name: "PET Resin",
-    item_code: "RM-0001",
-    warehouse_name: "Main Warehouse",
-    type: "increase",
-    adjustment_qty: 100,
-    unit: "KG",
-    new_qty: 1350,
-    reason: "Stock Count Adjustment",
-    created_by: "Raj K.",
-    status: "approved",
-    live: false,
-  },
-  {
-    id: "a2",
-    adjustment_number: "ADJ-2026-0017",
-    adjustment_date: "2026-08-12T16:15:00",
-    item_name: "HDPE Caps",
-    item_code: "RM-0004",
-    warehouse_name: "Main Warehouse",
-    type: "decrease",
-    adjustment_qty: 50,
-    unit: "Nos",
-    new_qty: 12450,
-    reason: "Damaged Goods",
-    created_by: "Store Admin",
-    status: "pending",
-    live: false,
-  },
-  {
-    id: "a3",
-    adjustment_number: "ADJ-2026-0016",
-    adjustment_date: "2026-08-12T11:05:00",
-    item_name: "Color Masterbatch - Blue",
-    item_code: "RM-0002",
-    warehouse_name: "Unit-1 Warehouse",
-    type: "increase",
-    adjustment_qty: 20,
-    unit: "KG",
-    new_qty: 104.5,
-    reason: "Correction",
-    created_by: "Raj K.",
-    status: "approved",
-    live: false,
-  },
-  {
-    id: "a4",
-    adjustment_number: "ADJ-2026-0015",
-    adjustment_date: "2026-08-11T09:40:00",
-    item_name: "Shrink Film",
-    item_code: "RM-0005",
-    warehouse_name: "Main Warehouse",
-    type: "decrease",
-    adjustment_qty: 12,
-    unit: "KG",
-    new_qty: 36,
-    reason: "Scrap",
-    created_by: "Ops Team",
-    status: "approved",
-    live: false,
-  },
-  {
-    id: "a5",
-    adjustment_number: "ADJ-2026-0014",
-    adjustment_date: "2026-08-10T14:20:00",
-    item_name: "Corrugated Sheet",
-    item_code: "RM-0008",
-    warehouse_name: "Unit-1 Warehouse",
-    type: "increase",
-    adjustment_qty: 300,
-    unit: "Nos",
-    new_qty: 300,
-    reason: "Return",
-    created_by: "Store Admin",
-    status: "pending",
-    live: false,
-  },
 ];
 
 function itemLabel(item) {
@@ -158,10 +77,29 @@ function formatDateTime(value) {
   return `${day}, ${time}`;
 }
 
+function findWarehouseIdByName(warehouseList, name) {
+  if (!name) return "";
+  const match = warehouseList.find((w) => w.name === name);
+  return match ? String(match.id) : "";
+}
+
+function findItemIdByName(itemList, name) {
+  if (!name) return "";
+  const match = itemList.find((i) => i.name === name);
+  return match ? String(match.id) : "";
+}
+
+function isPendingAdjustmentStatus(status) {
+  const st = String(status || "").toLowerCase();
+  return st === "pending" || st === "pending_approval";
+}
+
 export default function StockAdjustment() {
   const { addToast } = useToast();
   const { user } = useAuth();
   const storeMode = isStoreManager(user);
+  const [searchParams] = useSearchParams();
+  const formRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [adjustments, setAdjustments] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
@@ -179,12 +117,17 @@ export default function StockAdjustment() {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
-  const [showForm, setShowForm] = useState(true);
+  const [showForm, setShowForm] = useState(() => searchParams.get("new") === "1");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [headerDate, setHeaderDate] = useState("2026-08-13");
   const [headerWarehouse, setHeaderWarehouse] = useState("");
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [viewTarget, setViewTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [editReplaceId, setEditReplaceId] = useState(null);
 
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -208,6 +151,20 @@ export default function StockAdjustment() {
     load();
   }, [load]);
 
+  const openForm = useCallback(() => {
+    setShowForm(true);
+    setStep(1);
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      openForm();
+    }
+  }, [searchParams, openForm]);
+
   useEffect(() => {
     if (!headerWarehouse && warehouses.length) setHeaderWarehouse(String(warehouses[0].id));
     if (!form.warehouse_id && warehouses.length) {
@@ -216,20 +173,15 @@ export default function StockAdjustment() {
   }, [warehouses, headerWarehouse, form.warehouse_id]);
 
   const selectedItem = items.find((i) => String(i.id) === String(form.item_id));
-  const previewItem = selectedItem || {
-    name: "PET Resin",
-    sku: "RM-0001",
-    unit: "KG",
-    total_quantity: 1250,
-  };
-  const currentStock = selectedItem ? currentStockOf(selectedItem) : 1250;
+  const previewItem = selectedItem || { name: "", sku: "", unit: "", total_quantity: 0 };
+  const currentStock = selectedItem ? currentStockOf(selectedItem) : 0;
   const adjQty = Number(form.adj_qty) || 0;
   const newQty =
     form.adj_type === "decrease" ? Math.max(0, currentStock - adjQty) : currentStock + adjQty;
-  const unit = previewItem.unit || selectedItem?.unit || "KG";
-  const itemDisplay = selectedItem ? itemLabel(selectedItem) : "PET Resin (RM-0001)";
+  const unit = previewItem.unit || selectedItem?.unit || "";
+  const itemDisplay = selectedItem ? itemLabel(selectedItem) : "Select item";
   const warehouseDisplay =
-    warehouses.find((w) => String(w.id) === String(form.warehouse_id))?.name || "Main Warehouse";
+    warehouses.find((w) => String(w.id) === String(form.warehouse_id))?.name || "—";
 
   const canReview =
     Boolean(form.warehouse_id) &&
@@ -238,9 +190,9 @@ export default function StockAdjustment() {
     Boolean(form.reason) &&
     Boolean(form.adjustment_date);
 
-  const displayAdjustments = useMemo(() => {
-    if (adjustments.length) {
-      return adjustments.map((a) => {
+  const displayAdjustments = useMemo(
+    () =>
+      adjustments.map((a) => {
         const diff = Number(a.difference ?? a.new_qty - a.old_qty) || 0;
         return {
           ...a,
@@ -252,10 +204,9 @@ export default function StockAdjustment() {
           created_by: a.approved_by || a.created_by || "—",
           live: true,
         };
-      });
-    }
-    return MOCKUP_ADJUSTMENTS;
-  }, [adjustments]);
+      }),
+    [adjustments]
+  );
 
   const filteredAdjustments = useMemo(() => {
     let rows = displayAdjustments;
@@ -285,7 +236,89 @@ export default function StockAdjustment() {
       remarks: "",
     });
     setStep(1);
+    setEditReplaceId(null);
   };
+
+  const requireLiveRow = (row, actionLabel = "This action") => {
+    if (row.live && typeof row.id === "number") return true;
+    addToast(`${actionLabel} is only available for live adjustment records.`, "warning");
+    return false;
+  };
+
+  const handleView = (row) => setViewTarget(row);
+
+  const handleEdit = (row) => {
+    if (!requireLiveRow(row, "Edit")) return;
+    const st = String(row.status || "").toLowerCase();
+    if (!isPendingAdjustmentStatus(st)) {
+      addToast("Only pending adjustments can be edited. Create a new adjustment instead.", "warning");
+      return;
+    }
+    setForm({
+      adjustment_date: row.adjustment_date ? String(row.adjustment_date).slice(0, 10) : new Date().toISOString().slice(0, 10),
+      warehouse_id: findWarehouseIdByName(warehouses, row.warehouse_name),
+      item_id: findItemIdByName(items, row.item_name),
+      adj_type: row.type === "decrease" ? "decrease" : "increase",
+        adj_qty: String(row.adjustment_qty ?? (Math.abs(Number(row.difference) || 0) || "")),
+      reason: row.reason || "Stock Count Adjustment",
+      reference: "",
+      remarks: "",
+    });
+    setEditReplaceId(row.id);
+    setStep(1);
+    openForm();
+    addToast("Update the adjustment details and submit to save changes.", "info");
+  };
+
+  const handleAdd = () => {
+    resetForm();
+    openForm();
+  };
+
+  const handleDeleteRequest = (row) => {
+    if (!requireLiveRow(row, "Delete")) return;
+    const st = String(row.status || "").toLowerCase();
+    if (!isPendingAdjustmentStatus(st)) {
+      addToast("Only pending adjustments can be cancelled.", "warning");
+      return;
+    }
+    setDeleteTarget(row);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget?.id) return;
+    setDeleting(true);
+    try {
+      await updateStockAdjustmentStatus(deleteTarget.id, {
+        status: "rejected",
+        approved_by: "Store Manager",
+      });
+      addToast("Adjustment cancelled successfully");
+      setDeleteTarget(null);
+      await load(true);
+    } catch {
+      addToast("Could not cancel adjustment", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const viewFields = viewTarget
+    ? [
+        { label: "Adjustment No.", value: viewTarget.adjustment_number },
+        { label: "Date", value: formatDateTime(viewTarget.adjustment_date) },
+        { label: "Item", value: viewTarget.item_name },
+        { label: "Item Code", value: viewTarget.item_code },
+        { label: "Warehouse", value: viewTarget.warehouse_name },
+        { label: "Type", value: viewTarget.type === "decrease" ? "Decrease" : "Increase" },
+        { label: "Adjustment Qty", value: formatQty(viewTarget.adjustment_qty) },
+        { label: "Old Quantity", value: formatQty(viewTarget.old_qty) },
+        { label: "New Quantity", value: formatQty(viewTarget.new_qty) },
+        { label: "Reason", value: viewTarget.reason },
+        { label: "Status", value: viewTarget.status },
+        { label: "Created By", value: viewTarget.created_by || viewTarget.approved_by },
+      ]
+    : [];
 
   const handleSubmit = async () => {
     if (!form.item_id || !items.length) {
@@ -301,6 +334,7 @@ export default function StockAdjustment() {
       return;
     }
     setSubmitting(true);
+    const replacingId = editReplaceId;
     try {
       const reasonParts = [form.reason, form.reference ? `Ref: ${form.reference}` : "", form.remarks]
         .filter(Boolean)
@@ -312,7 +346,17 @@ export default function StockAdjustment() {
         new_qty: Number(newQty),
         reason: reasonParts,
       });
-      addToast("Adjustment recorded — pending approval");
+      if (replacingId && typeof replacingId === "number") {
+        try {
+          await updateStockAdjustmentStatus(replacingId, {
+            status: "rejected",
+            approved_by: "Store Manager",
+          });
+        } catch {
+          /* prior pending adjustment may remain */
+        }
+      }
+      addToast(replacingId ? "Adjustment updated successfully" : "Adjustment recorded — pending approval");
       resetForm();
       setShowForm(false);
       load();
@@ -431,11 +475,12 @@ export default function StockAdjustment() {
       key: "actions",
       label: "Actions",
       sortable: false,
+      className: "min-w-[7rem] whitespace-nowrap",
       render: (r) => {
         const isBusy = updatingId === r.id;
         const st = String(r.status || "").toLowerCase();
         return (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 whitespace-nowrap">
             {r.live && (st === "pending" || st === "pending_approval") ? (
               <>
                 <Button type="button" variant="success" size="sm" disabled={isBusy} onClick={() => handleStatusChange(r.id, "approved")} title="Approve">
@@ -446,12 +491,16 @@ export default function StockAdjustment() {
                 </Button>
               </>
             ) : null}
-            <button type="button" className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]" aria-label="View" title="View">
-              <Eye className="h-4 w-4" />
-            </button>
-            <button type="button" className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]" aria-label="More" title="More">
-              <MoreVertical className="h-4 w-4" />
-            </button>
+            <InventoryRowActionsMenu
+              rowId={r.id}
+              isOpen={openMenuId === r.id}
+              onOpen={setOpenMenuId}
+              onClose={() => setOpenMenuId(null)}
+              onView={() => handleView(r)}
+              onEdit={() => handleEdit(r)}
+              onAdd={handleAdd}
+              onDelete={() => handleDeleteRequest(r)}
+            />
           </div>
         );
       },
@@ -468,12 +517,10 @@ export default function StockAdjustment() {
   }
 
   return (
-    <div className="space-y-5 pb-4">
+    <div className="min-w-0 space-y-5 pb-4">
       {storeMode ? <StoreManagerNav /> : null}
 
       <PageHeader
-        title="Stock Adjustment"
-        showTitle
         subtitle="Adjust stock quantity for items"
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -506,7 +553,7 @@ export default function StockAdjustment() {
       />
 
       {showForm ? (
-        <section className="ui-card p-4 sm:p-5">
+        <section ref={formRef} className="ui-card scroll-mt-24 p-4 sm:p-5">
           <div className="mb-5 flex flex-wrap items-center gap-3 border-b border-[var(--color-border-soft)] pb-4">
             {STEPS.map((s, i) => {
               const active = step === s.id;
@@ -575,7 +622,7 @@ export default function StockAdjustment() {
                       onChange={(e) => setForm((f) => ({ ...f, item_id: e.target.value }))}
                       className="ui-select"
                     >
-                      <option value="">{items.length ? "Select item" : "PET Resin (RM-0001)"}</option>
+                      <option value="">{items.length ? "Select item" : "No items available"}</option>
                       {items.map((i) => (
                         <option key={i.id} value={i.id}>{itemLabel(i)}</option>
                       ))}
@@ -803,17 +850,14 @@ export default function StockAdjustment() {
             <Button
               type="button"
               variant="primary"
-              onClick={() => {
-                setShowForm(true);
-                setStep(1);
-              }}
+              onClick={openForm}
             >
               <Plus className="h-4 w-4" /> New Adjustment
             </Button>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-[var(--color-border-soft)]">
+        <div className="inventory-table-scroll inventory-table-scroll--adjustment rounded-lg border border-[var(--color-border-soft)]">
           <DataTable
             columns={columns}
             data={filteredAdjustments}
@@ -825,12 +869,33 @@ export default function StockAdjustment() {
                 title="No adjustments yet"
                 description="Create an adjustment to correct stock quantities."
                 actionLabel="New Adjustment"
-                onAction={() => { setShowForm(true); setStep(1); }}
+                onAction={handleAdd}
               />
             }
           />
         </div>
       </section>
+
+      <RecordDetailModal
+        open={Boolean(viewTarget)}
+        title={viewTarget?.adjustment_number || "Adjustment Details"}
+        subtitle={viewTarget?.item_name}
+        fields={viewFields}
+        onClose={() => setViewTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete record"
+        message="Are you sure you want to delete this record?"
+        confirmLabel="Delete"
+        destructive
+        loading={deleting}
+        onConfirm={handleDeleteConfirm}
+        onClose={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

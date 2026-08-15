@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Calendar, ChevronLeft, ChevronRight, FileText, Filter, ListFilter, Plus, Search, X } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import QuoteDetailModal from "../../components/sales/QuoteDetailModal";
 import { useToast } from "../../context/ToastContext";
 import {
@@ -380,6 +381,7 @@ export default function Quotations() {
           <table className="min-w-full border-collapse text-left text-[13px]">
             <thead className="bg-[#f3f3f6] text-[12px] font-semibold uppercase tracking-wide text-[#6b6b76]">
               <tr>
+                <SerialNumberHeader className="border-b border-r border-[#d0d0d8]" />
                 <th className="border-b border-r border-[#d0d0d8] px-4 py-3 last:border-r-0">Quotation No.</th>
                 <th className="border-b border-r border-[#d0d0d8] px-4 py-3 last:border-r-0">Date</th>
                 <th className="border-b border-r border-[#d0d0d8] px-4 py-3 last:border-r-0">Party Name</th>
@@ -391,7 +393,7 @@ export default function Quotations() {
             <tbody>
               {pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center">
+                  <td colSpan={7} className="px-4 py-16 text-center">
                     <FileText className="mx-auto h-12 w-12 text-[#c4c4cc]" />
                     <p className="mt-3 text-[14px] text-[#6b6b76]">
                       No Quotations available, Create new quotation
@@ -406,8 +408,14 @@ export default function Quotations() {
                   </td>
                 </tr>
               ) : (
-                pageRows.map((r) => (
+                pageRows.map((r, rowIndex) => (
                   <tr key={r.id} className="hover:bg-[#fafafa]">
+                    <SerialNumberCell
+                      rowIndex={rowIndex}
+                      page={page}
+                      pageSize={pageSize}
+                      className="border-t border-r border-[#d0d0d8]"
+                    />
                     <td className="border-t border-r border-[#d0d0d8] px-4 py-3 font-semibold" style={{ color: ACCENT }}>
                       {r.quote_number}
                     </td>

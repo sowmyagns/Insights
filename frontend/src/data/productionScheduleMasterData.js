@@ -113,9 +113,8 @@ export function formatScheduleDate(iso) {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function mergeTimeline(apiRows, demoRows) {
-  if (apiRows?.length) return apiRows;
-  return demoRows;
+export function mergeTimeline(apiRows) {
+  return apiRows?.length ? apiRows : [];
 }
 
 export function buildTableFromTimeline(timeline, shifts) {

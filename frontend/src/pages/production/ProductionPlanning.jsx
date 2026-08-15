@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -134,11 +135,25 @@ function OrderActions({
   canEdit,
 }) {
   const [open, setOpen] = useState(false);
+  const menuBtnRef = useRef(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const needsMachine = !row.machine_name || row.machine_name === "—" || row.machine_name === "Unassigned";
   const more = [];
   if (canPause(row.status)) more.push({ label: "Pause", onClick: () => onPause(row) });
   more.push({ label: "Print", onClick: () => onPrint(row) });
   if (needsMachine) more.push({ label: "Create Work Order", onClick: () => onWorkOrder(row) });
+
+  const openMenu = (e) => {
+    e?.stopPropagation?.();
+    const rect = menuBtnRef.current?.getBoundingClientRect();
+    if (rect) {
+      setMenuPos({
+        top: rect.bottom + 4,
+        left: Math.max(8, rect.right - 192),
+      });
+    }
+    setOpen(true);
+  };
 
   return (
     <div className="flex items-center justify-end gap-1 whitespace-nowrap print:hidden">
@@ -157,39 +172,49 @@ function OrderActions({
       ) : null}
       {more.length ? (
         <div className="relative">
-          <IconButton
-            aria-label="More actions"
-            title="More actions"
-            onClick={(e) => {
-              e?.stopPropagation?.();
-              setOpen((v) => !v);
-            }}
-          >
-            <MoreVertical className="h-3.5 w-3.5" />
-          </IconButton>
-          {open ? (
-            <>
-              <button type="button" className="fixed inset-0 z-40 cursor-default" aria-label="Close menu" onClick={() => setOpen(false)} />
-              <div className="absolute right-0 z-50 mt-1 w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-lg">
-                {more.map((item) => (
+          <span ref={menuBtnRef} className="inline-flex">
+            <IconButton
+              aria-label="More actions"
+              title="More actions"
+              onClick={openMenu}
+            >
+              <MoreVertical className="h-3.5 w-3.5" />
+            </IconButton>
+          </span>
+          {open
+            ? createPortal(
+                <>
                   <button
-                    key={item.label}
                     type="button"
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-surface-muted)]"
-                    onClick={() => {
-                      setOpen(false);
-                      item.onClick?.();
-                    }}
+                    className="fixed inset-0 z-[80] cursor-default"
+                    aria-label="Close menu"
+                    onClick={() => setOpen(false)}
+                  />
+                  <div
+                    className="fixed z-[90] w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-lg"
+                    style={{ top: menuPos.top, left: menuPos.left }}
                   >
-                    {item.label === "Pause" ? <Pause className="h-3.5 w-3.5" /> : null}
-                    {item.label === "Print" ? <Printer className="h-3.5 w-3.5" /> : null}
-                    {item.label === "Create Work Order" ? <ClipboardList className="h-3.5 w-3.5" /> : null}
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : null}
+                    {more.map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-surface-muted)]"
+                        onClick={() => {
+                          setOpen(false);
+                          item.onClick?.();
+                        }}
+                      >
+                        {item.label === "Pause" ? <Pause className="h-3.5 w-3.5" /> : null}
+                        {item.label === "Print" ? <Printer className="h-3.5 w-3.5" /> : null}
+                        {item.label === "Create Work Order" ? <ClipboardList className="h-3.5 w-3.5" /> : null}
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </>,
+                document.body
+              )
+            : null}
         </div>
       ) : null}
     </div>
@@ -209,12 +234,30 @@ const defaultFilters = {
   status: "",
   date_from: "",
   date_to: "",
+  preset: "",
 };
 
 function formatDate(val) {
   if (!val) return "—";
   const d = new Date(val);
   return isNaN(d.getTime()) ? String(val).slice(0, 10) : d.toLocaleDateString(undefined, { dateStyle: "short" });
+}
+
+const PLANNED_STATUSES = ["draft", "planned", "pending", "material_ready", "machine_assigned"];
+const IN_PROGRESS_STATUSES = ["in_progress", "running", "quality_check"];
+const COMPLETED_STATUSES = ["completed", "closed", "done"];
+
+function ClickableKpiCard({ onClick, title, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full rounded-[var(--radius-lg)] text-left transition hover:ring-2 hover:ring-[var(--color-focus-ring)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
+      title={title}
+    >
+      {children}
+    </button>
+  );
 }
 
 /* ─── Bottom-Right Yellow Order Created Toast Popup ───────────────────────── */
@@ -358,7 +401,7 @@ export default function ProductionPlanning() {
     const date_from = searchParams.get("date_from") ?? "";
     const date_to = searchParams.get("date_to") ?? "";
     if (date_from || date_to) {
-      setFilters({ ...defaultFilters, date_from, date_to });
+      setFilters({ ...defaultFilters, preset: "today", date_from, date_to });
       setShowAdvanced(true);
     }
   }, [searchParams]);
@@ -397,6 +440,13 @@ export default function ProductionPlanning() {
       if (filters.department && o.department !== filters.department) return false;
       if (filters.shift && o.shift !== filters.shift) return false;
       if (filters.priority && o.priority !== filters.priority) return false;
+
+      const status = String(o.status || "").toLowerCase();
+      if (filters.preset === "planned" && !PLANNED_STATUSES.includes(status)) return false;
+      if (filters.preset === "in_progress" && !IN_PROGRESS_STATUSES.includes(status)) return false;
+      if (filters.preset === "completed" && !COMPLETED_STATUSES.includes(status)) return false;
+      if (filters.preset === "delayed" && !o.is_delayed && status !== "delayed") return false;
+
       if (filters.status && o.status !== filters.status) return false;
       const startDate = o.start_date ? String(o.start_date).slice(0, 10) : "";
       if (filters.date_from && (!startDate || startDate < filters.date_from)) return false;
@@ -419,7 +469,10 @@ export default function ProductionPlanning() {
 
   const summary = useMemo(() => {
     const computed = computePlanningSummary(filteredOrders);
-    const filtersActive = Object.entries(filters).some(([key, val]) => Boolean(val));
+    const filtersActive = Object.entries(filters).some(([key, val]) => {
+      if (key === "preset" && (!val || val === "all")) return false;
+      return Boolean(val);
+    });
     if (apiSummary && !filtersActive) {
       return {
         total_orders: apiSummary.total_orders ?? computed.total_orders,
@@ -437,9 +490,32 @@ export default function ProductionPlanning() {
 
   const showTodayStartOrders = () => {
     const today = new Date().toISOString().slice(0, 10);
-    setFilters({ ...defaultFilters, date_from: today, date_to: today });
+    setFilters({ ...defaultFilters, preset: "today", date_from: today, date_to: today });
     setSearchParams({ date_from: today, date_to: today });
     setShowAdvanced(true);
+    setPage(1);
+  };
+
+  const applyPlanningPreset = (preset) => {
+    if (preset === "today") {
+      showTodayStartOrders();
+      return;
+    }
+    if (preset === "all") {
+      setFilters({ ...defaultFilters, preset: "all" });
+      setSearchParams({});
+      setShowAdvanced(false);
+      setPage(1);
+      return;
+    }
+    setFilters({ ...defaultFilters, preset });
+    setSearchParams({});
+    setShowAdvanced(true);
+    setPage(1);
+  };
+
+  const patchFilters = (patch) => {
+    setFilters((f) => ({ ...f, ...patch, preset: "" }));
   };
 
   const openOrder = async (order) => {
@@ -829,7 +905,7 @@ export default function ProductionPlanning() {
   return (
     <>
       <div
-        className={`space-y-5 pb-4 ${printDetailOrder ? "hidden print:hidden" : "print:m-0 print:p-0 print:space-y-4 print:block"}`}
+        className={`min-w-0 w-full space-y-5 pb-4 ${printDetailOrder ? "hidden print:hidden" : "print:m-0 print:p-0 print:space-y-4 print:block"}`}
       >
           <div className="mb-4 hidden border-b pb-4 print:block">
             <h1 className="text-xl font-bold text-black">Production Planning Report</h1>
@@ -849,10 +925,6 @@ export default function ProductionPlanning() {
           <PageHeader
             action={
               <>
-                <Button variant="secondary" to="/production/mrp">
-                  <Target className="h-4 w-4" />
-                  Run MRP
-                </Button>
                 <Button variant="secondary" to="/production/work-orders">
                   <ClipboardList className="h-4 w-4" />
                   Work Orders
@@ -862,28 +934,33 @@ export default function ProductionPlanning() {
           />
 
           <div className="ui-grid-kpi print:hidden">
-            <KpiCard label="Total Orders" value={summary.total_orders ?? 0} icon={ClipboardList} tone="primary" />
-            <KpiCard label="Planned" value={summary.planned_orders ?? 0} icon={FileText} tone="info" />
-            <KpiCard label="In Progress" value={summary.in_progress_orders ?? 0} icon={Play} tone="warning" />
-            <KpiCard label="Completed" value={summary.completed_orders ?? 0} icon={CheckCircle2} tone="success" />
-            <KpiCard label="Delayed" value={summary.delayed_orders ?? 0} icon={AlertTriangle} tone="danger" />
-            <button
-              type="button"
-              onClick={showTodayStartOrders}
-              className="rounded-[var(--radius-lg)] text-left transition hover:ring-2 hover:ring-[var(--color-focus-ring)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
-              title="Show orders starting today"
-            >
+            <ClickableKpiCard onClick={() => applyPlanningPreset("all")} title="Show all production orders">
+              <KpiCard label="Total Orders" value={summary.total_orders ?? 0} icon={ClipboardList} tone="primary" meta="Click to filter" />
+            </ClickableKpiCard>
+            <ClickableKpiCard onClick={() => applyPlanningPreset("planned")} title="Show planned orders">
+              <KpiCard label="Planned" value={summary.planned_orders ?? 0} icon={FileText} tone="yellow" meta="Click to filter" />
+            </ClickableKpiCard>
+            <ClickableKpiCard onClick={() => applyPlanningPreset("in_progress")} title="Show in-progress orders">
+              <KpiCard label="In Progress" value={summary.in_progress_orders ?? 0} icon={Play} tone="warning" meta="Click to filter" />
+            </ClickableKpiCard>
+            <ClickableKpiCard onClick={() => applyPlanningPreset("completed")} title="Show completed orders">
+              <KpiCard label="Completed" value={summary.completed_orders ?? 0} icon={CheckCircle2} tone="success" meta="Click to filter" />
+            </ClickableKpiCard>
+            <ClickableKpiCard onClick={() => applyPlanningPreset("delayed")} title="Show delayed orders">
+              <KpiCard label="Delayed" value={summary.delayed_orders ?? 0} icon={AlertTriangle} tone="danger" meta="Click to filter" />
+            </ClickableKpiCard>
+            <ClickableKpiCard onClick={showTodayStartOrders} title="Show orders starting today">
               <KpiCard
                 label="Today's Production"
                 value={summary.todays_production?.toLocaleString?.() ?? summary.todays_production ?? 0}
                 icon={Target}
-                tone="success"
+                tone="violet"
                 meta="Click to filter"
               />
-            </button>
+            </ClickableKpiCard>
           </div>
 
-          <div className="ui-card overflow-hidden p-4 sm:p-5 print:border-0 print:bg-white print:p-0 print:shadow-none">
+          <div className="ui-card min-w-0 p-4 sm:p-5 print:border-0 print:bg-white print:p-0 print:shadow-none">
             <div className="mb-4 flex flex-col gap-3 print:hidden lg:flex-row lg:items-center lg:justify-between">
               <div className="relative min-w-[220px] flex-1 lg:max-w-md">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-icon)]" />
@@ -891,7 +968,7 @@ export default function ProductionPlanning() {
                   type="search"
                   placeholder="Search order, product, customer…"
                   value={filters.q}
-                  onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
+                  onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value, preset: "" }))}
                   className="ui-input !rounded-full pl-10"
                 />
               </div>
@@ -933,17 +1010,19 @@ export default function ProductionPlanning() {
             </div>
 
             {showAdvanced ? (
-              <div className="mb-4 grid gap-3 rounded-[var(--radius-md)] border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] p-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 print:hidden">
-                <input placeholder="Order No." value={filters.order_number} onChange={(e) => setFilters((f) => ({ ...f, order_number: e.target.value }))} className="ui-input" />
-                <input placeholder="Product" value={filters.product} onChange={(e) => setFilters((f) => ({ ...f, product: e.target.value }))} className="ui-input" />
-                <input placeholder="Customer" value={filters.customer} onChange={(e) => setFilters((f) => ({ ...f, customer: e.target.value }))} className="ui-input" />
-                <input placeholder="Work Order" value={filters.work_order} onChange={(e) => setFilters((f) => ({ ...f, work_order: e.target.value }))} className="ui-input" />
-                <input placeholder="Machine" value={filters.machine} onChange={(e) => setFilters((f) => ({ ...f, machine: e.target.value }))} className="ui-input" />
-                <select value={filters.department} onChange={(e) => setFilters((f) => ({ ...f, department: e.target.value }))} className="ui-select">
-                  <option value="">Department</option>
-                  {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <select value={filters.shift} onChange={(e) => setFilters((f) => ({ ...f, shift: e.target.value }))} className="ui-select">
+              <div className="mb-4 grid gap-3 rounded-[var(--radius-md)] border border-[#f0e0a8] bg-[#fffbeb] p-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 print:hidden">
+                <input placeholder="Order No." value={filters.order_number} onChange={(e) => patchFilters({ order_number: e.target.value })} className="ui-input !bg-white" />
+                <input placeholder="Product" value={filters.product} onChange={(e) => patchFilters({ product: e.target.value })} className="ui-input !bg-white" />
+                <input placeholder="Customer" value={filters.customer} onChange={(e) => patchFilters({ customer: e.target.value })} className="ui-input !bg-white" />
+                <input placeholder="Work Order" value={filters.work_order} onChange={(e) => patchFilters({ work_order: e.target.value })} className="ui-input !bg-white" />
+                <input placeholder="Machine" value={filters.machine} onChange={(e) => patchFilters({ machine: e.target.value })} className="ui-input !bg-white" />
+                <div className="mr-0.5">
+                  <select value={filters.department} onChange={(e) => patchFilters({ department: e.target.value })} className="ui-select w-full !bg-white">
+                    <option value="">Department</option>
+                    {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <select value={filters.shift} onChange={(e) => patchFilters({ shift: e.target.value })} className="ui-select !bg-white">
                   <option value="">Shift</option>
                   {SHIFTS.map((s) => {
                     const id = typeof s === "object" ? s.id : s;
@@ -951,23 +1030,23 @@ export default function ProductionPlanning() {
                     return <option key={id} value={id}>{label}</option>;
                   })}
                 </select>
-                <select value={filters.priority} onChange={(e) => setFilters((f) => ({ ...f, priority: e.target.value }))} className="ui-select">
+                <select value={filters.priority} onChange={(e) => patchFilters({ priority: e.target.value })} className="ui-select !bg-white">
                   <option value="">Priority</option>
                   {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
-                <select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))} className="ui-select">
+                <select value={filters.status} onChange={(e) => patchFilters({ status: e.target.value })} className="ui-select !bg-white">
                   <option value="">Status</option>
                   {ORDER_STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
                 </select>
-                <input type="date" value={filters.date_from} onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value }))} className="ui-input" />
-                <input type="date" value={filters.date_to} onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value }))} className="ui-input" />
-                <Button variant="secondary" type="button" onClick={() => setFilters(defaultFilters)}>
+                <input type="date" value={filters.date_from} onChange={(e) => patchFilters({ date_from: e.target.value })} className="ui-input !bg-white" />
+                <input type="date" value={filters.date_to} onChange={(e) => patchFilters({ date_to: e.target.value })} className="ui-input !bg-white" />
+                <Button variant="secondary" type="button" onClick={() => applyPlanningPreset("all")}>
                   Clear filters
                 </Button>
               </div>
             ) : null}
 
-            <div className="ui-table-wrap print:border-none print:shadow-none">
+            <div className="planning-table-panel print:border-none print:shadow-none">
               <DataTable
                 columns={columns}
                 data={paginatedOrders}
@@ -978,7 +1057,7 @@ export default function ProductionPlanning() {
                     <ClipboardList className="mx-auto h-14 w-14 text-[var(--color-text-icon)]" strokeWidth={1.25} />
                     <p className="mt-4 text-sm font-semibold text-[var(--color-text)]">No production orders yet</p>
                     <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                      Create an order to start planning, or run MRP against stock.
+                      Create an order to start planning, or review material requests for shortages.
                     </p>
                     <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
                       {canCreate ? (
@@ -994,8 +1073,8 @@ export default function ProductionPlanning() {
                           New Production Order
                         </Button>
                       ) : null}
-                      <Button variant="secondary" to="/production/mrp">
-                        Run MRP
+                      <Button variant="secondary" to="/procurement/material-requests">
+                        Material Requests
                       </Button>
                     </div>
                   </div>

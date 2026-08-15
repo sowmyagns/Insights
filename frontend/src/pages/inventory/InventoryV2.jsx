@@ -6,12 +6,9 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Eye,
   FileSpreadsheet,
   FileText,
   ListFilter,
-  MoreVertical,
-  Pencil,
   Search,
   Settings,
   Trash2,
@@ -19,12 +16,16 @@ import {
 } from "lucide-react";
 
 import AddNewItemModal from "../../components/sales/AddNewItemModal";
+import InventoryRowActionsMenu from "../../components/inventory/InventoryRowActionsMenu";
+import RecordDetailModal from "../../components/inventory/RecordDetailModal";
 import Loader from "../../components/common/Loader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import { useToast } from "../../context/ToastContext";
 import {
   addInventoryV2Stock,
   createInventoryV2Category,
   deleteInventoryV2Item,
+  getInventoryV2Item,
   listInventoryV2Categories,
   listInventoryV2Items,
   removeInventoryV2Stock,
@@ -120,9 +121,9 @@ function DeleteConfirmModal({ open, onClose, onConfirm, busy = false }) {
         <div className="mx-auto mb-5 grid h-[72px] w-[72px] place-items-center rounded-full bg-[#fee2e2]">
           <Trash2 className="h-9 w-9 text-[#ef4444]" strokeWidth={1.75} />
         </div>
-        <h3 className="text-[28px] font-bold leading-tight text-[#1a1a1f]">Delete Product?</h3>
+        <h3 className="text-[28px] font-bold leading-tight text-[#1a1a1f]">Delete Item?</h3>
         <p className="mt-3 text-[14px] leading-relaxed text-[#5a5a66]">
-          Are you sure you want to delete this Product?
+          Are you sure you want to delete this item?
         </p>
         <div className="mt-7 grid grid-cols-2 gap-4">
           <button
@@ -272,7 +273,8 @@ export default function InventoryV2() {
   const [categoryModal, setCategoryModal] = useState(false);
   const [categoryName, setCategoryName] = useState("");
   const [categories, setCategories] = useState([]);
-  const [rowMenu, setRowMenu] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [viewTarget, setViewTarget] = useState(null);
   const [stockTarget, setStockTarget] = useState(null);
   const [stockMode, setStockMode] = useState(null);
   const [deleting, setDeleting] = useState(null);
@@ -378,9 +380,9 @@ export default function InventoryV2() {
       if (!isDemo) {
         await deleteInventoryV2Item(rawId);
       }
-      setProducts((prev) => prev.filter((p) => String(p.id) !== String(rawId)));
       setDeleting(null);
-      addToast("Product deleted.");
+      addToast("Item deleted.");
+      load();
     } catch (err) {
       addToast(apiErrorMessage(err, "Could not delete item."), "error");
     } finally {
@@ -414,6 +416,11 @@ export default function InventoryV2() {
       addToast("Add a real inventory item to adjust stock.", "error");
       return;
     }
+    const available = Number(stockTarget.current_stock) || 0;
+    if (stockMode === "remove" && qty > available) {
+      addToast(`Cannot remove more than available stock (${available}).`, "error");
+      return;
+    }
     try {
       const fn = stockMode === "add" ? addInventoryV2Stock : removeInventoryV2Stock;
       const res = await fn(stockTarget.id, { quantity: qty, remark, unit });
@@ -430,6 +437,36 @@ export default function InventoryV2() {
       addToast(apiErrorMessage(err, "Stock update failed."), "error");
     }
   };
+
+  const handleView = async (row) => {
+    if (String(row.id) === "demo-product") {
+      setViewTarget(row);
+      return;
+    }
+    try {
+      const res = await getInventoryV2Item(row.id);
+      setViewTarget(res.data || row);
+    } catch (err) {
+      addToast(apiErrorMessage(err, "Could not load item details."), "error");
+    }
+  };
+
+  const viewFields = viewTarget
+    ? [
+        { label: "Item Name", value: viewTarget.name },
+        { label: "SKU", value: viewTarget.sku || viewTarget.product_code },
+        { label: "Unit", value: viewTarget.unit },
+        { label: "HSN Code", value: viewTarget.hsn_code },
+        { label: "Category", value: viewTarget.category },
+        { label: "Purchase Price", value: viewTarget.purchase_price },
+        { label: "Sales Price", value: viewTarget.selling_price ?? viewTarget.unit_price },
+        { label: "Stock In Hand", value: viewTarget.current_stock },
+        { label: "Min Stock", value: viewTarget.min_stock },
+        { label: "Stock Value", value: viewTarget.stock_value },
+        { label: "GST %", value: viewTarget.gst_percent },
+        { label: "Description", value: viewTarget.description },
+      ]
+    : [];
 
   if (loading) {
     return (
@@ -594,6 +631,7 @@ export default function InventoryV2() {
                 <table className="min-w-full border-collapse text-left text-[13px]">
                   <thead className="bg-[#efeaf8] text-[12px] font-semibold uppercase tracking-wide text-[#6b6b76]">
                     <tr>
+                      <SerialNumberHeader className="border-b border-r border-[#d0d0d8]" />
                       {["HSN Code", "Item Name", "Stock Value", "Purchase Price", "Sales Price", "Stock In Hand", "Action"].map(
                         (h) => (
                           <th key={h} className="border-b border-r border-[#d0d0d8] px-4 py-3 last:border-r-0">
@@ -606,13 +644,14 @@ export default function InventoryV2() {
                   <tbody>
                     {pageRows.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-12 text-center text-sm text-[#9a9aa5]">
+                        <td colSpan={8} className="px-4 py-12 text-center text-sm text-[#9a9aa5]">
                           No items found.
                         </td>
                       </tr>
                     ) : (
-                      pageRows.map((row) => (
+                      pageRows.map((row, rowIndex) => (
                         <tr key={row.id} className="border-b border-[#ececf0] hover:bg-[#fafafa]">
+                          <SerialNumberCell rowIndex={rowIndex} page={page} pageSize={pageSize} />
                           <td className="px-4 py-3 text-[#4a4a55]">{row.hsn_code || "—"}</td>
                           <td className="px-4 py-3 font-semibold text-[#1a1a1f]">
                             <button
@@ -628,67 +667,31 @@ export default function InventoryV2() {
                           <td className="px-4 py-3 tabular-nums">{Number(row.selling_price || 0).toFixed(1)}</td>
                           <td className="px-4 py-3 tabular-nums">{Number(row.current_stock || 0)}</td>
                           <td className="px-4 py-3">
-                            <div className="relative flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                className="grid h-8 w-8 place-items-center rounded-full bg-[#0f6d84] text-white hover:bg-[#0c5a6e]"
-                                title="View"
-                                onClick={() => navigate(`/inventory/items/${row.id}`)}
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                className="grid h-8 w-8 place-items-center rounded-full bg-[#0f6d84] text-white hover:bg-[#0c5a6e]"
-                                title="Edit"
-                                onClick={() => {
+                            <div className="flex items-center justify-end whitespace-nowrap">
+                              <InventoryRowActionsMenu
+                                rowId={row.id}
+                                isOpen={openMenuId === row.id}
+                                onOpen={setOpenMenuId}
+                                onClose={() => setOpenMenuId(null)}
+                                showAdd={false}
+                                showAddStock
+                                showRemoveStock
+                                menuWidth={176}
+                                onView={() => handleView(row)}
+                                onEdit={() => {
                                   setEditing(row);
                                   setAddOpen(true);
                                 }}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                className="grid h-8 w-8 place-items-center rounded-full bg-[#0f6d84] text-white hover:bg-red-600"
-                                title="Delete"
-                                onClick={() => onDelete(row)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                className="grid h-8 w-8 place-items-center rounded-full bg-[#0f6d84] text-white hover:bg-[#0c5a6e]"
-                                onClick={() => setRowMenu(rowMenu === row.id ? null : row.id)}
-                              >
-                                <MoreVertical className="h-3.5 w-3.5" />
-                              </button>
-                              {rowMenu === row.id ? (
-                                <DropdownMenu open onClose={() => setRowMenu(null)} className="top-8 right-0">
-                                  <button
-                                    type="button"
-                                    className="block w-full px-3 py-2.5 text-left text-[13px] font-medium text-[#1a1a1f] hover:bg-[#f7f7f9]"
-                                    onClick={() => {
-                                      setRowMenu(null);
-                                      setStockTarget(row);
-                                      setStockMode("add");
-                                    }}
-                                  >
-                                    + Add Stock
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="block w-full px-3 py-2.5 text-left text-[13px] font-medium text-[#1a1a1f] hover:bg-[#f7f7f9]"
-                                    onClick={() => {
-                                      setRowMenu(null);
-                                      setStockTarget(row);
-                                      setStockMode("remove");
-                                    }}
-                                  >
-                                    − Remove Stock
-                                  </button>
-                                </DropdownMenu>
-                              ) : null}
+                                onAddStock={() => {
+                                  setStockTarget(row);
+                                  setStockMode("add");
+                                }}
+                                onRemoveStock={() => {
+                                  setStockTarget(row);
+                                  setStockMode("remove");
+                                }}
+                                onDelete={() => onDelete(row)}
+                              />
                             </div>
                           </td>
                         </tr>
@@ -700,6 +703,7 @@ export default function InventoryV2() {
                 <table className="min-w-full border-collapse text-left text-[13px]">
                   <thead className="bg-[#efeaf8] text-[12px] font-semibold uppercase tracking-wide text-[#6b6b76]">
                     <tr>
+                      <SerialNumberHeader className="border-b border-r border-[#d0d0d8]" />
                       {["Category", "Stock", "Action"].map((h) => (
                         <th key={h} className="border-b border-r border-[#d0d0d8] px-4 py-3 last:border-r-0">
                           {h}
@@ -710,13 +714,14 @@ export default function InventoryV2() {
                   <tbody>
                     {pageRows.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="px-4 py-12 text-center text-sm text-[#9a9aa5]">
+                        <td colSpan={4} className="px-4 py-12 text-center text-sm text-[#9a9aa5]">
                           No categories found.
                         </td>
                       </tr>
                     ) : (
-                      pageRows.map((row) => (
+                      pageRows.map((row, rowIndex) => (
                         <tr key={row.category} className="border-b border-[#ececf0] hover:bg-[#fafafa]">
+                          <SerialNumberCell rowIndex={rowIndex} page={page} pageSize={pageSize} />
                           <td className="px-4 py-3 font-semibold text-[#1a1a1f]">{row.category}</td>
                           <td className="px-4 py-3 tabular-nums">{row.stock}</td>
                           <td className="px-4 py-3 text-[#9a9aa5]">NA</td>
@@ -809,6 +814,14 @@ export default function InventoryV2() {
         busy={deleteBusy}
         onClose={() => !deleteBusy && setDeleting(null)}
         onConfirm={confirmDelete}
+      />
+
+      <RecordDetailModal
+        open={Boolean(viewTarget)}
+        title={viewTarget?.name || "Item Details"}
+        subtitle={viewTarget?.sku || viewTarget?.product_code}
+        fields={viewFields}
+        onClose={() => setViewTarget(null)}
       />
 
       {categoryModal ? (

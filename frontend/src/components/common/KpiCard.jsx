@@ -1,18 +1,22 @@
 import { Link } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
 
 /**
  * Shared KPI card — use across dashboards and list pages.
  * Props: label, value, icon, meta/sub/trend, tone (optional semantic icon tint), to, onClick.
  * Legacy `color` (Tailwind bg-*) is accepted but mapped to a quiet semantic tone.
+ * Optional `to` or `onClick` makes the card navigable / filterable.
  */
 const TONE_CLASS = {
-  primary: "bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400",
-  info: "bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400",
-  success: "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400",
-  warning: "bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400",
-  danger: "bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400",
-  neutral: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  primary: "!bg-[var(--kpi-primary-soft)] !text-[var(--kpi-primary)]",
+  info: "!bg-[var(--kpi-info-soft)] !text-[var(--kpi-info)]",
+  success: "!bg-[var(--kpi-success-soft)] !text-[var(--kpi-success)]",
+  warning: "!bg-[var(--kpi-warning-soft)] !text-[var(--kpi-warning)]",
+  danger: "!bg-[var(--kpi-danger-soft)] !text-[var(--kpi-danger)]",
+  yellow: "!bg-[var(--kpi-warning-soft)] !text-[var(--kpi-warning)]",
+  violet: "!bg-[var(--kpi-violet-soft)] !text-[var(--kpi-violet)]",
+  teal: "!bg-[var(--kpi-teal-soft)] !text-[var(--kpi-teal)]",
+  orange: "!bg-[var(--kpi-orange-soft)] !text-[var(--kpi-orange)]",
+  neutral: "!bg-[var(--kpi-neutral-soft)] !text-[var(--kpi-neutral)]",
 };
 
 function resolveTone(tone, color) {
@@ -22,7 +26,9 @@ function resolveTone(tone, color) {
   if (/amber|yellow|orange/.test(c)) return "warning";
   if (/red|rose|danger/.test(c)) return "danger";
   if (/blue|sky|cyan/.test(c)) return "info";
-  if (/indigo|violet|purple/.test(c)) return "primary";
+  if (/indigo|violet|purple/.test(c)) return "violet";
+  if (/teal/.test(c)) return "teal";
+  if (/orange/.test(c)) return "orange";
   if (/slate|gray|neutral/.test(c)) return "neutral";
   return "primary";
 }
@@ -52,7 +58,8 @@ export default function KpiCard({
         ? `${value}${suffix}`
         : value;
 
-  const isClickable = Boolean(to || onClick);
+  const interactive = Boolean(to || onClick);
+  const cardClass = `ui-kpi group ${interactive ? "cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]" : ""} ${className}`.trim();
 
   const inner = (
     <>
@@ -69,24 +76,24 @@ export default function KpiCard({
     </>
   );
 
-  const cardClass = `ui-kpi group ${isClickable ? "cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md" : ""} ${className}`.trim();
-
   if (to) {
     return (
-      <Link to={to} className={cardClass} title={tip}>
+      <Link to={to} className={cardClass} title={tip} onClick={onClick}>
         {inner}
       </Link>
     );
   }
 
+  if (onClick) {
+    return (
+      <button type="button" className={`${cardClass} w-full text-left`} title={tip} onClick={onClick}>
+        {inner}
+      </button>
+    );
+  }
+
   return (
-    <article
-      className={cardClass}
-      title={tip}
-      onClick={onClick}
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
-    >
+    <article className={cardClass} title={tip}>
       {inner}
     </article>
   );

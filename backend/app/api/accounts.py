@@ -369,18 +369,29 @@ def delete_journal_entry_endpoint(
     return {"ok": True, "id": entry_id}
 
 
+def _dedupe_gl_accounts(rows: list[GLAccount]) -> list[GLAccount]:
+    """Return one row per account code (handles duplicate seed races)."""
+    by_code: dict[str, GLAccount] = {}
+    for row in rows:
+        prev = by_code.get(row.code)
+        if prev is None or row.id < prev.id:
+            by_code[row.code] = row
+    return sorted(by_code.values(), key=lambda r: r.code)
+
+
 @router.get("/gl-accounts", response_model=list[GLAccountRead])
 def list_gl_accounts_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     db: Session = Depends(get_db),
 ):
-    return list(
+    rows = list(
         db.scalars(
             select(GLAccount)
             .where(GLAccount.tenant_id == tenant_id)
-            .order_by(GLAccount.code.asc())
+            .order_by(GLAccount.code.asc(), GLAccount.id.asc())
         ).all()
     )
+    return _dedupe_gl_accounts(rows)
 
 
 @router.post("/gl-accounts", response_model=GLAccountRead, status_code=status.HTTP_201_CREATED)
@@ -509,7 +520,7 @@ def seed_gl_accounts_endpoint(
         ).all()
     )
     if existing:
-        return existing
+        return _dedupe_gl_accounts(existing)
 
     # Minimal India-style seed — codes match frontend chartOfAccounts ids
     seed = [
@@ -529,8 +540,11 @@ def seed_gl_accounts_endpoint(
         ("prop-cap", "Proprietor's Capital", "Capital Account", "Equity", 0.0, "Active|CR"),
         ("reserves", "Reserves and Surplus", "Capital Account", "Equity", 0.0, "Active|CR"),
     ]
+    existing_codes = {row.code for row in existing}
     rows = []
     for code, name, parent, typ, bal, status_val in seed:
+        if code in existing_codes:
+            continue
         row = GLAccount(
             tenant_id=user.tenant_id,
             code=code,
@@ -542,10 +556,17 @@ def seed_gl_accounts_endpoint(
         )
         db.add(row)
         rows.append(row)
-    db.commit()
-    for row in rows:
-        db.refresh(row)
-    return rows
+        existing_codes.add(code)
+    if rows:
+        db.commit()
+        for row in rows:
+            db.refresh(row)
+    all_rows = list(
+        db.scalars(
+            select(GLAccount).where(GLAccount.tenant_id == user.tenant_id)
+        ).all()
+    )
+    return _dedupe_gl_accounts(all_rows)
 
 
 @router.get("/fixed-assets", response_model=list[FixedAssetRead])

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Calendar, CheckCircle, ClipboardList, Cpu, X } from "lucide-react";
+import { CheckCircle, ClipboardList, Cpu, X } from "lucide-react";
 
 import { createProductionOrder, getMachines } from "../../api/productionApi";
 import useTenantId from "../../hooks/useTenantId";
@@ -51,18 +51,12 @@ const EMPTY_LIST = [];
 
 function DateTimeField({ value, onChange, error }) {
   return (
-    <div className="relative">
-      <input
-        type="datetime-local"
-        value={value}
-        onChange={onChange}
-        className={`ui-input w-full pr-10 ${error ? "border-[var(--color-danger)]" : ""}`}
-      />
-      <Calendar
-        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-icon)]"
-        aria-hidden
-      />
-    </div>
+    <input
+      type="datetime-local"
+      value={value}
+      onChange={onChange}
+      className={`ui-input w-full ${error ? "border-[var(--color-danger)]" : ""}`}
+    />
   );
 }
 

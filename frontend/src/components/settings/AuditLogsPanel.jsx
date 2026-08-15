@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Download, Loader2, Search, Trash2 } from "lucide-react";
 
 import Button from "../common/Button";
+import { SerialNumberCell, SerialNumberHeader } from "../common/SerialNumberCell";
 
 import {
   deleteAuditLog,
@@ -261,6 +262,7 @@ export default function AuditLogsPanel() {
           <table className="min-w-full divide-y divide-slate-200 text-xs dark:divide-slate-700">
             <thead className="bg-slate-50 dark:bg-slate-800/80">
               <tr className="text-left font-semibold uppercase tracking-wide text-slate-500">
+                <SerialNumberHeader className="px-2.5 py-2.5" />
                 {[
                   ["date", "Date"],
                   ["time", "Time"],
@@ -296,8 +298,9 @@ export default function AuditLogsPanel() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-900/40">
-              {data.items.map((row) => (
+              {data.items.map((row, rowIndex) => (
                 <tr key={row.id} className="text-slate-700 dark:text-slate-300">
+                  <SerialNumberCell rowIndex={rowIndex} page={data.page || page} pageSize={pageSize} className="px-2.5 py-2" />
                   <td className="whitespace-nowrap px-2.5 py-2">{row.date || "—"}</td>
                   <td className="whitespace-nowrap px-2.5 py-2">{row.time || "—"}</td>
                   <td className="whitespace-nowrap px-2.5 py-2">{row.company_name || "—"}</td>

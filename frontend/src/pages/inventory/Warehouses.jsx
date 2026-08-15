@@ -3,19 +3,15 @@ import {
   Building2,
   CalendarDays,
   ClipboardCheck,
-  Eye,
   Filter,
   IndianRupee,
   MapPin,
-  MoreVertical,
   Package,
-  Pencil,
   Plus,
   RefreshCw,
   Search,
   Warehouse,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 
 import Button from "../../components/common/Button";
 import DataTable from "../../components/common/DataTable";
@@ -24,6 +20,8 @@ import KpiCard from "../../components/common/KpiCard";
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
 import StatusBadge from "../../components/common/StatusBadge";
+import ConfirmDialog from "../../components/admin/ConfirmDialog";
+import InventoryRowActionsMenu from "../../components/inventory/InventoryRowActionsMenu";
 import WarehouseDetailModal, { WarehouseFormModal } from "../../components/inventory/WarehouseDetailModal";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
@@ -43,25 +41,6 @@ import {
   enrichApiWarehouse,
 } from "../../data/warehousesMasterData";
 import { asArray } from "../../utils/apiError";
-
-const MOCKUP_WAREHOUSES = [
-  { id: "wh1", code: "WH-001", name: "Main Warehouse", description: "Central storage for raw materials and FG", city: "Hyderabad", state: "Telangana", country: "India", total_items: 2156, inventory_value: 14580320, utilization_pct: 78, status: "active", is_primary: true, thumb: "#2563eb", live: false },
-  { id: "wh2", code: "WH-002", name: "Unit-1 Warehouse", description: "Plant-1 production staging", city: "Hyderabad", state: "Telangana", country: "India", total_items: 842, inventory_value: 4820000, utilization_pct: 65, status: "active", is_primary: false, thumb: "#16a34a", live: false },
-  { id: "wh3", code: "WH-003", name: "Unit-2 Warehouse", description: "Plant-2 packing store", city: "Chennai", state: "Tamil Nadu", country: "India", total_items: 610, inventory_value: 3150000, utilization_pct: 58, status: "active", is_primary: false, thumb: "#f59e0b", live: false },
-  { id: "wh4", code: "WH-004", name: "FG Store", description: "Finished goods dispatch hub", city: "Pune", state: "Maharashtra", country: "India", total_items: 490, inventory_value: 5280000, utilization_pct: 82, status: "active", is_primary: false, thumb: "#7c3aed", live: false },
-  { id: "wh5", code: "WH-005", name: "RM Store", description: "Dedicated raw material store", city: "Bengaluru", state: "Karnataka", country: "India", total_items: 380, inventory_value: 2100000, utilization_pct: 70, status: "active", is_primary: false, thumb: "#0ea5e9", live: false },
-  { id: "wh6", code: "WH-006", name: "Transit Hub", description: "In-transit consolidation", city: "Hyderabad", state: "Telangana", country: "India", total_items: 95, inventory_value: 420000, utilization_pct: 35, status: "inactive", is_primary: false, thumb: "#64748b", live: false },
-  { id: "wh7", code: "WH-007", name: "Spare Parts Store", description: "Maintenance spare inventory", city: "Chennai", state: "Tamil Nadu", country: "India", total_items: 210, inventory_value: 980000, utilization_pct: 48, status: "active", is_primary: false, thumb: "#14b8a6", live: false },
-  { id: "wh8", code: "WH-008", name: "Cold Storage", description: "Temperature-controlled goods", city: "Pune", state: "Maharashtra", country: "India", total_items: 73, inventory_value: 1100280, utilization_pct: 61, status: "active", is_primary: false, thumb: "#ef4444", live: false },
-];
-
-const MOCKUP_KPIS = {
-  total: 8,
-  totalItems: 4856,
-  stockValue: 32450600,
-  avgUtilization: 72,
-  active: 7,
-};
 
 function formatInrAmount(value) {
   return `₹ ${Number(value || 0).toLocaleString("en-IN")}`;
@@ -95,6 +74,9 @@ export default function Warehouses() {
   const [showFilters, setShowFilters] = useState(false);
   const [headerDate, setHeaderDate] = useState("2026-08-13");
   const [headerScope, setHeaderScope] = useState("");
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadWarehouses = useCallback(async () => {
     setLoading(true);
@@ -114,11 +96,9 @@ export default function Warehouses() {
     loadWarehouses();
   }, [loadWarehouses]);
 
-  const hasLiveData = warehouses.length > 0;
-
-  const rows = useMemo(() => {
-    if (hasLiveData) {
-      return warehouses.map((w) => ({
+  const rows = useMemo(
+    () =>
+      warehouses.map((w) => ({
         ...w,
         description: w.description || w.warehouse_type || w.plant || "",
         country: w.country || "India",
@@ -129,10 +109,9 @@ export default function Warehouses() {
           (w.capacity ? Math.round(((w.used_capacity || 0) / w.capacity) * 100) : 0),
         thumb: thumbColor(w.name || w.code || ""),
         live: true,
-      }));
-    }
-    return MOCKUP_WAREHOUSES;
-  }, [hasLiveData, warehouses]);
+      })),
+    [warehouses]
+  );
 
   const filtered = useMemo(() => {
     let list = rows;
@@ -153,7 +132,6 @@ export default function Warehouses() {
   }, [rows, search, statusFilter, branchFilter, headerScope]);
 
   const kpis = useMemo(() => {
-    if (!hasLiveData) return MOCKUP_KPIS;
     const active = filtered.filter((w) => w.status === "active").length;
     const totalItems = filtered.reduce((s, w) => s + Number(w.total_items || 0), 0);
     const stockValue = filtered.reduce((s, w) => s + Number(w.inventory_value || 0), 0);
@@ -168,7 +146,7 @@ export default function Warehouses() {
       avgUtilization,
       active,
     };
-  }, [hasLiveData, filtered]);
+  }, [filtered]);
 
   const openWarehouse = async (wh) => {
     setSelected(wh);
@@ -263,24 +241,37 @@ export default function Warehouses() {
     setFormWarehouse(null);
   };
 
-  const handleDeactivate = async (wh) => {
-    if (!window.confirm(`Deactivate ${wh.name}?`)) return;
+  const handleDeleteRequest = (wh) => {
     if (wh.live && typeof wh.id === "number") {
-      try {
-        await deactivateWarehouse(wh.id);
+      setDeleteTarget(wh);
+      return;
+    }
+    addToast("Delete is only available for live warehouse records.", "warning");
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      if (deleteTarget.live && typeof deleteTarget.id === "number") {
+        await deactivateWarehouse(deleteTarget.id);
         addToast("Warehouse deactivated");
         loadWarehouses();
         setSelected(null);
-        return;
-      } catch {
-        addToast("Could not deactivate", "error");
-        return;
+      } else {
+        setWarehouses((prev) => prev.map((w) => (w.id === deleteTarget.id ? { ...w, status: "inactive" } : w)));
+        setSelected(null);
+        addToast("Warehouse deactivated");
       }
+      setDeleteTarget(null);
+    } catch {
+      addToast("Could not deactivate warehouse", "error");
+    } finally {
+      setDeleting(false);
     }
-    setWarehouses((prev) => prev.map((w) => (w.id === wh.id ? { ...w, status: "inactive" } : w)));
-    setSelected(null);
-    addToast("Warehouse deactivated");
   };
+
+  const handleDeactivate = (wh) => setDeleteTarget(wh);
 
   const columns = [
     {
@@ -373,34 +364,19 @@ export default function Warehouses() {
       key: "actions",
       label: "Actions",
       sortable: false,
+      className: "min-w-[4.5rem] w-[4.5rem] whitespace-nowrap",
       render: (r) => (
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => openWarehouse(r)}
-            className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-action-teal)]"
-            aria-label="View"
-            title="View"
-          >
-            <Eye className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setFormWarehouse(r.live ? r : {})}
-            className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]"
-            aria-label="Edit"
-            title="Edit"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-          <Link
-            to="/inventory/raw-materials"
-            className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
-            aria-label="More"
-            title="Manage Stock"
-          >
-            <MoreVertical className="h-4 w-4" />
-          </Link>
+        <div className="flex items-center justify-end whitespace-nowrap">
+          <InventoryRowActionsMenu
+            rowId={r.id}
+            isOpen={openMenuId === r.id}
+            onOpen={setOpenMenuId}
+            onClose={() => setOpenMenuId(null)}
+            onView={() => openWarehouse(r)}
+            onEdit={() => setFormWarehouse(r.live ? r : {})}
+            onAdd={() => setFormWarehouse({})}
+            onDelete={() => handleDeleteRequest(r)}
+          />
         </div>
       ),
     },
@@ -409,10 +385,8 @@ export default function Warehouses() {
   if (loading) return <Loader label="Loading warehouses…" />;
 
   return (
-    <div className="space-y-5 pb-4">
+    <div className="min-w-0 space-y-5 pb-4">
       <PageHeader
-        title="Warehouses"
-        showTitle
         subtitle="Manage and organize all your warehouses"
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -502,7 +476,7 @@ export default function Warehouses() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-[var(--color-border-soft)]">
+        <div className="inventory-table-scroll inventory-table-scroll--warehouses rounded-lg border border-[var(--color-border-soft)]">
           <DataTable
             columns={columns}
             data={filtered}
@@ -557,6 +531,19 @@ export default function Warehouses() {
       {formWarehouse ? (
         <WarehouseFormModal warehouse={formWarehouse} onClose={() => setFormWarehouse(null)} onSave={handleSave} />
       ) : null}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete record"
+        message="Are you sure you want to delete this record?"
+        confirmLabel="Delete"
+        destructive
+        loading={deleting}
+        onConfirm={handleDeleteConfirm}
+        onClose={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

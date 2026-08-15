@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowDownToLine,
   CalendarDays,
   Coins,
-  Eye,
   Filter,
-  MoreVertical,
   Package,
   PackageX,
-  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -23,157 +19,30 @@ import KpiCard from "../../components/common/KpiCard";
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
 import StatusBadge from "../../components/common/StatusBadge";
-import { getFinishedGoods, getFinishedGoodsSummary, getWarehouses } from "../../api/inventoryApi";
+import ConfirmDialog from "../../components/admin/ConfirmDialog";
+import InventoryRowActionsMenu from "../../components/inventory/InventoryRowActionsMenu";
+import MaterialDetailModal from "../../components/inventory/MaterialDetailModal";
+import MaterialFormModal from "../../components/inventory/MaterialFormModal";
+import { useToast } from "../../context/ToastContext";
+import useTenantId from "../../hooks/useTenantId";
+import {
+  deleteInventoryItem,
+  getFinishedGoods,
+  getFinishedGoodsSummary,
+  getInventoryItem,
+  getWarehouses,
+} from "../../api/inventoryApi";
 import { stockStatusLabel, stockStatusTone } from "../../data/inventoryMasterData";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 import { asArray } from "../../utils/apiError";
+import { notifyManufacturingSpine, MANUFACTURING_EVENTS } from "../../utils/manufacturingEvents";
 
-/** Preview rows from the Finished Goods design mockup (used only when live list is empty). */
-const MOCKUP_ROWS = [
-  {
-    id: "fg-1",
-    name: "500ml Water Bottle",
-    description: "Packaged drinking water",
-    sku: "FG-0001",
-    category: "Beverages",
-    unit: "Nos",
-    available: 1850,
-    reserved: 120,
-    reorder_level: 500,
-    status: "available",
-    warehouse_name: "Main Warehouse",
-    last_updated: "2026-08-13T16:30:00",
-    quantity: 1970,
-    unit_cost: 12,
-    thumb: "#0ea5e9",
-  },
-  {
-    id: "fg-2",
-    name: "1kg Peanut Butter Jar",
-    description: "Creamy peanut butter",
-    sku: "FG-0002",
-    category: "Food",
-    unit: "Nos",
-    available: 42,
-    reserved: 5,
-    reorder_level: 80,
-    status: "low_stock",
-    warehouse_name: "Main Warehouse",
-    last_updated: "2026-08-13T14:10:00",
-    quantity: 47,
-    unit_cost: 220,
-    thumb: "#d97706",
-  },
-  {
-    id: "fg-3",
-    name: "250ml Juice Carton",
-    description: "Mixed fruit juice",
-    sku: "FG-0003",
-    category: "Beverages",
-    unit: "Nos",
-    available: 940,
-    reserved: 60,
-    reorder_level: 300,
-    status: "available",
-    warehouse_name: "Unit-2 Warehouse",
-    last_updated: "2026-08-12T11:05:00",
-    quantity: 1000,
-    unit_cost: 28,
-    thumb: "#22c55e",
-  },
-  {
-    id: "fg-4",
-    name: "Family Cookie Pack",
-    description: "Assorted biscuits",
-    sku: "FG-0004",
-    category: "Snacks",
-    unit: "Nos",
-    available: 610,
-    reserved: 25,
-    reorder_level: 200,
-    status: "available",
-    warehouse_name: "Main Warehouse",
-    last_updated: "2026-08-13T09:40:00",
-    quantity: 635,
-    unit_cost: 85,
-    thumb: "#a855f7",
-  },
-  {
-    id: "fg-5",
-    name: "500g Protein Bar Box",
-    description: "12-bar carton",
-    sku: "FG-0005",
-    category: "Snacks",
-    unit: "Box",
-    available: 28,
-    reserved: 2,
-    reorder_level: 40,
-    status: "low_stock",
-    warehouse_name: "FG Store",
-    last_updated: "2026-08-11T18:20:00",
-    quantity: 30,
-    unit_cost: 480,
-    thumb: "#14b8a6",
-  },
-  {
-    id: "fg-6",
-    name: "1kg Coffee Pouch",
-    description: "Roasted ground coffee",
-    sku: "FG-0006",
-    category: "Food",
-    unit: "Nos",
-    available: 0,
-    reserved: 0,
-    reorder_level: 100,
-    status: "out_of_stock",
-    warehouse_name: "Main Warehouse",
-    last_updated: "2026-08-09T17:45:00",
-    quantity: 0,
-    unit_cost: 450,
-    thumb: "#ef4444",
-  },
-  {
-    id: "fg-7",
-    name: "1L Cooking Oil Bottle",
-    description: "Refined sunflower oil",
-    sku: "FG-0007",
-    category: "Food",
-    unit: "Nos",
-    available: 720,
-    reserved: 40,
-    reorder_level: 250,
-    status: "available",
-    warehouse_name: "Unit-1 Warehouse",
-    last_updated: "2026-08-13T08:15:00",
-    quantity: 760,
-    unit_cost: 165,
-    thumb: "#f59e0b",
-  },
-  {
-    id: "fg-8",
-    name: "Herbal Tea Pack",
-    description: "25 tea bags",
-    sku: "FG-0008",
-    category: "Beverages",
-    unit: "Nos",
-    available: 18,
-    reserved: 0,
-    reorder_level: 50,
-    status: "low_stock",
-    warehouse_name: "Main Warehouse",
-    last_updated: "2026-08-10T12:00:00",
-    quantity: 18,
-    unit_cost: 95,
-    thumb: "#64748b",
-  },
-];
-
-const MOCKUP_SUMMARY = {
-  total_products: 96,
-  stock_value: 2845600,
-  low_stock: 14,
-  out_of_stock: 5,
-  total_quantity: 3254,
+const EMPTY_SUMMARY = {
+  total_products: 0,
+  stock_value: 0,
+  low_stock: 0,
+  out_of_stock: 0,
+  total_quantity: 0,
 };
 
 function formatInrAmount(value) {
@@ -216,6 +85,8 @@ function todayISO() {
 }
 
 export default function FinishedGoods() {
+  const tenantId = useTenantId();
+  const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({});
   const [products, setProducts] = useState([]);
@@ -228,9 +99,14 @@ export default function FinishedGoods() {
   const [selectedDate, setSelectedDate] = useState("2026-08-13");
   const [headerWarehouse, setHeaderWarehouse] = useState("");
   const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [selected, setSelected] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [formModal, setFormModal] = useState({ open: false, mode: "add", material: null });
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async ({ background = false } = {}) => {
+    if (!background) setLoading(true);
     try {
       const [sumRes, listRes, whRes] = await Promise.allSettled([
         getFinishedGoodsSummary(),
@@ -244,14 +120,14 @@ export default function FinishedGoods() {
       if (whRes.status === "fulfilled") setWarehousesApi(asArray(whRes.value?.data));
       else setWarehousesApi([]);
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
-  useManufacturingRefresh(load);
+  useManufacturingRefresh(() => load({ background: true }));
 
   useEffect(() => {
     if (!headerWarehouse && warehousesApi.length) {
@@ -259,11 +135,9 @@ export default function FinishedGoods() {
     }
   }, [warehousesApi, headerWarehouse]);
 
-  const hasLiveData = products.length > 0;
-
-  const rows = useMemo(() => {
-    if (hasLiveData) {
-      return products.map((p) => {
+  const rows = useMemo(
+    () =>
+      products.map((p) => {
         const available = Number(p.available ?? Math.max((Number(p.quantity) || 0) - (Number(p.reserved) || 0), 0));
         return {
           ...p,
@@ -274,13 +148,11 @@ export default function FinishedGoods() {
           thumb: thumbColor(p.name || p.sku || ""),
           live: true,
         };
-      });
-    }
-    return MOCKUP_ROWS.map((r) => ({ ...r, live: false }));
-  }, [hasLiveData, products]);
+      }),
+    [products]
+  );
 
   const kpis = useMemo(() => {
-    if (!hasLiveData) return MOCKUP_SUMMARY;
     let low = 0;
     let out = 0;
     let stockValue = Number(summary.stock_value) || 0;
@@ -303,7 +175,7 @@ export default function FinishedGoods() {
       out_of_stock: summary.out_of_stock ?? out,
       total_quantity: totalQty,
     };
-  }, [hasLiveData, rows, summary]);
+  }, [rows, summary]);
 
   const categories = useMemo(() => {
     const set = new Set(rows.map((r) => r.category).filter(Boolean));
@@ -338,6 +210,71 @@ export default function FinishedGoods() {
     setWarehouse("");
     setSelectedIds(new Set());
   };
+
+  const requireLiveRow = (row, actionLabel = "This action") => {
+    if (row.live && typeof row.id === "number") return true;
+    addToast(`${actionLabel} is only available for live inventory items.`, "warning");
+    return false;
+  };
+
+  const openDetail = async (row) => {
+    if (row.live && typeof row.id === "number") {
+      try {
+        const res = await getInventoryItem(row.id);
+        setSelected({
+          ...res.data,
+          quantity: row.quantity,
+          available: row.available,
+          reserved: row.reserved,
+          reorder_level: row.reorder_level ?? res.data.reorder_level,
+          readOnly: true,
+        });
+        return;
+      } catch {
+        addToast("Could not load product detail", "error");
+      }
+    }
+    setSelected({ ...row, readOnly: true });
+  };
+
+  const handleView = (row) => openDetail(row);
+  const handleEdit = (row) => {
+    if (!requireLiveRow(row, "Edit")) return;
+    setFormModal({ open: true, mode: "edit", material: row });
+  };
+  const handleAdd = () => setFormModal({ open: true, mode: "add", material: null });
+  const handleDeleteRequest = (row) => {
+    if (!requireLiveRow(row, "Delete")) return;
+    setDeleteTarget(row);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget?.id) return;
+    const itemId = deleteTarget.id;
+    setDeleting(true);
+    try {
+      await deleteInventoryItem(itemId);
+      addToast("Finished good deleted successfully");
+      setDeleteTarget(null);
+      notifyManufacturingSpine(MANUFACTURING_EVENTS.INVENTORY_CHANGED, { item_id: itemId });
+      await load({ background: true });
+    } catch {
+      addToast("Could not delete finished good", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleFormSaved = async () => {
+    addToast(formModal.mode === "edit" ? "Finished good updated successfully" : "Finished good added successfully");
+    notifyManufacturingSpine(MANUFACTURING_EVENTS.INVENTORY_CHANGED, {});
+    await load({ background: true });
+  };
+
+  const defaultWarehouseName =
+    warehousesApi.find((w) => String(w.id) === String(headerWarehouse))?.name ||
+    warehousesApi[0]?.name ||
+    "Main Warehouse";
 
   const toggleRow = (id) => {
     setSelectedIds((prev) => {
@@ -444,32 +381,19 @@ export default function FinishedGoods() {
       key: "actions",
       label: "Actions",
       sortable: false,
+      className: "min-w-[4.5rem] w-[4.5rem] whitespace-nowrap",
       render: (r) => (
-        <div className="flex items-center gap-1.5">
-          <Link
-            to={r.live ? `/inventory/items/${r.id}` : "/inventory/finished-goods"}
-            className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-action-teal)]"
-            aria-label="View"
-            title="View"
-          >
-            <Eye className="h-4 w-4" />
-          </Link>
-          <Link
-            to={r.live ? `/inventory/items/create?type=finished_good&edit=${r.id}` : "/inventory/items/create?type=finished_good"}
-            className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]"
-            aria-label="Edit"
-            title="Edit"
-          >
-            <Pencil className="h-4 w-4" />
-          </Link>
-          <Link
-            to="/inventory/stock-movement"
-            className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
-            aria-label="More"
-            title="Stock Movement"
-          >
-            <MoreVertical className="h-4 w-4" />
-          </Link>
+        <div className="flex items-center justify-end whitespace-nowrap">
+          <InventoryRowActionsMenu
+            rowId={r.id}
+            isOpen={openMenuId === r.id}
+            onOpen={setOpenMenuId}
+            onClose={() => setOpenMenuId(null)}
+            onView={() => handleView(r)}
+            onEdit={() => handleEdit(r)}
+            onAdd={handleAdd}
+            onDelete={() => handleDeleteRequest(r)}
+          />
         </div>
       ),
     },
@@ -478,10 +402,8 @@ export default function FinishedGoods() {
   if (loading) return <Loader label="Loading finished goods…" />;
 
   return (
-    <div className="space-y-5 pb-4">
+    <div className="min-w-0 space-y-5 pb-4">
       <PageHeader
-        title="Finished Goods"
-        showTitle
         subtitle="Manage and track your finished goods inventory"
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -569,13 +491,13 @@ export default function FinishedGoods() {
                 </Button>
               </>
             ) : null}
-            <Button variant="primary" to="/inventory/items/create?type=finished_good">
+            <Button type="button" variant="primary" onClick={handleAdd}>
               <Plus className="h-4 w-4" /> Add Finished Good
             </Button>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-[var(--color-border-soft)]">
+        <div className="inventory-table-scroll inventory-table-scroll--finished-goods rounded-lg border border-[var(--color-border-soft)]">
           <DataTable
             columns={columns}
             data={filtered}
@@ -587,12 +509,45 @@ export default function FinishedGoods() {
                 title="No finished goods found"
                 description="Add your first finished good to start tracking stock."
                 actionLabel="Add Finished Good"
-                actionHref="/inventory/items/create?type=finished_good"
+                onAction={handleAdd}
               />
             }
           />
         </div>
       </div>
+
+      {selected ? (
+        <MaterialDetailModal
+          material={selected}
+          readOnly
+          nameLabel="Product Name"
+          onClose={() => setSelected(null)}
+        />
+      ) : null}
+
+      <MaterialFormModal
+        open={formModal.open}
+        mode={formModal.mode}
+        material={formModal.material}
+        itemType="finished_good"
+        tenantId={tenantId}
+        warehouseName={defaultWarehouseName}
+        onClose={() => setFormModal({ open: false, mode: "add", material: null })}
+        onSaved={handleFormSaved}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete record"
+        message="Are you sure you want to delete this record?"
+        confirmLabel="Delete"
+        destructive
+        loading={deleting}
+        onConfirm={handleDeleteConfirm}
+        onClose={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

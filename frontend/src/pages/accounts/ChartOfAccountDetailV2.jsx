@@ -13,6 +13,7 @@ import {
 import { fetchManualJournals } from "../../api/manualJournalSync";
 import { useToast } from "../../context/ToastContext";
 import { apiErrorMessage } from "../../utils/apiError";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 
 const PAGE_BG = "var(--color-bg)";
 const PAGE_SIZES = [10, 20, 50];
@@ -501,6 +502,7 @@ export default function ChartOfAccountDetailV2() {
               <table className="min-w-full border-collapse text-[13px]">
                 <thead>
                   <tr className="bg-[#fafafa] text-left text-[12px] font-semibold uppercase tracking-wide text-[#6b6b76]">
+                    <SerialNumberHeader />
                     {[
                       "Date",
                       "Voucher Number",
@@ -519,7 +521,7 @@ export default function ChartOfAccountDetailV2() {
                 <tbody>
                   {journalRows.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-16 text-center">
+                      <td colSpan={8} className="px-4 py-16 text-center">
                         <div className="text-[14px] text-[#6b6b76]">
                           No Journal Entries available, Create new entry
                         </div>
@@ -535,8 +537,9 @@ export default function ChartOfAccountDetailV2() {
                       </td>
                     </tr>
                   ) : (
-                    journalRows.map((j) => (
+                    journalRows.map((j, rowIndex) => (
                       <tr key={j.id} className="hover:bg-[#fafafa]">
+                        <SerialNumberCell rowIndex={rowIndex} page={page} pageSize={pageSize} />
                         <td className="border-b border-[#ececf0] px-4 py-3 whitespace-nowrap text-[#6b6b76]">
                           {formatSlash(j.date)}
                         </td>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowDownToLine,
   ArrowLeftRight,
@@ -19,7 +20,10 @@ import KpiCard from "../../components/common/KpiCard";
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
 import StatusBadge from "../../components/common/StatusBadge";
+import InventoryRowActionsMenu from "../../components/inventory/InventoryRowActionsMenu";
+import RecordDetailModal from "../../components/inventory/RecordDetailModal";
 import StoreManagerNav from "../../components/inventory/StoreManagerNav";
+import { useToast } from "../../context/ToastContext";
 import { getLedgerSummary, getStockLedger, getWarehouses } from "../../api/inventoryApi";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 import { exportToExcel } from "../../utils/exportUtils";
@@ -27,135 +31,12 @@ import useAuth from "../../hooks/useAuth";
 import { isStoreManager } from "../../config/permissions";
 import { asArray } from "../../utils/apiError";
 
-const MOCKUP_ENTRIES = [
-  {
-    id: "l1",
-    date: "2026-08-13T16:30:00",
-    item_name: "PET Resin",
-    item_code: "RM-0001",
-    transaction: "in",
-    reference: "GRN-2026-0134",
-    warehouse_name: "Main Warehouse",
-    qty_in: 250,
-    qty_out: 0,
-    balance: 1250,
-    unit: "KG",
-    user_name: "Ramesh Kumar",
-    remarks: "GRN received",
-  },
-  {
-    id: "l2",
-    date: "2026-08-13T15:10:00",
-    item_name: "HDPE Caps",
-    item_code: "RM-0004",
-    transaction: "out",
-    reference: "ISS-2026-0088",
-    warehouse_name: "Main Warehouse",
-    qty_in: 0,
-    qty_out: 100,
-    balance: 12400,
-    unit: "Nos",
-    user_name: "Suresh Babu",
-    remarks: "Production Issue",
-  },
-  {
-    id: "l3",
-    date: "2026-08-13T14:05:00",
-    item_name: "Label Roll",
-    item_code: "RM-0006",
-    transaction: "transfer_out",
-    reference: "TRF-2026-0054",
-    warehouse_name: "Main Warehouse",
-    qty_in: 0,
-    qty_out: 40,
-    balance: 180,
-    unit: "Roll",
-    user_name: "Raj K.",
-    remarks: "Transfer to Unit-2",
-  },
-  {
-    id: "l4",
-    date: "2026-08-13T13:40:00",
-    item_name: "Label Roll",
-    item_code: "RM-0006",
-    transaction: "transfer_in",
-    reference: "TRF-2026-0054",
-    warehouse_name: "Unit-2 Warehouse",
-    qty_in: 40,
-    qty_out: 0,
-    balance: 220,
-    unit: "Roll",
-    user_name: "Raj K.",
-    remarks: "Transfer received",
-  },
-  {
-    id: "l5",
-    date: "2026-08-12T11:20:00",
-    item_name: "Color Masterbatch - Blue",
-    item_code: "RM-0002",
-    transaction: "adjustment",
-    reference: "ADJ-2026-0018",
-    warehouse_name: "Main Warehouse",
-    qty_in: 20,
-    qty_out: 0,
-    balance: 104.5,
-    unit: "KG",
-    user_name: "Store Admin",
-    remarks: "Stock count adjustment",
-  },
-  {
-    id: "l6",
-    date: "2026-08-12T09:15:00",
-    item_name: "PP Granules",
-    item_code: "RM-0003",
-    transaction: "in",
-    reference: "GRN-2026-0130",
-    warehouse_name: "Main Warehouse",
-    qty_in: 500,
-    qty_out: 0,
-    balance: 980,
-    unit: "KG",
-    user_name: "Ramesh Kumar",
-    remarks: "GRN received",
-  },
-  {
-    id: "l7",
-    date: "2026-08-11T17:45:00",
-    item_name: "Shrink Film",
-    item_code: "RM-0005",
-    transaction: "out",
-    reference: "ISS-2026-0081",
-    warehouse_name: "Unit-1 Warehouse",
-    qty_in: 0,
-    qty_out: 30,
-    balance: 48,
-    unit: "KG",
-    user_name: "Suresh Babu",
-    remarks: "Production Issue",
-  },
-  {
-    id: "l8",
-    date: "2026-08-10T12:00:00",
-    item_name: "Corrugated Sheet",
-    item_code: "RM-0008",
-    transaction: "adjustment",
-    reference: "ADJ-2026-0014",
-    warehouse_name: "Unit-1 Warehouse",
-    qty_in: 300,
-    qty_out: 0,
-    balance: 300,
-    unit: "Nos",
-    user_name: "Ops Team",
-    remarks: "Return to stock",
-  },
-];
-
-const MOCKUP_SUMMARY = {
-  stock_in: 1250,
-  stock_out: 980,
-  transfers: 320,
-  adjustments: 75,
-  total_transactions: 28,
+const EMPTY_SUMMARY = {
+  stock_in: 0,
+  stock_out: 0,
+  transfers: 0,
+  adjustments: 0,
+  total_transactions: 0,
   uom: "KG",
 };
 
@@ -201,6 +82,8 @@ function txnBadge(type) {
 }
 
 export default function StockLedger() {
+  const navigate = useNavigate();
+  const { addToast } = useToast();
   const { user } = useAuth();
   const storeMode = isStoreManager(user);
   const [loading, setLoading] = useState(true);
@@ -215,6 +98,9 @@ export default function StockLedger() {
     type: "",
   });
   const [headerWarehouse, setHeaderWarehouse] = useState("");
+  const [remarksWidth, setRemarksWidth] = useState(220);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [viewTarget, setViewTarget] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -249,20 +135,17 @@ export default function StockLedger() {
     }
   }, [warehousesApi, headerWarehouse]);
 
-  const hasLiveData = entries.length > 0;
-
-  const rows = useMemo(() => {
-    if (hasLiveData) {
-      return entries.map((e) => ({
+  const rows = useMemo(
+    () =>
+      entries.map((e) => ({
         ...e,
         item_code: e.item_code || e.sku || e.batch_number || "",
         unit: e.unit || "",
         remarks: e.remarks || e.notes || e.reference || "",
         live: true,
-      }));
-    }
-    return MOCKUP_ENTRIES.map((e) => ({ ...e, live: false }));
-  }, [hasLiveData, entries]);
+      })),
+    [entries]
+  );
 
   const warehouses = useMemo(() => {
     const set = new Set();
@@ -304,7 +187,7 @@ export default function StockLedger() {
   }, [rows, filters]);
 
   const kpis = useMemo(() => {
-    if (!hasLiveData) return MOCKUP_SUMMARY;
+    if (!entries.length) return EMPTY_SUMMARY;
     let stockIn = Number(summary.stock_in) || 0;
     let stockOut = Number(summary.stock_out) || 0;
     let transfers = Number(summary.transfers) || 0;
@@ -332,7 +215,7 @@ export default function StockLedger() {
       total_transactions: summary.total_transactions ?? filtered.length,
       uom: "KG",
     };
-  }, [hasLiveData, summary, filtered]);
+  }, [entries.length, summary, filtered]);
 
   const clearFilters = () => {
     setFilters({
@@ -343,6 +226,43 @@ export default function StockLedger() {
       type: "",
     });
   };
+
+  const handleView = (row) => setViewTarget(row);
+
+  const handleEdit = () => {
+    addToast("Stock ledger entries are read-only and cannot be edited.", "warning");
+  };
+
+  const handleAdd = () => {
+    navigate("/inventory/stock-adjustment?new=1");
+  };
+
+  const handleDeleteRequest = () => {
+    addToast("Stock ledger entries cannot be deleted.", "warning");
+  };
+
+  const viewFields = viewTarget
+    ? (() => {
+        const type = resolveTxnType(viewTarget);
+        const meta = txnBadge(type);
+        const { day, time } = formatDateParts(viewTarget.date);
+        return [
+          { label: "Date", value: day },
+          { label: "Time", value: time },
+          { label: "Item", value: viewTarget.item_name },
+          { label: "Item Code", value: viewTarget.item_code },
+          { label: "Transaction Type", value: meta.label },
+          { label: "Reference No.", value: viewTarget.reference },
+          { label: "Warehouse", value: viewTarget.warehouse_name },
+          { label: "Stock In", value: viewTarget.qty_in ? formatQty(viewTarget.qty_in) : "—" },
+          { label: "Stock Out", value: viewTarget.qty_out ? formatQty(viewTarget.qty_out) : "—" },
+          { label: "Balance", value: viewTarget.balance != null ? formatQty(viewTarget.balance) : "—" },
+          { label: "UOM", value: viewTarget.unit },
+          { label: "User", value: viewTarget.user_name },
+          { label: "Remarks", value: viewTarget.remarks },
+        ];
+      })()
+    : [];
 
   const columns = [
     {
@@ -389,7 +309,7 @@ export default function StockLedger() {
       key: "reference",
       label: "Reference No.",
       render: (r) => (
-        <span className="whitespace-nowrap text-[12px] tabular-nums text-[var(--color-text-secondary)]">
+        <span className="ui-num whitespace-nowrap text-[12px] text-[var(--color-text-secondary)]">
           {r.reference || "—"}
         </span>
       ),
@@ -403,7 +323,7 @@ export default function StockLedger() {
       key: "qty_in",
       label: "Stock In",
       render: (r) => (
-        <span className={`tabular-nums text-[13px] font-semibold ${r.qty_in ? "text-[#16a34a]" : "text-[var(--color-text-muted)]"}`}>
+        <span className={`ui-num text-[13px] font-semibold ${r.qty_in ? "text-[#16a34a]" : "text-[var(--color-text-muted)]"}`}>
           {r.qty_in ? formatQty(r.qty_in) : "—"}
         </span>
       ),
@@ -412,7 +332,7 @@ export default function StockLedger() {
       key: "qty_out",
       label: "Stock Out",
       render: (r) => (
-        <span className={`tabular-nums text-[13px] font-semibold ${r.qty_out ? "text-[#ef4444]" : "text-[var(--color-text-muted)]"}`}>
+        <span className={`ui-num text-[13px] font-semibold ${r.qty_out ? "text-[#ef4444]" : "text-[var(--color-text-muted)]"}`}>
           {r.qty_out ? formatQty(r.qty_out) : "—"}
         </span>
       ),
@@ -421,7 +341,7 @@ export default function StockLedger() {
       key: "balance",
       label: "Balance",
       render: (r) => (
-        <span className="tabular-nums text-[13px] font-semibold text-[var(--color-text)]">
+        <span className="ui-num text-[13px] font-semibold text-[var(--color-text)]">
           {r.balance != null ? formatQty(r.balance) : "—"}
         </span>
       ),
@@ -439,10 +359,36 @@ export default function StockLedger() {
     {
       key: "remarks",
       label: "Remarks",
+      sortable: false,
+      minWidth: remarksWidth,
+      width: remarksWidth,
       render: (r) => (
-        <span className="max-w-[160px] truncate text-[12px] text-[var(--color-text-muted)]" title={r.remarks || ""}>
+        <span
+          className="block whitespace-normal break-words text-[12px] leading-snug text-[var(--color-text-muted)]"
+          title={r.remarks || ""}
+        >
           {r.remarks || "—"}
         </span>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      className: "min-w-[4.5rem] w-[4.5rem] whitespace-nowrap",
+      render: (r) => (
+        <div className="flex items-center justify-end whitespace-nowrap">
+          <InventoryRowActionsMenu
+            rowId={r.id}
+            isOpen={openMenuId === r.id}
+            onOpen={setOpenMenuId}
+            onClose={() => setOpenMenuId(null)}
+            onView={() => handleView(r)}
+            onEdit={handleEdit}
+            onAdd={handleAdd}
+            onDelete={handleDeleteRequest}
+          />
+        </div>
       ),
     },
   ];
@@ -457,12 +403,10 @@ export default function StockLedger() {
   }
 
   return (
-    <div className="space-y-5 pb-4">
+    <div className="min-w-0 space-y-5 pb-4">
       {storeMode ? <StoreManagerNav /> : null}
 
       <PageHeader
-        title="Stock Ledger"
-        showTitle
         subtitle="Track and analyze stock movement history"
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -495,32 +439,32 @@ export default function StockLedger() {
 
       <div className="ui-card p-3 sm:p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-          <div className="grid flex-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <label className="text-sm">
+          <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <label className="text-sm sm:col-span-2 xl:col-span-1">
               <span className="ui-label">Date Range</span>
-              <div className="flex gap-2">
+              <div className="mt-1 flex flex-col gap-2 sm:flex-row">
                 <input
                   type="date"
                   value={filters.dateFrom}
                   onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
-                  className="ui-input"
+                  className="ui-input min-w-0 flex-1"
                   aria-label="From date"
                 />
                 <input
                   type="date"
                   value={filters.dateTo}
                   onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))}
-                  className="ui-input"
+                  className="ui-input min-w-0 flex-1"
                   aria-label="To date"
                 />
               </div>
             </label>
-            <label className="text-sm">
+            <label className="text-sm min-w-0">
               <span className="ui-label">Item</span>
               <select
                 value={filters.item}
                 onChange={(e) => setFilters((f) => ({ ...f, item: e.target.value }))}
-                className="ui-select"
+                className="ui-select w-full"
               >
                 <option value="">All Items</option>
                 {itemOptions.map((name) => (
@@ -560,7 +504,20 @@ export default function StockLedger() {
               </select>
             </label>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="text-sm">
+              <span className="ui-label">Remarks width</span>
+              <input
+                type="range"
+                min={140}
+                max={480}
+                step={20}
+                value={remarksWidth}
+                onChange={(e) => setRemarksWidth(Number(e.target.value))}
+                className="mt-2 block h-1.5 w-36 cursor-ew-resize accent-[var(--color-primary)]"
+                aria-label="Adjust remarks column width"
+              />
+            </label>
             <Button type="button" variant="secondary">
               <Filter className="h-4 w-4" /> Filters
             </Button>
@@ -644,7 +601,7 @@ export default function StockLedger() {
           </Button>
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-[var(--color-border-soft)]">
+        <div className="inventory-table-scroll inventory-table-scroll--ledger rounded-lg border border-[var(--color-border-soft)]">
           <DataTable
             columns={columns}
             data={filtered}
@@ -660,6 +617,14 @@ export default function StockLedger() {
           />
         </div>
       </div>
+
+      <RecordDetailModal
+        open={Boolean(viewTarget)}
+        title="Ledger Entry"
+        subtitle={viewTarget?.item_name}
+        fields={viewFields}
+        onClose={() => setViewTarget(null)}
+      />
     </div>
   );
 }

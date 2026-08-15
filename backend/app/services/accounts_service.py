@@ -195,14 +195,58 @@ def get_accounts_dashboard(db: Session, tenant_id: int) -> dict:
     overdue_count = overdue_row[0] or 0
     overdue_amount = float(overdue_row[1] or 0)
 
-    # Mock chart data for overdue by days
-    overdue_by_days = [{"days": i, "count": max(0, overdue_count - i * 2), "amount": max(50000, 90000 - i * 2000)} for i in range(1, 46)]
+    # Overdue aging buckets from actual overdue invoices
+    overdue_invoices = db.execute(
+        select(Invoice.due_date, Invoice.grand_total, Invoice.amount_paid)
+        .where(Invoice.tenant_id == tenant_id)
+        .where(Invoice.due_date < today)
+        .where(Invoice.amount_paid < Invoice.grand_total)
+    ).all()
+    buckets = {i: {"days": i, "count": 0, "amount": 0.0} for i in range(1, 46)}
+    for due_date, grand_total, amount_paid in overdue_invoices:
+        if not due_date:
+            continue
+        days_over = max(1, (today - due_date).days)
+        bucket = min(45, days_over)
+        buckets[bucket]["count"] += 1
+        buckets[bucket]["amount"] += float((grand_total or 0) - (amount_paid or 0))
+    overdue_by_days = [buckets[i] for i in range(1, 46)]
 
-    # Monthly settlement trend (last 12 months)
+    # Monthly settlement from invoices (last 12 months)
+    from datetime import timedelta
     monthly_settlement = []
-    base = total_settlement / 12 if total_settlement else 0
     for i in range(12):
-        monthly_settlement.append({"month": f"2025-{12-i:02d}", "amount": base * (1 + i * 0.05), "count": max(0, (overdue_count or 0) - i)})
+        month_start = (today.replace(day=1) - timedelta(days=i * 30)).replace(day=1)
+        month_key = month_start.strftime("%Y-%m")
+        month_paid = db.execute(
+            select(func.coalesce(func.sum(Invoice.amount_paid), 0))
+            .where(Invoice.tenant_id == tenant_id)
+            .where(func.strftime("%Y-%m", Invoice.issue_date) == month_key)
+        ).scalar()
+        month_count = db.execute(
+            select(func.count(Invoice.id))
+            .where(Invoice.tenant_id == tenant_id)
+            .where(func.strftime("%Y-%m", Invoice.issue_date) == month_key)
+            .where(Invoice.status != "draft")
+        ).scalar()
+        monthly_settlement.append({
+            "month": month_key,
+            "amount": float(month_paid or 0),
+            "count": int(month_count or 0),
+        })
+
+    paid_invoices = db.execute(
+        select(Invoice.issue_date, Invoice.updated_at)
+        .where(Invoice.tenant_id == tenant_id)
+        .where(Invoice.amount_paid >= Invoice.grand_total)
+        .where(Invoice.issue_date.isnot(None))
+    ).all()
+    settle_days = []
+    for issue_date, updated_at in paid_invoices:
+        if issue_date and updated_at:
+            end = updated_at.date() if hasattr(updated_at, "date") else updated_at
+            settle_days.append(max(0, (end - issue_date).days))
+    avg_days_to_settle = round(sum(settle_days) / len(settle_days)) if settle_days else 0
 
     return {
         "total_settlement": total_settlement,
@@ -211,10 +255,10 @@ def get_accounts_dashboard(db: Session, tenant_id: int) -> dict:
         "overdue_amount": overdue_amount,
         "overdue_by_days": overdue_by_days,
         "monthly_settlement": monthly_settlement,
-        "paperless_conversion": min(total_invoices, 1203),
-        "paper_invoices": max(0, total_invoices - 1203),
-        "avg_days_to_settle": 26,
-        "disputed_share_pct": 5,
+        "paperless_conversion": total_invoices,
+        "paper_invoices": 0,
+        "avg_days_to_settle": avg_days_to_settle,
+        "disputed_share_pct": 0,
     }
 
 

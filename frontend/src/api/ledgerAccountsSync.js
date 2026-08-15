@@ -19,6 +19,11 @@ function parseMeta(raw) {
   }
 }
 
+function normalizeGlStatus(status) {
+  const raw = String(status || "Active").split("|")[0].trim().toLowerCase();
+  return raw === "inactive" ? "inactive" : "active";
+}
+
 function slug(name) {
   return String(name || "acct")
     .toLowerCase()
@@ -38,6 +43,7 @@ export function mapGlToLedgerCash(row) {
     account_type: accountType === "BANK" ? "BANK" : "CASH",
     description: meta.description || "",
     balance: Number(row.balance) || 0,
+    status: normalizeGlStatus(row.status),
     holder_name: meta.holder_name || "",
     account_number: meta.account_number || "",
     ifsc: meta.ifsc || "",
@@ -60,6 +66,7 @@ export function mapGlToLedgerOther(row) {
     account_group: meta.account_group || "",
     description: meta.description || "",
     balance: Number(row.balance) || 0,
+    status: normalizeGlStatus(row.status),
     opening_balance_date: meta.opening_balance_date || "",
   };
 }

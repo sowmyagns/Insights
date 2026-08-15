@@ -103,72 +103,139 @@ export const KPI_ICONS = {
   "quality-checks-pending": BadgeCheck,
 };
 
-const KPI_ACCENT = {
-  "total-orders": { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "today-production": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]", border: "border-emerald-200 hover:border-emerald-500 dark:border-emerald-900/60" },
-  "machines-running": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]", border: "border-purple-200 hover:border-purple-500 dark:border-purple-900/60" },
-  "pending-orders": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]", border: "border-amber-200 hover:border-amber-500 dark:border-amber-900/60" },
-  "pending-approvals": { iconBg: "bg-[#e0f2fe] text-[#0284c7]", bar: "bg-[#0284c7]", border: "border-sky-200 hover:border-sky-500 dark:border-sky-900/60" },
-  "good-qty": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]", border: "border-emerald-200 hover:border-emerald-500 dark:border-emerald-900/60" },
-  "reject-qty": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]", border: "border-red-200 hover:border-red-500 dark:border-red-900/60" },
-  "inventory-value": { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "low-stock": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]", border: "border-red-200 hover:border-red-500 dark:border-red-900/60" },
-  "raw-materials": { iconBg: "bg-[#e8f1ff] text-[#2563eb]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "finished-goods": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]", border: "border-emerald-200 hover:border-emerald-500 dark:border-emerald-900/60" },
-  warehouses: { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "stock-movements": { iconBg: "bg-[#fff1e8] text-[#c2410c]", bar: "bg-[#c2410c]", border: "border-orange-200 hover:border-orange-500 dark:border-orange-900/60" },
-  "total-users": { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-indigo-200 hover:border-indigo-500 dark:border-indigo-900/60" },
-  "active-users": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]", border: "border-emerald-200 hover:border-emerald-500 dark:border-emerald-900/60" },
-  "total-employees": { iconBg: "bg-[#e8f8ef] text-[#0f766e]", bar: "bg-[#0f766e]", border: "border-teal-200 hover:border-teal-500 dark:border-teal-900/60" },
-  "active-alerts": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]", border: "border-red-200 hover:border-red-500 dark:border-red-900/60" },
-  "total-sales-orders": { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "pending-sales-orders": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]", border: "border-amber-200 hover:border-amber-500 dark:border-amber-900/60" },
-  "todays-sales": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]", border: "border-emerald-200 hover:border-emerald-500 dark:border-emerald-900/60" },
-  "outstanding-receivables": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]", border: "border-purple-200 hover:border-purple-500 dark:border-purple-900/60" },
-  "monthly-revenue": { iconBg: "bg-[#e8f8ef] text-[#0f766e]", bar: "bg-[#0f766e]", border: "border-teal-200 hover:border-teal-500 dark:border-teal-900/60" },
-  quotations: { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "conversion-rate": { iconBg: "bg-[#e8f1ff] text-[#2563eb]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "overdue-invoices": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]", border: "border-red-200 hover:border-red-500 dark:border-red-900/60" },
-  "total-production-orders": { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "planned-orders": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]", border: "border-amber-200 hover:border-amber-500 dark:border-amber-900/60" },
-  "in-progress-orders": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]", border: "border-purple-200 hover:border-purple-500 dark:border-purple-900/60" },
-  "completed-orders": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]", border: "border-emerald-200 hover:border-emerald-500 dark:border-emerald-900/60" },
-  "delayed-orders": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]", border: "border-red-200 hover:border-red-500 dark:border-red-900/60" },
-  "production-target": { iconBg: "bg-[#e8f8ef] text-[#0f766e]", bar: "bg-[#0f766e]", border: "border-teal-200 hover:border-teal-500 dark:border-teal-900/60" },
-  "production-efficiency": { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "machine-utilization": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]", border: "border-purple-200 hover:border-purple-500 dark:border-purple-900/60" },
-  "total-inventory-items": { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "out-of-stock": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]", border: "border-red-200 hover:border-red-500 dark:border-red-900/60" },
-  "pending-material-issues": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]", border: "border-amber-200 hover:border-amber-500 dark:border-amber-900/60" },
-  "pending-goods-receipts": { iconBg: "bg-[#fff1e8] text-[#c2410c]", bar: "bg-[#c2410c]", border: "border-orange-200 hover:border-orange-500 dark:border-orange-900/60" },
-  "present-today": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]", border: "border-emerald-200 hover:border-emerald-500 dark:border-emerald-900/60" },
-  "absent-today": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]", border: "border-red-200 hover:border-red-500 dark:border-red-900/60" },
-  "on-leave": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]", border: "border-amber-200 hover:border-amber-500 dark:border-amber-900/60" },
-  "pending-leave-requests": { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "new-employees": { iconBg: "bg-[#e8f1ff] text-[#2563eb]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "attendance-rate": { iconBg: "bg-[#e8f8ef] text-[#0f766e]", bar: "bg-[#0f766e]", border: "border-teal-200 hover:border-teal-500 dark:border-teal-900/60" },
-  "pending-hr-requests": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]", border: "border-purple-200 hover:border-purple-500 dark:border-purple-900/60" },
-  "total-receivables": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]", border: "border-emerald-200 hover:border-emerald-500 dark:border-emerald-900/60" },
-  "total-payables": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]", border: "border-amber-200 hover:border-amber-500 dark:border-amber-900/60" },
-  "todays-revenue": { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "pending-invoices": { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "overdue-payments": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]", border: "border-red-200 hover:border-red-500 dark:border-red-900/60" },
-  expenses: { iconBg: "bg-[#fff1e8] text-[#c2410c]", bar: "bg-[#c2410c]", border: "border-orange-200 hover:border-orange-500 dark:border-orange-900/60" },
-  "gst-payable": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]", border: "border-purple-200 hover:border-purple-500 dark:border-purple-900/60" },
-  "cash-bank-balance": { iconBg: "bg-[#e8f8ef] text-[#0f766e]", bar: "bg-[#0f766e]", border: "border-teal-200 hover:border-teal-500 dark:border-teal-900/60" },
-  "my-work-orders": { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "todays-target": { iconBg: "bg-[#e8f8ef] text-[#0f766e]", bar: "bg-[#0f766e]", border: "border-teal-200 hover:border-teal-500 dark:border-teal-900/60" },
-  "completed-today": { iconBg: "bg-[#e8f8ef] text-[#15803d]", bar: "bg-[#15803d]", border: "border-emerald-200 hover:border-emerald-500 dark:border-emerald-900/60" },
-  "operator-in-progress": { iconBg: "bg-[#f3eefc] text-[#6d28d9]", bar: "bg-[#6d28d9]", border: "border-purple-200 hover:border-purple-500 dark:border-purple-900/60" },
-  "pending-tasks": { iconBg: "bg-[#fff6e5] text-[#b45309]", bar: "bg-[#b45309]", border: "border-amber-200 hover:border-amber-500 dark:border-amber-900/60" },
-  "assigned-machine": { iconBg: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", bar: "bg-[var(--color-primary)]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "machine-status": { iconBg: "bg-[#e8f1ff] text-[#2563eb]", bar: "bg-[#2563eb]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "material-availability": { iconBg: "bg-[#e8f1ff] text-[#2563eb]", bar: "bg-[#2563eb]", border: "border-blue-200 hover:border-blue-500 dark:border-blue-900/60" },
-  "quality-checks-pending": { iconBg: "bg-[#fde8e8] text-[#ef4444]", bar: "bg-[#ef4444]", border: "border-red-200 hover:border-red-500 dark:border-red-900/60" },
+/** Matched KPI color tones — icon background, icon, and top bar always use the same family. */
+const KPI_TONES = {
+  primary: {
+    iconBg: "bg-[var(--kpi-primary-soft)] text-[var(--kpi-primary)]",
+    bar: "bg-[var(--kpi-primary)]",
+  },
+  success: {
+    iconBg: "bg-[var(--kpi-success-soft)] text-[var(--kpi-success)]",
+    bar: "bg-[var(--kpi-success)]",
+  },
+  teal: {
+    iconBg: "bg-[var(--kpi-teal-soft)] text-[var(--kpi-teal)]",
+    bar: "bg-[var(--kpi-teal)]",
+  },
+  violet: {
+    iconBg: "bg-[var(--kpi-violet-soft)] text-[var(--kpi-violet)]",
+    bar: "bg-[var(--kpi-violet)]",
+  },
+  warning: {
+    iconBg: "bg-[var(--kpi-warning-soft)] text-[var(--kpi-warning)]",
+    bar: "bg-[var(--kpi-warning)]",
+  },
+  danger: {
+    iconBg: "bg-[var(--kpi-danger-soft)] text-[var(--kpi-danger)]",
+    bar: "bg-[var(--kpi-danger)]",
+  },
+  info: {
+    iconBg: "bg-[var(--kpi-info-soft)] text-[var(--kpi-info)]",
+    bar: "bg-[var(--kpi-info)]",
+  },
+  orange: {
+    iconBg: "bg-[var(--kpi-orange-soft)] text-[var(--kpi-orange)]",
+    bar: "bg-[var(--kpi-orange)]",
+  },
+  neutral: {
+    iconBg: "bg-[var(--kpi-neutral-soft)] text-[var(--kpi-neutral)]",
+    bar: "bg-[var(--kpi-neutral)]",
+  },
 };
 
+const KPI_ID_TONE = {
+  "total-orders": "primary",
+  "today-production": "success",
+  "machines-running": "violet",
+  "pending-orders": "warning",
+  "pending-approvals": "primary",
+  "good-qty": "success",
+  "reject-qty": "danger",
+  "inventory-value": "primary",
+  "low-stock": "danger",
+  "raw-materials": "info",
+  "finished-goods": "success",
+  warehouses: "primary",
+  "stock-movements": "orange",
+  "total-users": "primary",
+  "active-users": "success",
+  "total-employees": "teal",
+  "active-alerts": "danger",
+  "total-sales-orders": "primary",
+  "pending-sales-orders": "warning",
+  "todays-sales": "success",
+  "outstanding-receivables": "violet",
+  "monthly-revenue": "teal",
+  quotations: "primary",
+  "conversion-rate": "info",
+  "overdue-invoices": "danger",
+  "total-production-orders": "primary",
+  "planned-orders": "warning",
+  "in-progress-orders": "violet",
+  "completed-orders": "success",
+  "delayed-orders": "danger",
+  "production-target": "teal",
+  "production-efficiency": "primary",
+  "machine-utilization": "violet",
+  "total-inventory-items": "primary",
+  "out-of-stock": "danger",
+  "pending-material-issues": "warning",
+  "pending-goods-receipts": "orange",
+  "present-today": "success",
+  "absent-today": "danger",
+  "on-leave": "warning",
+  "pending-leave-requests": "primary",
+  "new-employees": "info",
+  "attendance-rate": "teal",
+  "pending-hr-requests": "violet",
+  "total-receivables": "success",
+  "total-payables": "warning",
+  "todays-revenue": "primary",
+  "pending-invoices": "primary",
+  "overdue-payments": "danger",
+  expenses: "orange",
+  "gst-payable": "violet",
+  "cash-bank-balance": "teal",
+  "my-work-orders": "primary",
+  "todays-target": "teal",
+  "completed-today": "success",
+  "operator-in-progress": "violet",
+  "pending-tasks": "warning",
+  "assigned-machine": "primary",
+  "machine-status": "info",
+  "material-availability": "info",
+  "quality-checks-pending": "danger",
+};
+
+function inferKpiTone(id) {
+  const key = String(id || "").toLowerCase();
+  if (/reject|overdue|absent|alert|low-stock|out-of-stock|delayed|danger|critical|quality-check/.test(key)) {
+    return "danger";
+  }
+  if (/pending|planned|on-leave|payable|hold|waiting/.test(key)) {
+    return "warning";
+  }
+  if (/complete|good-qty|present|finished|hired|active-user|receivable|todays-sales/.test(key)) {
+    return "success";
+  }
+  if (/machine|utilization|in-progress|gst|operator-in-progress/.test(key)) {
+    return "violet";
+  }
+  if (/employee|revenue|target|attendance|cash-bank/.test(key)) {
+    return "teal";
+  }
+  if (/expense|movement|receipt|goods-receipt/.test(key)) {
+    return "orange";
+  }
+  if (/raw|conversion|material-avail|machine-status|new-employee/.test(key)) {
+    return "info";
+  }
+  return "primary";
+}
+
 export function getKpiAccent(id) {
-  return KPI_ACCENT[id] || { iconBg: "bg-[#f3f3f6] text-[#4a4a55]", bar: "bg-[#6b6b76]", border: "border-slate-200 hover:border-slate-400 dark:border-slate-700" };
+  const tone = KPI_ID_TONE[id] || inferKpiTone(id);
+  return KPI_TONES[tone] || KPI_TONES.neutral;
 }
 
 export function KpiIcon({ id, className = "h-5 w-5" }) {

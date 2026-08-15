@@ -2,7 +2,7 @@
 
 export const DOC_TYPES = {
   invoice: {
-    title: "TAX INVOICE",
+    title: "Tax Invoice",
     footerText: "This is a Computer Generated Invoice",
     partyBillLabel: "Buyer (Bill to)",
     partyShipLabel: "Consignee (Ship to)",

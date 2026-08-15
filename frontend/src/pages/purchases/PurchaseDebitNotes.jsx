@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Calendar, ChevronLeft, ChevronRight, FileText, Filter, ListFilter, Plus, Search, X } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import { useToast } from "../../context/ToastContext";
 import { deleteBizDocument, listBizDocuments } from "../../api/bizDocumentsApi";
 import { apiErrorMessage } from "../../utils/apiError";
@@ -243,40 +244,37 @@ export default function PurchaseDebitNotes() {
   }
 
   return (
-    <div className="min-h-full" style={{ background: PAGE_BG }}>
-      <div className="space-y-4 p-4 sm:p-6">
-
-        <div className="overflow-hidden rounded-xl border border-[#e4e4ea] bg-[#efeaf8]">
-          <div className="flex flex-wrap">
-            <SummaryTab
-              label="All Debit Notes"
-              count={tabStats.all.count}
-              amount={formatInr(tabStats.all.amount)}
-              active={kpiFilter === "all"}
-              onClick={() => setKpiFilter("all")}
-            />
-            <SummaryTab
-              label="Unsettled"
-              count={tabStats.unsettled.count}
-              amount={formatInr(tabStats.unsettled.amount)}
-              active={kpiFilter === "unsettled"}
-              onClick={() => setKpiFilter("unsettled")}
-            />
-            <SummaryTab
-              label="Partially Settled"
-              count={tabStats.partial.count}
-              amount={formatInr(tabStats.partial.amount)}
-              active={kpiFilter === "partial"}
-              onClick={() => setKpiFilter("partial")}
-            />
-            <SummaryTab
-              label="Settled"
-              count={tabStats.settled.count}
-              amount={formatInr(tabStats.settled.amount)}
-              active={kpiFilter === "settled"}
-              onClick={() => setKpiFilter("settled")}
-            />
-          </div>
+    <div className="min-h-full space-y-4 bg-[#F5F5F5] p-4 sm:p-6">
+      <div className="overflow-hidden rounded-xl border border-[#e4e4ea] bg-[#efeaf8]">
+        <div className="flex flex-wrap">
+          <SummaryTab
+            label="All Debit Notes"
+            count={tabStats.all.count}
+            amount={formatInr(tabStats.all.amount)}
+            active={kpiFilter === "all"}
+            onClick={() => setKpiFilter("all")}
+          />
+          <SummaryTab
+            label="Unsettled"
+            count={tabStats.unsettled.count}
+            amount={formatInr(tabStats.unsettled.amount)}
+            active={kpiFilter === "unsettled"}
+            onClick={() => setKpiFilter("unsettled")}
+          />
+          <SummaryTab
+            label="Partially Settled"
+            count={tabStats.partial.count}
+            amount={formatInr(tabStats.partial.amount)}
+            active={kpiFilter === "partial"}
+            onClick={() => setKpiFilter("partial")}
+          />
+          <SummaryTab
+            label="Settled"
+            count={tabStats.settled.count}
+            amount={formatInr(tabStats.settled.amount)}
+            active={kpiFilter === "settled"}
+            onClick={() => setKpiFilter("settled")}
+          />
         </div>
       </div>
 
@@ -369,6 +367,7 @@ export default function PurchaseDebitNotes() {
             <table className="min-w-full border-collapse text-left text-[13px]">
               <thead className="bg-[#efeaf8] text-[12px] font-semibold uppercase tracking-wide text-[#6b6b76]">
                 <tr>
+                  <SerialNumberHeader className="border-b border-r border-[#d0d0d8]" />
                   {[
                     "Debit Note No.",
                     "Date",
@@ -390,28 +389,27 @@ export default function PurchaseDebitNotes() {
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="border-t border-[#e4e4ea] px-4 py-16 text-center">
+                    <td colSpan={8} className="border-t border-[#e4e4ea] px-4 py-16 text-center">
                       <FileText className="mx-auto h-12 w-12 text-[#c4c4cc]" />
                       <p className="mt-3 text-[14px] text-[#9a9aa5]">
                         No Debit Notes yet. Create your first debit note.
                       </p>
-                      <Link
-                        to="/purchases/debit-notes/create"
-                        className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
-                        style={{ background: ACCENT }}
-                      >
-                        <Plus className="h-4 w-4" /> Create Debit Note
-                      </Link>
                     </td>
                   </tr>
                 ) : (
-                  pageRows.map((r) => {
+                  pageRows.map((r, rowIndex) => {
                     const settle = settlementStatus(r);
                     const totalAmt = Number(r.amount) || 0;
                     const settledAmt = Number((r.meta || {}).amount_settled || (r.meta || {}).amount_paid) || 0;
                     const available = Math.max(0, totalAmt - settledAmt);
                     return (
                       <tr key={r.id} className="hover:bg-[#fafafa]">
+                        <SerialNumberCell
+                          rowIndex={rowIndex}
+                          page={page}
+                          pageSize={pageSize}
+                          className="border-t border-r border-[#d0d0d8]"
+                        />
                         <td className="border-t border-r border-[#d0d0d8] px-4 py-3 font-semibold text-[#6b4eff]">
                           {r.document_number}
                         </td>

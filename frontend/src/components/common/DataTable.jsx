@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import Table from "./Table";
+import Pagination from "./Pagination";
 import { SearchBar, FilterSelect } from "./SearchFilter";
 import EmptyState from "./EmptyState";
 import NoResultsState from "./states/NoResultsState";
@@ -15,6 +16,7 @@ export default function DataTable({
   pageSize = 10,
   showSearch = true,
   showPagination = true,
+  showSerialNumber = true,
   emptyState,
   noResultsState,
   sortable = true,
@@ -84,7 +86,16 @@ export default function DataTable({
   } else if (!filtered.length && hasActiveFilters) {
     body = defaultNoResults;
   } else {
-    body = <Table columns={columns} data={paginated} emptyState={defaultEmpty} sortable={sortable} />;
+    body = (
+      <Table
+        columns={columns}
+        data={paginated}
+        emptyState={defaultEmpty}
+        sortable={sortable}
+        showSerialNumber={showSerialNumber}
+        serialOffset={showPagination ? (page - 1) * pageSize : 0}
+      />
+    );
   }
 
   return (
@@ -129,31 +140,14 @@ export default function DataTable({
         </div>
       )}
       {body}
-      {showPagination && filtered.length > pageSize && (
-        <div className="flex items-center justify-between text-sm print:hidden">
-          <span className="text-slate-500 dark:text-slate-400">
-            {t("common.page")} {page} {t("common.of")} {totalPages}
-          </span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-            >
-              {t("common.previous")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-            >
-              {t("common.next")}
-            </button>
-          </div>
-        </div>
-      )}
+      {showPagination && filtered.length > pageSize ? (
+        <Pagination
+          className="print:hidden"
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
+      ) : null}
     </div>
   );
 }

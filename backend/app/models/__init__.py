@@ -23,6 +23,7 @@ import app.models.hr  # noqa: F401
 import app.models.inventory  # noqa: F401
 import app.models.machine  # noqa: F401
 import app.models.maintenance  # noqa: F401
+import app.models.meeting  # noqa: F401
 import app.models.notification  # noqa: F401
 import app.models.permission  # noqa: F401
 import app.models.platform  # noqa: F401

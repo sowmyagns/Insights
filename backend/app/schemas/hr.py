@@ -214,3 +214,143 @@ class SafetyIncidentRead(SafetyIncidentBase):
     id: int
     tenant_id: int
     model_config = ConfigDict(from_attributes=True)
+
+
+# ── Recruitment ──────────────────────────────────────────────────────────────
+
+
+class JobOpeningBase(BaseModel):
+    title: str
+    department: str | None = None
+    openings_count: int = 1
+    status: str = "open"
+    location: str | None = None
+    description: str | None = None
+
+
+class JobOpeningCreate(JobOpeningBase):
+    pass
+
+
+class JobOpeningUpdate(BaseModel):
+    title: str | None = None
+    department: str | None = None
+    openings_count: int | None = None
+    status: str | None = None
+    location: str | None = None
+    description: str | None = None
+
+
+class JobOpeningRead(JobOpeningBase):
+    id: int
+    tenant_id: int
+    applicants_count: int = 0
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RecruitmentApplicantBase(BaseModel):
+    job_opening_id: int | None = None
+    full_name: str
+    email: str | None = None
+    phone: str | None = None
+    source: str | None = None
+    stage: str = "applied"
+    status: str = "new"
+    applied_on: date | None = None
+    notes: str | None = None
+
+
+class RecruitmentApplicantCreate(RecruitmentApplicantBase):
+    pass
+
+
+class RecruitmentApplicantUpdate(BaseModel):
+    job_opening_id: int | None = None
+    full_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    source: str | None = None
+    stage: str | None = None
+    status: str | None = None
+    applied_on: date | None = None
+    notes: str | None = None
+
+
+class RecruitmentApplicantRead(RecruitmentApplicantBase):
+    id: int
+    tenant_id: int
+    job_title: str | None = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedResponse(BaseModel):
+    items: list
+    total: int
+    page: int
+    page_size: int
+
+
+# ── Training ─────────────────────────────────────────────────────────────────
+
+
+class TrainingProgramBase(BaseModel):
+    name: str
+    category: str | None = None
+    trainer: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    status: str = "not_started"
+    progress_pct: int = 0
+    description: str | None = None
+
+
+class TrainingProgramCreate(TrainingProgramBase):
+    pass
+
+
+class TrainingProgramUpdate(BaseModel):
+    name: str | None = None
+    category: str | None = None
+    trainer: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    status: str | None = None
+    progress_pct: int | None = None
+    description: str | None = None
+
+
+class TrainingProgramRead(TrainingProgramBase):
+    id: int
+    tenant_id: int
+    participants: int = 0
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TrainingEnrollmentBase(BaseModel):
+    program_id: int
+    employee_id: int | None = None
+    employee_name: str | None = None
+    status: str = "enrolled"
+    progress_pct: int = 0
+    certified_at: date | None = None
+    certification_name: str | None = None
+
+
+class TrainingEnrollmentCreate(TrainingEnrollmentBase):
+    pass
+
+
+class TrainingEnrollmentUpdate(BaseModel):
+    employee_id: int | None = None
+    employee_name: str | None = None
+    status: str | None = None
+    progress_pct: int | None = None
+    certified_at: date | None = None
+    certification_name: str | None = None
+
+
+class TrainingEnrollmentRead(TrainingEnrollmentBase):
+    id: int
+    tenant_id: int
+    program_name: str | None = None
+    model_config = ConfigDict(from_attributes=True)

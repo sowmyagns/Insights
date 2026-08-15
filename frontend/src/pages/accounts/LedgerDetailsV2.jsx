@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ChevronDown, ChevronLeft, ChevronRight, Eye, FileSpreadsheet, FileText, Mail, MoreVertical, Search, Trash2 } from "lucide-react";
 
 import AdjustBalanceModal from "../../components/accounts/AdjustBalanceModal";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import ContraEntryModal from "../../components/accounts/ContraEntryModal";
 import DeleteBankModal from "../../components/accounts/DeleteBankModal";
 import SendLedgerModal from "../../components/accounts/SendLedgerModal";
@@ -398,6 +399,7 @@ export default function LedgerDetailsV2() {
           <table className="min-w-full border-collapse text-left text-[13px]">
             <thead className="bg-[#f3f3f6] text-[12px] font-semibold text-[#6b6b76]">
               <tr>
+                <SerialNumberHeader />
                 {[
                   "Voucher Date",
                   "Voucher No.",
@@ -416,13 +418,14 @@ export default function LedgerDetailsV2() {
             <tbody>
               {pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-14 text-center text-sm text-[#9a9aa5]">
+                  <td colSpan={8} className="px-4 py-14 text-center text-sm text-[#9a9aa5]">
                     No data available
                   </td>
                 </tr>
               ) : (
-                pageRows.map((row) => (
+                pageRows.map((row, rowIndex) => (
                   <tr key={row.id} className="border-b border-[#ececf0] hover:bg-[#fafafa]">
+                    <SerialNumberCell rowIndex={rowIndex} page={page} pageSize={pageSize} />
                     <td className="px-4 py-3">{formatDisplayDate(row.voucher_date)}</td>
                     <td className="px-4 py-3">{row.voucher_no}</td>
                     <td className="px-4 py-3 font-semibold">{row.particulars}</td>

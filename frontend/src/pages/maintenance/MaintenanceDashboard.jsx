@@ -1,26 +1,64 @@
-import { useCallback, useEffect, useState } from "react";
-import usePageRefresh from "../../hooks/usePageRefresh";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, Cog, IndianRupee, Pause, Play, Timer, TrendingUp, Wrench, Zap } from "lucide-react";
+import usePageRefresh from "../../hooks/usePageRefresh";
 import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  Eye,
+  FileStack,
+  IndianRupee,
+  MoreVertical,
+  Plus,
+  Timer,
+} from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
-import KpiCard from "../../components/common/KpiCard";
-import PageHeader from "../../components/common/PageHeader";
 
 import Loader from "../../components/common/Loader";
+import PageHeader from "../../components/common/PageHeader";
 import MaintenanceErrorState from "../../components/maintenance/MaintenanceErrorState";
-import { useToast } from "../../context/ToastContext";
+import MaintenanceKpiCard from "../../components/maintenance/MaintenanceKpiCard";
 import { getMaintenanceHub } from "../../api/maintenanceApi";
-import { DEMO_MAINTENANCE_HUB, MAINTENANCE_FLOW, formatInr, healthColor, healthTextColor, mntStatusColor, priorityColor } from "../../data/maintenanceMasterData";
+import {
+  DEMO_MAINTENANCE_HUB,
+  computeMonthTrend,
+  formatInr,
+  mntStatusColor,
+  priorityColor,
+} from "../../data/maintenanceMasterData";
 
-const PIE_COLORS = ["#2563EB", "#ef4444"];
+function formatCostCompact(v) {
+  const n = Number(v) || 0;
+  if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
+  if (n >= 1000) return `₹${(n / 1000).toFixed(1)}K`;
+  return formatInr(n);
+}
 
-
-const alertIcons = { due: Timer, breakdown: AlertTriangle, spare: Wrench, completed: TrendingUp };
+function RequestStatusBadge({ status }) {
+  const label = String(status || "open").replace(/_/g, " ");
+  return (
+    <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize ${mntStatusColor(status)}`}>
+      {label}
+    </span>
+  );
+}
 
 export default function MaintenanceDashboard() {
-  const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hub, setHub] = useState(DEMO_MAINTENANCE_HUB);
@@ -41,213 +79,241 @@ export default function MaintenanceDashboard() {
   }, []);
 
   usePageRefresh(() => load(true));
-
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <Loader label="Loading maintenance dashboard..." />;
-  if (error && !hub.total_machines) return <MaintenanceErrorState message={error} onRetry={load} />;
+  const requestRows = useMemo(
+    () => (hub.recent_requests || []).map((r) => ({ ...r, event_date: r.sort_date || r.due_date })),
+    [hub.recent_requests]
+  );
 
-  const calendarDays = Array.from({ length: 14 }, (_, i) => i + 1);
+  const trends = useMemo(
+    () => ({
+      total: computeMonthTrend(requestRows),
+      open: computeMonthTrend(requestRows, { match: (r) => ["scheduled", "reported", "open"].includes(String(r.status || "").toLowerCase()) }),
+      inProgress: computeMonthTrend(requestRows, { match: (r) => ["in_progress", "assigned"].includes(String(r.status || "").toLowerCase()) }),
+      completed: computeMonthTrend(requestRows, { match: (r) => ["completed", "resolved", "closed"].includes(String(r.status || "").toLowerCase()) }),
+      overdue: computeMonthTrend(requestRows, { match: () => false }),
+      cost: null,
+    }),
+    [requestRows]
+  );
+
+  const equipmentPie = (hub.equipment_status || []).filter((s) => s.count > 0);
+  const overviewBars = hub.maintenance_overview || [];
+  const costTrend = hub.cost_trend || [];
+
+  if (loading) return <Loader label="Loading maintenance dashboard..." />;
+  if (error && !hub.total_machines && !hub.total_requests) {
+    return <MaintenanceErrorState message={error} onRetry={load} />;
+  }
 
   return (
-    <div className="space-y-5 pb-4">
-      <PageHeader subtitle="Machine health, downtime, MTTR/MTBF, costs, calendar, and spare parts." />
-
-      <div className="ui-grid-kpi">
-        <KpiCard label="Total Machines" value={hub.total_machines} icon={Cog} color="bg-[var(--color-primary)]" />
-        <KpiCard label="Running" value={hub.running} icon={Play} color="bg-green-600" />
-        <KpiCard label="Under Maintenance" value={hub.under_maintenance} icon={Wrench} color="bg-amber-500" />
-        <KpiCard label="Breakdown" value={hub.breakdown} icon={Zap} color="bg-red-500" />
-        <KpiCard label="Idle" value={hub.idle} icon={Pause} color="bg-slate-500" />
-        <KpiCard label="Machine Health" value={hub.machine_health_pct} suffix="%" icon={TrendingUp} color="bg-teal-600" />
-      </div>
-
-      <div className="ui-grid-kpi">
-        <KpiCard label="MTTR (Mean Time To Repair)" value={hub.mttr_hours} suffix=" h" icon={Timer} color="bg-indigo-600" />
-        <KpiCard label="MTBF (Mean Time Between Failures)" value={hub.mtbf_hours} suffix=" h" icon={Timer} color="bg-purple-600" />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-medium text-slate-600 sm:text-xs">
-        {MAINTENANCE_FLOW.map((s, i) => (
-          <span key={s} className="flex items-center gap-1">
-            <span className="rounded bg-white px-1.5 py-0.5 shadow-sm">{s}</span>
-            {i < MAINTENANCE_FLOW.length - 1 && <span className="text-slate-400">↓</span>}
-          </span>
-        ))}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="ui-card p-5 lg:col-span-1">
-          <h2 className="ui-section-title mb-4">Maintenance Calendar — July</h2>
-          <div className="grid grid-cols-7 gap-1 text-center text-xs">
-            {calendarDays.map((d) => {
-              const events = (hub.calendar_events || []).filter((e) => e.day === d);
-              return (
-                <div key={d} className={`rounded-lg p-1.5 ${events.length ? "bg-blue-50 ring-1 ring-blue-200" : "bg-slate-50"}`}>
-                  <div className="font-semibold text-slate-700">{d}</div>
-                  {events.map((e) => (
-                    <div key={`${d}-${e.machine}`} className="mt-0.5 truncate text-[9px] text-blue-700" title={`${e.machine} — ${e.type}`}>{e.type?.slice(0, 4)}</div>
-                  ))}
-                </div>
-              );
-            })}
+    <div className="min-w-0 space-y-5 pb-5">
+      <PageHeader
+        subtitle="Overview of maintenance requests, equipment status, and costs"
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/maintenance/preventive"
+              className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm hover:bg-[var(--color-primary-hover)]"
+            >
+              <Plus className="h-4 w-4" />
+              New Maintenance Request
+            </Link>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <MoreVertical className="h-4 w-4" />
+              More Actions
+              <ChevronDown className="h-4 w-4" />
+            </button>
           </div>
-          <div className="mt-3 space-y-1 text-xs text-slate-500">
-            {(hub.calendar_events || []).slice(0, 4).map((e) => (
-              <div key={`${e.day}-${e.machine}`} className="flex justify-between"><span>Jul {e.day} — {e.machine}</span><span className="font-medium text-blue-600">{e.type}</span></div>
-            ))}
-          </div>
-        </div>
+        }
+      />
 
-        <div className="ui-card p-5 lg:col-span-2">
-          <h2 className="ui-section-title mb-4">Machine Health</h2>
-          <div className="space-y-3">
-            {(hub.machine_health || []).map((m) => (
-              <div key={m.code}>
-                <div className="mb-1 flex justify-between text-sm">
-                  <span className="font-medium">{m.name} <span className="text-slate-400">({m.code})</span></span>
-                  <span className={`font-semibold ${healthTextColor(m.health)}`}>{m.health}%</span>
-                </div>
-                <div className="h-2.5 rounded-full bg-slate-100">
-                  <div className={`h-2.5 rounded-full ${healthColor(m.health)}`} style={{ width: `${m.health}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <MaintenanceKpiCard label="Total Requests" value={hub.total_requests} icon={FileStack} tone="violet" trend={trends.total} />
+        <MaintenanceKpiCard label="Open Requests" value={hub.open_requests} icon={Clock3} tone="success" trend={trends.open} />
+        <MaintenanceKpiCard label="In Progress" value={hub.in_progress_requests} icon={Timer} tone="orange" trend={trends.inProgress} />
+        <MaintenanceKpiCard label="Completed" value={hub.completed_requests} icon={CheckCircle2} tone="info" trend={trends.completed} />
+        <MaintenanceKpiCard
+          label="Overdue"
+          value={hub.overdue_requests}
+          icon={AlertTriangle}
+          tone="danger"
+          trend={hub.overdue_requests > 0 ? { pct: hub.overdue_requests, dir: "down", positive: false } : null}
+        />
+        <MaintenanceKpiCard label="Maintenance Cost" value={formatCostCompact(hub.total_cost)} icon={IndianRupee} tone="teal" />
       </div>
 
-      <div className="ui-card p-5">
-        <h2 className="ui-section-title mb-4">Maintenance Cost Dashboard</h2>
-        <div className="grid gap-4 sm:grid-cols-4">
-          <div className="rounded-xl bg-slate-50 p-4 text-center"><p className="text-xs text-slate-500">Labour Cost</p><p className="mt-1 text-lg font-bold">{formatInr(hub.labour_cost)}</p></div>
-          <div className="rounded-xl bg-slate-50 p-4 text-center"><p className="text-xs text-slate-500">Spare Cost</p><p className="mt-1 text-lg font-bold">{formatInr(hub.spare_cost)}</p></div>
-          <div className="rounded-xl bg-slate-50 p-4 text-center"><p className="text-xs text-slate-500">External Service</p><p className="mt-1 text-lg font-bold">{formatInr(hub.external_cost)}</p></div>
-          <div className="rounded-xl bg-blue-50 p-4 text-center"><p className="text-xs text-blue-600">Total Cost</p><p className="mt-1 text-lg font-bold text-blue-900">{formatInr(hub.total_cost)}</p></div>
-        </div>
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Panel title="Equipment Status">
+          {equipmentPie.length === 0 ? (
+            <EmptyChart message="No equipment status data yet" />
+          ) : (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={equipmentPie} dataKey="count" nameKey="name" cx="50%" cy="50%" innerRadius={52} outerRadius={78} paddingAngle={2}>
+                    {equipmentPie.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Maintenance Cost Trend">
+          {costTrend.length === 0 ? (
+            <EmptyChart message="No cost trend data yet" />
+          ) : (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={costTrend} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="costFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--kpi-violet)" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="var(--kpi-violet)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4ea" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCostCompact(v)} />
+                  <Tooltip formatter={(v) => formatInr(v)} />
+                  <Area type="monotone" dataKey="cost" stroke="var(--kpi-violet)" fill="url(#costFill)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Maintenance Overview">
+          {overviewBars.length === 0 ? (
+            <EmptyChart message="No maintenance overview data yet" />
+          ) : (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={overviewBars} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4ea" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                    {overviewBars.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Panel>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        <ChartCard title="Downtime Trend">
-          <BarChart data={hub.downtime_trend || []}>
-            <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} /><Tooltip />
-            <Bar dataKey="hours" fill="#ef4444" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ChartCard>
-        <ChartCard title="Machine Availability">
-          <LineChart data={hub.availability_trend || []}>
-            <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" tick={{ fontSize: 10 }} /><YAxis domain={[80, 100]} tick={{ fontSize: 10 }} /><Tooltip />
-            <Line type="monotone" dataKey="pct" stroke="#10b981" strokeWidth={2} dot={false} />
-          </LineChart>
-        </ChartCard>
-        <ChartCard title="Maintenance Cost Trend">
-          <BarChart data={hub.cost_trend || []}>
-            <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" tick={{ fontSize: 10 }} /><YAxis tickFormatter={(v) => formatInr(v)} tick={{ fontSize: 10 }} /><Tooltip formatter={(v) => formatInr(v)} />
-            <Bar dataKey="cost" fill="#2563EB" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ChartCard>
-        <ChartCard title="Breakdown Frequency">
-          <BarChart data={hub.breakdown_frequency || []}>
-            <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} /><Tooltip />
-            <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ChartCard>
-        <ChartCard title="Monthly MTTR">
-          <LineChart data={hub.mttr_trend || []}>
-            <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} /><Tooltip />
-            <Line type="monotone" dataKey="hours" stroke="#6366f1" strokeWidth={2} dot={false} />
-          </LineChart>
-        </ChartCard>
-        <ChartCard title="Monthly MTBF">
-          <LineChart data={hub.mtbf_trend || []}>
-            <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} /><Tooltip />
-            <Line type="monotone" dataKey="hours" stroke="#8b5cf6" strokeWidth={2} dot={false} />
-          </LineChart>
-        </ChartCard>
-        <ChartCard title="Preventive vs Breakdown">
-          <PieChart>
-            <Pie data={hub.preventive_vs_breakdown || []} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={65}>
-              {(hub.preventive_vs_breakdown || []).map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-            </Pie>
-            <Tooltip /><Legend />
-          </PieChart>
-        </ChartCard>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="ui-card p-5">
-          <h2 className="ui-section-title mb-4">Spare Parts Inventory</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b text-left text-xs text-slate-500"><th className="pb-2">Part No</th><th className="pb-2">Name</th><th className="pb-2">Stock</th><th className="pb-2">Min</th><th className="pb-2">Vendor</th><th className="pb-2">Cost</th></tr></thead>
-              <tbody>
-                {(hub.spare_parts || []).map((p) => (
-                  <tr key={p.part_number} className={`border-b border-slate-100 ${p.stock < p.minimum_stock ? "bg-red-50" : ""}`}>
-                    <td className="py-2 font-medium">{p.part_number}</td>
-                    <td className="py-2">{p.spare_name}</td>
-                    <td className="py-2">{p.stock}{p.stock < p.minimum_stock && <span className="ml-1 text-xs font-semibold text-red-600">Low</span>}</td>
-                    <td className="py-2">{p.minimum_stock}</td>
-                    <td className="py-2">{p.vendor}</td>
-                    <td className="py-2">{formatInr(p.cost)}</td>
+      <Panel title="Recent Maintenance Requests">
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="min-w-full w-full border-collapse text-left text-[13px]">
+            <thead className="bg-[#eef6ff] text-[12px] font-semibold text-slate-700">
+              <tr>
+                <th className="border-b border-slate-200 px-3 py-3">Request No</th>
+                <th className="border-b border-slate-200 px-3 py-3">Machine</th>
+                <th className="border-b border-slate-200 px-3 py-3">Type</th>
+                <th className="border-b border-slate-200 px-3 py-3">Priority</th>
+                <th className="border-b border-slate-200 px-3 py-3">Status</th>
+                <th className="border-b border-slate-200 px-3 py-3">Assigned To</th>
+                <th className="border-b border-slate-200 px-3 py-3">Due Date</th>
+                <th className="border-b border-slate-200 px-3 py-3 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(hub.recent_requests || []).length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="border-b border-slate-100 px-3 py-10 text-center text-[13px] text-slate-500">
+                    No maintenance requests found
+                  </td>
+                </tr>
+              ) : (
+                hub.recent_requests.map((row, idx) => (
+                  <tr key={row.id} className={idx % 2 === 1 ? "bg-slate-50/60 hover:bg-slate-50" : "hover:bg-slate-50/80"}>
+                    <td className="border-b border-slate-100 px-3 py-3 font-semibold text-slate-800">{row.request_number}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.machine_name}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.request_type}</td>
+                    <td className="border-b border-slate-100 px-3 py-3">
+                      <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize ${priorityColor(row.priority)}`}>
+                        {row.priority}
+                      </span>
+                    </td>
+                    <td className="border-b border-slate-100 px-3 py-3">
+                      <RequestStatusBadge status={row.status} />
+                    </td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-slate-600">{row.assigned_to}</td>
+                    <td className="border-b border-slate-100 px-3 py-3 text-slate-600">
+                      {row.due_date ? String(row.due_date).slice(0, 10) : "—"}
+                    </td>
+                    <td className="border-b border-slate-100 px-3 py-3">
+                      <div className="flex items-center justify-center">
+                        <button type="button" className="grid h-8 w-8 place-items-center rounded-md text-[var(--color-primary)] hover:bg-[var(--kpi-primary-soft)]" aria-label="View request">
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-        <div className="ui-card p-5">
-          <h2 className="ui-section-title mb-4">Work Orders</h2>
-          <div className="space-y-3">
-            {(hub.work_orders || []).map((wo) => (
-              <div key={wo.work_order_number} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                <div>
-                  <p className="font-semibold text-slate-900">{wo.work_order_number}</p>
-                  <p className="text-sm text-slate-600">{wo.machine} — {wo.assigned_to}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${priorityColor(wo.priority)}`}>{wo.priority}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${mntStatusColor(wo.status)}`}>{wo.status.replace("_", " ")}</span>
-                </div>
+      </Panel>
+
+      {(hub.alerts || []).length > 0 ? (
+        <Panel title="Alerts & Notifications">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {hub.alerts.map((a, i) => (
+              <div key={i} className="flex items-start gap-3 rounded-xl border border-[var(--kpi-warning-soft)] bg-[var(--kpi-warning-soft)]/40 px-4 py-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--kpi-warning)]" />
+                <p className="text-sm text-slate-700">{a.message}</p>
               </div>
             ))}
           </div>
-        </div>
-      </div>
+        </Panel>
+      ) : null}
 
-      <div className="ui-card p-5">
-        <h2 className="ui-section-title mb-4">Alerts & Notifications</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {(hub.alerts || []).map((a, i) => {
-            const Icon = alertIcons[a.type] || AlertTriangle;
-            return (
-              <div key={i} className="flex items-start gap-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
-                <Icon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                <p className="text-sm text-amber-900">{a.message}</p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <QuickLink to="/maintenance/equipment" label="Equipment & Spare Parts" />
         <QuickLink to="/maintenance/preventive" label="Preventive Maintenance" />
         <QuickLink to="/maintenance/breakdowns" label="Breakdown Maintenance" />
         <QuickLink to="/maintenance/machine-history" label="Machine History" />
-        <QuickLink to="/maintenance/schedule" label="Maintenance Schedule" />
       </div>
     </div>
   );
 }
 
-function ChartCard({ title, children }) {
+function Panel({ title, children, className = "" }) {
   return (
-    <div className="ui-card p-5">
-      <h2 className="ui-section-title mb-4">{title}</h2>
-      <div className="h-44"><ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer></div>
+    <div className={`rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ${className}`}>
+      <h2 className="mb-4 text-[15px] font-semibold text-slate-900">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function EmptyChart({ message }) {
+  return (
+    <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-slate-200 text-[13px] text-slate-500">
+      {message}
     </div>
   );
 }
 
 function QuickLink({ to, label }) {
-  return <Link to={to} className="ui-card px-4 py-3 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-soft)]">{label} →</Link>;
+  return (
+    <Link to={to} className="rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-sm font-semibold text-[var(--color-primary)] shadow-sm transition hover:bg-[var(--kpi-primary-soft)]">
+      {label} →
+    </Link>
+  );
 }

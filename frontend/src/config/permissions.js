@@ -16,7 +16,7 @@ export const ROLES = [
 export const MODULES = [
   "dashboard", "masters", "production", "inventory", "procurement", "hr", "attendance",
   "sales", "accounts", "quality", "maintenance", "analytics", "alerts", "admin",
-  "documents", "documents_ops", "factoryMonitor", "iot", "settings",
+  "documents", "documents_ops", "factoryMonitor", "iot", "settings", "meetings",
 ];
 
 /** Static fallback matrix — API permissions take precedence when present. */
@@ -25,14 +25,14 @@ export const ROLE_PERMISSIONS = {
   admin: MODULES,
   "Production Manager": [
     "dashboard", "production", "quality", "analytics", "factoryMonitor", "alerts", "documents",
-    "masters", "inventory", "maintenance", "procurement", "settings", "iot", "sales", "accounts",
+    "masters", "inventory", "maintenance", "procurement", "settings", "iot", "sales", "accounts", "meetings",
   ],
   production_manager: [
     "dashboard", "production", "quality", "analytics", "factoryMonitor", "alerts", "documents",
-    "masters", "inventory", "maintenance", "procurement", "settings", "iot", "sales", "accounts",
+    "masters", "inventory", "maintenance", "procurement", "settings", "iot", "sales", "accounts", "meetings",
   ],
-  "Sales Manager": ["dashboard", "sales", "masters", "alerts", "documents", "analytics"],
-  sales_manager: ["dashboard", "sales", "masters", "alerts", "documents", "analytics"],
+  "Sales Manager": ["dashboard", "sales", "masters", "alerts", "documents", "analytics", "meetings"],
+  sales_manager: ["dashboard", "sales", "masters", "alerts", "documents", "analytics", "meetings"],
   "Store Manager": [
     "dashboard", "inventory", "procurement", "masters", "alerts", "documents", "settings",
   ],
@@ -51,10 +51,10 @@ export const ROLE_PERMISSIONS = {
   procurement_manager: [
     "dashboard", "procurement", "inventory", "masters", "accounts", "alerts", "documents", "analytics",
   ],
-  "HR Manager": ["dashboard", "hr", "attendance", "analytics", "alerts", "documents", "masters"],
-  hr_manager: ["dashboard", "hr", "attendance", "analytics", "alerts", "documents", "masters"],
-  Accountant: ["dashboard", "accounts", "sales", "documents", "analytics", "alerts", "masters"],
-  accountant: ["dashboard", "accounts", "sales", "documents", "analytics", "alerts", "masters"],
+  "HR Manager": ["dashboard", "hr", "attendance", "analytics", "alerts", "documents", "masters", "meetings"],
+  hr_manager: ["dashboard", "hr", "attendance", "analytics", "alerts", "documents", "masters", "meetings"],
+  Accountant: ["dashboard", "accounts", "sales", "documents", "analytics", "alerts", "masters", "meetings"],
+  accountant: ["dashboard", "accounts", "sales", "documents", "analytics", "alerts", "masters", "meetings"],
   Operator: [
     "dashboard", "production", "factoryMonitor", "attendance", "documents", "alerts",
     "quality", "maintenance", "inventory",
@@ -122,11 +122,13 @@ export const ROUTE_MODULES = {
   "/finance": "accounts",
   "/quality": "quality",
   "/maintenance": "maintenance",
+  "/maintenance/equipment": "maintenance",
   "/analytics": "analytics",
   "/alerts": "alerts",
   "/admin": "admin",
   "/settings": "settings",
   "/documents": "documents",
+  "/meetings": "meetings",
   "/factory-monitor": "factoryMonitor",
   "/iot": "iot",
 };

@@ -5,6 +5,7 @@ import { ArrowLeft, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Plus, 
 
 import { useToast } from "../../context/ToastContext";
 import { getReportView } from "../../data/reportViews";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import BulkExportReportV2 from "./BulkExportReportV2";
 
 const PAGE_BG = "var(--color-bg)";
@@ -337,6 +338,7 @@ export default function ReportViewerV2({ reportId }) {
   const columns =
     activeTabConfig?.columns ||
     view?.columns || [{ key: "serial", label: "Serial No.", align: "left" }];
+  const dataColumns = columns.filter((col) => col.key !== "serial");
   const searchKeys = activeTabConfig?.searchKeys || view?.searchKeys || [];
   const shortTitle = view?.shortTitle || "Report";
   const title = activeTabConfig?.title || view?.title || "Report";
@@ -468,7 +470,8 @@ export default function ReportViewerV2({ reportId }) {
             <table className="min-w-full text-left">
               <thead>
                 <tr className="bg-[#f0f0f4] text-[12px] font-semibold text-[#6b6b76]">
-                  {columns.map((col) => (
+                  <SerialNumberHeader />
+                  {dataColumns.map((col) => (
                     <th
                       key={col.key}
                       className={`whitespace-nowrap px-5 py-3.5 font-semibold ${cellAlign(col.align)}`}
@@ -484,12 +487,13 @@ export default function ReportViewerV2({ reportId }) {
                     key={row.id || idx}
                     className="border-t border-[#ececf0] text-[13px] text-[#1a1a1f]"
                   >
-                    {columns.map((col) => (
+                    <SerialNumberCell rowIndex={idx} page={safePage} pageSize={pageSize} />
+                    {dataColumns.map((col) => (
                       <td
                         key={col.key}
                         className={`whitespace-nowrap px-5 py-3.5 ${cellAlign(col.align)}`}
                       >
-                        {col.key === "serial" ? start + idx + 1 : row[col.key]}
+                        {row[col.key]}
                       </td>
                     ))}
                   </tr>

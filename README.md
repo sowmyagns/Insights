@@ -1,10 +1,12 @@
 # Insights Iva
 
-**Insights Iva** is a full-stack manufacturing ERP and business intelligence platform. It unifies production, inventory, procurement, sales, finance/accounting, HR, quality, maintenance, alerts, documents, and analytics in a multi-tenant SaaS application.
+**Insights Iva** is a full-stack manufacturing ERP and business intelligence platform. It unifies production, inventory, procurement, sales, finance/accounting, HR, quality, maintenance, meetings (Google Calendar & Meet), alerts, documents, and analytics in a multi-tenant SaaS application.
 
 **Tagline:** Business Intelligence • Analytics • AI
 
 Security hardening (auth lockout, email verification, refresh tokens, RBAC, tenant isolation, headers) is documented in [SECURITY_REPORT.md](./SECURITY_REPORT.md). Architecture and recent UI/live-data analysis: [PROJECT_ANALYSIS_REPORT.md](./PROJECT_ANALYSIS_REPORT.md).
+
+**Latest stability pass (Aug 2026):** Full-stack audit — frontend build, Vitest, backend pytest (86 tests), and sidebar→route mapping (96 links, 0 broken). **HR module dashboards (Aug 2026):** mockup-aligned UI for HR Hub, Attendance, Leave, Payroll, Performance, Recruitment, Training, and HR Settings — see [HR & Employee Management](#hr--employee-management). See [Stability Audit & Validation](#stability-audit--validation-aug-2026) below.
 
 ## Branding & Assets
 
@@ -73,6 +75,22 @@ JS mirrors: `frontend/src/theme/colors.js`, `frontend/src/styles/theme.js`. Shar
 
 **Global search** (navbar): `GlobalSearch` — nested input wrapper (icon does not jump when results open), clear control, Escape / click-outside.
 
+#### Numeric typography
+
+Figures (KPI values, money, quantity columns) use a dedicated font token so amounts such as `₹ 3,24,50,600` stay legible and column-aligned.
+
+| Token / class | Applies to |
+|---------------|------------|
+| `--font-numeric` (IBM Plex Sans) | Digit-heavy text; falls back to Inter |
+| `.ui-kpi__value` | KPI card values — weight 600, tabular lining figures |
+| `.ui-num`, `.tabular-nums` | Table cells for money, quantity, codes |
+
+#### Shared table robustness
+
+`DataTable` and `Table` (`frontend/src/components/common/`) normalize their `data` prop with `asArray` (`frontend/src/utils/apiError.js`). A non-array API payload renders the empty state instead of throwing, so a single malformed response cannot blank out a list page. Page loaders should also pass list responses through `asArray` before `setState`.
+
+`StatusBadge` maps unknown tones to a safe default; valid tones are `success`, `info`, `progress`, `pending`, `primary`, `warning`, `danger`, `error`, `neutral`.
+
 ## Features
 
 ### Production Management
@@ -85,15 +103,32 @@ JS mirrors: `frontend/src/theme/colors.js`, `frontend/src/styles/theme.js`. Shar
 - Daily production reports
 
 ### Inventory & Raw Material Management
-- Store dashboard (`/inventory/dashboard`) with product search (stable icon, clear, empty state)
-- Raw materials & finished goods (`/inventory/raw-materials`, `/inventory/finished-goods`)
-- Stock transfer, adjustment, ledger, warehouses (`/inventory/warehouses`)
-- Inventory settings (`/inventory/settings`)
-- Low stock alerts; barcode scan/manual lookup; stock movements
-- Sidebar **Inventory** (`/inventory`) opens the products/items list UI (same component as Masters → Products, titled Inventory)
+
+Eight inventory screens share one layout language: page header with date + warehouse scope, KPI row, filter bar, then the main table or form.
+
+| Page | Route | Contents |
+|------|-------|----------|
+| Store Dashboard | `/inventory/dashboard` | 7 KPIs, stock-status donut, recent movements, low stock, recent transfers, quick actions |
+| Raw Materials | `/inventory/raw-materials` | 5 KPIs, search/filters, item table with stock status, View / Edit |
+| Finished Goods | `/inventory/finished-goods` | Same pattern as Raw Materials, FG SKUs |
+| Stock Transfer | `/inventory/stock-transfer` | 3-step form (Details → Items → Review) with summary panel, recent transfers |
+| Stock Adjustment | `/inventory/stock-adjustment` | 2-step form, increase/decrease with live `Current ± Adj = New` preview |
+| Stock Ledger | `/inventory/stock-ledger` | Date/item/warehouse/type filters, 5 KPIs, movement table, Excel export |
+| Warehouses | `/inventory/warehouses` | 5 KPIs, primary tag, location, utilization bar, create/edit/deactivate |
+| Inventory Settings | `/inventory/settings` | Tabbed sections: General, Stock Rules, Reorder, Warehouse, Adjustment, Transfer |
+
+- **Create Item** (`/inventory/items/create?type=raw_material|finished_good`) — tabbed form (Basic Information, Units & Pricing, Tax & Accounting, Inventory Details, Additional Information) with image upload preview and a sticky footer (Item is Active, Cancel, Save & Create Item). Posts to `POST /inventory/items`; presentation-only fields (HSN/SAC, brand, GST, MRP, min/max stock) are stored as description metadata since the item model does not have columns for them.
+- Sidebar label for `/inventory/dashboard` is **Store Dashboard**; the breadcrumb uses the same label.
+- Low stock alerts; barcode scan/manual lookup; stock movements.
+- Sidebar **Inventory** (`/inventory`) opens the products/items list UI (same component as Masters → Products, titled Inventory).
+
+**Preview data:** when a tenant has no records yet, these pages render mockup rows so the layout is reviewable. As soon as the API returns rows, live data replaces the preview — no toggle or seed step is needed.
+
+Inventory settings persist under the `inventory_settings` feature-settings key (`GET`/`PUT /biz/feature-settings/inventory_settings`); legacy keys are preserved when saving.
 
 ### Masters (Customers / Vendors / Products)
 - **Customers** (`/sales/customers`) — list, create/edit modal, export; bulk import at `/sales/customers/bulk-import`
+  - API validation on create/update: company name required (must include a letter), contact person optional with letter check, email format, 10-digit phone, uppercase GSTIN (15 chars)
 - **Vendors** (`/procurement/vendors`) — list, create/edit modal, export; full form at `/procurement/vendors/create`; bulk import at `/procurement/vendors/bulk-import`
 - **Products** (`/masters/products`) — list, create/edit modal; create form at `/masters/products/create`; bulk import at `/masters/products/bulk-import`
 - Deep-link create for customers: `/sales/customers/create` → opens the create modal on the list page
@@ -109,11 +144,26 @@ JS mirrors: `frontend/src/theme/colors.js`, `frontend/src/styles/theme.js`. Shar
 - Roles with vendor access/write: Admin, Purchase Manager, Procurement Manager, Store Manager (Production Manager may see write UI where permitted)
 
 ### HR & Employee Management
-- Worker attendance (clock in/out)
-- Shift management
-- Payroll
-- Overtime calculation
-- Performance tracking
+
+The HR sidebar is split into expandable sections (Attendance, Leave Management, Payroll, Performance, Recruitment, Training, Reports, HR Settings). Dashboard-style pages follow a shared layout: KPI cards, filters, Recharts widgets, data tables with `InventoryRowActionsMenu` (⋮), and a right-hand summary column where the mockup specifies it.
+
+| Page | Route | Highlights |
+|------|-------|------------|
+| HR Dashboard | `/hr` | KPIs, attendance bar chart, department donut, birthdays, recent joins, leave requests, quick links |
+| Attendance | `/hr/attendance` (+ daily, calendar, leave-summary, reports sub-routes) | KPIs, filters, donut summary, calendar, today’s overview, records table with S.No. |
+| Leave Management | `/hr/leave` | KPIs, tabs, filters, requests table, status donut, leave balance bars, upcoming holidays |
+| Payroll | `/hr/payroll` | KPIs, payroll runs table, recent payslips, summary donut, quick links, create payroll modal |
+| Performance | `/hr/performance` | Trend chart, rating distribution, top performers, recent reviews, insights, upcoming reviews |
+| Recruitment | `/hr/recruitment` | KPIs, funnel, job openings, recent applicants, source analytics donut |
+| Training | `/hr/training` | KPIs, overview donut, completion trend, categories, ongoing/upcoming programs, certifications |
+| HR Settings | `/hr/settings` | General settings form, system/security/privacy toggles, category sidebar |
+| Employees, Shifts, Documents | `/hr/employees`, `/hr/shifts`, `/hr/documents` | Existing CRUD/list flows |
+
+**Preview / merge pattern:** HR dashboard pages call live APIs (`hrApi.js`) when data exists. Empty or partial responses fall back to curated demo payloads in `frontend/src/data/hrMasterData.js` via `merge*Dashboard()` helpers (same approach as Quality Dashboard) — so layouts stay reviewable without seeding the database.
+
+**Accounts fix (related):** Chart of Accounts (`/accounts/chart-of-accounts`) dedupes duplicate GL rows at the API and UI layer; list fetches retry transient connection resets during backend hot-reload (`chartOfAccountsSync.js`).
+
+Core HR APIs remain under `/hr/` — employees, shifts, attendance (clock-in/out), leave, payroll, performance. Create flows: `/hr/employees/create`, `/hr/leave/create`, `/hr/payroll/create`, `/hr/performance/create`, etc.
 
 ### Sales & Billing Module
 - Tax invoices, quotations, payment receipts, refund vouchers, proforma / export invoices, delivery challans, credit & debit notes
@@ -123,6 +173,7 @@ JS mirrors: `frontend/src/theme/colors.js`, `frontend/src/styles/theme.js`. Shar
 
 ### Accounts & Reports
 - Ledger, expense, expense settings, chart of accounts, manual journal entries
+- Journal entries accept `ref`/`desc` or `reference`/`description` in the POST body; create returns **201 Created**
 - Balance sheet, profit & loss, accounting reports, restore deleted documents
 - Export to Excel / PDF where supported
 - Legacy finance views (AP/AR/payment tracking/general ledger) remain routed under `/finance/*` where applicable
@@ -161,6 +212,21 @@ JS mirrors: `frontend/src/theme/colors.js`, `frontend/src/styles/theme.js`. Shar
 - Paginated notification list with infinite scroll in the dropdown
 - Demo notifications seeded for each user on first backend start
 
+### Meetings & Google Calendar
+
+Google Calendar–style **Meetings** module with OAuth, event sync, and Google Meet link generation. Live data only — no fake calendar events or Meet URLs.
+
+| Page | Route | Contents |
+|------|-------|----------|
+| Meetings Calendar | `/meetings` | Week view (Google Calendar UI), mini calendar, Create dropdown (Event / Task / Appointment schedule), calendar filters, list toggle |
+| Meeting Details | `/meetings/:id` | Full details, Google Meet section, Join Meeting, Open in Google Calendar, Create Google Meet |
+
+**User flow:** Connect Google Calendar (sidebar) → OAuth consent → Create event with optional **Create Google Meet** → Calendar event + Meet link stored in SQLite → participant invites via Google Calendar → edit/delete syncs back to Google.
+
+**Security:** `GOOGLE_CLIENT_SECRET` and refresh tokens stay on the backend only. The React app never receives OAuth secrets or refresh tokens.
+
+See [Meetings & Google Calendar Integration](#meetings--google-calendar-integration) for setup and API details.
+
 ### Multi-Language Support
 - **Languages:** English, Hindi (हिन्दी), Tamil (தமிழ்), Telugu (తెలుగు)
 - Language selector in top navigation bar
@@ -180,7 +246,7 @@ Dashboard → Production Module → **Create Work Order** (3 fields: Product, Qu
 - **Quick Create Work Order:** Dashboard → Click "Create Work Order" → Fill 3 fields → Save → Done ✅
 
 ### 3. Inventory
-Store Dashboard / Raw Materials / Finished Goods → Stock movements → Low Stock Alert → Reorder. Products list also available under Masters → Products and sidebar Inventory (`/inventory`).
+Store Dashboard → Raw Materials / Finished Goods → **Add Raw Material / Add Finished Good** (Create Item form) → Stock Transfer or Adjustment → Stock Ledger for the audit trail → Low Stock Alert → Reorder. Products list also available under Masters → Products and sidebar Inventory (`/inventory`).
 
 ### 3b. Vendor Master (Procurement)
 Vendors → Create Vendor (modal or `/procurement/vendors/create`) → Fill company & contact → Optional bank verify → Save → Detail / PO. Bulk import: `/procurement/vendors/bulk-import`.
@@ -189,7 +255,7 @@ Vendors → Create Vendor (modal or `/procurement/vendors/create`) → Fill comp
 Customers (create modal or `/sales/customers/create`) → Invoice / Quotation / Receipt flows → Receive payment. Bulk buyers: `/sales/customers/bulk-import`.
 
 ### 5. HR (Employee)
-Add Employee → Assign Role → Track Attendance → Calculate Payroll → Generate Salary Report
+HR Dashboard → Attendance / Leave / Payroll / Performance modules → Create employee or leave/payroll/review as needed → Track attendance → Process payroll → View reports under HR Reports. Settings at `/hr/settings`.
 
 ### 6. Machine Monitoring
 Add Machine → Track Status → Detect Issue → Create Maintenance Task → Fix Machine → Update Status
@@ -199,6 +265,179 @@ Dashboard → Select Report → Apply Filters → View Data → Export (PDF/Exce
 
 ### 8. User / Admin
 Login → Admin Panel → Create User → Assign Role → Set Permissions
+
+### 9. Meetings & Google Calendar
+Meetings (`/meetings`) → **Connect Google Calendar** (OAuth) → **Create → Event** → Set date, time, participants, enable **Create Google Meet** → Save → Event appears on week grid + Google Calendar → **Join Meeting** or **Open in Google Calendar** from details. Edit or delete updates/cancels the linked Google event when connected.
+
+## Meetings & Google Calendar Integration
+
+Enterprise meetings with **Google OAuth**, **Calendar API** event sync, and **Google Meet** conference links. Tokens are stored server-side per user (`google_calendar_credentials`); meetings store linked event IDs and Meet URLs (`meetings` table).
+
+### Architecture
+
+```
+React (MeetingsCalendarView) → meetingsApi.js → FastAPI (/meetings, /integrations/google/calendar)
+  → meeting_service.py / google_calendar_service.py → Google Calendar API → SQLite
+```
+
+| Layer | Location |
+|-------|----------|
+| Models | `backend/app/models/meeting.py` — `Meeting`, `MeetingParticipant`, `GoogleCalendarCredential` |
+| Schemas | `backend/app/schemas/meeting.py` |
+| Services | `backend/app/services/meeting_service.py`, `google_calendar_service.py` |
+| API | `backend/app/api/meetings.py` |
+| Migration | `backend/alembic/versions/a1b2c3d4e5f6_add_meetings_google_calendar.py` |
+| Frontend pages | `frontend/src/pages/meetings/MeetingsList.jsx`, `MeetingDetail.jsx` |
+| Frontend components | `MeetingsCalendarView`, `CreateDropdown`, `MeetingFormModal`, `GoogleCalendarSetupPanel` |
+| Frontend API | `frontend/src/api/meetingsApi.js` |
+| RBAC module | `meetings` — Admin, Sales Manager, Production Manager, HR Manager, Accountant |
+
+### Database
+
+**`meetings`**
+
+| Column | Notes |
+|--------|-------|
+| `title`, `meeting_type`, `meeting_date`, `start_time`, `end_time`, `timezone` | Core scheduling |
+| `organizer`, `location`, `agenda`, `description`, `reminder_minutes` | Metadata |
+| `create_google_meet_requested` | Whether Meet was requested at creation |
+| `status` | e.g. `scheduled`, `cancelled` |
+| `google_calendar_event_id` | Google event ID (internal sync) |
+| `google_calendar_event_url` | `htmlLink` for Open in Calendar |
+| `google_meet_url` | Join URL (never hardcoded) |
+| `google_conference_id` | Internal only; not shown in UI |
+| `google_meet_status` | `available`, `pending`, `failed` |
+
+**`meeting_participants`** — `meeting_id`, `email` (unique per meeting)
+
+**`google_calendar_credentials`** — per `tenant_id` + `user_id`: encrypted-at-rest pattern via server-only storage of `access_token`, `refresh_token`, `token_expiry`, `google_account_email`
+
+### Google Cloud setup (required once)
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/) → create or select a project.
+2. Enable **[Google Calendar API](https://console.cloud.google.com/apis/library/calendar-json.googleapis.com)**.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID → Web application**.
+4. Add **Authorized redirect URI** (must match exactly):
+
+   ```text
+   http://localhost:8000/integrations/google/calendar/callback
+   ```
+
+   For production, use your backend URL, e.g. `https://api.yourdomain.com/integrations/google/calendar/callback`.
+
+5. Copy **Client ID** and **Client secret** into `backend/.env` (see below).
+6. If using **Google Workspace**, ensure OAuth consent screen is configured and test users are added while the app is in testing mode.
+
+### Backend environment variables
+
+Add to `backend/.env` (see also `backend/.env.example`):
+
+```env
+# Google Calendar + Google Meet
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_OAUTH_REDIRECT_URI=http://localhost:8000/integrations/google/calendar/callback
+GOOGLE_CALENDAR_DEFAULT_TIMEZONE=Asia/Kolkata
+FRONTEND_BASE_URL=http://localhost:5173
+```
+
+| Variable | Purpose |
+|----------|---------|
+| `GOOGLE_CLIENT_ID` | OAuth web client ID |
+| `GOOGLE_CLIENT_SECRET` | OAuth client secret (**never** expose to frontend) |
+| `GOOGLE_OAUTH_REDIRECT_URI` | Must match Google Console redirect URI |
+| `GOOGLE_CALENDAR_DEFAULT_TIMEZONE` | Default IANA timezone for new events |
+| `FRONTEND_BASE_URL` | OAuth callback redirects here after connect |
+
+**Python packages** (included in `requirements.txt`):
+
+```text
+google-auth
+google-auth-oauthlib
+google-api-python-client
+```
+
+Install: `pip install -r requirements.txt`
+
+Apply migration (optional if `create_all` already ran):
+
+```bash
+cd backend
+alembic upgrade head
+```
+
+Restart the backend after changing `.env`.
+
+### API endpoints
+
+All meeting routes require JWT and the `meetings` module permission.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/meetings` | List meetings + Google connection status |
+| `POST` | `/meetings` | Create meeting; syncs to Google Calendar when connected |
+| `GET` | `/meetings/{id}` | Meeting details |
+| `PUT` | `/meetings/{id}` | Update meeting + linked Google event |
+| `DELETE` | `/meetings/{id}` | Delete meeting + cancel Google event |
+| `POST` | `/meetings/{id}/google-meet` | Add Meet link to existing calendar event |
+
+**Google integration**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/integrations/google/calendar/status` | Connected?, account email, configured?, redirect URI |
+| `GET` | `/integrations/google/calendar/connect` | Returns `{ authorization_url }` for OAuth |
+| `GET` | `/integrations/google/calendar/callback` | Google OAuth redirect (no JWT; uses signed `state`) |
+| `DELETE` | `/integrations/google/calendar/disconnect` | Revoke local tokens for current user |
+
+### OAuth flow
+
+1. User clicks **Connect** on `/meetings` → `GET /integrations/google/calendar/connect` → browser redirects to Google.
+2. User consents → Google redirects to backend callback with `code` + `state`.
+3. Backend exchanges code for tokens, stores refresh token server-side, redirects to `{FRONTEND_BASE_URL}/meetings?google_connected=1`.
+4. On failure: `?google_error=...` with a user-friendly message.
+
+Development uses `OAUTHLIB_INSECURE_TRANSPORT=1` automatically when `ENVIRONMENT=development` (localhost HTTP).
+
+### Create meeting with Google Meet
+
+When Google Calendar is connected and **Create Google Meet** is checked:
+
+1. Meeting row is saved locally.
+2. Google Calendar event is created on the user's **primary** calendar (`conferenceDataVersion=1`, unique `requestId` per event).
+3. Meet join URL and event `htmlLink` are stored on the meeting record.
+4. Attendee emails receive calendar invitations (`sendUpdates=all`).
+5. Duplicate participant emails are deduplicated before the API call.
+
+If Google is not connected, the meeting is still saved locally with a warning toast — no fake Meet links.
+
+### Frontend UI
+
+- **Week view** — Google Calendar–style grid with color-coded events by meeting type, current-time indicator, S.No. in list mode.
+- **Create dropdown** — Event, Task, Appointment schedule (same as Google Calendar Create menu).
+- **Setup panel** — Shown when OAuth is not configured; lists exact redirect URI and `.env` keys.
+- **Settings → Integrations** — Google Calendar & Meet status with link to `/meetings`.
+
+### Try it
+
+1. Complete [Google Cloud setup](#google-cloud-setup-required-once) and set `backend/.env`.
+2. Restart backend: `uvicorn app.main:app --reload --port 8000`
+3. Log in as a user with `meetings` permission (Admin, HR Manager, etc.).
+4. Open **Meetings** in the sidebar → **Connect** → sign in with Google.
+5. **Create → Event** → fill title, date/time, participants → enable **Create Google Meet** → **Create Event**.
+6. Confirm the event on the week grid, in Google Calendar, and **Join Meeting** on the detail page.
+
+### Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Connect button disabled | Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `backend/.env`; restart backend |
+| `redirect_uri_mismatch` | Redirect URI in Google Console must exactly match `GOOGLE_OAUTH_REDIRECT_URI` |
+| No refresh token | Revoke app at [Google Account permissions](https://myaccount.google.com/permissions) and connect again (`prompt=consent`) |
+| Meet link pending/failed | Ensure Calendar API is enabled; retry **Create Google Meet** on meeting details |
+| 503 on `/connect` | Install Google Python packages: `pip install -r requirements.txt` |
+
+Tests: `python -m pytest tests/test_meetings_api.py -q`
 
 ## Project Structure
 
@@ -211,9 +450,9 @@ Insights Iva/
 │   │   ├── models/              # SQLAlchemy: user, tenant, role, production, inventory, erp_notification, …
 │   │   ├── schemas/             # Pydantic request/response models
 │   │   ├── repositories/        # Data access layer (e.g. notification_repository)
-│   │   ├── services/            # Business logic layer
+│   │   ├── services/            # Business logic layer (incl. meeting_service, google_calendar_service)
 │   │   ├── routers/             # /api/notifications, /api/dashboard, /api/production, …
-│   │   └── api/                 # Legacy module routers: auth, sales, inventory, alerts, …
+│   │   └── api/                 # Legacy module routers: auth, sales, inventory, meetings, alerts, …
 │   ├── requirements.txt
 │   └── .env
 │
@@ -229,7 +468,7 @@ Insights Iva/
 │   │   ├── components/          # layout (Navbar, Sidebar), notifications, common (BrandLogo, ConfirmationDialog, …)
 │   │   ├── context/             # AuthContext, ToastContext, SettingsContext
 │   │   ├── hooks/               # useAuth, useNotifications
-│   │   ├── pages/               # auth, dashboard, production, inventory, procurement, sales, accounts, hr, quality, maintenance, analytics, alerts, admin, documents, settings
+│   │   ├── pages/               # auth, dashboard, production, inventory, procurement, sales, accounts, hr, meetings, quality, maintenance, analytics, alerts, admin, documents, settings
 │   │   └── routes/              # AppRoutes, lazyPages (code-split)
 │   ├── package.json
 │   └── .env
@@ -256,6 +495,7 @@ Insights Iva/
 | Notifications | routers/notifications_api.py | notification_management_service.py | erp_notification |
 | Admin | admin.py | admin_service.py | admin (AccessLog) |
 | Documents | documents.py | document_service.py | document |
+| Meetings | meetings.py | meeting_service.py, google_calendar_service.py | meeting (Meeting, MeetingParticipant, GoogleCalendarCredential) |
 
 ### Frontend Code Map
 
@@ -264,14 +504,15 @@ Insights Iva/
 | Auth | Login, Register | authApi, `BrandLogo`, `AuthSlider` |
 | Dashboard | Dashboard (KPIs, charts) | productionApi, inventoryApi, hrApi, analyticsApi, accountsApi |
 | Production | Planning, MRP, WorkOrders, JobCard, BatchTracking, MachineStatus, DailyReports, CreateProduction, CreateMachine | productionApi |
-| Inventory | Dashboard (product search), RawMaterials, FinishedGoods, Warehouses, Stock*, CreateItem | inventoryApi |
+| Inventory | InventoryDashboard, RawMaterials, FinishedGoods, StockTransfer, StockAdjustment, StockLedger, Warehouses, InventorySettingsV2, CreateItem | inventoryApi, bizDocumentsApi (settings) |
 | Masters | Customers, BulkImportBuyer; VendorManagement, BulkImportSeller, CreateVendor, VendorDetail; ProductsMaster, BulkImportProduct, CreateProduct; BomMaster, DepartmentManagement | salesApi, procurementApi, productsApi |
 | Procurement / Purchases | PurchaseOrders, MaterialRequests, GoodsReceipt, SupplierPayments; Purchases, PaymentsMade, DebitNotes (+ create pages) | procurementApi, bizDocumentsApi |
 | Sales | Invoices, Quotations, PaymentReceipts, Customers, document forms | salesApi |
 | Accounts | Ledger, Expense, ChartOfAccounts, ManualJournal, BalanceSheet, ProfitLoss, Reports | accountsApi |
-| HR | HRDashboard, Attendance, Shifts, Payroll, Performance, Employees + create pages | hrApi |
+| HR | HRDashboard, Attendance, Leave, Payroll, Performance, Recruitment, Training, HRSettings, Shifts, Employees + create pages | hrApi |
 | Quality, Maintenance, Analytics, Alerts | Inspection, Defects, BatchReports, Compliance; MachineMaintenance, Preventive, Breakdowns, Schedule; Production/Machine/Inventory/Profit analytics; AllAlerts, LowStock, etc. | quality/maintenance/analytics/alert APIs |
 | Admin, Documents, Settings | UserManagement, RolesPermissions, AccessLogs; Purchase/Production/Quality/Reports docs; Settings sub-pages | adminApi, document APIs |
+| Meetings | MeetingsList (calendar week view), MeetingDetail; CreateDropdown, GoogleCalendarSetupPanel | meetingsApi |
 | Notifications (navbar bell) | NotificationBell, NotificationDropdown, NotificationItem | notificationService |
 
 ## Notification Management System
@@ -453,6 +694,13 @@ Create `backend/.env` (optional):
 
 ```env
 DATABASE_URL=sqlite:///./smrt.db
+FRONTEND_BASE_URL=http://localhost:5173
+
+# Google Calendar + Meet (Meetings module) — see Meetings section
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_OAUTH_REDIRECT_URI=http://localhost:8000/integrations/google/calendar/callback
+GOOGLE_CALENDAR_DEFAULT_TIMEZONE=Asia/Kolkata
 ```
 
 No extra database server is required. The SQLite file `backend/smrt.db` is created automatically on first backend start.
@@ -575,12 +823,14 @@ CORS_ORIGINS=http://localhost:5173
 3. **Notifications:** Click the bell icon (🔔) in the top bar to view in-app notifications. Unread items are highlighted; opening one marks it read and updates the badge without refreshing the page.
 4. **Dashboard:** View production, inventory, HR, and machine status summaries. Use the top **search** bar to jump to pages.
 5. **Production:** Create production orders, work orders, machines; open **Job Card** for shop-floor workflow views; track batches and daily reports. Tables support search, sorting, pagination.
-6. **Inventory / Materials:** Store dashboard (product search), raw materials, finished goods, warehouses, stock movements; products also under Masters → Products.
+6. **Inventory / Materials:** Store Dashboard, raw materials, finished goods, stock transfer, adjustment, ledger, warehouses, and inventory settings. Create stock items with **Add Raw Material** / **Add Finished Good** on the list pages (or **Add Item** from the dashboard quick actions); products are also available under Masters → Products.
 7. **Masters:** Customers, Vendors, Products — create/edit via modals; bulk import pages for each.
 8. **Purchases / Procurement:** Purchases, payments made, debit notes, Vendor Master, purchase orders, material requests, GRN, supplier payments.
 9. **Sales:** Invoices, quotations, payment receipts, and related sales documents.
-10. **Accounts:** Ledger, expenses, chart of accounts, journals, P&L, balance sheet, reports.
-11. **Settings:** Theme, language, company profile, invoice/format/template/sector/sequence settings where enabled.
+10. **HR:** Dashboard, attendance, leave, payroll, performance, recruitment, training, employees, shifts; HR Settings at `/hr/settings`.
+11. **Accounts:** Ledger, expenses, chart of accounts, journals, P&L, balance sheet, reports.
+12. **Meetings:** Open `/meetings` → connect Google Calendar → create events with optional Google Meet → join from detail page or week grid.
+13. **Settings:** Theme, language, company profile, invoice/format/template/sector/sequence settings where enabled; **Integrations** shows Google Calendar status.
 
 ## API Overview
 
@@ -589,8 +839,9 @@ CORS_ORIGINS=http://localhost:5173
 | `/auth/` | `POST /login`, `POST /register`, `POST /refresh`, `POST /logout`, verify-email, forgot/reset-password |
 | `/production/` | products, orders, work-orders, **job-cards** (list/detail), batches, machines, machine-status, daily-reports, MRP-related endpoints as exposed |
 | `/inventory/` | warehouses, suppliers, items, items/barcode/{barcode}, dashboard, stock-levels, stock-movements |
+| `/biz/feature-settings/{key}` | Per-tenant module settings (`GET`/`PUT`), e.g. `inventory_settings` |
 | `/procurement/` | purchase-orders, **vendors** (CRUD, soft-delete, bulk-status, summary, export, purchase-history, products, bank-lookup), material-requests, goods-receipt, supplier-payments |
-| `/hr/` | dashboard, employees, shifts, attendance (clock-in, clock-out), payroll, performance |
+| `/hr/` | dashboard, employees, shifts, attendance (clock-in, clock-out), leave, payroll, performance; UI routes also include `/hr/recruitment`, `/hr/training`, `/hr/settings` |
 | `/sales/` | customers, sales-orders, invoices, invoices/{id}, payments |
 | `/accounts/` | ledger/accounting APIs as exposed by accounts router; income/expenses where enabled |
 | `/analytics/` | production-trend, machine-efficiency, inventory-turnover, worker-performance, profit, dashboard |
@@ -601,8 +852,88 @@ CORS_ORIGINS=http://localhost:5173
 | `/admin/` | users, users/stats, roles, permissions/modules, access-logs (Admin JWT) |
 | `/api/settings/` | users, roles, permissions, audit-logs (Admin JWT, envelope) |
 | `/documents/` | list, create |
+| `/meetings/` | list, create, get, update, delete; `POST /{id}/google-meet` |
+| `/integrations/google/calendar/` | status, connect, callback, disconnect |
 
 All list endpoints accept `tenant_id` as a query parameter (default: 1 for demo). Full docs: http://localhost:8000/docs
+
+---
+
+## Stability Audit & Validation (Aug 2026)
+
+End-to-end audit across frontend routes, sidebar navigation, API integration, RBAC, and automated tests. Subsequent **HR UI pass (15 Aug 2026)** added mockup-aligned dashboards without changing database schema.
+
+### Verification summary
+
+| Check | Command / scope | Result |
+|-------|-----------------|--------|
+| Frontend production build | `npm run build` | Pass (incl. HR dashboard pages) |
+| Frontend unit tests | `npm test` (Vitest, 28 tests) | Pass |
+| Backend API tests | `pytest` (86 tests) | Pass |
+| Sidebar → route mapping | 96+ sidebar links vs `AppRoutes` | **0 unmatched** (incl. `/hr/settings`, recruitment, training) |
+| Backend route registration | `app.main` import | ~650 routes |
+
+### Navigation coverage
+
+All sidebar entries in `frontend/src/config/sidebarNav.js` resolve to registered routes, including:
+
+- **Masters** — Customers, Vendors, Products
+- **Inventory** — Store Dashboard, Raw Materials, Finished Goods, Transfer, Adjustment, Ledger, Warehouses, Settings (`/inventory` → products list UI)
+- **Production** — Planning, MRP, Work Orders, Job Card, Schedule, Machine Allocation, Daily Reports
+- **Purchases & Sales** — Purchase flows, invoices, quotations, e-Invoice, E-Waybill login, digital signature
+- **HR** — Hub, Attendance, Leave, Payroll, Performance, Recruitment, Training, Reports, Settings (`/hr/settings`); candidates/interviews and training sessions remain placeholders on sub-routes
+- **Meetings** — `/meetings` (Google Calendar week view + list), `/meetings/:id` (details, Join Meet, Open Calendar)
+
+Legacy redirects remain (e.g. `/inventory/items` → `/inventory/raw-materials`, `/settings/expense-settings` → `/accounts/expenses/settings`).
+
+### Backend fixes applied
+
+| Area | File | Change |
+|------|------|--------|
+| Customer validation | `backend/app/schemas/sales.py` | Name, contact, email, 10-digit phone, GSTIN validators on create/update |
+| Journal entries | `backend/app/schemas/accounts.py` | Map `reference`/`description` → `ref`/`desc` before persist |
+| RBAC permissions | `backend/app/core/permissions.py` | Roles with explicit `permissions` JSON use only those values; empty list falls back to `PERMISSION_MATRIX` |
+| Chart of Accounts | `backend/app/api/accounts.py`, `frontend/src/api/chartOfAccountsSync.js` | Dedupe duplicate GL account codes per tenant; transient retry on list fetch |
+| HR RBAC menu | `backend/app/core/rbac_constants.py`, `frontend/src/config/sidebarNav.js` | Expanded HR sidebar sections aligned with new dashboard routes |
+
+### Global refresh UX
+
+The bottom-right **Refresh** control (`GlobalRefreshButton`) re-fetches registered page loaders via `usePageRefresh` — no full browser reload. While refreshing: spinner, disabled button, cache-bust on GETs; on success: brief “Updated just now” message.
+
+### Run tests locally
+
+```bash
+# Backend (from backend/ with venv active)
+python -m pytest -q
+
+# Frontend (from frontend/)
+npm test
+npm run build
+```
+
+### HR dashboard pass (15 Aug 2026)
+
+| Page | Key files |
+|------|-----------|
+| HR Hub | `frontend/src/pages/hr/HRDashboard.jsx`, `hrMasterData.js` (`mergeHrHub`) |
+| Attendance | `frontend/src/pages/hr/Attendance.jsx`, `mergeAttendanceDashboard()` |
+| Leave | `frontend/src/pages/hr/Leave.jsx`, `mergeLeaveDashboard()` |
+| Payroll | `frontend/src/pages/hr/Payroll.jsx`, `mergePayrollDashboard()` |
+| Performance | `frontend/src/pages/hr/Performance.jsx`, `mergePerformanceDashboard()` |
+| Recruitment | `frontend/src/pages/hr/Recruitment.jsx`, `DEMO_RECRUITMENT_DASHBOARD` |
+| Training | `frontend/src/pages/hr/Training.jsx`, `DEMO_TRAINING_DASHBOARD` |
+| HR Settings | `frontend/src/pages/hr/HRSettings.jsx` (client-side form; no persist API yet) |
+
+Shared UX: purple accent (`#6366f1`), KPI cards, Recharts donuts/line/area charts, `SerialNumberCell`, row actions via `InventoryRowActionsMenu`, `usePageRefresh` on all dashboard pages.
+
+### Known limitations (not bugs)
+
+- **E-Invoice / E-Waybill / Digital Signature** — UI routes exist; live submission requires user-configured external portal credentials.
+- **Settings → Alerts feedback link** — placeholder `href="#"` until a feedback URL or form is configured.
+- **Vite bundle size** — `export-libs` chunk may exceed 900 kB; optional future code-splitting only.
+- **HR demo fallbacks** — Dashboard pages show `hrMasterData.js` preview when APIs return empty; live data replaces preview automatically when records exist.
+- **HR Settings** — UI-only; Save/Reset toasts do not persist to backend yet. Two-factor toggle is not enforced by auth.
+- **Recruitment / Training sub-routes** — `/hr/recruitment/candidates`, `/hr/training/sessions`, and some Performance/Leave/Payroll secondary tabs are placeholders.
 
 ---
 

@@ -1,11 +1,24 @@
 import { useEffect, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { createPortal } from "react-dom";
-import { Calendar, FileDown, FileText, Info, X } from "lucide-react";
+import { Calendar, FileDown, FileText, IndianRupee, Info, TrendingDown, TrendingUp, X } from "lucide-react";
 
-import { getProfitLossExtended, getExtendedReports } from "../../api/accountsApi";
+import { getProfitLossExtended } from "../../api/accountsApi";
 import { REPORT_TYPES, addAccountingReport } from "../../data/accountingReports";
 import { useToast } from "../../context/ToastContext";
+import {
+  AccountsPageShell,
+  AccountsCard,
+  AccountsKpiCard,
+  accountsKpiEntry,
+  formatAccountsInr,
+  AccountsPrimaryButton,
+  AccountsBlueButton,
+  AccountsOutlineButton,
+  AccountsSecondaryButton,
+  Loader,
+  ACCOUNTS_TEXT,
+} from "../../components/accounts/accountsDesignSystem";
 
 /* ─── exact structure from the image ─────────────────────────────────────── */
 
@@ -224,15 +237,13 @@ function GenerateModal({ open, onClose, onGenerate, defaultFrom, defaultTo }) {
           </div>
         </div>
         <div className="flex items-center justify-end gap-2 px-5 py-4">
-          <button type="button" onClick={onClose}
-            className="rounded-lg border border-[#d0d0d8] bg-white px-4 py-2.5 text-[14px] font-medium text-[#1a1a1f] hover:bg-[#f0f0f4]">
-            Cancel
-          </button>
-          <button type="button" onClick={() => onGenerate({ reportName: reportName.trim(), from, to })}
-            style={{ background: "var(--color-cta)" }}
-            className="rounded-lg px-4 py-2.5 text-[14px] font-bold text-[#1a1a1f]">
+          <AccountsSecondaryButton type="button" onClick={onClose}>Cancel</AccountsSecondaryButton>
+          <AccountsPrimaryButton
+            type="button"
+            onClick={() => onGenerate({ reportName: reportName.trim(), from, to })}
+          >
             Generate Report
-          </button>
+          </AccountsPrimaryButton>
         </div>
       </div>
     </div>,
@@ -374,6 +385,20 @@ export default function ProfitLossV2() {
 
   const fyRange  = `${shortDate(fyStart(asOf))} to ${shortDate(asOf)}`;
 
+  const totalRevenue  = amtMap.total_revenue || 0;
+  const totalExpenses = amtMap.total_expenses || 0;
+  const grossProfit   = amtMap.gross_profit || 0;
+  const netProfit     = amtMap.net_profit || 0;
+  const netLabel      = netProfit < 0 ? "Net Loss" : "Net Profit";
+  const netValueColor = netProfit < 0 ? "#DC2626" : "#059669";
+
+  const kpiCards = [
+    accountsKpiEntry("Total Revenue", formatAccountsInr(totalRevenue), fyRange, IndianRupee, "#EEF6FF", "#0B74D1"),
+    accountsKpiEntry("Total Expenses", formatAccountsInr(totalExpenses), null, TrendingDown, "#FFF1F2", "#DC2626", "#DC2626"),
+    accountsKpiEntry("Gross Profit", formatAccountsInr(grossProfit), null, TrendingUp, "#ECFDF5", "#059669", "#059669"),
+    accountsKpiEntry(netLabel, formatAccountsInr(Math.abs(netProfit)), null, IndianRupee, "#F2F0FF", "#6C4CFF", netValueColor),
+  ];
+
   /* ── CSV export ── */
   const exportCsv = () => {
     const rows = [["Particulars", "Sub Amount", "Group Total", "Particulars", "Sub Amount", "Group Total"]];
@@ -464,47 +489,40 @@ export default function ProfitLossV2() {
   }
 
   return (
-    <div style={{ background: "#fff", fontFamily: FONT, fontSize: 12, color: "#111",
-                  padding: "20px 24px 40px", minHeight: "100%", boxSizing: "border-box" }}>
-
-      {/* title + button */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-                    flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
-        <div>
-          <p style={{ fontSize: 12, color: "#555", margin: 0, padding: 0 }}>{fyRange}</p>
+    <AccountsPageShell>
+      <div className="mx-auto max-w-[1400px] space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[20px] font-bold" style={{ color: ACCOUNTS_TEXT }}>Profit &amp; Loss</h1>
+            <p className="mt-1 text-[13px] text-[#64748B]">{fyRange}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <AccountsBlueButton onClick={exportCsv}>
+              <FileDown className="h-4 w-4" /> CSV
+            </AccountsBlueButton>
+            <AccountsOutlineButton onClick={exportPdf}>
+              <FileText className="h-4 w-4" /> PDF
+            </AccountsOutlineButton>
+            <AccountsPrimaryButton onClick={() => setModalOpen(true)}>
+              <Calendar className="h-4 w-4" />
+              Select Date and Generate Report
+            </AccountsPrimaryButton>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={exportCsv}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6,
-                     background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 6,
-                     padding: "7px 14px", fontSize: 12, fontWeight: 700,
-                     color: "#1d4ed8", cursor: "pointer", fontFamily: FONT }}>
-            <FileDown size={14} /> CSV
-          </button>
-          <button onClick={exportPdf}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6,
-                     background: "#fff1f2", border: "1px solid #fecdd3", borderRadius: 6,
-                     padding: "7px 14px", fontSize: 12, fontWeight: 700,
-                     color: "#be123c", cursor: "pointer", fontFamily: FONT }}>
-            <FileText size={14} /> PDF
-          </button>
-          <button onClick={() => setModalOpen(true)}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6,
-                     background: "var(--color-cta)", border: "none", borderRadius: 6,
-                     padding: "7px 14px", fontSize: 12, fontWeight: 700,
-                     color: "#111", cursor: "pointer", fontFamily: FONT }}>
-            <Calendar size={13} />
-            Select Date and Generate Report
-          </button>
-        </div>
-      </div>
 
-      {loading ? (
-        <div style={{ textAlign: "center", padding: 40, color: "#888" }}>Loading…</div>
-      ) : (
-        <div style={{ overflowX: "auto", border: "1px solid #bbb", borderRadius: 4 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", borderSpacing: 0,
-                          fontSize: 12, fontFamily: FONT, tableLayout: "fixed" }}>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {kpiCards.map((k) => (
+            <AccountsKpiCard key={k.label} {...k} />
+          ))}
+        </div>
+
+        <AccountsCard>
+          {loading ? (
+            <Loader label="Loading profit & loss…" />
+          ) : (
+            <div style={{ overflowX: "auto", fontFamily: FONT, fontSize: 12, color: "#111" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", borderSpacing: 0,
+                              fontSize: 12, fontFamily: FONT, tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: "26%" }} />{/* left label */}
               <col style={{ width: "12%" }} />{/* left sub-amt */}
@@ -576,19 +594,18 @@ export default function ProfitLossV2() {
               })()}
             </tbody>
           </table>
-        </div>
-      )}
+            </div>
+          )}
+        </AccountsCard>
 
-
-      {/* refresh handled by GlobalRefreshButton */}
-
-      <GenerateModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onGenerate={handleGenerate}
-        defaultFrom={fyStart(asOf)}
-        defaultTo={asOf}
-      />
-    </div>
+        <GenerateModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onGenerate={handleGenerate}
+          defaultFrom={fyStart(asOf)}
+          defaultTo={asOf}
+        />
+      </div>
+    </AccountsPageShell>
   );
 }

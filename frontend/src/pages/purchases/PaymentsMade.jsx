@@ -5,6 +5,7 @@ import { Calendar, ChevronLeft, ChevronRight, ListFilter, Plus, Receipt, Search 
 
 import Loader from "../../components/common/Loader";
 import Button from "../../components/common/Button";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import { useToast } from "../../context/ToastContext";
 import { deleteBizDocument, listBizDocuments } from "../../api/bizDocumentsApi";
 import { apiErrorMessage } from "../../utils/apiError";
@@ -295,6 +296,7 @@ export default function PaymentsMade() {
             <table className="min-w-full border-collapse text-left text-[13px]">
               <thead className="bg-[#efeaf8] text-[12px] font-semibold uppercase tracking-wide text-[#6b6b76]">
                 <tr>
+                  <SerialNumberHeader className="border-b border-r border-[#d0d0d8]" />
                   {[
                     "Receipt No.",
                     "Payment Date",
@@ -316,24 +318,22 @@ export default function PaymentsMade() {
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center">
+                    <td colSpan={8} className="px-4 py-16 text-center">
                       <Receipt className="mx-auto h-12 w-12 text-[#c4c4cc]" />
                       <p className="mt-3 text-[14px] text-[#6b6b76]">
                         No Payment available, Make a new payment
                       </p>
-                      <Button
-                        variant="primary"
-                        to="/purchases/payments-made/create"
-                        className="mt-4"
-                        leftIcon={<Plus className="h-4 w-4" />}
-                      >
-                        Make Payment
-                      </Button>
                     </td>
                   </tr>
                 ) : (
-                  pageRows.map((r) => (
+                  pageRows.map((r, rowIndex) => (
                     <tr key={r.id} className="hover:bg-[#fafafa]">
+                      <SerialNumberCell
+                        rowIndex={rowIndex}
+                        page={page}
+                        pageSize={pageSize}
+                        className="border-t border-r border-[#d0d0d8]"
+                      />
                       <td className="border-t border-r border-[#d0d0d8] px-4 py-3 font-semibold text-[#6b4eff]">
                         {r.receipt_number}
                       </td>

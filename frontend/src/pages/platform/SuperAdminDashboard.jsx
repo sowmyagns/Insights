@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Building2, Loader2, LogOut, PauseCircle, PlayCircle, Plus, Trash2, Users } from "lucide-react";
 
 import BrandLogo from "../../components/common/BrandLogo";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import PlatformProtectedRoute from "../../components/layout/PlatformProtectedRoute";
 import {
   activateCompany, clearPlatformSession, deleteCompany,
@@ -198,6 +199,7 @@ function SuperAdminDashboardContent() {
               <table className="ap-table">
                 <thead>
                   <tr>
+                    <SerialNumberHeader />
                     <th>Company ID</th>
                     <th>Company</th>
                     <th>Admin</th>
@@ -210,22 +212,23 @@ function SuperAdminDashboardContent() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="ap-loading">
+                      <td colSpan={8} className="ap-loading">
                         <Loader2 size={16} className="animate-spin" /> Loading companies…
                       </td>
                     </tr>
                   ) : companies.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="ap-empty">
+                      <td colSpan={8} className="ap-empty">
                         No companies yet. Create your first company.
                       </td>
                     </tr>
                   ) : (
-                    companies.map((c) => {
+                    companies.map((c, rowIndex) => {
                       const busy   = actionId === c.id;
                       const status = (c.status || "").toLowerCase();
                       return (
                         <tr key={c.id}>
+                          <SerialNumberCell rowIndex={rowIndex} />
                           <td style={{ fontFamily: "monospace", fontSize: "0.75rem" }}>
                             {c.company_code}
                           </td>

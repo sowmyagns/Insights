@@ -171,3 +171,94 @@ class SafetyIncident(Base, TimestampMixin):
     severity: Mapped[str] = mapped_column(String(32), default="Low", nullable=False)
     status: Mapped[str] = mapped_column(String(64), default="Open", nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
+
+
+class JobOpening(Base, TimestampMixin):
+    """Open job positions for recruitment."""
+    __tablename__ = "job_openings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    department: Mapped[str | None] = mapped_column(String(128))
+    openings_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="open", nullable=False)
+    location: Mapped[str | None] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(Text)
+
+    applicants = relationship(
+        "RecruitmentApplicant",
+        back_populates="job_opening",
+        cascade="all, delete-orphan",
+    )
+
+
+class RecruitmentApplicant(Base, TimestampMixin):
+    """Job applicants / candidates."""
+    __tablename__ = "recruitment_applicants"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id"), nullable=False, index=True
+    )
+    job_opening_id: Mapped[int | None] = mapped_column(
+        ForeignKey("job_openings.id", ondelete="CASCADE")
+    )
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255))
+    phone: Mapped[str | None] = mapped_column(String(64))
+    source: Mapped[str | None] = mapped_column(String(64))
+    stage: Mapped[str] = mapped_column(String(32), default="applied", nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="new", nullable=False)
+    applied_on: Mapped[date | None] = mapped_column(Date)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    job_opening = relationship("JobOpening", back_populates="applicants")
+
+
+class TrainingProgram(Base, TimestampMixin):
+    """Employee training program."""
+    __tablename__ = "training_programs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[str | None] = mapped_column(String(128))
+    trainer: Mapped[str | None] = mapped_column(String(255))
+    start_date: Mapped[date | None] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(32), default="not_started", nullable=False)
+    progress_pct: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+
+    enrollments = relationship(
+        "TrainingEnrollment",
+        back_populates="program",
+        cascade="all, delete-orphan",
+    )
+
+
+class TrainingEnrollment(Base, TimestampMixin):
+    """Employee enrollment in a training program."""
+    __tablename__ = "training_enrollments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id"), nullable=False, index=True
+    )
+    program_id: Mapped[int] = mapped_column(
+        ForeignKey("training_programs.id", ondelete="CASCADE"), nullable=False
+    )
+    employee_id: Mapped[int | None] = mapped_column(ForeignKey("employees.id"))
+    employee_name: Mapped[str | None] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(32), default="enrolled", nullable=False)
+    progress_pct: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    certified_at: Mapped[date | None] = mapped_column(Date)
+    certification_name: Mapped[str | None] = mapped_column(String(255))
+
+    program = relationship("TrainingProgram", back_populates="enrollments")
+    employee = relationship("Employee")

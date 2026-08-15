@@ -8,6 +8,7 @@ import {
 } from "recharts";
 
 import Loader from "../../components/common/Loader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import SkeletonCard, { SkeletonChart } from "../../components/common/SkeletonCard";
 import AnalyticsAlertsBanner from "../../components/analytics/AnalyticsAlertsBanner";
 import AnalyticsChartCard from "../../components/analytics/AnalyticsChartCard";
@@ -228,10 +229,16 @@ export default function InventoryAnalytics() {
             {rows?.length ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead><tr className="border-b text-slate-500">{cols.map((c) => <th key={c} className="pb-2 pr-3 capitalize">{c.replace("_", " ")}</th>)}</tr></thead>
+                  <thead>
+                    <tr className="border-b text-slate-500">
+                      <SerialNumberHeader className="pb-2" />
+                      {cols.map((c) => <th key={c} className="pb-2 pr-3 capitalize">{c.replace("_", " ")}</th>)}
+                    </tr>
+                  </thead>
                   <tbody>
                     {rows.map((r, i) => (
                       <tr key={i} className="border-b border-slate-100 dark:border-slate-700">
+                        <SerialNumberCell rowIndex={i} className="py-2" />
                         {cols.map((c) => <td key={c} className="py-2 pr-3">{c === "value" ? formatInr(r[c]) : r[c]}</td>)}
                       </tr>
                     ))}

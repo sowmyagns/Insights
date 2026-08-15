@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { columnsIncludeSerial } from "../../utils/serialNumber";
 
 function StatusBadge({ status }) {
   const val =
@@ -40,7 +41,15 @@ function StatusBadge({ status }) {
   return <span className={`ui-badge ui-badge--${tone}`}>{val}</span>;
 }
 
-export default function Table({ columns, data, emptyState, sortable, compact = false }) {
+export default function Table({
+  columns,
+  data,
+  emptyState,
+  sortable,
+  compact = false,
+  showSerialNumber = true,
+  serialOffset = 0,
+}) {
   const [sortKey, setSortKey] = useState(null);
   const [sortOrder, setSortOrder] = useState("asc");
 
@@ -54,7 +63,10 @@ export default function Table({ columns, data, emptyState, sortable, compact = f
     }
   };
 
-  let sortedData = [...(data || [])];
+  const rows = data || [];
+  const includeSerial = showSerialNumber && !columnsIncludeSerial(columns);
+
+  let sortedData = [...rows];
   if (sortKey && sortable) {
     sortedData.sort((a, b) => {
       let valA = a[sortKey];
@@ -87,21 +99,26 @@ export default function Table({ columns, data, emptyState, sortable, compact = f
     <div className="ui-table-wrap overflow-x-auto print:overflow-visible print:rounded-none print:border-none print:shadow-none">
       <table className="w-full border-collapse text-left text-[var(--text-sm)]">
         <thead>
-          <tr className={`border-b border-[var(--color-border-soft)] bg-[var(--color-surface-thead)] font-medium text-[var(--color-text-muted)]`}>
+          <tr className="border-b border-[var(--color-border-soft)] bg-[var(--color-surface-thead)] font-medium text-[var(--color-text-muted)]">
+            {includeSerial ? (
+              <th className="w-12 min-w-[3rem] px-2 py-3 text-center font-medium">S.No.</th>
+            ) : null}
             {columns.map((col) => {
               const isActionsCol = col.key === "actions" || col.printHidden;
               const align =
                 col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left";
+              const colClass = col.className || "";
               return (
                 <th
                   key={col.key}
-                  className={`${headerPadding} font-semibold ${align} ${
+                  className={`${headerPadding} font-semibold ${align} ${colClass} ${
                     isActionsCol ? "print:hidden" : ""
                   } ${
                     sortable && col.sortable !== false
                       ? "cursor-pointer select-none hover:bg-[var(--color-surface-hover)]"
                       : ""
                   }`}
+                  style={col.width ? { width: col.width, minWidth: col.minWidth } : col.minWidth ? { minWidth: col.minWidth } : undefined}
                   onClick={() => col.sortable !== false && sortable && handleSort(col.key)}
                 >
                   <span className="inline-flex items-center gap-1">{col.label}</span>
@@ -116,20 +133,27 @@ export default function Table({ columns, data, emptyState, sortable, compact = f
               key={row.id ?? idx}
               className="border-b border-[var(--color-border-muted)] text-[var(--color-text)] last:border-b-0 hover:bg-[var(--color-surface-muted)]/60 transition-colors"
             >
+              {includeSerial ? (
+                <td className="ui-num w-12 min-w-[3rem] px-2 py-3.5 text-center text-[var(--text-sm)] text-[var(--color-text-muted)]">
+                  {serialOffset + idx + 1}
+                </td>
+              ) : null}
               {columns.map((col) => {
                 const isActionsCol = col.key === "actions" || col.printHidden;
                 const align =
                   col.align === "right"
-                    ? "text-right tabular-nums"
+                    ? "ui-num text-right"
                     : col.align === "center"
                       ? "text-center"
                       : "";
+                const colClass = col.className || col.cellClassName || "";
                 return (
                   <td
                     key={col.key}
-                    className={`${cellPadding} ${align} ${
+                    className={`${cellPadding} ${align} ${colClass} ${
                       isActionsCol ? "print:hidden" : ""
                     }`}
+                    style={col.width ? { width: col.width, minWidth: col.minWidth } : col.minWidth ? { minWidth: col.minWidth } : undefined}
                   >
                     {col.render
                       ? col.render(row)

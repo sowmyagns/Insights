@@ -5,6 +5,7 @@ import { Calendar, ChevronLeft, ChevronRight, Filter, ListFilter, Plus, Search, 
 
 import Loader from "../../components/common/Loader";
 import Button from "../../components/common/Button";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import { useToast } from "../../context/ToastContext";
 import { deleteBizDocument, listBizDocuments } from "../../api/bizDocumentsApi";
 import { apiErrorMessage } from "../../utils/apiError";
@@ -164,34 +165,32 @@ export default function Purchases() {
   }
 
   return (
-    <div className="min-h-full" style={{ background: PAGE_BG }}>
-      <div className="flex items-center gap-3 p-4 sm:p-6">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="inline-flex items-center gap-2 rounded-lg border border-[#e4e4ea] bg-white px-3 py-2 text-[13px] text-[#4a4a55]">
-            <Calendar className="h-4 w-4 shrink-0 text-[#9a9aa5]" />
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="w-[118px] border-0 bg-transparent p-0 text-[13px] focus:outline-none"
-            />
-            <span className="text-[#9a9aa5]">→</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-[118px] border-0 bg-transparent p-0 text-[13px] focus:outline-none"
-            />
-          </div>
-          <Button
-            variant="primary"
-            to="/purchases/create"
-            leftIcon={<Plus className="h-4 w-4" strokeWidth={2.5} />}
-          >
-            Create New
-          </Button>
+    <div className="min-h-full bg-[#F5F5F5] p-4 sm:p-6">
+      <div className="mb-4 flex flex-wrap items-center gap-2.5">
+        <div className="inline-flex items-center gap-2 rounded-lg border border-[#e4e4ea] bg-white px-3 py-2 text-[13px] text-[#4a4a55]">
+          <Calendar className="h-4 w-4 shrink-0 text-[#9a9aa5]" />
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="w-[118px] border-0 bg-transparent p-0 text-[13px] focus:outline-none"
+          />
+          <span className="text-[#9a9aa5]">→</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="w-[118px] border-0 bg-transparent p-0 text-[13px] focus:outline-none"
+          />
         </div>
-        </div>
+        <Button
+          variant="primary"
+          to="/purchases/create"
+          leftIcon={<Plus className="h-4 w-4" strokeWidth={2.5} />}
+        >
+          Create New
+        </Button>
+      </div>
 
       <div className="rounded-t-2xl border border-[#e4e4ea] border-b-0 bg-white px-4 pb-6 pt-4 sm:px-6">
         <div className="mb-3 flex flex-col gap-3 border-b border-[#e4e4ea] pb-3 sm:flex-row sm:items-center sm:justify-between">
@@ -259,6 +258,7 @@ export default function Purchases() {
             <table className="min-w-full border-collapse text-left text-[13px]">
               <thead className="bg-[#efeaf8] text-[12px] font-semibold uppercase tracking-wide text-[#6b6b76]">
                 <tr>
+                  <SerialNumberHeader className="border-b border-r border-[#d0d0d8]" />
                   {[
                     "Purchase Invoice No.",
                     "Date",
@@ -279,24 +279,22 @@ export default function Purchases() {
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="border-t border-[#e4e4ea] px-4 py-16 text-center">
+                    <td colSpan={7} className="border-t border-[#e4e4ea] px-4 py-16 text-center">
                       <ShoppingCart className="mx-auto h-14 w-14 text-[#c4c4cc]" strokeWidth={1.25} />
                       <p className="mt-3 text-[14px] text-[#9a9aa5]">
                         No Purchase available, Create new Purchase
                       </p>
-                      <Button
-                        variant="primary"
-                        to="/purchases/create"
-                        className="mt-4"
-                        leftIcon={<Plus className="h-4 w-4" />}
-                      >
-                        Create New
-                      </Button>
                     </td>
                   </tr>
                 ) : (
-                  pageRows.map((r) => (
+                  pageRows.map((r, rowIndex) => (
                     <tr key={r.id} className="hover:bg-[#fafafa]">
+                      <SerialNumberCell
+                        rowIndex={rowIndex}
+                        page={page}
+                        pageSize={pageSize}
+                        className="border-t border-r border-[#d0d0d8]"
+                      />
                       <td className="border-t border-r border-[#d0d0d8] px-4 py-3 font-semibold text-[#6b4eff]">
                         {r.document_number}
                       </td>

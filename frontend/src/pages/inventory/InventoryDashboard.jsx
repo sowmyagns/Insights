@@ -14,7 +14,6 @@ import {
   PackageX,
   Pencil,
   Plus,
-  RefreshCw,
   Settings,
   Truck,
 } from "lucide-react";
@@ -23,6 +22,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import Button from "../../components/common/Button";
 import KpiCard from "../../components/common/KpiCard";
 import Loader from "../../components/common/Loader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import PageHeader from "../../components/common/PageHeader";
 import StatusBadge from "../../components/common/StatusBadge";
 import StoreManagerNav from "../../components/inventory/StoreManagerNav";
@@ -44,45 +44,6 @@ import {
   notifyManufacturingSpine,
 } from "../../utils/manufacturingEvents";
 import { asArray, apiErrorMessage } from "../../utils/apiError";
-
-/** Exact preview content from the Store Dashboard design mockup (used only when live data is empty). */
-const MOCKUP = {
-  totalItems: 1245,
-  stockValue: 4875320,
-  lowStock: 36,
-  outOfStock: 12,
-  stockInValue: 325600,
-  stockInTxns: 12,
-  stockOutValue: 214500,
-  stockOutTxns: 18,
-  pendingTransfers: 7,
-  status: {
-    inStock: 1056,
-    lowStock: 36,
-    outOfStock: 12,
-    inactive: 141,
-  },
-  movements: [
-    { id: "m1", date: "2026-08-13T16:30:00", type: "in", reference: "GRN-2026-0125", item: "PET Resin", warehouse: "Main Warehouse", qty: 500, unit: "KG", value: 45000 },
-    { id: "m2", date: "2026-08-13T15:10:00", type: "out", reference: "ISS-2026-0088", item: "HDPE Caps", warehouse: "Main Warehouse", qty: 2000, unit: "Nos", value: 12000 },
-    { id: "m3", date: "2026-08-13T14:05:00", type: "transfer", reference: "TRF-2026-0054", item: "Label Roll", warehouse: "Unit-2 Warehouse", qty: 40, unit: "Roll", value: 8600 },
-    { id: "m4", date: "2026-08-13T12:40:00", type: "adjustment", reference: "ADJ-2026-0019", item: "Carton Box", warehouse: "Main Warehouse", qty: 25, unit: "Nos", value: 1875 },
-    { id: "m5", date: "2026-08-13T11:20:00", type: "in", reference: "GRN-2026-0124", item: "PP Granules", warehouse: "Main Warehouse", qty: 750, unit: "KG", value: 67500 },
-  ],
-  lowStockItems: [
-    { id: "l1", name: "PET Preform 28mm", current: 0, unit: "Nos", reorder: 1000, status: "out_of_stock" },
-    { id: "l2", name: "Shrink Film", current: 48, unit: "KG", reorder: 200, status: "low_stock" },
-    { id: "l3", name: "Ink Cartridge Cyan", current: 2, unit: "Nos", reorder: 10, status: "low_stock" },
-    { id: "l4", name: "Corrugated Sheet", current: 0, unit: "Nos", reorder: 150, status: "out_of_stock" },
-    { id: "l5", name: "Silicone Lubricant", current: 6, unit: "Ltr", reorder: 25, status: "low_stock" },
-  ],
-  transfers: [
-    { id: "t1", reference: "TRF-2026-0054", from: "Main Warehouse", to: "Unit-2 Warehouse", status: "pending" },
-    { id: "t2", reference: "TRF-2026-0053", from: "Main Warehouse", to: "FG Store", status: "approved" },
-    { id: "t3", reference: "TRF-2026-0052", from: "RM Store", to: "Main Warehouse", status: "in_transit" },
-    { id: "t4", reference: "TRF-2026-0051", from: "Unit-2 Warehouse", to: "Main Warehouse", status: "completed" },
-  ],
-};
 
 const STATUS_COLORS = {
   in: "#22c55e",
@@ -354,14 +315,20 @@ export default function InventoryDashboard() {
     }
 
     return {
-      preview: true,
-      ...MOCKUP,
-      movements: MOCKUP.movements.map((m) => ({
-        ...m,
-        qtyIn: m.type === "in" || m.type === "adjustment" ? m.qty : 0,
-        qtyOut: m.type === "out" || m.type === "transfer" ? m.qty : 0,
-      })),
-      lowStockItems: MOCKUP.lowStockItems.map((i) => ({ ...i, live: false })),
+      preview: false,
+      totalItems: 0,
+      stockValue: 0,
+      lowStock: 0,
+      outOfStock: 0,
+      stockInValue: 0,
+      stockInTxns: 0,
+      stockOutValue: 0,
+      stockOutTxns: 0,
+      pendingTransfers: 0,
+      status: { inStock: 0, lowStock: 0, outOfStock: 0, inactive: 0 },
+      movements: [],
+      lowStockItems: [],
+      transfers: [],
     };
   }, [hasLiveData, dash, invItems, ledger, transfers, liveStockValue, liveStatus, selectedDate, whSummary]);
 
@@ -400,8 +367,8 @@ export default function InventoryDashboard() {
 
   const quickActions = [
     { label: "Add Item", to: "/inventory/items/create", icon: Plus, tone: "text-[#16a34a]" },
-    { label: "Stock Transfer", to: "/inventory/stock-transfer", icon: ArrowLeftRight, tone: "text-[#2563eb]" },
-    { label: "Stock Adjustment", to: "/inventory/stock-adjustment", icon: Pencil, tone: "text-[#f59e0b]" },
+    { label: "Stock Transfer", to: "/inventory/stock-transfer?new=1", icon: ArrowLeftRight, tone: "text-[#2563eb]" },
+    { label: "Stock Adjustment", to: "/inventory/stock-adjustment?new=1", icon: Pencil, tone: "text-[#f59e0b]" },
     { label: "GRN / Stock In", to: "/inventory/stock-in", icon: ArrowDownToLine, tone: "text-[#16a34a]" },
     { label: "Stock Out", to: "/inventory/issue-materials", icon: ArrowUpFromLine, tone: "text-[#ef4444]" },
     { label: "View Stock Ledger", to: "/inventory/stock-ledger", icon: BookOpen, tone: "text-[#7c3aed]" },
@@ -423,8 +390,6 @@ export default function InventoryDashboard() {
       <StoreManagerNav />
 
       <PageHeader
-        title="Store Dashboard"
-        showTitle
         subtitle="Overview of inventory and stock activities"
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -454,9 +419,6 @@ export default function InventoryDashboard() {
                 <option value="">Main Warehouse</option>
               )}
             </select>
-            <Button type="button" variant="secondary" size="sm" onClick={() => load(true)} aria-label="Refresh dashboard">
-              <RefreshCw className="h-4 w-4" />
-            </Button>
           </div>
         }
       />
@@ -472,9 +434,9 @@ export default function InventoryDashboard() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-12">
-        <section className="ui-card p-4 sm:p-5 xl:col-span-4">
+        <section className="ui-card min-w-0 overflow-hidden p-4 sm:p-5 xl:col-span-4">
           <h3 className="text-sm font-semibold text-[var(--color-text)]">Stock Status Overview</h3>
-          <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row xl:flex-col 2xl:flex-row">
+          <div className="mt-4 flex min-w-0 flex-col items-center gap-5 sm:flex-row xl:flex-col 2xl:flex-row">
             <div className="relative h-52 w-52 shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -493,14 +455,14 @@ export default function InventoryDashboard() {
                 <p className="mt-1 text-[11px] font-medium text-[var(--color-text-muted)]">Total Items</p>
               </div>
             </div>
-            <ul className="w-full flex-1 space-y-2.5 text-sm">
+            <ul className="min-w-0 w-full flex-1 space-y-2.5 text-sm">
               {statusSegments.map((s) => (
-                <li key={s.key} className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2.5 text-[var(--color-text-secondary)]">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />
-                    {s.name}
+                <li key={s.key} className="flex min-w-0 items-center justify-between gap-2">
+                  <span className="flex min-w-0 flex-1 items-center gap-2 text-[var(--color-text-secondary)]">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+                    <span className="truncate">{s.name}</span>
                   </span>
-                  <span className="tabular-nums text-[var(--color-text)]">
+                  <span className="shrink-0 tabular-nums text-[var(--color-text)]">
                     <span className="font-semibold">{s.value.toLocaleString("en-IN")}</span>
                     <span className="ml-1 text-[var(--color-text-muted)]">({s.pct}%)</span>
                   </span>
@@ -515,6 +477,7 @@ export default function InventoryDashboard() {
             <table className="min-w-full text-left text-[13px]">
               <thead className="bg-[var(--color-surface-muted)]/50 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                 <tr>
+                  <SerialNumberHeader />
                   <th className="whitespace-nowrap px-4 py-2.5">Date</th>
                   <th className="px-3 py-2.5">Type</th>
                   <th className="px-3 py-2.5">Reference No.</th>
@@ -530,6 +493,7 @@ export default function InventoryDashboard() {
                   const up = row.type === "in" || (row.qtyIn && !row.qtyOut);
                   return (
                     <tr key={row.id ?? `m-${idx}`} className="border-t border-[var(--color-border-soft)]">
+                      <SerialNumberCell rowIndex={idx} />
                       <td className="whitespace-nowrap px-4 py-2.5 text-[12px] text-[var(--color-text-secondary)]">{formatMovementDate(row.date)}</td>
                       <td className="px-3 py-2.5"><StatusBadge tone={meta.tone}>{meta.label}</StatusBadge></td>
                       <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-[var(--color-text-secondary)]">{row.reference}</td>
@@ -555,6 +519,7 @@ export default function InventoryDashboard() {
             <table className="min-w-full text-left text-[13px]">
               <thead className="bg-[var(--color-surface-muted)]/50 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                 <tr>
+                  <SerialNumberHeader />
                   <th className="px-4 py-2.5">Item</th>
                   <th className="px-3 py-2.5 text-right">Current Stock</th>
                   <th className="px-3 py-2.5 text-right">Reorder Level</th>
@@ -562,10 +527,11 @@ export default function InventoryDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {(view.lowStockItems || []).map((item) => {
+                {(view.lowStockItems || []).map((item, idx) => {
                   const out = item.status === "out_of_stock";
                   return (
                     <tr key={item.id} className="border-t border-[var(--color-border-soft)]">
+                      <SerialNumberCell rowIndex={idx} />
                       <td className="max-w-[150px] px-4 py-2.5">
                         <p className="truncate font-medium text-[var(--color-text)]">{item.name}</p>
                         {item.live && !isPM ? (
@@ -598,6 +564,7 @@ export default function InventoryDashboard() {
             <table className="min-w-full text-left text-[13px]">
               <thead className="bg-[var(--color-surface-muted)]/50 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                 <tr>
+                  <SerialNumberHeader />
                   <th className="px-4 py-2.5">Reference No.</th>
                   <th className="px-3 py-2.5">From</th>
                   <th className="px-3 py-2.5">To</th>
@@ -605,10 +572,11 @@ export default function InventoryDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {(view.transfers || []).map((t) => {
+                {(view.transfers || []).map((t, idx) => {
                   const st = String(t.status || "").toLowerCase();
                   return (
                     <tr key={t.id} className="border-t border-[var(--color-border-soft)]">
+                      <SerialNumberCell rowIndex={idx} />
                       <td className="px-4 py-2.5 font-medium tabular-nums text-[var(--color-text)]">{t.reference}</td>
                       <td className="max-w-[100px] truncate px-3 py-2.5 text-[var(--color-text-secondary)]">{t.from}</td>
                       <td className="max-w-[100px] truncate px-3 py-2.5 text-[var(--color-text-secondary)]">{t.to}</td>

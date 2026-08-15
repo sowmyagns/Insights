@@ -1,10 +1,10 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function Pagination({ page, totalPages, onPageChange }) {
+export default function Pagination({ page, totalPages, onPageChange, className = "" }) {
   if (totalPages <= 1) return null;
   return (
-    <div className="ui-pagination">
-      <span>
+    <div className={`ui-pagination justify-between w-full ${className}`.trim()}>
+      <span className="ui-num">
         Page {page} of {totalPages}
       </span>
       <div className="flex items-center gap-1">
@@ -17,7 +17,7 @@ export default function Pagination({ page, totalPages, onPageChange }) {
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <button type="button" className="ui-page-btn ui-page-btn--active" aria-current="page">
+        <button type="button" className="ui-page-btn ui-page-btn--active ui-num" aria-current="page">
           {page}
         </button>
         <button

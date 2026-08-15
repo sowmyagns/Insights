@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import Loader from "../../components/common/Loader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import EmptyState from "../../components/common/EmptyState";
 import Button, { IconButton } from "../../components/common/Button";
 import QuickWorkOrderModal from "../../components/production/QuickWorkOrderModal";
@@ -2864,6 +2865,7 @@ function JobCardList({ rows, loading, onOpen, onCreate, canCreate }) {
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--color-border-soft)] bg-[var(--color-surface-thead)] text-[11px] uppercase tracking-wider text-[var(--color-text-muted)]">
+              <SerialNumberHeader className="px-4 py-3 font-semibold" />
               <th className="px-4 py-3 font-semibold">Job Card</th>
               <th className="px-4 py-3 font-semibold">Customer / Product</th>
               <th className="px-4 py-3 font-semibold">Qty</th>
@@ -2874,10 +2876,11 @@ function JobCardList({ rows, loading, onOpen, onCreate, canCreate }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => {
+            {rows.map((r, rowIndex) => {
               const p = priorityBadge(r.priority);
               return (
                 <tr key={r.id} className="border-b border-[var(--color-border-muted)] hover:bg-[var(--color-surface-muted)]/60">
+                  <SerialNumberCell rowIndex={rowIndex} className="px-4 py-3" />
                   <td className="px-4 py-3">
                     <p className="font-semibold text-[var(--color-text)]">{r.job_card_no}</p>
                     <p className="text-[11px] text-[var(--color-text-muted)]">{r.production_order_number || "—"}</p>

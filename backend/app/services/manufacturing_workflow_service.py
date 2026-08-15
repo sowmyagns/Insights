@@ -1546,14 +1546,6 @@ WORKFLOW_STAGE_CATALOG: list[dict[str, Any]] = [
         "tasks": ["Load active BOM", "Verify components"],
     },
     {
-        "id": "mrp",
-        "label": "MRP & Shortage",
-        "responsible_role": "Production Manager",
-        "path": "/production/mrp",
-        "module": "production",
-        "tasks": ["Run MRP", "Inventory check", "Shortage analysis"],
-    },
-    {
         "id": "capacity",
         "label": "Capacity / Schedule",
         "responsible_role": "Production Manager",

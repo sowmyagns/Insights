@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Download, Filter, Plus, ShoppingCart, Truck } from "lucide-react";
 import KpiCard from "../../components/common/KpiCard";
-import PageHeader from "../../components/common/PageHeader";
 
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
@@ -167,33 +166,29 @@ export default function PurchaseOrders() {
   if (loading) return <Loader label="Loading purchase orders..." />;
 
   return (
-    <div className="space-y-5 pb-4">
-      <PageHeader
-        action={
-          <>
-            <Button
-              variant="primary"
-              to="/procurement/purchase-orders/create"
-              leftIcon={<Plus className="h-4 w-4" />}
-            >
-              New Purchase Order (PO)
-            </Button>
-          <Button
-            variant="secondary"
-            type="button"
-            onClick={() =>
-              exportToExcel(
-                filtered,
-                columns.filter((c) => !c.render),
-                "purchase-orders"
-              )
-            }
-          >
-            <Download className="h-4 w-4" /> Export
-          </Button>
-          </>
-        }
-      />
+    <div className="min-w-0 space-y-5 px-4 pb-4 sm:px-6">
+      <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
+        <Button
+          variant="primary"
+          to="/procurement/purchase-orders/create"
+          leftIcon={<Plus className="h-4 w-4" />}
+        >
+          New Purchase Order (PO)
+        </Button>
+        <Button
+          variant="secondary"
+          type="button"
+          onClick={() =>
+            exportToExcel(
+              filtered,
+              columns.filter((c) => !c.render),
+              "purchase-orders"
+            )
+          }
+        >
+          <Download className="h-4 w-4" /> Export
+        </Button>
+      </div>
 
       <div className="ui-grid-kpi">
         <KpiCard label="Total Purchase Orders (POs)" value={summary.total_po} icon={ShoppingCart} color="bg-[var(--color-primary)]" />

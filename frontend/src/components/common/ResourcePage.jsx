@@ -32,7 +32,6 @@ export default function ResourcePage({
   emptyIcon = "clipboard",
   rowActions,
   transformPayload,
-  fallbackData = [],
 }) {
   const fields = fieldsProp || formFields || [];
   const { user } = useAuth();
@@ -59,11 +58,8 @@ export default function ResourcePage({
     return f;
   }, [fields]);
 
-  // Keep latest fetcher and fallbackData in refs so reload() never changes identity
   const fetcherRef = useRef(fetcher);
-  const fallbackRef = useRef(fallbackData);
   useEffect(() => { fetcherRef.current = fetcher; }, [fetcher]);
-  useEffect(() => { fallbackRef.current = fallbackData; }, [fallbackData]);
 
   const reload = useCallback(async ({ soft = false } = {}) => {
     if (!soft) setLoading(true);
@@ -74,16 +70,11 @@ export default function ResourcePage({
       if (res && res.data !== undefined) {
         const fetched = Array.isArray(res.data) ? res.data : res.data?.items || [];
         setRows(fetched);
-      } else if (fallbackRef.current?.length > 0) {
-        setRows(fallbackRef.current);
       } else {
         setRows([]);
       }
     } catch (err) {
-      if (fallbackRef.current?.length > 0) {
-        setRows(fallbackRef.current);
-        setLoadError("");
-      } else if (soft) {
+      if (soft) {
         // Keep existing rows on soft refresh failure.
         const detail = err.response?.data?.detail;
         setLoadError(

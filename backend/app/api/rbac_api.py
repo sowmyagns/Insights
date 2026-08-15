@@ -47,7 +47,6 @@ PRODUCTION_MANAGER_ALLOWED_CHILDREN = {
     "/masters/bom",
     "/production/machines",
     "/production/planning",
-    "/production/mrp",
     "/production/work-orders",
     "/production/schedule",
     "/factory-monitor/live-production",

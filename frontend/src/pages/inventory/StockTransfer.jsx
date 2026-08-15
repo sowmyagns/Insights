@@ -1,14 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ArrowLeftRight,
   ArrowRight,
   CalendarDays,
   CheckCircle2,
-  Eye,
   Filter,
-  MoreVertical,
   Plus,
-  Printer,
   RefreshCw,
   Search,
   Truck,
@@ -21,6 +19,9 @@ import EmptyState from "../../components/common/EmptyState";
 import Loader from "../../components/common/Loader";
 import PageHeader from "../../components/common/PageHeader";
 import StatusBadge from "../../components/common/StatusBadge";
+import ConfirmDialog from "../../components/admin/ConfirmDialog";
+import InventoryRowActionsMenu from "../../components/inventory/InventoryRowActionsMenu";
+import RecordDetailModal from "../../components/inventory/RecordDetailModal";
 import { useToast } from "../../context/ToastContext";
 import {
   createStockTransfer,
@@ -62,16 +63,6 @@ const STEPS = [
   { id: 3, label: "Review & Confirm" },
 ];
 
-const MOCKUP_TRANSFERS = [
-  { id: "t1", transfer_number: "TRF-2026-0054", transfer_date: "2026-08-13", from_warehouse: "Main Warehouse", to_warehouse: "Unit-2 Warehouse", item_name: "PET Resin", items: 1, quantity: 500, status: "pending", expected_date: "2026-08-15", created_by: "Raj K.", live: false },
-  { id: "t2", transfer_number: "TRF-2026-0053", transfer_date: "2026-08-12", from_warehouse: "Main Warehouse", to_warehouse: "FG Store", item_name: "HDPE Caps", items: 2, quantity: 1200, status: "approved", expected_date: "2026-08-14", created_by: "Store Admin", live: false },
-  { id: "t3", transfer_number: "TRF-2026-0052", transfer_date: "2026-08-12", from_warehouse: "RM Store", to_warehouse: "Main Warehouse", item_name: "PP Granules", items: 1, quantity: 750, status: "in_transit", expected_date: "2026-08-13", created_by: "Raj K.", live: false },
-  { id: "t4", transfer_number: "TRF-2026-0051", transfer_date: "2026-08-11", from_warehouse: "Unit-2 Warehouse", to_warehouse: "Main Warehouse", item_name: "Label Roll", items: 3, quantity: 40, status: "completed", expected_date: "2026-08-12", created_by: "Ops Team", live: false },
-  { id: "t5", transfer_number: "TRF-2026-0050", transfer_date: "2026-08-10", from_warehouse: "Main Warehouse", to_warehouse: "Unit-1 Warehouse", item_name: "Carton Box", items: 1, quantity: 200, status: "draft", expected_date: "2026-08-12", created_by: "Raj K.", live: false },
-  { id: "t6", transfer_number: "TRF-2026-0049", transfer_date: "2026-08-09", from_warehouse: "FG Store", to_warehouse: "Main Warehouse", item_name: "Shrink Film", items: 1, quantity: 80, status: "cancelled", expected_date: "2026-08-10", created_by: "Store Admin", live: false },
-  { id: "t7", transfer_number: "TRF-2026-0048", transfer_date: "2026-08-08", from_warehouse: "Main Warehouse", to_warehouse: "Unit-2 Warehouse", item_name: "Ink Cyan", items: 2, quantity: 15, status: "completed", expected_date: "2026-08-09", created_by: "Raj K.", live: false },
-];
-
 const emptyForm = {
   transfer_number: "",
   transfer_date: "2026-08-13",
@@ -105,8 +96,27 @@ function warehouseValue(wh) {
   return Number(wh.inventory_value ?? wh.stock_value ?? wh.used_capacity ?? 0) || 0;
 }
 
+function findWarehouseIdByName(warehouseList, name) {
+  if (!name) return "";
+  const match = warehouseList.find((w) => w.name === name);
+  return match ? String(match.id) : "";
+}
+
+function findItemIdByName(itemList, name) {
+  if (!name) return "";
+  const match = itemList.find((i) => i.name === name);
+  return match ? String(match.id) : "";
+}
+
+function isPendingTransferStatus(status) {
+  const st = String(status || "").toLowerCase();
+  return st === "pending" || st === "pending_approval" || st === "draft";
+}
+
 export default function StockTransfer() {
   const { addToast } = useToast();
+  const [searchParams] = useSearchParams();
+  const formRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [transfers, setTransfers] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
@@ -115,12 +125,17 @@ export default function StockTransfer() {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
-  const [showForm, setShowForm] = useState(true);
+  const [showForm, setShowForm] = useState(() => searchParams.get("new") === "1");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [headerDate, setHeaderDate] = useState("2026-08-13");
   const [headerWarehouse, setHeaderWarehouse] = useState("");
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [viewTarget, setViewTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [editReplaceId, setEditReplaceId] = useState(null);
 
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -143,6 +158,20 @@ export default function StockTransfer() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const openForm = useCallback(() => {
+    setShowForm(true);
+    setStep(1);
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      openForm();
+    }
+  }, [searchParams, openForm]);
 
   useEffect(() => {
     if (!headerWarehouse && warehouses.length) setHeaderWarehouse(String(warehouses[0].id));
@@ -172,18 +201,17 @@ export default function StockTransfer() {
 
   const canNextFromItems = form.item_id && qty > 0;
 
-  const displayTransfers = useMemo(() => {
-    if (transfers.length) {
-      return transfers.map((t) => ({
+  const displayTransfers = useMemo(
+    () =>
+      transfers.map((t) => ({
         ...t,
         items: 1,
         expected_date: t.expected_date || t.transfer_date,
         created_by: t.approved_by || t.created_by || "—",
         live: true,
-      }));
-    }
-    return MOCKUP_TRANSFERS;
-  }, [transfers]);
+      })),
+    [transfers]
+  );
 
   const filteredTransfers = useMemo(() => {
     let rows = displayTransfers;
@@ -212,7 +240,94 @@ export default function StockTransfer() {
       to_warehouse_id: warehouses[1] ? String(warehouses[1].id) : "",
     });
     setStep(1);
+    setEditReplaceId(null);
   };
+
+  const requireLiveRow = (row, actionLabel = "This action") => {
+    if (row.live && typeof row.id === "number") return true;
+    addToast(`${actionLabel} is only available for live transfer records.`, "warning");
+    return false;
+  };
+
+  const handleView = (row) => setViewTarget(row);
+
+  const handleEdit = (row) => {
+    if (!requireLiveRow(row, "Edit")) return;
+    const st = String(row.status || "").toLowerCase();
+    if (!isPendingTransferStatus(st)) {
+      addToast("Only pending transfers can be edited. Create a new transfer instead.", "warning");
+      return;
+    }
+    setForm({
+      transfer_number: row.transfer_number || "",
+      transfer_date: row.transfer_date ? String(row.transfer_date).slice(0, 10) : "",
+      reference: "",
+      from_warehouse_id: findWarehouseIdByName(warehouses, row.from_warehouse),
+      to_warehouse_id: findWarehouseIdByName(warehouses, row.to_warehouse),
+      expected_date: row.expected_date ? String(row.expected_date).slice(0, 10) : "",
+      remarks: "",
+      item_id: findItemIdByName(items, row.item_name),
+      batch_number: row.batch_number || "",
+      quantity: row.quantity != null ? String(row.quantity) : "",
+    });
+    setEditReplaceId(row.id);
+    setStep(1);
+    openForm();
+    addToast("Update the transfer details and submit to save changes.", "info");
+  };
+
+  const handleAdd = () => {
+    resetForm();
+    openForm();
+  };
+
+  const handleDeleteRequest = (row) => {
+    if (!requireLiveRow(row, "Delete")) return;
+    const st = String(row.status || "").toLowerCase();
+    if (!isPendingTransferStatus(st)) {
+      addToast("Only pending transfers can be cancelled.", "warning");
+      return;
+    }
+    setDeleteTarget(row);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget?.id) return;
+    setDeleting(true);
+    try {
+      await updateStockTransferStatus(deleteTarget.id, {
+        status: "rejected",
+        approved_by: "Store Manager",
+      });
+      addToast("Transfer cancelled successfully");
+      setDeleteTarget(null);
+      await load(true);
+    } catch {
+      addToast("Could not cancel transfer", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const viewFields = viewTarget
+    ? [
+        { label: "Transfer No.", value: viewTarget.transfer_number },
+        { label: "Date", value: formatDate(viewTarget.transfer_date) },
+        { label: "From Warehouse", value: viewTarget.from_warehouse },
+        { label: "To Warehouse", value: viewTarget.to_warehouse },
+        { label: "Item", value: viewTarget.item_name },
+        { label: "Batch Number", value: viewTarget.batch_number },
+        { label: "Quantity", value: formatQty(viewTarget.quantity) },
+        {
+          label: "Status",
+          value: STATUS_LABEL[String(viewTarget.status || "").toLowerCase()] || viewTarget.status,
+        },
+        { label: "Expected Date", value: formatDate(viewTarget.expected_date) },
+        { label: "Created By", value: viewTarget.created_by || viewTarget.approved_by },
+        { label: "Vehicle", value: viewTarget.vehicle },
+        { label: "Driver", value: viewTarget.driver },
+      ]
+    : [];
 
   const handleSubmit = async () => {
     if (form.from_warehouse_id === form.to_warehouse_id) {
@@ -224,6 +339,7 @@ export default function StockTransfer() {
       return;
     }
     setSubmitting(true);
+    const replacingId = editReplaceId;
     try {
       const notes = [form.reference ? `Ref: ${form.reference}` : "", form.remarks, form.expected_date ? `Expected: ${form.expected_date}` : ""]
         .filter(Boolean)
@@ -238,7 +354,17 @@ export default function StockTransfer() {
         quantity: Number(form.quantity),
         notes: notes || null,
       });
-      addToast("Transfer created — pending approval");
+      if (replacingId && typeof replacingId === "number") {
+        try {
+          await updateStockTransferStatus(replacingId, {
+            status: "rejected",
+            approved_by: "Store Manager",
+          });
+        } catch {
+          /* prior pending transfer may remain */
+        }
+      }
+      addToast(replacingId ? "Transfer updated successfully" : "Transfer created — pending approval");
       resetForm();
       setShowForm(false);
       load();
@@ -323,11 +449,12 @@ export default function StockTransfer() {
       key: "actions",
       label: "Actions",
       sortable: false,
+      className: "min-w-[8rem] whitespace-nowrap",
       render: (r) => {
         const isBusy = updatingId === r.id;
         const st = String(r.status || "").toLowerCase();
         return (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 whitespace-nowrap">
             {r.live && (st === "pending_approval" || st === "pending") ? (
               <>
                 <Button type="button" variant="success" size="sm" disabled={isBusy} onClick={() => handleStatusChange(r.id, "approved")} title="Approve">
@@ -348,15 +475,16 @@ export default function StockTransfer() {
                 <CheckCircle2 className="h-3.5 w-3.5" />
               </Button>
             ) : null}
-            <button type="button" className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]" aria-label="View" title="View">
-              <Eye className="h-4 w-4" />
-            </button>
-            <button type="button" className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]" aria-label="Print" title="Print">
-              <Printer className="h-4 w-4" />
-            </button>
-            <button type="button" className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]" aria-label="More" title="More">
-              <MoreVertical className="h-4 w-4" />
-            </button>
+            <InventoryRowActionsMenu
+              rowId={r.id}
+              isOpen={openMenuId === r.id}
+              onOpen={setOpenMenuId}
+              onClose={() => setOpenMenuId(null)}
+              onView={() => handleView(r)}
+              onEdit={() => handleEdit(r)}
+              onAdd={handleAdd}
+              onDelete={() => handleDeleteRequest(r)}
+            />
           </div>
         );
       },
@@ -366,10 +494,8 @@ export default function StockTransfer() {
   if (loading) return <Loader label="Loading stock transfers…" />;
 
   return (
-    <div className="space-y-5 pb-4">
+    <div className="min-w-0 space-y-5 pb-4">
       <PageHeader
-        title="Stock Transfer"
-        showTitle
         subtitle="Transfer stock between warehouses."
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -402,7 +528,7 @@ export default function StockTransfer() {
       />
 
       {showForm ? (
-        <section className="ui-card p-4 sm:p-5">
+        <section ref={formRef} className="ui-card scroll-mt-24 p-4 sm:p-5">
           {/* Stepper */}
           <div className="mb-5 flex flex-wrap items-center gap-3 border-b border-[var(--color-border-soft)] pb-4">
             {STEPS.map((s, i) => {
@@ -707,17 +833,14 @@ export default function StockTransfer() {
             <Button
               type="button"
               variant="primary"
-              onClick={() => {
-                setShowForm(true);
-                setStep(1);
-              }}
+              onClick={openForm}
             >
               <Plus className="h-4 w-4" /> New Transfer
             </Button>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-[var(--color-border-soft)]">
+        <div className="inventory-table-scroll inventory-table-scroll--transfer rounded-lg border border-[var(--color-border-soft)]">
           <DataTable
             columns={historyColumns}
             data={filteredTransfers}
@@ -729,12 +852,33 @@ export default function StockTransfer() {
                 title="No transfers yet"
                 description="Create a transfer to move stock between warehouses."
                 actionLabel="New Transfer"
-                onAction={() => { setShowForm(true); setStep(1); }}
+                onAction={openForm}
               />
             }
           />
         </div>
       </section>
+
+      <RecordDetailModal
+        open={Boolean(viewTarget)}
+        title={viewTarget?.transfer_number || "Transfer Details"}
+        subtitle={viewTarget?.item_name}
+        fields={viewFields}
+        onClose={() => setViewTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete record"
+        message="Are you sure you want to delete this record?"
+        confirmLabel="Delete"
+        destructive
+        loading={deleting}
+        onConfirm={handleDeleteConfirm}
+        onClose={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

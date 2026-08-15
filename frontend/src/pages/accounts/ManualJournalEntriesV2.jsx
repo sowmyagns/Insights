@@ -1,17 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Calendar, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
 
-import { nextManualJournalNumber } from "../../data/manualJournals";
+import {
+  AccountsCard,
+  AccountsPageShell,
+  AccountsPagination,
+  AccountsPrimaryButton,
+  AccountsSearchInput,
+  accountsTableClass,
+  accountsTableHeadClass,
+  accountsTableWrapClass,
+  accountsTdClass,
+  accountsThClass,
+  formatAccountsInr,
+} from "../../components/accounts/accountsDesignSystem";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
+import Loader from "../../components/common/Loader";
 import {
   deleteManualJournalOnApi,
   fetchManualJournals,
 } from "../../api/manualJournalSync";
 import { apiErrorMessage } from "../../utils/apiError";
 import { useToast } from "../../context/ToastContext";
-
-const PAGE_BG = "var(--color-bg)";
-const PAGE_SIZES = [10, 20, 50];
 
 function fyStartIso() {
   const d = new Date();
@@ -30,67 +41,6 @@ function formatSlash(iso) {
   return `${d}/${m}/${y}`;
 }
 
-function formatInr(amount) {
-  const n = Number(amount) || 0;
-  return `₹ ${n.toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function Pagination({ page, pageSize, total, onPage, onPageSize }) {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
-  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const to = Math.min(page * pageSize, total);
-
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 text-[13px] text-[#6b6b76]">
-      <div className="flex items-center gap-2">
-        <span>Rows per page:</span>
-        <select
-          value={pageSize}
-          onChange={(e) => onPageSize(Number(e.target.value))}
-          className="rounded-md border border-[#cfcfd6] bg-white px-2.5 py-1.5 outline-none"
-        >
-          {PAGE_SIZES.map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-        <span>
-          {from}-{to} of {total}
-        </span>
-      </div>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          disabled={page <= 1}
-          onClick={() => onPage(page - 1)}
-          className="grid h-8 w-8 place-items-center rounded-md border border-[#cfcfd6] bg-white disabled:opacity-40"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          className="grid h-8 min-w-8 place-items-center rounded-md border border-[#e0b400] px-2 text-[13px] font-semibold text-[#1a1a1f]"
-          style={{ background: "#0025D4" }}
-        >
-          {page}
-        </button>
-        <button
-          type="button"
-          disabled={page >= totalPages}
-          onClick={() => onPage(page + 1)}
-          className="grid h-8 w-8 place-items-center rounded-md border border-[#cfcfd6] bg-white disabled:opacity-40"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function RowMenu({ entry, onEdit, onDelete, onClose }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -104,17 +54,17 @@ function RowMenu({ entry, onEdit, onDelete, onClose }) {
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-full z-30 mt-1 min-w-[160px] rounded-lg border border-[#e4e4ea] bg-white py-1 shadow-lg"
+      className="absolute right-0 top-full z-30 mt-1 min-w-[160px] rounded-lg border border-[#E2E8F0] bg-white py-1 shadow-lg"
     >
       <button
         type="button"
-        className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#3a3a42] hover:bg-[#f7f7f9]"
+        className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#17264A] hover:bg-[#F8FAFC]"
         onClick={() => {
           onEdit?.(entry);
           onClose?.();
         }}
       >
-        <Pencil className="h-4 w-4 text-[#8b8b96]" />
+        <Pencil className="h-4 w-4 text-[#64748B]" />
         Edit
       </button>
       <button
@@ -198,41 +148,36 @@ export default function ManualJournalEntriesV2() {
     }
   };
 
-  const th =
-    "border-b border-r border-[#d8d8de] bg-[#f7f7f9] px-4 py-3 text-left text-[12px] font-semibold uppercase tracking-wide text-[#5c5c66] last:border-r-0";
-  const td = "border-b border-r border-[#e4e4ea] px-4 py-3.5 align-middle text-[13px] last:border-r-0";
-
   if (loading) {
     return (
-      <div className="grid min-h-[40vh] place-items-center text-sm text-[#6b6b76]" style={{ background: PAGE_BG }}>
-        Loading journals…
-      </div>
+      <AccountsPageShell>
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader label="Loading journals…" />
+        </div>
+      </AccountsPageShell>
     );
   }
 
   return (
-    <div className="min-h-full" style={{ background: PAGE_BG }}>
-      <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="overflow-hidden rounded-xl border border-[#cfcfd6] bg-white shadow-sm">
-          <div className="flex flex-wrap items-center gap-3 border-b border-[#cfcfd6] px-4 py-3.5 sm:px-5">
-            <div className="relative min-w-[200px] flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search"
-                className="w-full rounded-full border border-[#cfcfd6] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] placeholder:text-[#9a9aa5] focus:border-[#6b4eff] focus:outline-none"
-              />
-            </div>
-            <label className="inline-flex items-center gap-2 rounded-full border border-[#cfcfd6] bg-white px-3 py-2 text-[13px] text-[#1a1a1f]">
-              <Calendar className="h-4 w-4 text-[#6b6b76]" />
+    <AccountsPageShell>
+      <AccountsCard>
+        <div className="p-4 sm:p-5">
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <AccountsSearchInput
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search"
+              className="min-w-[200px] flex-1"
+            />
+            <label className="inline-flex items-center gap-2 rounded-full border border-[#E2E8F0] bg-white px-3 py-2 text-[13px] text-[#17264A]">
+              <Calendar className="h-4 w-4 text-[#64748B]" />
               <input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
                 className="w-[108px] border-0 bg-transparent text-[12px] outline-none"
               />
-              <span className="text-[#9a9aa5]">→</span>
+              <span className="text-[#94A3B8]">→</span>
               <input
                 type="date"
                 value={toDate}
@@ -240,64 +185,61 @@ export default function ManualJournalEntriesV2() {
                 className="w-[108px] border-0 bg-transparent text-[12px] outline-none"
               />
             </label>
-            <button
-              type="button"
-              onClick={goNew}
-              className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[13px] font-bold text-white"
-              style={{ background: "#0025D4" }}
-            >
+            <AccountsPrimaryButton onClick={goNew}>
               <Plus className="h-4 w-4" />
               New Journal Entry
-            </button>
+            </AccountsPrimaryButton>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse">
-              <thead>
+          <div className={accountsTableWrapClass}>
+            <table className={accountsTableClass}>
+              <thead className={accountsTableHeadClass}>
                 <tr>
-                  <th className={th}>Journal No.</th>
-                  <th className={th}>Date</th>
-                  <th className={th}>Journal Entry Name</th>
-                  <th className={`${th} text-right`}>Amount</th>
-                  <th className={th}>Narration</th>
-                  <th className={`${th} w-[72px] text-center`}>Actions</th>
+                  <SerialNumberHeader className={accountsThClass} />
+                  <th className={accountsThClass}>Journal No.</th>
+                  <th className={accountsThClass}>Date</th>
+                  <th className={accountsThClass}>Journal Entry Name</th>
+                  <th className={`${accountsThClass} text-right`}>Amount</th>
+                  <th className={accountsThClass}>Narration</th>
+                  <th className={`${accountsThClass} w-[72px] text-center`}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-16 text-center">
-                      <div className="text-[14px] text-[#6b6b76]">
+                    <td colSpan={7} className={`${accountsTdClass} py-16 text-center`}>
+                      <div className="text-[14px] text-[#64748B]">
                         No Journal Entries available, Create new entry
                       </div>
-                      <button
-                        type="button"
-                        onClick={goNew}
-                        className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[13px] font-bold text-white"
-                        style={{ background: "#0025D4" }}
-                      >
+                      <AccountsPrimaryButton onClick={goNew} className="mt-4">
                         <Plus className="h-4 w-4" />
                         New Journal Entry
-                      </button>
+                      </AccountsPrimaryButton>
                     </td>
                   </tr>
                 ) : (
-                  pageRows.map((e) => (
-                    <tr key={e.id} className="hover:bg-[#fafafa]">
-                      <td className={`${td} font-semibold text-[#6b4eff]`}>
+                  pageRows.map((e, rowIndex) => (
+                    <tr key={e.id} className="hover:bg-[#F8FAFC]">
+                      <SerialNumberCell
+                        rowIndex={rowIndex}
+                        page={page}
+                        pageSize={pageSize}
+                        className={accountsTdClass}
+                      />
+                      <td className={`${accountsTdClass} font-semibold text-[#6C4CFF]`}>
                         {e.voucherNumber || "—"}
                       </td>
-                      <td className={`${td} text-[#6b6b76]`}>{formatSlash(e.date)}</td>
-                      <td className={`${td} font-medium text-[#1a1a1f]`}>{e.name || "—"}</td>
-                      <td className={`${td} text-right tabular-nums font-medium`}>
-                        {formatInr(e.debit || e.amount || 0)}
+                      <td className={`${accountsTdClass} text-[#64748B]`}>{formatSlash(e.date)}</td>
+                      <td className={`${accountsTdClass} font-medium text-[#17264A]`}>{e.name || "—"}</td>
+                      <td className={`${accountsTdClass} text-right tabular-nums font-medium`}>
+                        {formatAccountsInr(e.debit || e.amount || 0)}
                       </td>
-                      <td className={`${td} text-[#6b6b76]`}>{e.narration || "—"}</td>
-                      <td className={`${td} relative text-center`}>
+                      <td className={`${accountsTdClass} text-[#64748B]`}>{e.narration || "—"}</td>
+                      <td className={`${accountsTdClass} relative text-center`}>
                         <button
                           type="button"
                           onClick={() => setMenuId((id) => (id === e.id ? null : e.id))}
-                          className="inline-grid h-8 w-8 place-items-center rounded-md border border-[#e4e4ea] bg-[#f3f3f6] text-[#6b4eff] hover:bg-[#ececf0]"
+                          className="inline-grid h-8 w-8 place-items-center rounded-md border border-[#E2E8F0] bg-[#F8FAFC] text-[#6C4CFF] hover:bg-[#F2F0FF]"
                           aria-label="Actions"
                         >
                           <MoreVertical className="h-4 w-4" strokeWidth={2.5} />
@@ -320,20 +262,18 @@ export default function ManualJournalEntriesV2() {
             </table>
           </div>
 
-          <div className="border-t border-[#cfcfd6] bg-[#fafafa] px-4 py-3 sm:px-5">
-            <Pagination
-              page={page}
-              pageSize={pageSize}
-              total={filtered.length}
-              onPage={setPage}
-              onPageSize={(n) => {
-                setPageSize(n);
-                setPage(1);
-              }}
-            />
-          </div>
+          <AccountsPagination
+            page={page}
+            pageSize={pageSize}
+            total={filtered.length}
+            onPage={setPage}
+            onPageSize={(n) => {
+              setPageSize(n);
+              setPage(1);
+            }}
+          />
         </div>
-      </div>
-    </div>
+      </AccountsCard>
+    </AccountsPageShell>
   );
 }

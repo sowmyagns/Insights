@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Calendar, ChevronLeft, ChevronRight, Filter, ListFilter, MoreVertical, Plus, Receipt, Search, X } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import { useToast } from "../../context/ToastContext";
 import { cancelInvoice, getInvoicesV2 } from "../../api/salesApi";
 import { apiErrorMessage } from "../../utils/apiError";
@@ -338,6 +339,7 @@ export default function InvoiceDashboard() {
           <table className="w-full min-w-[880px] border-collapse text-left">
             <thead>
               <tr className="bg-[#f3f3f6]">
+                <SerialNumberHeader className="border-b border-r border-[#d0d0d8]" />
                 {["Invoice No.", "Date", "Buyer Name", "Due in", "Amount", "Status", "Actions"].map(
                   (h) => (
                     <th
@@ -353,7 +355,7 @@ export default function InvoiceDashboard() {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-20 text-center">
+                  <td colSpan={8} className="px-4 py-20 text-center">
                     <Receipt className="mx-auto h-14 w-14 text-[#d0d0d8]" strokeWidth={1.15} />
                     <p className="mt-3 text-[14px] text-[#8a8a95]">
                       No invoices yet. Create your first invoice.
@@ -361,8 +363,14 @@ export default function InvoiceDashboard() {
                   </td>
                 </tr>
               ) : (
-                rows.map((r) => (
+                rows.map((r, rowIndex) => (
                   <tr key={r.id} className="hover:bg-[#fafafa]">
+                    <SerialNumberCell
+                      rowIndex={rowIndex}
+                      page={page}
+                      pageSize={pageSize}
+                      className="border-t border-r border-[#d0d0d8]"
+                    />
                     <td className="border-t border-r border-[#d0d0d8] px-4 py-3 text-[14px] font-medium text-[#0f6d84]">
                       {r.invoice_number}
                     </td>

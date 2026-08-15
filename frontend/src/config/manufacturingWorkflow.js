@@ -1,5 +1,4 @@
-﻿import {
-  Box,
+import {
   CalendarClock,
   ClipboardCheck,
   FileText,
@@ -19,7 +18,6 @@ export const MANUFACTURING_WORKFLOW_STEPS = [
   { id: "sales_order", label: "Sales Order", shortLabel: "Sales Order", path: "/sales/orders" },
   { id: "production_planning", label: "Production Planning", shortLabel: "Production Planning", path: "/production/planning" },
   { id: "bom", label: "Bill of Materials (BOM)", shortLabel: "Bill of Materials", path: "/masters/bom" },
-  { id: "mrp", label: "Material Requirements Planning (MRP)", shortLabel: "Material Requirement", path: "/production/mrp" },
   { id: "purchase_request", label: "Purchase Request", shortLabel: "Purchase Request", path: "/procurement/material-requests" },
   { id: "purchase_order", label: "Purchase Order", shortLabel: "Purchase Order", path: "/procurement/purchase-orders" },
   { id: "grn", label: "Goods Receipt Note (GRN)", shortLabel: "Goods Receipt", path: "/procurement/goods-receipt" },
@@ -37,12 +35,11 @@ export const MANUFACTURING_WORKFLOW_STEPS = [
   { id: "dashboard", label: "Dashboard", shortLabel: "Dashboard", path: "/" },
 ];
 
-/** 13-step manufacturing spine shown on Production Planning (screenshot). */
+/** Manufacturing spine shown on Production Planning. */
 export const PLANNING_SPINE_STEP_IDS = [
   "sales_order",
   "production_planning",
   "bom",
-  "mrp",
   "purchase_request",
   "purchase_order",
   "grn",
@@ -93,7 +90,6 @@ export const RESPONSIBILITY_ICONS = {
   sales_order: ClipboardCheck,
   production_planning: Users,
   bom: ListChecks,
-  mrp: Box,
   capacity: CalendarClock,
   purchase_request: ShoppingCart,
   purchase_order: Package,
@@ -149,13 +145,6 @@ export const DEFAULT_RESPONSIBILITY_STAGES = [
     responsible_role: "Production Manager",
     path: "/masters/bom",
     tasks: ["Load active BOM", "Verify components"],
-  },
-  {
-    id: "mrp",
-    label: "MRP & Shortage",
-    responsible_role: "Production Manager",
-    path: "/production/mrp",
-    tasks: ["Run MRP", "Inventory check", "Shortage analysis"],
   },
   {
     id: "capacity",

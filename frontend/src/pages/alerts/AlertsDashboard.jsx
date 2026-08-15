@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Bell, CheckCircle2, Eye, Filter, Printer, Search, ShieldAlert, Trash2, X, Plus, Info, Clock, User, Calendar, Save, Tag } from "lucide-react";
+import { AlertTriangle, Bell, CheckCircle2, Eye, Filter, Search, ShieldAlert, Trash2, X, Plus, Calendar, Save, Tag } from "lucide-react";
 import KpiCard from "../../components/common/KpiCard";
 import PageHeader from "../../components/common/PageHeader";
 
@@ -25,9 +25,10 @@ import { getEmployees } from "../../api/hrApi";
 import { isAdmin, userCanAction } from "../../config/permissions";
 import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
 import Button from "../../components/common/Button";
+import RowActionMenu from "../../components/common/RowActionMenu";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import {
   SEVERITY_OPTIONS,
-  STATUS_OPTIONS,
   MODULE_OPTIONS,
   SEVERITY_STYLES,
   STATUS_STYLES,
@@ -37,6 +38,13 @@ import {
 } from "../../utils/alertUtils";
 
 const PAGE_SIZE = 10;
+
+const STATUS_TABS = [
+  { value: "", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "acknowledged", label: "Acknowledged" },
+  { value: "resolved", label: "Resolved" },
+];
 
 const inputClass = "ui-input mt-1.5 w-full";
 
@@ -127,7 +135,8 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [assignedUser, setAssignedUser] = useState("");
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null);
   const [sortKey, setSortKey] = useState("triggered_at");
   const [sortDir, setSortDir] = useState("desc");
   const [page, setPage] = useState(1);
@@ -248,21 +257,17 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
     return list;
   }, [filtered, sortKey, sortDir]);
 
-  const summary = useMemo(() => computeAlertSummary(filtered), [filtered]);
+  const summary = useMemo(() => {
+    const base = computeAlertSummary(filtered);
+    base.active = filtered.filter((a) => String(a.status || "").toLowerCase() === "active").length;
+    return base;
+  }, [filtered]);
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   useEffect(() => {
     setPage(1);
   }, [search, severity, status, module, assignedUser, dateFrom, dateTo]);
-
-  const toggleSort = (key) => {
-    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
-  };
 
   const runAction = async (id, action, label) => {
     setBusyId(id);
@@ -373,11 +378,13 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
   }
 
   return (
-    <div className="space-y-5 pb-4">
+    <div className="min-w-0 space-y-5 pb-4">
       <PageHeader
+        title={title}
+        showTitle={Boolean(title)}
         subtitle={subtitle || "Monitor, acknowledge, and resolve system alerts across modules."}
         action={
-          <>
+          <div className="flex flex-wrap items-center gap-2">
             {canWrite && (
               <Button
                 variant="secondary"
@@ -399,23 +406,12 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
               onExcel={() => exportToExcel(exportRows, EXPORT_COLUMNS, "alerts")}
               onPdf={() => exportToPdf(exportRows, EXPORT_COLUMNS, "Alerts Report", "alerts")}
             />
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => window.print()}
-            >
-              <Printer className="h-4 w-4" /> Print
-            </Button>
             {canCreate && (
-              <Button
-                variant="primary"
-                type="button"
-                onClick={() => setShowCreate(true)}
-              >
+              <Button variant="primary" type="button" onClick={() => setShowCreate(true)}>
                 <Plus className="h-4 w-4" /> New Alert
               </Button>
             )}
-          </>
+          </div>
         }
       />
 
@@ -432,46 +428,114 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
         </div>
       ) : null}
 
-      {/* KPI Cards Grid */}
-      <div className="ui-grid-kpi">
-        <KpiCard label="Total Alerts" value={summary.total} icon={Bell} color="bg-[var(--color-primary)]" />
-        <KpiCard label="Critical" value={summary.critical} icon={AlertTriangle} color="bg-rose-600" />
-        <KpiCard label="High Priority" value={summary.high} icon={ShieldAlert} color="bg-orange-500" />
-        <KpiCard label="Medium Priority" value={summary.medium} icon={Clock} color="bg-amber-500" />
-        <KpiCard label="Low Priority" value={summary.low} icon={Info} color="bg-indigo-600" />
-        <KpiCard label="Resolved" value={summary.resolved} icon={CheckCircle2} color="bg-green-600" />
+      {/* KPI summary */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <KpiCard
+          label="Total Alerts"
+          value={summary.total}
+          icon={Bell}
+          tone="primary"
+          onClick={() => {
+            setStatus("");
+            setSeverity("");
+            setPage(1);
+          }}
+          meta="Click to show all"
+        />
+        <KpiCard
+          label="Active"
+          value={summary.active}
+          icon={AlertTriangle}
+          tone="danger"
+          onClick={() => {
+            setStatus("active");
+            setPage(1);
+          }}
+          meta="Needs attention"
+        />
+        <KpiCard
+          label="Critical"
+          value={summary.critical}
+          icon={ShieldAlert}
+          tone="warning"
+          onClick={() => {
+            setSeverity("critical");
+            setStatus("");
+            setPage(1);
+          }}
+          meta="Highest priority"
+        />
+        <KpiCard
+          label="Resolved"
+          value={summary.resolved}
+          icon={CheckCircle2}
+          tone="success"
+          onClick={() => {
+            setStatus("resolved");
+            setPage(1);
+          }}
+          meta="Closed alerts"
+        />
       </div>
 
-      {/* Search & Filters */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm print:hidden">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      {/* Search, status tabs & filters */}
+      <div className="ui-card ui-card--padded print:hidden">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative min-w-0 flex-1 lg:max-w-md">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search alerts by ID, title, description, assignee..."
-              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all"
+              placeholder="Search by title, description, assignee…"
+              className="ui-input w-full !pl-10"
             />
           </div>
-          <button
-            type="button"
-            onClick={() => setShowFilters((v) => !v)}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all"
-          >
-            <Filter className="h-4 w-4 text-slate-500" /> Filters
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="secondary" onClick={() => setShowFilters((v) => !v)}>
+              <Filter className="h-4 w-4" />
+              Filters
+              {[severity, module, dateFrom, dateTo, assignedUser].filter(Boolean).length > 0 ? (
+                <span className="ml-1 rounded-full bg-[var(--color-primary)] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {[severity, module, dateFrom, dateTo, assignedUser].filter(Boolean).length}
+                </span>
+              ) : null}
+            </Button>
+          </div>
         </div>
 
-        {showFilters && (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 border-t pt-4 border-slate-100">
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Severity</label>
-              <select
-                value={severity}
-                onChange={(e) => setSeverity(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--color-border-soft)] pt-4">
+          {STATUS_TABS.map((tab) => {
+            const active = status === tab.value;
+            return (
+              <button
+                key={tab.value || "all"}
+                type="button"
+                onClick={() => {
+                  setStatus(tab.value);
+                  setPage(1);
+                }}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  active
+                    ? "bg-[var(--color-primary)] text-white"
+                    : "bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]"
+                }`}
               >
+                {tab.label}
+              </button>
+            );
+          })}
+          <span className="ml-auto self-center text-xs text-[var(--color-text-muted)]">
+            {sorted.length} result{sorted.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        {showFilters ? (
+          <div className="mt-4 grid gap-3 border-t border-[var(--color-border-soft)] pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                Severity
+              </label>
+              <select value={severity} onChange={(e) => setSeverity(e.target.value)} className="ui-select w-full">
                 {SEVERITY_OPTIONS.map((o) => (
                   <option key={o.value || "all"} value={o.value}>
                     {o.label}
@@ -480,26 +544,10 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-              >
-                {STATUS_OPTIONS.map((o) => (
-                  <option key={o.value || "all"} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Module</label>
-              <select
-                value={module}
-                onChange={(e) => setModule(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 font-medium cursor-pointer"
-              >
+              <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                Module
+              </label>
+              <select value={module} onChange={(e) => setModule(e.target.value)} className="ui-select w-full">
                 {MODULE_OPTIONS.map((o) => (
                   <option key={o.value || "all"} value={o.value}>
                     {o.label}
@@ -508,71 +556,51 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">From Date</label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-              />
+              <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                From date
+              </label>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="ui-input w-full" />
             </div>
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">To Date</label>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-              />
+              <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                To date
+              </label>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="ui-input w-full" />
             </div>
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Assigned</label>
+              <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                Assigned to
+              </label>
               <input
                 value={assignedUser}
                 onChange={(e) => setAssignedUser(e.target.value)}
-                placeholder="Assigned name..."
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                placeholder="Name…"
+                className="ui-input w-full"
               />
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
-      {/* Data Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {/* Alerts table */}
+      <div className="ui-card overflow-hidden print:hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50/80 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-200/80">
-              <tr>
-                {[
-                  ["id", "Alert ID"],
-                  ["title", "Title"],
-                  ["message", "Description"],
-                  ["module", "Module"],
-                  ["severity", "Severity"],
-                  ["status", "Status"],
-                  ["assigned_to", "Assigned To"],
-                  ["created_by", "Created By"],
-                  ["triggered_at", "Created Date"],
-                  ["acknowledged_by", "Acknowledged By"],
-                  ["acknowledged_at", "Acknowledged Date"],
-                ].map(([key, label]) => (
-                  <th
-                    key={key}
-                    className="cursor-pointer whitespace-nowrap px-3.5 py-3 hover:text-slate-800 transition-colors"
-                    onClick={() => toggleSort(key)}
-                  >
-                    {label}
-                    {sortKey === key ? (sortDir === "asc" ? " ↑" : " ↓") : ""}
-                  </th>
-                ))}
-                <th className="px-3.5 py-3 font-bold print:hidden">Actions</th>
+          <table className="min-w-[920px] w-full border-collapse text-left text-[13px]">
+            <thead className="bg-[var(--color-surface-thead)] text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+              <tr className="border-b border-[var(--color-border-soft)]">
+                <SerialNumberHeader className="px-3 py-3" />
+                <th className="min-w-[280px] px-4 py-3">Alert</th>
+                <th className="px-4 py-3">Module</th>
+                <th className="px-4 py-3">Severity</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="whitespace-nowrap px-4 py-3">Created</th>
+                <th className="w-[4.5rem] px-3 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-sans">
+            <tbody className="divide-y divide-[var(--color-border-muted)]">
               {pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-4">
+                  <td colSpan={7} className="px-4 py-8">
                     {rows.length === 0 ? (
                       <EmptyState
                         icon="clipboard"
@@ -599,103 +627,115 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
                   </td>
                 </tr>
               ) : (
-                pageRows.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="whitespace-nowrap px-3.5 py-3 font-mono font-semibold text-slate-900">#{row.id}</td>
-                    <td className="max-w-[180px] truncate px-3.5 py-3 font-semibold text-slate-900" title={row.title}>{row.title}</td>
-                    <td className="max-w-[220px] truncate px-3.5 py-3 text-slate-500 text-xs" title={row.message}>{row.message || "—"}</td>
-                    <td className="whitespace-nowrap px-3.5 py-3">
-                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700 border border-slate-200">
-                        <Tag className="h-3 w-3 text-slate-400 shrink-0" />
-                        {row.module}
-                      </span>
-                    </td>
-                    <td className="px-3.5 py-3">
-                      <Badge value={row.severity} styles={SEVERITY_STYLES} />
-                    </td>
-                    <td className="px-3.5 py-3">
-                      <Badge value={row.status} styles={STATUS_STYLES} />
-                    </td>
-                    <td className="px-3.5 py-3 text-xs text-slate-700">
-                      <span className="inline-flex items-center gap-1">
-                        <User className="h-3 w-3 text-slate-400 shrink-0" />
-                        {row.assigned_to}
-                      </span>
-                    </td>
-                    <td className="px-3.5 py-3 text-xs text-slate-600">{row.created_by}</td>
-                    <td className="whitespace-nowrap px-3.5 py-3 text-xs text-slate-600">{row.created_date}</td>
-                    <td className="px-3.5 py-3 text-xs text-slate-600">{row.acknowledged_by}</td>
-                    <td className="whitespace-nowrap px-3.5 py-3 text-xs text-slate-600">{row.acknowledged_date}</td>
-                    <td className="px-3.5 py-3 print:hidden">
-                      <div className="flex flex-wrap gap-1.5">
+                pageRows.map((row, rowIndex) => {
+                  const isUnread = row.status === "active";
+                  const menuItems = [
+                    {
+                      label: "View details",
+                      icon: <Eye className="h-3.5 w-3.5" />,
+                      onClick: () => setViewRow(row),
+                    },
+                    row.link
+                      ? {
+                          label: "Open linked page",
+                          icon: <Calendar className="h-3.5 w-3.5" />,
+                          onClick: async () => {
+                            if (!row.is_read) {
+                              try {
+                                await markAlertRead(row.id);
+                              } catch {
+                                /* ignore */
+                              }
+                            }
+                            navigate(row.link);
+                          },
+                        }
+                      : null,
+                    canWrite && row.status === "active"
+                      ? {
+                          label: "Acknowledge",
+                          icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+                          onClick: () => runAction(row.id, "ack", "Acknowledge"),
+                        }
+                      : null,
+                    canWrite && row.status !== "resolved"
+                      ? {
+                          label: "Resolve",
+                          icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+                          onClick: () => runAction(row.id, "resolve", "Resolve"),
+                        }
+                      : null,
+                    admin
+                      ? {
+                          label: "Delete",
+                          icon: <Trash2 className="h-3.5 w-3.5" />,
+                          danger: true,
+                          onClick: () => {
+                            if (window.confirm("Delete this alert?")) {
+                              runAction(row.id, "delete", "Delete");
+                            }
+                          },
+                        }
+                      : null,
+                  ].filter(Boolean);
+
+                  return (
+                    <tr
+                      key={row.id}
+                      className={`transition-colors hover:bg-[var(--color-surface-muted)]/60 ${
+                        isUnread ? "bg-[var(--color-primary-soft)]/20" : ""
+                      }`}
+                    >
+                      <SerialNumberCell rowIndex={rowIndex} page={page} pageSize={PAGE_SIZE} className="px-3 py-3.5" />
+                      <td className="px-4 py-3.5">
                         <button
                           type="button"
                           onClick={() => setViewRow(row)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+                          className="block max-w-[360px] text-left"
                         >
-                          <Eye className="h-3 w-3 text-slate-500" /> View
+                          <p className="font-semibold text-[var(--color-text)] line-clamp-1">{row.title}</p>
+                          <p className="mt-0.5 text-xs text-[var(--color-text-muted)] line-clamp-2">
+                            {row.message || "No description"}
+                          </p>
+                          <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+                            #{row.id}
+                            {row.assigned_to && row.assigned_to !== "—" ? ` · ${row.assigned_to}` : ""}
+                          </p>
                         </button>
-                        {row.link && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (!row.is_read) {
-                                try { await markAlertRead(row.id); } catch { /* ignore */ }
-                              }
-                              navigate(row.link);
-                            }}
-                            className="rounded-md border border-blue-200 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
-                          >
-                            Open
-                          </button>
-                        )}
-                        {canWrite && row.status === "active" && (
-                          <button
-                            type="button"
-                            disabled={busyId === row.id}
-                            onClick={() => runAction(row.id, "ack", "Acknowledge")}
-                            className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors disabled:opacity-50"
-                          >
-                            Acknowledge
-                          </button>
-                        )}
-                        {canWrite && row.status !== "resolved" && (
-                          <button
-                            type="button"
-                            disabled={busyId === row.id}
-                            onClick={() => runAction(row.id, "resolve", "Resolve")}
-                            className="rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700 hover:bg-green-100 transition-colors disabled:opacity-50"
-                          >
-                            Resolve
-                          </button>
-                        )}
-                        {admin && (
-                          <button
-                            type="button"
-                            disabled={busyId === row.id}
-                            onClick={() => {
-                              if (window.confirm("Delete this alert?")) {
-                                runAction(row.id, "delete", "Delete");
-                              }
-                            }}
-                            className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors disabled:opacity-50"
-                            title="Delete Alert"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3.5">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-[var(--color-surface-muted)] px-2 py-0.5 text-xs font-semibold text-[var(--color-text-secondary)]">
+                          <Tag className="h-3 w-3 shrink-0 opacity-60" />
+                          {row.module}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <Badge value={row.severity} styles={SEVERITY_STYLES} />
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <Badge value={row.status} styles={STATUS_STYLES} />
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3.5 text-xs text-[var(--color-text-secondary)]">
+                        {row.created_date}
+                      </td>
+                      <td className="px-3 py-3.5 text-right">
+                        <RowActionMenu
+                          rowId={row.id}
+                          openMenu={openMenuId}
+                          setOpenMenu={setOpenMenuId}
+                          items={menuItems}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row print:hidden">
-          <p className="text-xs font-semibold text-slate-500">
+        <div className="flex flex-col items-center justify-between gap-3 border-t border-[var(--color-border-soft)] px-4 py-3 sm:flex-row">
+          <p className="text-xs font-medium text-[var(--color-text-muted)]">
             Showing {sorted.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
             {Math.min(page * PAGE_SIZE, sorted.length)} of {sorted.length} alerts
           </p>
@@ -704,18 +744,18 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
               type="button"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+              className="ui-page-btn disabled:opacity-40"
             >
               Previous
             </button>
-            <span className="text-xs font-bold text-slate-700 font-mono">
-              Page {page} / {totalPages}
+            <span className="text-xs font-semibold text-[var(--color-text)]">
+              Page {page} of {totalPages}
             </span>
             <button
               type="button"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+              className="ui-page-btn disabled:opacity-40"
             >
               Next
             </button>
@@ -725,79 +765,63 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
 
       {/* View Alert Detail Modal */}
       {viewRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 print:hidden">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 border border-slate-200">
-            <div className="flex items-start justify-between border-b pb-3">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">{viewRow.title}</h2>
-                <p className="text-xs font-mono text-slate-500 mt-0.5">Alert ID: #{viewRow.id}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 print:hidden">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-xl">
+            <div className="flex items-start justify-between border-b px-6 py-4">
+              <div className="min-w-0 pr-4">
+                <h2 className="text-lg font-bold text-[var(--color-text)]">{viewRow.title}</h2>
+                <p className="mt-0.5 text-xs font-mono text-[var(--color-text-muted)]">Alert #{viewRow.id}</p>
               </div>
-              <button type="button" onClick={() => setViewRow(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <dl className="space-y-3.5 text-sm">
-              <div>
-                <dt className="text-xs font-bold text-slate-400 uppercase tracking-wider">Description</dt>
-                <dd className="mt-1 text-slate-800 bg-slate-50 rounded-xl p-3 border border-slate-200/80 text-xs leading-relaxed">{viewRow.message || "No description provided."}</dd>
-              </div>
-              <div className="grid grid-cols-2 gap-3 bg-slate-50/50 rounded-xl p-3 border border-slate-200/60 text-xs">
-                <div>
-                  <dt className="text-slate-400 font-semibold">Module</dt>
-                  <dd className="font-bold text-slate-800 mt-0.5">{viewRow.module}</dd>
-                </div>
-                <div>
-                  <dt className="text-slate-400 font-semibold">Severity</dt>
-                  <dd className="mt-0.5">
-                    <Badge value={viewRow.severity} styles={SEVERITY_STYLES} />
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-slate-400 font-semibold">Status</dt>
-                  <dd className="mt-0.5">
-                    <Badge value={viewRow.status} styles={STATUS_STYLES} />
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-slate-400 font-semibold">Assigned</dt>
-                  <dd className="font-medium text-slate-800 mt-0.5">{viewRow.assigned_to}</dd>
-                </div>
-                <div>
-                  <dt className="text-slate-400 font-semibold">Created Date</dt>
-                  <dd className="font-medium text-slate-700 mt-0.5">{viewRow.created_date}</dd>
-                </div>
-                <div>
-                  <dt className="text-slate-400 font-semibold">Acknowledged Date</dt>
-                  <dd className="font-medium text-slate-700 mt-0.5">{viewRow.acknowledged_date}</dd>
-                </div>
-              </div>
-            </dl>
-            <div className="pt-2 flex flex-wrap justify-end gap-2 border-t">
-              {canWrite && viewRow.status === "active" && (
-                <button
-                  type="button"
-                  onClick={() => runAction(viewRow.id, "ack", "Acknowledge")}
-                  className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-600 transition-colors shadow-xs"
-                >
-                  Acknowledge
-                </button>
-              )}
-              {canWrite && viewRow.status !== "resolved" && (
-                <button
-                  type="button"
-                  onClick={() => runAction(viewRow.id, "resolve", "Resolve")}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-4 py-2 text-xs font-semibold text-white hover:bg-green-700 transition-colors shadow-xs"
-                >
-                  <CheckCircle2 className="h-4 w-4" /> Resolve Alert
-                </button>
-              )}
               <button
                 type="button"
                 onClick={() => setViewRow(null)}
-                className="rounded-xl border px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]"
+                aria-label="Close"
               >
-                Close
+                <X className="h-5 w-5" />
               </button>
+            </div>
+            <div className="space-y-4 p-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Description</p>
+                <p className="mt-2 rounded-xl border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]/40 p-3 text-sm leading-relaxed text-[var(--color-text)]">
+                  {viewRow.message || "No description provided."}
+                </p>
+              </div>
+              <dl className="grid grid-cols-2 gap-3 text-sm">
+                {[
+                  ["Module", viewRow.module],
+                  ["Severity", null, viewRow.severity, SEVERITY_STYLES],
+                  ["Status", null, viewRow.status, STATUS_STYLES],
+                  ["Assigned", viewRow.assigned_to],
+                  ["Created by", viewRow.created_by],
+                  ["Created", viewRow.created_date],
+                  ["Acknowledged by", viewRow.acknowledged_by],
+                  ["Acknowledged", viewRow.acknowledged_date],
+                ].map(([label, value, badgeVal, styles]) => (
+                  <div key={label} className="rounded-lg border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]/30 p-3">
+                    <dt className="text-xs text-[var(--color-text-muted)]">{label}</dt>
+                    <dd className="mt-1 font-semibold text-[var(--color-text)]">
+                      {badgeVal != null ? <Badge value={badgeVal} styles={styles} /> : value || "—"}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
+                {canWrite && viewRow.status === "active" && (
+                  <Button type="button" variant="secondary" onClick={() => runAction(viewRow.id, "ack", "Acknowledge")}>
+                    Acknowledge
+                  </Button>
+                )}
+                {canWrite && viewRow.status !== "resolved" && (
+                  <Button type="button" variant="primary" onClick={() => runAction(viewRow.id, "resolve", "Resolve")}>
+                    <CheckCircle2 className="h-4 w-4" /> Resolve
+                  </Button>
+                )}
+                <Button type="button" variant="secondary" onClick={() => setViewRow(null)}>
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         </div>

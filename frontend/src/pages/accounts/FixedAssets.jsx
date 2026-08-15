@@ -9,6 +9,7 @@ import { getExtendedReports, createFixedAsset } from "../../api/accountsApi";
 import { formatInr } from "../../data/financeMasterData";
 import KpiCard from "../../components/common/KpiCard";
 import PageHeader from "../../components/common/PageHeader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all";
@@ -163,6 +164,7 @@ export default function FixedAssets() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b text-slate-500 text-left font-semibold">
+                  <SerialNumberHeader className="p-3" />
                   <th className="p-3">Asset Code</th>
                   <th className="p-3">Asset Description</th>
                   <th className="p-3">Purchased</th>
@@ -173,8 +175,9 @@ export default function FixedAssets() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filtered.map((a) => (
+                {filtered.map((a, rowIndex) => (
                   <tr key={a.code} className="hover:bg-slate-50/50">
+                    <SerialNumberCell rowIndex={rowIndex} className="p-3" />
                     <td className="p-3 font-semibold text-slate-700">{a.code}</td>
                     <td className="p-3 text-slate-900 font-medium">
                       <div>{a.name}</div>
@@ -189,7 +192,7 @@ export default function FixedAssets() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="text-center p-6 text-slate-400">
+                    <td colSpan={8} className="text-center p-6 text-slate-400">
                       No capitalized assets recorded for the selected period
                     </td>
                   </tr>

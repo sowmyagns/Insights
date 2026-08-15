@@ -42,8 +42,8 @@ const storeDashboard = {
   dashboard_profile: "store",
   visible_sections: ["kpi", "orders_overview", "inventory", "alerts", "quick_actions", "todays_summary"],
   kpi_cards: [
-    { id: "inventory-value", title: "Inventory Value", value: "₹0", trend: "0%", trendUp: true, trendLabel: "vs last 7 days" },
-    { id: "low-stock", title: "Low Stock Items", value: "0", trend: "0%", trendUp: false, trendLabel: "vs last 7 days" },
+    { id: "inventory-value", title: "Inventory Value", value: "₹0", trend: "0%", trendUp: true, trendLabel: "vs last 7 days", link: "/inventory" },
+    { id: "low-stock", title: "Low Stock Items", value: "0", trend: "0%", trendUp: false, trendLabel: "vs last 7 days", link: "/alerts/low-stock" },
   ],
   inventory_blocks: [
     { key: "raw", label: "Raw Materials", count: 0, quantity: 0, value: 0, color: "#2563EB", icon: "boxes" },
@@ -114,6 +114,8 @@ describe("ReferenceDashboard", () => {
     });
 
     expect(screen.getAllByText("refDashboard.lowStockItems").length).toBeGreaterThan(0);
+    expect(screen.getByText("Click a metric card to view details")).toBeInTheDocument();
+    expect(screen.getAllByText("View").length).toBeGreaterThan(0);
     expect(screen.getByText("refDashboard.inventorySummary")).toBeInTheDocument();
     expect(screen.queryByText("refDashboard.productionOverview")).not.toBeInTheDocument();
     expect(screen.queryByText("refDashboard.shopFloorStatus")).not.toBeInTheDocument();

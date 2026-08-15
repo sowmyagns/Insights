@@ -25,6 +25,8 @@ import { useToast } from "../../context/ToastContext";
 const LAVENDER = "#efeaf8";
 const PURPLE = "#6b4eff";
 const YELLOW = "var(--color-primary)";
+const BLUE_ACTION_BTN =
+  "inline-flex items-center justify-center rounded-lg border border-[var(--color-action-blue)] bg-[var(--color-action-blue)] px-3 py-1.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-[var(--color-action-blue-hover)] active:bg-[var(--color-action-blue-active)]";
 const emptyItem = () => ({
   item_description: "",
   hsn: "",
@@ -694,7 +696,7 @@ export default function PurchaseForm() {
             <button
               type="button"
               onClick={() => setAddItemOpen(true)}
-              className="rounded-lg border border-[#d0d0d8] bg-white px-3 py-1.5 text-[13px] font-semibold text-[#4a4a55]"
+              className={BLUE_ACTION_BTN}
             >
               + Add New Item
             </button>
@@ -748,7 +750,7 @@ export default function PurchaseForm() {
                           value={row.qty}
                           onChange={(e) => updateItem(idx, "qty", e.target.value)}
                           placeholder="0"
-                          className="w-14 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
+                          className="w-14 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5 text-[12px] text-[#1a1a1f] focus:border-[var(--color-action-blue)] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[var(--color-action-blue)]/30"
                         />
                       </td>
                       <td className={cell}>
@@ -838,8 +840,7 @@ export default function PurchaseForm() {
             <button
               type="button"
               onClick={() => setAddItemOpen(true)}
-              className="inline-flex items-center justify-center rounded-lg border px-4 py-2 text-[13px] font-semibold"
-              style={{ borderColor: PURPLE, color: PURPLE, background: "#f8f5ff" }}
+              className={BLUE_ACTION_BTN}
             >
               + Add More Item
             </button>

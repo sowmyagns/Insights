@@ -1,11 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDownWideNarrow, CalendarDays, ChevronLeft, ChevronRight, Filter, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { ArrowDownWideNarrow, CalendarDays, ChevronLeft, ChevronRight, Filter, RotateCcw, Trash2, X } from "lucide-react";
 
+import {
+  AccountsBlueButton,
+  AccountsCard,
+  AccountsPageShell,
+  AccountsPrimaryButton,
+  AccountsSearchInput,
+  AccountsSecondaryButton,
+  ACCOUNTS_TEAL,
+  ACCOUNTS_TEXT,
+  accountsTableClass,
+  accountsTableHeadClass,
+  accountsTableWrapClass,
+  accountsTdClass,
+  accountsThClass,
+  formatAccountsInr,
+} from "../../components/accounts/accountsDesignSystem";
 import { useToast } from "../../context/ToastContext";
-
-const PAGE_BG = "var(--color-bg)";
-const ACCENT = "#0f6d84";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 
 const DOC_TYPES = [
   "All Documents",
@@ -109,11 +123,12 @@ function MonthCalendar({ monthDate, rangeFrom, rangeTo, onPick }) {
               onClick={() => onPick(iso)}
               className={`h-8 rounded-md text-[12px] ${
                 isEdge
-                  ? "bg-[#0f6d84] font-semibold text-[#1a1a1f]"
+                  ? "font-semibold text-white"
                   : inRange
-                    ? "bg-[#fff6d0] text-[#1a1a1f]"
-                    : "text-[#1a1a1f] hover:bg-[#f3f3f6]"
+                    ? "bg-[#fff6d0] text-[#17264A]"
+                    : "text-[#17264A] hover:bg-[#F8FAFC]"
               }`}
+              style={isEdge ? { background: ACCOUNTS_TEAL } : undefined}
             >
               {day}
             </button>
@@ -269,18 +284,15 @@ function DateRangePicker({ from, to, onChange }) {
               />
             </div>
             <div className="mt-4 flex justify-end">
-              <button
-                type="button"
+              <AccountsBlueButton
                 onClick={() => {
                   if (!draftFrom || !draftTo) return;
                   onChange({ from: draftFrom, to: draftTo });
                   setOpen(false);
                 }}
-                className="rounded-lg px-4 py-2 text-[13px] font-semibold text-[#1a1a1f]"
-                style={{ background: ACCENT }}
               >
                 Apply
-              </button>
+              </AccountsBlueButton>
             </div>
           </div>
         </div>
@@ -354,24 +366,18 @@ function FiltersDrawer({ open, onClose, selected, onApply }) {
         </div>
 
         <div className="grid grid-cols-2 gap-3 border-t border-[#ececf0] px-5 py-4">
-          <button
-            type="button"
-            onClick={() => setDraft(["All Documents"])}
-            className="rounded-xl bg-[#ececf0] py-3 text-[14px] font-semibold text-[#1a1a1f]"
-          >
+          <AccountsSecondaryButton className="justify-center py-3" onClick={() => setDraft(["All Documents"])}>
             Clear Filter
-          </button>
-          <button
-            type="button"
+          </AccountsSecondaryButton>
+          <AccountsBlueButton
+            className="justify-center py-3"
             onClick={() => {
               onApply(draft);
               onClose();
             }}
-            className="rounded-xl py-3 text-[14px] font-semibold text-[#1a1a1f]"
-            style={{ background: ACCENT }}
           >
             Apply Filter
-          </button>
+          </AccountsBlueButton>
         </div>
       </div>
     </div>,
@@ -447,8 +453,8 @@ export default function RestoreDeletedDocV2() {
   };
 
   return (
-    <div className="min-h-full" style={{ background: PAGE_BG }}>
-      <div className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8">
+    <AccountsPageShell>
+      <div className="mx-auto max-w-[1500px]">
         <div className="mb-3 flex justify-end">
           <DateRangePicker
             from={from}
@@ -460,38 +466,27 @@ export default function RestoreDeletedDocV2() {
           />
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-[#e4e4ea] bg-white shadow-sm">
-          <div className="flex flex-wrap items-center gap-3 border-b border-[#ececf0] px-4 py-4">
-            <div className="relative min-w-[220px] flex-1">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search"
-                className="w-full rounded-full border border-transparent bg-[#f0f0f4] py-2.5 pl-10 pr-4 text-[13px] outline-none placeholder:text-[#9a9aa5] focus:border-[#c4b5fd] focus:bg-white"
-              />
-            </div>
+        <AccountsCard>
+          <div className="flex flex-wrap items-center gap-3 border-b border-[#E2E8F0] px-4 py-4 sm:px-5">
+            <AccountsSearchInput
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search documents..."
+              className="min-w-[220px] flex-1"
+            />
 
-            <button
-              type="button"
-              onClick={() => setFiltersOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg border border-[#d8d8e0] bg-white px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f]"
-            >
+            <AccountsSecondaryButton onClick={() => setFiltersOpen(true)}>
               <Filter className="h-4 w-4" />
               Filters
-            </button>
+            </AccountsSecondaryButton>
 
             <div className="relative" ref={sortRef}>
-              <button
-                type="button"
-                onClick={() => setSortOpen((v) => !v)}
-                className="inline-flex items-center gap-2 rounded-lg border border-[#d8d8e0] bg-white px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f]"
-              >
+              <AccountsSecondaryButton onClick={() => setSortOpen((v) => !v)}>
                 <ArrowDownWideNarrow className="h-4 w-4" />
                 Sort by
-              </button>
+              </AccountsSecondaryButton>
               {sortOpen ? (
-                <div className="absolute right-0 z-20 mt-1 min-w-[200px] overflow-hidden rounded-lg border border-[#e4e4ea] bg-white py-1 shadow-xl">
+                <div className="absolute right-0 z-20 mt-1 min-w-[200px] overflow-hidden rounded-lg border border-[#E2E8F0] bg-white py-1 shadow-xl">
                   {SORT_OPTIONS.map((opt) => (
                     <button
                       key={opt.id}
@@ -502,8 +497,8 @@ export default function RestoreDeletedDocV2() {
                       }}
                       className={`block w-full px-3 py-2.5 text-left text-[13px] ${
                         sortBy === opt.id
-                          ? "bg-[#f3f3f6] font-semibold text-[#1a1a1f]"
-                          : "text-[#1a1a1f] hover:bg-[#f7f7fa]"
+                          ? "bg-[#F8FAFC] font-semibold text-[#17264A]"
+                          : "text-[#17264A] hover:bg-[#F8FAFC]"
                       }`}
                     >
                       {opt.label}
@@ -514,47 +509,41 @@ export default function RestoreDeletedDocV2() {
             </div>
 
             {selected.length > 0 ? (
-              <button
-                type="button"
-                onClick={restoreSelected}
-                className="inline-flex items-center gap-2 rounded-lg px-3.5 py-2.5 text-[13px] font-semibold text-[#1a1a1f]"
-                style={{ background: ACCENT }}
-              >
+              <AccountsPrimaryButton onClick={restoreSelected}>
                 <RotateCcw className="h-4 w-4" />
                 Restore ({selected.length})
-              </button>
+              </AccountsPrimaryButton>
             ) : null}
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left">
+          <div className={accountsTableWrapClass}>
+            <table className={accountsTableClass}>
               <thead>
-                <tr className="bg-[#f0f0f4] text-[12px] font-semibold text-[#6b6b76]">
-                  <th className="w-12 px-4 py-3.5">
+                <tr className={accountsTableHeadClass}>
+                  <SerialNumberHeader className={accountsThClass} />
+                  <th className={`w-12 ${accountsThClass}`}>
                     <input
                       type="checkbox"
                       checked={allChecked}
                       onChange={toggleAll}
-                      className="h-4 w-4 rounded border-[#cfcfd6]"
+                      className="h-4 w-4 rounded border-[#E2E8F0]"
                       aria-label="Select all"
                     />
                   </th>
-                  <th className="px-4 py-3.5 font-semibold">Doc. Reference Info.</th>
-                  <th className="px-4 py-3.5 font-semibold">Party Name</th>
-                  <th className="px-4 py-3.5 font-semibold">Amount</th>
-                  <th className="px-4 py-3.5 font-semibold">Doc. Deleted Date</th>
-                  <th className="px-4 py-3.5 font-semibold">Actions</th>
+                  <th className={accountsThClass}>Doc. Reference Info.</th>
+                  <th className={accountsThClass}>Party Name</th>
+                  <th className={accountsThClass}>Amount</th>
+                  <th className={accountsThClass}>Doc. Deleted Date</th>
+                  <th className={accountsThClass}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((row) => {
+                {filtered.map((row, rowIndex) => {
                   const checked = selected.includes(row.id);
                   return (
-                    <tr
-                      key={row.id}
-                      className="border-t border-[#ececf0] text-[13px] text-[#1a1a1f]"
-                    >
-                      <td className="px-4 py-3.5">
+                    <tr key={row.id} className="text-[13px]" style={{ color: ACCOUNTS_TEXT }}>
+                      <SerialNumberCell rowIndex={rowIndex} className={accountsTdClass} />
+                      <td className={accountsTdClass}>
                         <input
                           type="checkbox"
                           checked={checked}
@@ -563,14 +552,14 @@ export default function RestoreDeletedDocV2() {
                               checked ? prev.filter((x) => x !== row.id) : [...prev, row.id]
                             )
                           }
-                          className="h-4 w-4 rounded border-[#cfcfd6]"
+                          className="h-4 w-4 rounded border-[#E2E8F0]"
                         />
                       </td>
-                      <td className="px-4 py-3.5">{row.reference}</td>
-                      <td className="px-4 py-3.5">{row.party_name}</td>
-                      <td className="px-4 py-3.5">{row.amount}</td>
-                      <td className="px-4 py-3.5">{row.deleted_at}</td>
-                      <td className="px-4 py-3.5">
+                      <td className={accountsTdClass}>{row.reference}</td>
+                      <td className={accountsTdClass}>{row.party_name}</td>
+                      <td className={accountsTdClass}>{formatAccountsInr(row.amount)}</td>
+                      <td className={accountsTdClass}>{row.deleted_at}</td>
+                      <td className={accountsTdClass}>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
@@ -601,12 +590,12 @@ export default function RestoreDeletedDocV2() {
               </tbody>
             </table>
             {filtered.length === 0 ? (
-              <div className="px-4 py-20 text-center text-[13px] text-[#9a9aa5]">
+              <div className="px-4 py-20 text-center text-[13px] text-[#64748B]">
                 No data available
               </div>
             ) : null}
           </div>
-        </div>
+        </AccountsCard>
       </div>
 
       <FiltersDrawer
@@ -615,6 +604,6 @@ export default function RestoreDeletedDocV2() {
         selected={docTypes}
         onApply={setDocTypes}
       />
-    </div>
+    </AccountsPageShell>
   );
 }

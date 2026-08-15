@@ -4,6 +4,7 @@ import { ClipboardList, CheckCircle, Clock, XCircle, Loader2 } from "lucide-reac
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
 import { getTasks, createTask, updateTask } from "../../api/tasksApi";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 
 const STATUSES = [
   { value: "open", label: "Open" },
@@ -268,6 +269,7 @@ export default function TaskManagement() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
+                  <SerialNumberHeader className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500" />
                   {["Task / Order", "Assigned To", "Priority", "Status", "Start", "Due", "Action"].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                       {h}
@@ -276,7 +278,7 @@ export default function TaskManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map((task) => {
+                {filtered.map((task, rowIndex) => {
                   const isClosed = ["completed", "cancelled", "closed"].includes(task.status);
                   const nextLabel =
                     task.status === "open"
@@ -287,6 +289,7 @@ export default function TaskManagement() {
 
                   return (
                     <tr key={task.id} className="hover:bg-gray-50/60 transition-colors">
+                      <SerialNumberCell rowIndex={rowIndex} className="px-4 py-3" />
                       <td className="max-w-[280px] px-4 py-3">
                         <p className="font-medium text-gray-900 leading-snug line-clamp-2">
                           {task.title}

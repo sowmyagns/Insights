@@ -62,10 +62,9 @@
 }
 
 .erp-doc__title-center {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   text-align: center;
   align-self: center;
   padding-top: 2px;
@@ -173,7 +172,32 @@
   width: 12%;
 }
 
-/* ── Party blocks ── */
+/* ── Party blocks (stacked left — reference layout) ── */
+.erp-doc__party-block {
+  font-size: 9px;
+  line-height: 1.4;
+  vertical-align: top;
+  padding: 3px 5px !important;
+  height: auto;
+  min-height: 52px;
+}
+
+.erp-doc__party-label {
+  font-weight: 600;
+  font-size: 8.5px;
+  margin-bottom: 2px;
+}
+
+.erp-doc__party-text {
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.erp-doc__party-blank {
+  background: #fff;
+  vertical-align: top;
+}
+
 .erp-doc__party-head {
   font-weight: 600;
   font-size: 9px;
@@ -302,7 +326,8 @@
 
 .erp-doc__terms-list {
   margin: 3px 0 0;
-  padding-left: 12px;
+  padding-left: 14px;
+  list-style: decimal;
 }
 
 .erp-doc__terms-list li {

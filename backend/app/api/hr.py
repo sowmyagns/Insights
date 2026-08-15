@@ -32,6 +32,18 @@ from app.schemas.hr import (
     SafetyIncidentUpdate,
     ShiftCreate,
     ShiftRead,
+    JobOpeningCreate,
+    JobOpeningRead,
+    JobOpeningUpdate,
+    RecruitmentApplicantCreate,
+    RecruitmentApplicantRead,
+    RecruitmentApplicantUpdate,
+    TrainingProgramCreate,
+    TrainingProgramRead,
+    TrainingProgramUpdate,
+    TrainingEnrollmentCreate,
+    TrainingEnrollmentRead,
+    TrainingEnrollmentUpdate,
 )
 from app.schemas.department import (
     DepartmentCreate,
@@ -97,6 +109,30 @@ from app.services.hr_extended_service import (
     list_employees_enriched,
     list_leave_enriched,
     list_payroll_enriched,
+)
+from app.services.hr_recruitment_service import (
+    create_applicant,
+    create_job_opening,
+    delete_applicant,
+    delete_job_opening,
+    get_applicant,
+    get_job_opening,
+    get_recruitment_dashboard,
+    list_applicants,
+    list_job_openings,
+    update_applicant,
+    update_job_opening,
+)
+from app.services.hr_training_service import (
+    create_enrollment,
+    create_training_program,
+    delete_enrollment,
+    delete_training_program,
+    get_training_dashboard,
+    get_training_program,
+    list_training_programs,
+    update_enrollment,
+    update_training_program,
 )
 
 router = APIRouter(prefix="/hr", tags=["hr"])
@@ -486,4 +522,327 @@ def delete_incident_endpoint(
 ):
     if not delete_safety_incident(db, tenant_id, incident_id):
         raise HTTPException(404, "Incident not found")
+    return None
+
+
+# ── Recruitment ──────────────────────────────────────────────────────────────
+
+
+@router.get("/recruitment/dashboard")
+def recruitment_dashboard_endpoint(
+    applicant_page: int = Query(1, ge=1),
+    applicant_page_size: int = Query(5, ge=1, le=100),
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    return get_recruitment_dashboard(
+        db,
+        tenant_id,
+        applicant_page=applicant_page,
+        applicant_page_size=applicant_page_size,
+    )
+
+
+@router.get("/recruitment/jobs")
+def list_recruitment_jobs_endpoint(
+    search: str | None = Query(None),
+    status: str | None = Query(None),
+    department: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    return list_job_openings(
+        db,
+        tenant_id,
+        search=search,
+        status=status,
+        department=department,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.post("/recruitment/jobs", response_model=JobOpeningRead, status_code=201)
+def create_recruitment_job_endpoint(
+    payload: JobOpeningCreate,
+    user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    return create_job_opening(db, user.tenant_id, payload)
+
+
+@router.get("/recruitment/jobs/{job_id}", response_model=JobOpeningRead)
+def get_recruitment_job_endpoint(
+    job_id: int,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    row = get_job_opening(db, tenant_id, job_id)
+    if not row:
+        raise HTTPException(404, "Job opening not found")
+    return row
+
+
+@router.put("/recruitment/jobs/{job_id}", response_model=JobOpeningRead)
+def update_recruitment_job_endpoint(
+    job_id: int,
+    payload: JobOpeningUpdate,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    row = update_job_opening(db, tenant_id, job_id, payload)
+    if not row:
+        raise HTTPException(404, "Job opening not found")
+    return row
+
+
+@router.patch("/recruitment/jobs/{job_id}/status", response_model=JobOpeningRead)
+def update_recruitment_job_status_endpoint(
+    job_id: int,
+    status: str = Query(...),
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    row = update_job_opening(db, tenant_id, job_id, JobOpeningUpdate(status=status))
+    if not row:
+        raise HTTPException(404, "Job opening not found")
+    return row
+
+
+@router.delete("/recruitment/jobs/{job_id}", status_code=204)
+def delete_recruitment_job_endpoint(
+    job_id: int,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    if not delete_job_opening(db, tenant_id, job_id):
+        raise HTTPException(404, "Job opening not found")
+    return None
+
+
+@router.get("/recruitment/applicants")
+def list_recruitment_applicants_endpoint(
+    search: str | None = Query(None),
+    status: str | None = Query(None),
+    stage: str | None = Query(None),
+    job_opening_id: int | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    return list_applicants(
+        db,
+        tenant_id,
+        search=search,
+        status=status,
+        stage=stage,
+        job_opening_id=job_opening_id,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.post("/recruitment/applicants", response_model=RecruitmentApplicantRead, status_code=201)
+def create_recruitment_applicant_endpoint(
+    payload: RecruitmentApplicantCreate,
+    user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    try:
+        return create_applicant(db, user.tenant_id, payload)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.get("/recruitment/applicants/{applicant_id}", response_model=RecruitmentApplicantRead)
+def get_recruitment_applicant_endpoint(
+    applicant_id: int,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    row = get_applicant(db, tenant_id, applicant_id)
+    if not row:
+        raise HTTPException(404, "Applicant not found")
+    return row
+
+
+@router.put("/recruitment/applicants/{applicant_id}", response_model=RecruitmentApplicantRead)
+def update_recruitment_applicant_endpoint(
+    applicant_id: int,
+    payload: RecruitmentApplicantUpdate,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    try:
+        row = update_applicant(db, tenant_id, applicant_id, payload)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if not row:
+        raise HTTPException(404, "Applicant not found")
+    return row
+
+
+@router.patch("/recruitment/applicants/{applicant_id}/status", response_model=RecruitmentApplicantRead)
+def update_recruitment_applicant_status_endpoint(
+    applicant_id: int,
+    status: str = Query(...),
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    row = update_applicant(
+        db, tenant_id, applicant_id, RecruitmentApplicantUpdate(status=status)
+    )
+    if not row:
+        raise HTTPException(404, "Applicant not found")
+    return row
+
+
+@router.delete("/recruitment/applicants/{applicant_id}", status_code=204)
+def delete_recruitment_applicant_endpoint(
+    applicant_id: int,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    if not delete_applicant(db, tenant_id, applicant_id):
+        raise HTTPException(404, "Applicant not found")
+    return None
+
+
+# ── Training ─────────────────────────────────────────────────────────────────
+
+
+@router.get("/training/dashboard")
+def training_dashboard_endpoint(
+    ongoing_page: int = Query(1, ge=1),
+    ongoing_page_size: int = Query(5, ge=1, le=100),
+    trend_range: str = Query("this_month"),
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    return get_training_dashboard(
+        db,
+        tenant_id,
+        ongoing_page=ongoing_page,
+        ongoing_page_size=ongoing_page_size,
+        trend_range=trend_range,
+    )
+
+
+@router.get("/training/programs")
+def list_training_programs_endpoint(
+    search: str | None = Query(None),
+    status: str | None = Query(None),
+    category: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    return list_training_programs(
+        db,
+        tenant_id,
+        search=search,
+        status=status,
+        category=category,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.post("/training/programs", response_model=TrainingProgramRead, status_code=201)
+def create_training_program_endpoint(
+    payload: TrainingProgramCreate,
+    user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    return create_training_program(db, user.tenant_id, payload)
+
+
+@router.get("/training/programs/{program_id}", response_model=TrainingProgramRead)
+def get_training_program_endpoint(
+    program_id: int,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    row = get_training_program(db, tenant_id, program_id)
+    if not row:
+        raise HTTPException(404, "Training program not found")
+    return row
+
+
+@router.put("/training/programs/{program_id}", response_model=TrainingProgramRead)
+def update_training_program_endpoint(
+    program_id: int,
+    payload: TrainingProgramUpdate,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    row = update_training_program(db, tenant_id, program_id, payload)
+    if not row:
+        raise HTTPException(404, "Training program not found")
+    return row
+
+
+@router.patch("/training/programs/{program_id}/status", response_model=TrainingProgramRead)
+def update_training_program_status_endpoint(
+    program_id: int,
+    status: str = Query(...),
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    row = update_training_program(
+        db, tenant_id, program_id, TrainingProgramUpdate(status=status)
+    )
+    if not row:
+        raise HTTPException(404, "Training program not found")
+    return row
+
+
+@router.delete("/training/programs/{program_id}", status_code=204)
+def delete_training_program_endpoint(
+    program_id: int,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    if not delete_training_program(db, tenant_id, program_id):
+        raise HTTPException(404, "Training program not found")
+    return None
+
+
+@router.post("/training/enrollments", response_model=TrainingEnrollmentRead, status_code=201)
+def create_training_enrollment_endpoint(
+    payload: TrainingEnrollmentCreate,
+    user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    try:
+        return create_enrollment(db, user.tenant_id, payload)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.put("/training/enrollments/{enrollment_id}", response_model=TrainingEnrollmentRead)
+def update_training_enrollment_endpoint(
+    enrollment_id: int,
+    payload: TrainingEnrollmentUpdate,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    row = update_enrollment(db, tenant_id, enrollment_id, payload)
+    if not row:
+        raise HTTPException(404, "Enrollment not found")
+    return row
+
+
+@router.delete("/training/enrollments/{enrollment_id}", status_code=204)
+def delete_training_enrollment_endpoint(
+    enrollment_id: int,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    if not delete_enrollment(db, tenant_id, enrollment_id):
+        raise HTTPException(404, "Enrollment not found")
     return None

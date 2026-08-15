@@ -3,13 +3,15 @@
 
 Generated after production-ready security hardening across the React + FastAPI Insights Iva application.
 
-**Last reviewed:** 13 August 2026
+**Last reviewed:** 15 August 2026
 
 ## Executive Summary
 
 Security features were implemented across authentication, session management, input validation, multi-tenant isolation, API protection, logging, and frontend auth flows. Backend suites covering auth, RBAC, tenant isolation, and CRUD smoke tests are in `backend/tests/`. Development mode preserves auto-verified registration for local testing. Production mode (`ENVIRONMENT=production`) enforces email verification before login.
 
-Recent product UI work (design tokens, selective button colors, Job Card read views, global/store search UX) does **not** change the security model documented here. Auth, JWT, RBAC, tenant scope, and CORS remain as implemented below.
+Recent product UI work (design tokens, HR dashboards, Job Card read views, global/store search UX) does **not** change the core security model documented here. Auth, JWT, RBAC, tenant scope, and CORS remain as implemented below.
+
+**HR module note (Aug 2026):** New HR Settings UI includes a “two-factor authentication” checkbox and session/password fields — these are **client-side only** until wired to backend policy. HR dashboard demo data in `hrMasterData.js` is read-only preview when APIs are empty; it does not bypass authentication or tenant isolation. HR write endpoints (leave, payroll, performance create) remain protected by existing JWT + RBAC + `tenant_scope`.
 
 For product setup and module overview, see [README.md](./README.md). For architecture and recent UI/live-data analysis, see [PROJECT_ANALYSIS_REPORT.md](./PROJECT_ANALYSIS_REPORT.md).
 
@@ -141,12 +143,29 @@ For product setup and module overview, see [README.md](./README.md). For archite
 | High | Configure SMTP in production | Set `SMTP_*` env vars; without SMTP, emails log to console only |
 | High | Rotate `JWT_SECRET_KEY` | Use `openssl rand -hex 32` in production `.env` |
 | Medium | Rate limiting at edge | Add nginx/Cloudflare rate limits on `/auth/login` and `/auth/forgot-password` |
-| Medium | Full CRUD audit coverage | Wire `log_audit()` into inventory, sales, HR, etc. service layers |
-| Medium | MFA / 2FA | Consider OTP for Admin accounts |
+| Medium | Full CRUD audit coverage | Wire `log_audit()` into inventory, sales, HR (leave status, payroll create, performance review), etc. |
+| Medium | HR Settings persistence | Do not treat client-side toggles (2FA, GDPR, export) as enforced until backed by API + policy |
+| Medium | MFA / 2FA | Consider OTP for Admin accounts; HR Settings checkbox is UI-only today |
 | Low | CSP header | Add Content-Security-Policy tuned for Vite build |
 | Low | Migrate to Alembic-only migrations | Replace startup `ALTER TABLE` with formal migration revision |
 | Low | Refresh token cookie option | HttpOnly cookies instead of localStorage for XSS resilience |
 | Low | Account unlock admin API | Allow admins to manually unlock locked accounts |
+| Low | HR demo data clarity | Document that `hrMasterData.js` fallbacks are display-only; never substitute for authz checks |
+
+---
+
+## HR Module — Security Considerations (Aug 2026)
+
+| Topic | Status | Notes |
+|-------|--------|-------|
+| Route protection | Unchanged | All `/hr/*` pages behind `ProtectedRoute` + JWT |
+| RBAC menu | Updated | `rbac_constants.py` mirrors expanded HR sidebar; permissions still module-scoped (`hr`, `attendance`, etc.) |
+| Demo dashboards | Low risk | Recruitment/Training use static demo objects; no extra API surface |
+| HR Settings page | UI only | Save/Reset does not call backend; security toggles are not enforced |
+| Chart of Accounts dedupe | Data integrity | `_dedupe_gl_accounts()` prevents duplicate codes in list responses; does not weaken tenant filters |
+| Row actions | Unchanged | `InventoryRowActionsMenu` is presentational; mutations still go through authenticated API calls |
+
+When HR Settings persistence is implemented, validate: tenant-scoped storage, Admin/HR Manager write permission, audit log on change, and do not expose session timeout/password policy to non-admin roles without explicit RBAC rules.
 
 ---
 
@@ -195,7 +214,12 @@ For product setup and module overview, see [README.md](./README.md). For archite
 | `frontend/src/pages/auth/Login.jsx` | Forgot password link, refresh token |
 | `frontend/src/pages/auth/Register.jsx` | Verification pending UX, min 12 chars |
 | `frontend/src/routes/AppRoutes.jsx` | New auth routes |
-| `frontend/src/routes/lazyPages.jsx` | Lazy imports for new pages |
+| `frontend/src/routes/lazyPages.jsx` | Lazy imports for new pages (incl. `HRSettings`, `Recruitment`, `Training`) |
+| `frontend/src/pages/hr/*.jsx` | HR dashboard UIs (Aug 2026) |
+| `frontend/src/data/hrMasterData.js` | Demo merge helpers for HR dashboards |
+| `frontend/src/config/sidebarNav.js` | Expanded HR sidebar sections |
+| `backend/app/core/rbac_constants.py` | HR menu children incl. `/hr/settings` |
+| `backend/app/api/accounts.py` | GL account dedupe on list/seed |
 
 ---
 
@@ -284,3 +308,4 @@ SMTP_FROM_EMAIL=noreply@your-domain.com
 | Date | Note |
 |------|------|
 | 2026-08-13 | Confirmed UI/design-system and Job Card read-path work do not alter auth, RBAC, tenant isolation, or CORS. Cross-linked README and Project Analysis Report. |
+| 2026-08-15 | HR dashboard UI pass documented. HR Settings toggles are client-side only. RBAC menu expanded for HR sections. Chart of Accounts dedupe noted as data-integrity fix, not auth change. |

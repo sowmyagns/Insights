@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 
 import Button from "../../components/common/Button";
 import Loader from "../../components/common/Loader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import AddNewPartyModal from "../../components/sales/AddNewPartyModal";
 import { useToast } from "../../context/ToastContext";
 import {
@@ -223,6 +224,7 @@ export default function VendorsMaster() {
               <table className="w-full min-w-[980px] border-collapse text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-[#e8e8ee] bg-[#f5f5f5] text-[12px] font-medium text-[#6b6b76]">
+                    <SerialNumberHeader />
                     <th className="px-4 py-3 font-medium">Vendor Name</th>
                     <th className="px-4 py-3 font-medium">Email</th>
                     <th className="px-4 py-3 font-medium">GSTIN</th>
@@ -235,8 +237,9 @@ export default function VendorsMaster() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((v) => (
+                  {rows.map((v, rowIndex) => (
                     <tr key={v.id} className="border-b border-[#f0f0f4] text-[#1a1a1f] last:border-b-0">
+                      <SerialNumberCell rowIndex={rowIndex} page={page} pageSize={pageSize} />
                       <td className="px-4 py-3.5">{v.name || ""}</td>
                       <td className="px-4 py-3.5 text-[#4a4a55]">{blankOr(v.email)}</td>
                       <td className="px-4 py-3.5 text-[#4a4a55]">{blankOr(v.gstin)}</td>

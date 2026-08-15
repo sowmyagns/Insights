@@ -8,6 +8,7 @@ import DataTable from "../../components/common/DataTable";
 import RowActionMenu from "../../components/common/RowActionMenu";
 import FinanceFilters from "../../components/finance/FinanceFilters";
 import Loader from "../../components/common/Loader";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import { useToast } from "../../context/ToastContext";
 import { getAPEnriched, getAPSummary } from "../../api/accountsApi";
 import {
@@ -1079,6 +1080,7 @@ export default function AccountsPayable() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-white/60 text-[11px] font-bold uppercase text-slate-500 tracking-wide">
+                          <SerialNumberHeader className="px-2 py-2" />
                           <th className="px-4 py-2 text-left">Bill No.</th>
                           <th className="px-4 py-2 text-left">Vendor</th>
                           <th className="px-4 py-2 text-left">Invoice Date</th>
@@ -1089,8 +1091,9 @@ export default function AccountsPayable() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
-                        {bucketBills.map((b) => (
+                        {bucketBills.map((b, rowIndex) => (
                           <tr key={b.id} className="hover:bg-slate-50">
+                            <SerialNumberCell rowIndex={rowIndex} className="px-2 py-2.5" />
                             <td className="px-4 py-2.5">
                               <button onClick={() => setViewBill(b)} className="font-mono text-blue-600 hover:underline font-semibold">
                                 {b.bill_number}

@@ -19,7 +19,14 @@ import { mapApiJournalToUi } from "../../api/manualJournalSync";
 import { apiErrorMessage } from "../../utils/apiError";
 import { useToast } from "../../context/ToastContext";
 
-const PAGE_BG = "var(--color-bg)";
+import {
+  AccountsCard,
+  AccountsPageShell,
+  AccountsPrimaryButton,
+  AccountsSecondaryButton,
+  formatAccountsInr,
+} from "../../components/accounts/accountsDesignSystem";
+import Loader from "../../components/common/Loader";
 
 function todayIso() {
   const d = new Date();
@@ -27,11 +34,7 @@ function todayIso() {
 }
 
 function formatInr(amount) {
-  const n = Number(amount) || 0;
-  return `₹ ${n.toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return formatAccountsInr(amount);
 }
 
 function emptyLine(accountId = "", accountName = "") {
@@ -248,17 +251,17 @@ export default function NewJournalEntryV2() {
 
   if (loadingEntry || loadingAccounts) {
     return (
-      <div className="grid min-h-[40vh] place-items-center text-sm text-[#6b6b76]" style={{ background: PAGE_BG }}>
-        Loading journal…
-      </div>
+      <AccountsPageShell>
+        <Loader label="Loading journal…" />
+      </AccountsPageShell>
     );
   }
 
   if (!isManual && !parent) {
     return (
-      <div className="min-h-full p-6" style={{ background: PAGE_BG }}>
-        <p className="text-[14px] text-[#6b6b76]">Account not found.</p>
-      </div>
+      <AccountsPageShell>
+        <p className="text-[14px] text-[#64748B]">Account not found.</p>
+      </AccountsPageShell>
     );
   }
 
@@ -269,36 +272,27 @@ export default function NewJournalEntryV2() {
   const cell = "border-b border-r border-[#d0d0d8] px-2.5 py-2.5 last:border-r-0";
 
   return (
-    <div className="min-h-full" style={{ background: PAGE_BG }}>
-      <div className="mx-auto max-w-[1100px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-[#d0d0d8] pb-4">
+    <AccountsPageShell>
+      <div className="mx-auto max-w-[1100px]">
+        <AccountsCard className="p-4 sm:p-6">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-[#E2E8F0] pb-4">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={goBack}
-              className="grid h-9 w-9 place-items-center rounded-lg border border-[#d0d0d8] bg-white hover:bg-[#f7f7f9]"
+              className="grid h-9 w-9 place-items-center rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC]"
               aria-label="Back"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={goBack}
-              className="rounded-lg border border-[#d0d0d8] bg-[#f3f3f6] px-5 py-2.5 text-[14px] font-medium text-[#1a1a1f] hover:bg-[#ececf0]"
-            >
+            <AccountsSecondaryButton type="button" onClick={goBack}>
               Cancel
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={handleSave}
-              className="rounded-lg px-5 py-2.5 text-[14px] font-bold text-[#1a1a1f] disabled:opacity-60"
-              style={{ background: "#0f6d84" }}
-            >
+            </AccountsSecondaryButton>
+            <AccountsPrimaryButton type="button" disabled={saving} onClick={handleSave}>
               {saving ? "Saving…" : isEdit ? "Update" : "Save"}
-            </button>
+            </AccountsPrimaryButton>
           </div>
         </div>
 
@@ -477,7 +471,8 @@ export default function NewJournalEntryV2() {
             </button>
           </div>
         </div>
+        </AccountsCard>
       </div>
-    </div>
+    </AccountsPageShell>
   );
 }

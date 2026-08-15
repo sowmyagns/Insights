@@ -1,6 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, ClipboardList, Download, Filter, Plus } from "lucide-react";
+import {
+  CheckCircle2,
+  ClipboardList,
+  Clock,
+  Download,
+  Filter,
+  Plus,
+  ShoppingCart,
+  XCircle,
+  Zap,
+} from "lucide-react";
 import KpiCard from "../../components/common/KpiCard";
 import PageHeader from "../../components/common/PageHeader";
 
@@ -304,6 +314,7 @@ const emptySummary = {
 
 export default function MaterialRequests() {
   const { addToast } = useToast();
+  const tableRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(emptySummary);
   const [rows, setRows] = useState([]);
@@ -311,6 +322,30 @@ export default function MaterialRequests() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selected, setSelected] = useState(null);
   const [convertRow, setConvertRow] = useState(null);
+
+  const scrollToTable = useCallback(() => {
+    tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const applyPreset = useCallback(
+    (preset) => {
+      if (preset === "converted") return;
+      setShowAdvanced(true);
+      if (preset === "all") {
+        setFilters(defaultFilters);
+      } else if (preset === "pending") {
+        setFilters({ ...defaultFilters, status: "pending" });
+      } else if (preset === "approved") {
+        setFilters({ ...defaultFilters, status: "approved" });
+      } else if (preset === "rejected") {
+        setFilters({ ...defaultFilters, status: "rejected" });
+      } else if (preset === "urgent") {
+        setFilters({ ...defaultFilters, priority: "urgent" });
+      }
+      scrollToTable();
+    },
+    [scrollToTable]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -475,15 +510,51 @@ export default function MaterialRequests() {
       />
 
       <div className="ui-grid-kpi">
-        <KpiCard label="Total Requests" value={summary.total_requests} icon={ClipboardList} color="bg-[var(--color-primary)]" />
-        <KpiCard label="Pending Approval" value={summary.pending_approval} icon={AlertCircle} color="bg-amber-500" />
-        <KpiCard label="Approved" value={summary.approved} icon={ClipboardList} color="bg-green-600" />
-        <KpiCard label="Rejected" value={summary.rejected} icon={AlertCircle} color="bg-red-500" />
-        <KpiCard label="Converted" value={summary.converted_to_rfq} icon={ClipboardList} color="bg-indigo-600" />
-        <KpiCard label="Urgent Requests" value={summary.urgent_requests} icon={AlertCircle} color="bg-orange-500" />
+        <KpiCard
+          label="Total Requests"
+          value={summary.total_requests}
+          icon={ClipboardList}
+          tone="primary"
+          onClick={() => applyPreset("all")}
+        />
+        <KpiCard
+          label="Pending Approval"
+          value={summary.pending_approval}
+          icon={Clock}
+          tone="warning"
+          onClick={() => applyPreset("pending")}
+        />
+        <KpiCard
+          label="Approved"
+          value={summary.approved}
+          icon={CheckCircle2}
+          tone="success"
+          onClick={() => applyPreset("approved")}
+        />
+        <KpiCard
+          label="Rejected"
+          value={summary.rejected}
+          icon={XCircle}
+          tone="danger"
+          onClick={() => applyPreset("rejected")}
+        />
+        <KpiCard
+          label="Converted"
+          value={summary.converted_to_rfq}
+          icon={ShoppingCart}
+          tone="violet"
+          to="/procurement/purchase-orders"
+        />
+        <KpiCard
+          label="Urgent Requests"
+          value={summary.urgent_requests}
+          icon={Zap}
+          tone="yellow"
+          onClick={() => applyPreset("urgent")}
+        />
       </div>
 
-      <div className="ui-card p-4">
+      <div ref={tableRef} className="ui-card p-4">
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}

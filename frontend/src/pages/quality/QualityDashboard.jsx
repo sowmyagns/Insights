@@ -1,220 +1,324 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, BarChart3, CheckCircle, ClipboardCheck, TrendingDown, XCircle } from "lucide-react";
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
-import KpiCard from "../../components/common/KpiCard";
-import PageHeader from "../../components/common/PageHeader";
+import { CheckCircle, ClipboardCheck, Clock, Percent, XCircle } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
-import { useToast } from "../../context/ToastContext";
+import PageHeader from "../../components/common/PageHeader";
 import { getQualityHub } from "../../api/qualityApi";
-import { DEMO_QUALITY_HUB, QUALITY_FLOW, formatPct, qcStatusColor } from "../../data/qualityMasterData";
+import { EMPTY_QUALITY_HUB, mergeQualityHub, qcStatusColor } from "../../data/qualityMasterData";
 import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
 
-const PIE_COLORS = ["#22c55e", "#ef4444", "#f59e0b"];
+const TONE_CLASS = {
+  primary: "!bg-[#dbeafe] !text-[#2563eb]",
+  success: "!bg-[#dcfce7] !text-[#16a34a]",
+  danger: "!bg-[#fee2e2] !text-[#ef4444]",
+  warning: "!bg-[#ffedd5] !text-[#ea580c]",
+  violet: "!bg-[#ede9fe] !text-[#7c3aed]",
+};
 
+function QualityKpi({ label, value, icon: Icon, tone, trendPct, trendDir, trendGoodWhenDown = false }) {
+  const isUp = trendDir === "up";
+  const positive = trendGoodWhenDown ? !isUp : isUp;
+  return (
+    <div className="ui-kpi">
+      <div className="ui-kpi__top">
+        <p className="ui-kpi__label">{label}</p>
+        {Icon ? (
+          <div className={`ui-kpi__icon ${TONE_CLASS[tone] || TONE_CLASS.primary}`}>
+            <Icon className="h-4 w-4" aria-hidden />
+          </div>
+        ) : null}
+      </div>
+      <p className="ui-kpi__value">{value}</p>
+      {trendPct != null ? (
+        <p className={`text-xs font-medium ${positive ? "text-emerald-600" : "text-red-600"}`}>
+          {isUp ? "↑" : "↓"} {trendPct}% vs last 14 days
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
-const alertIcons = { pending: ClipboardCheck, defect: AlertTriangle, yield: TrendingDown, calibration: BarChart3 };
+function StatusPill({ value, kind = "status" }) {
+  const key = String(value || "").toLowerCase();
+  const label =
+    kind === "result"
+      ? key === "passed" || key === "pass"
+        ? "Passed"
+        : key === "failed" || key === "fail"
+          ? "Failed"
+          : "—"
+      : key === "completed"
+        ? "Completed"
+        : key === "in_progress"
+          ? "In Progress"
+          : value || "—";
+
+  if (kind === "result" && (key === "passed" || key === "pass")) {
+    return <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Passed</span>;
+  }
+  if (kind === "result" && (key === "failed" || key === "fail")) {
+    return <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Failed</span>;
+  }
+  if (kind === "result" && !value) {
+    return <span className="text-sm text-[var(--color-text-muted)]">—</span>;
+  }
+  if (key === "completed") {
+    return <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Completed</span>;
+  }
+  if (key === "in_progress") {
+    return <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700">In Progress</span>;
+  }
+  return <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${qcStatusColor(key)}`}>{label}</span>;
+}
 
 export default function QualityDashboard() {
-  const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [hub, setHub] = useState(DEMO_QUALITY_HUB);
+  const [hub, setHub] = useState(EMPTY_QUALITY_HUB);
 
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     try {
       const res = await getQualityHub();
-      if (res.data && res.data.total_inspections > 0) setHub({ ...DEMO_QUALITY_HUB, ...res.data });
-      else if (!isRefresh) setHub(DEMO_QUALITY_HUB);
+      setHub(mergeQualityHub(res.data));
     } catch (err) {
       if (isRefresh) throw err;
-      setHub(DEMO_QUALITY_HUB);
+      setHub(EMPTY_QUALITY_HUB);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
   useManufacturingRefresh(() => load(true));
 
   if (loading) return <Loader label="Loading quality dashboard..." />;
 
+  const trends = hub.kpi_trends || {};
+  const trendData = hub.inspection_trend || [];
+  const typeData = hub.inspection_by_type || [];
+  const rejectionData = hub.rejection_reasons || [];
+  const recentRows = hub.recent_inspections || [];
+
   return (
-    <div className="space-y-5 pb-4">
-      <PageHeader subtitle="Inspection KPIs, yield trends, defect analysis, and QC performance." />
+    <div className="min-w-0 space-y-5 pb-4">
+      <PageHeader subtitle="Overview of quality activities and performance." />
 
-      <div className="ui-grid-kpi">
-        <KpiCard label="Total Inspections" value={hub.total_inspections} icon={ClipboardCheck} color="bg-[var(--color-primary)]" />
-        <KpiCard label="Passed" value={hub.passed} icon={CheckCircle} color="bg-green-600" />
-        <KpiCard label="Failed" value={hub.failed} icon={XCircle} color="bg-red-500" />
-        <KpiCard label="Rejected" value={hub.rejected} icon={XCircle} color="bg-red-600" />
-        <KpiCard label="Yield %" value={formatPct(hub.yield_pct)} icon={CheckCircle} color="bg-teal-600" />
-        <KpiCard label="Defect Rate" value={formatPct(hub.defect_rate)} icon={TrendingDown} color="bg-orange-500" />
+      {/* KPI row */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <QualityKpi
+          label="Total Inspections"
+          value={hub.total_inspections}
+          icon={ClipboardCheck}
+          tone="primary"
+          trendPct={trends.total?.pct}
+          trendDir={trends.total?.direction}
+        />
+        <QualityKpi
+          label="Passed"
+          value={hub.passed}
+          icon={CheckCircle}
+          tone="success"
+          trendPct={trends.passed?.pct}
+          trendDir={trends.passed?.direction}
+        />
+        <QualityKpi
+          label="Failed"
+          value={hub.failed}
+          icon={XCircle}
+          tone="danger"
+          trendPct={trends.failed?.pct}
+          trendDir={trends.failed?.direction}
+          trendGoodWhenDown
+        />
+        <QualityKpi
+          label="In-Process"
+          value={hub.in_process ?? 0}
+          icon={Clock}
+          tone="warning"
+          trendPct={trends.in_process?.pct}
+          trendDir={trends.in_process?.direction}
+        />
+        <QualityKpi
+          label="Pass Rate"
+          value={`${hub.pass_rate ?? 0}%`}
+          icon={Percent}
+          tone="violet"
+          trendPct={trends.pass_rate?.pct}
+          trendDir={trends.pass_rate?.direction}
+        />
       </div>
 
-      <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-medium text-slate-600 sm:text-xs">
-        {QUALITY_FLOW.map((s, i) => (
-          <span key={s} className="flex items-center gap-1">
-            <span className="rounded bg-white px-1.5 py-0.5 shadow-sm">{s}</span>
-            {i < QUALITY_FLOW.length - 1 && <span className="text-slate-400">↓</span>}
-          </span>
-        ))}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        <ChartCard title="Pass vs Fail">
-          <PieChart>
-            <Pie data={hub.pass_vs_fail || []} dataKey="count" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={65}>
-              {(hub.pass_vs_fail || []).map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-            </Pie>
-            <Tooltip />
-            <Legend />
-          </PieChart>
-        </ChartCard>
-        <ChartCard title="Defect Trend">
-          <LineChart data={hub.defect_trend || []}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-            <YAxis tick={{ fontSize: 10 }} />
-            <Tooltip />
-            <Line type="monotone" dataKey="count" stroke="#ef4444" strokeWidth={2} dot={false} />
-          </LineChart>
-        </ChartCard>
-        <ChartCard title="Monthly Yield">
-          <BarChart data={hub.monthly_yield || []}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-            <YAxis tick={{ fontSize: 10 }} domain={[85, 100]} />
-            <Tooltip />
-            <Bar dataKey="yield" fill="#10b981" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ChartCard>
-        <ChartCard title="Supplier Quality">
-          <BarChart data={hub.supplier_quality || []} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} />
-            <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 10 }} />
-            <Tooltip />
-            <Bar dataKey="score" fill="#2563EB" radius={[0, 4, 4, 0]} />
-          </BarChart>
-        </ChartCard>
-        <ChartCard title="Machine Defects">
-          <BarChart data={hub.machine_defects || []}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-            <YAxis tick={{ fontSize: 10 }} />
-            <Tooltip />
-            <Bar dataKey="defects" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ChartCard>
-        <ChartCard title="Pareto — Defect Types">
-          <BarChart data={hub.pareto_defects || []}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-            <YAxis tick={{ fontSize: 10 }} />
-            <Tooltip />
-            <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ChartCard>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="ui-card p-5">
-          <h2 className="ui-section-title mb-4">Root Cause Analysis</h2>
-          <ul className="space-y-2">
-            {(hub.root_cause_analysis || []).map((r) => (
-              <li key={r.cause} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
-                <span className="font-medium">{r.cause}</span>
-                <span className="font-semibold text-red-600">{r.count}</span>
-              </li>
-            ))}
-          </ul>
+      {/* Charts row */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="ui-card ui-card--padded">
+          <h2 className="mb-4 text-sm font-semibold text-[var(--color-text)]">Inspection Trend</h2>
+          <div className="mb-3 flex flex-wrap gap-4 text-xs font-medium text-[var(--color-text-muted)]">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" /> Passed
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-red-500" /> Failed
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-orange-500" /> In-Process
+            </span>
+          </div>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                <Line type="monotone" dataKey="passed" stroke="#22c55e" strokeWidth={2} dot={false} name="Passed" />
+                <Line type="monotone" dataKey="failed" stroke="#ef4444" strokeWidth={2} dot={false} name="Failed" />
+                <Line type="monotone" dataKey="in_process" stroke="#f97316" strokeWidth={2} dot={false} name="In-Process" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-        <div className="ui-card p-5">
-          <h2 className="ui-section-title mb-4">QC Performance</h2>
-          <ul className="space-y-3">
-            {(hub.qc_performance || []).map((q) => (
-              <li key={q.inspector}>
-                <div className="mb-1 flex justify-between text-sm"><span className="font-medium">{q.inspector}</span><span className="text-slate-500">{q.inspections} inspections · {q.pass_rate}% pass</span></div>
-                <div className="h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-green-500" style={{ width: `${q.pass_rate}%` }} /></div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
 
-      <div className="ui-card p-5">
-        <h2 className="ui-section-title mb-4">Recent Inspections</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-                <th className="pb-2 pr-4">Inspection No</th>
-                <th className="pb-2 pr-4">Type</th>
-                <th className="pb-2 pr-4">Result</th>
-                <th className="pb-2">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(hub.recent_inspections || []).map((i) => (
-                <tr key={i.number} className="border-b border-slate-100">
-                  <td className="py-2 pr-4 font-medium">{i.number}</td>
-                  <td className="py-2 pr-4 capitalize">{i.type?.replace("_", " ")}</td>
-                  <td className="py-2 pr-4"><span className={`rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${qcStatusColor(i.result)}`}>{i.result}</span></td>
-                  <td className="py-2">{i.date}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="ui-card p-5">
-        <h2 className="ui-section-title mb-4">Alerts</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {(hub.alerts || []).map((a, i) => {
-            const Icon = alertIcons[a.type] || AlertTriangle;
-            return (
-              <div key={i} className="flex items-start gap-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
-                <Icon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                <p className="text-sm text-amber-900">{a.message}</p>
+        <div className="ui-card ui-card--padded">
+          <h2 className="mb-4 text-sm font-semibold text-[var(--color-text)]">Inspection by Type</h2>
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative h-52 w-52 shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={typeData}
+                    dataKey="count"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={58}
+                    outerRadius={82}
+                    paddingAngle={2}
+                    stroke="none"
+                  >
+                    {typeData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <p className="text-2xl font-bold text-[var(--color-text)]">{hub.total_inspections}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">Total</p>
               </div>
-            );
-          })}
+            </div>
+            <ul className="min-w-0 flex-1 space-y-2.5 text-sm">
+              {typeData.map((item) => (
+                <li key={item.name} className="flex items-center justify-between gap-3">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: item.color }} />
+                    <span className="truncate text-[var(--color-text-secondary)]">{item.name}</span>
+                  </span>
+                  <span className="shrink-0 tabular-nums text-[var(--color-text-muted)]">
+                    {item.count} ({item.pct}%)
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <QuickLink to="/quality/incoming" label="Incoming Inspection" />
-        <QuickLink to="/quality/in-process" label="In Process QC" />
-        <QuickLink to="/quality/final" label="Final QC" />
-        <QuickLink to="/quality/batch-reports" label="Batch Reports" />
-        <QuickLink to="/quality/defects" label="Defect Tracking" />
+      {/* Table + rejection chart */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="ui-card overflow-hidden">
+          <div className="border-b border-[var(--color-border-soft)] px-5 py-4">
+            <h2 className="text-sm font-semibold text-[var(--color-text)]">Recent Inspections</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-[var(--color-border-soft)] bg-[var(--color-surface-muted)]/40 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Reference</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Result</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--color-border-muted)]">
+                {recentRows.map((row) => (
+                  <tr key={`${row.reference}-${row.date}`} className="hover:bg-[var(--color-surface-muted)]/40">
+                    <td className="whitespace-nowrap px-4 py-3 text-[var(--color-text-secondary)]">{row.date}</td>
+                    <td className="px-4 py-3 text-[var(--color-text)]">{row.type}</td>
+                    <td className="px-4 py-3 font-medium text-[var(--color-text)]">{row.reference}</td>
+                    <td className="px-4 py-3">
+                      <StatusPill value={row.status} kind="status" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusPill value={row.result} kind="result" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="border-t border-[var(--color-border-soft)] px-5 py-3">
+            <Link to="/quality/inspection" className="text-sm font-semibold text-[var(--color-primary)] hover:underline">
+              View All Inspections →
+            </Link>
+          </div>
+        </div>
+
+        <div className="ui-card ui-card--padded flex flex-col">
+          <h2 className="mb-4 text-sm font-semibold text-[var(--color-text)]">Top Rejection Reasons</h2>
+          <div className="min-h-0 flex-1">
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={rejectionData}
+                  layout="vertical"
+                  margin={{ top: 0, right: 28, left: 4, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
+                  <XAxis type="number" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={148}
+                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={18}>
+                    {rejectionData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="mt-2 border-t border-[var(--color-border-soft)] pt-3">
+            <Link to="/quality/defects" className="text-sm font-semibold text-[var(--color-primary)] hover:underline">
+              View All Rejections →
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
-  );
-}
-
-function ChartCard({ title, children }) {
-  return (
-    <div className="ui-card p-5">
-      <h2 className="ui-section-title mb-4">{title}</h2>
-      <div className="h-44">
-        <ResponsiveContainer width="100%" height="100%">
-          {children}
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
-function QuickLink({ to, label }) {
-  return (
-    <Link to={to} className="ui-card px-4 py-3 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-soft)]">
-      {label} →
-    </Link>
   );
 }

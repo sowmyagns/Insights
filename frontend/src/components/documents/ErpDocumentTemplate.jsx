@@ -32,6 +32,28 @@ function fmtQty(n) {
   return Number(n || 0).toFixed(2);
 }
 
+const DEFAULT_DECLARATION = [
+  "Certified that the particulars given above are true and correct.",
+  "The amount indicated represents the price actually charged and that there is no flow of additional consideration directly or indirectly from the Buyer.",
+  "All disputes are subject to Hyderabad jurisdiction.",
+  "Goods once sold will not be taken back or exchanged.",
+  "Cheques subject to realization.",
+  "24% interest per annum will be charged if the bills are not paid within due days.",
+  "Goods Return Policy: Goods shall be taken back only within 7 days from the date of Invoice with proper packing in saleable condition.",
+];
+
+const DEFAULT_REJECTION = [
+  "Any rejection must be reported within 24 hours of receipt of material.",
+  "Material must be in original packing for acceptance of returns.",
+  "Quality complaints must include batch/lot reference and photographs.",
+  "Rejection due to storage/handling at buyer premises is not accepted.",
+  "Partial rejection must be clearly marked on delivery documents.",
+  "Rejected material must be made available for inspection by seller.",
+  "Credit note will be issued only after verification of rejected goods.",
+  "Transit damage must be noted on transporter documents at delivery.",
+  "Claims beyond the stipulated period will not be entertained.",
+];
+
 /**
  * Unified A4 ERP document — matches reference Tax Invoice grid (STIC-ON style).
  */
@@ -63,6 +85,8 @@ export default function ErpDocumentTemplate({ data, docType = "invoice" }) {
   const showEInvoice = cfg.showEInvoice;
   const docNo = meta.document_no || meta.invoice_no || meta.invoiceNo || meta.quote_number || meta.purchase_no || "";
   const docDate = meta.date || meta.document_date || "";
+  const ackNo = data.ack_no || data.ackNo || "";
+  const ackDate = data.ack_date || data.ackDate || docDate;
   const displayTitle = docType === "invoice" ? "Tax Invoice" : (data.title || cfg.title);
 
   const qrValue = showEInvoice
@@ -78,23 +102,8 @@ export default function ErpDocumentTemplate({ data, docType = "invoice" }) {
     : "e-invoice";
 
   const declaration = (data.terms || data.termsAndConditions || "").split("\n").filter(Boolean);
-  const declItems = declaration.length
-    ? declaration
-    : [
-        "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.",
-        "Payment due within agreed credit period.",
-        "Interest @ 18% p.a. will be charged on overdue payments.",
-        "Goods once sold will not be taken back except as per return policy.",
-        "All disputes are subject to local jurisdiction.",
-      ];
-
-  const rejectionPolicy = [
-    "Any rejection must be reported within 24 hours of receipt of material.",
-    "Material must be in original packing for acceptance of returns.",
-    "Quality complaints must include batch/lot reference and photographs.",
-    "Rejection due to storage/handling at buyer premises is not accepted.",
-    "Partial rejection must be clearly marked on delivery documents.",
-  ];
+  const declItems = declaration.length ? declaration : DEFAULT_DECLARATION;
+  const rejectionPolicy = DEFAULT_REJECTION;
 
   const metaRowCount = cfg.showEwayBill ? 7 : 4;
   const minItemRows = 7;
@@ -121,13 +130,13 @@ export default function ErpDocumentTemplate({ data, docType = "invoice" }) {
                 <div className="erp-doc__title-left">
                   {showEInvoice && data.irn && data.irn !== "—" ? (
                     <div className="erp-doc__irn-block">
-                      <span className="erp-doc__lbl">IRN</span> : <span className="erp-doc__irn">{data.irn}</span>
+                      <span className="erp-doc__lbl">IRN No.</span> : <span className="erp-doc__irn">{data.irn}</span>
                     </div>
                   ) : null}
-                  {showEInvoice && (data.ack_no || data.ack_date) ? (
+                  {showEInvoice && (ackNo || ackDate) ? (
                     <div className="erp-doc__ack">
-                      {data.ack_no ? <div><span className="erp-doc__lbl">Ack No.</span> : {data.ack_no}</div> : null}
-                      {data.ack_date ? <div><span className="erp-doc__lbl">Ack Date</span> : {data.ack_date}</div> : null}
+                      {ackNo ? <div><span className="erp-doc__lbl">Ack No.</span> : {ackNo}</div> : null}
+                      {ackDate ? <div><span className="erp-doc__lbl">Ack Date</span> : {ackDate}</div> : null}
                     </div>
                   ) : null}
                 </div>
@@ -228,30 +237,33 @@ export default function ErpDocumentTemplate({ data, docType = "invoice" }) {
             </>
           ) : null}
 
-          {/* Consignee / Buyer */}
+          {/* Consignee / Buyer — stacked on left half (reference Tax Invoice layout) */}
           <tr>
-            <td colSpan={4} className="erp-doc__party-head">{cfg.partyShipLabel}</td>
-            <td colSpan={4} className="erp-doc__party-head">{cfg.partyBillLabel}</td>
+            <td colSpan={4} className="erp-doc__party-block">
+              <div className="erp-doc__party-label">{cfg.partyShipLabel}</div>
+              <div className="erp-doc__party-text">
+                <strong>{consignee.name || buyer.name}</strong><br />
+                {consignee.address || buyer.shipping_address || buyer.billing_address || buyer.address}<br />
+                {(consignee.phone || buyer.phone) ? <>Mobile No. : {consignee.phone || buyer.phone}<br /></> : null}
+                {(consignee.gstin || buyer.gstin) ? <>GSTIN/UIN : {consignee.gstin || buyer.gstin}<br /></> : null}
+                {(consignee.state || buyer.state) ? <>State Name : {consignee.state || buyer.state}, Code : {consignee.state_code || buyer.state_code || ""}</> : null}
+              </div>
+            </td>
+            <td colSpan={4} rowSpan={2} className="erp-doc__party-blank">&nbsp;</td>
           </tr>
           <tr>
-            <td colSpan={4} className="erp-doc__party-body">
-              <strong>{consignee.name || buyer.name}</strong><br />
-              {consignee.address || buyer.shipping_address || buyer.billing_address || buyer.address}<br />
-              {(consignee.phone || buyer.phone) ? <>Mobile No. : {consignee.phone || buyer.phone}<br /></> : null}
-              {(consignee.gstin || buyer.gstin) ? <>GSTIN/UIN : {consignee.gstin || buyer.gstin}<br /></> : null}
-              {(consignee.state || buyer.state) ? <>State Name : {consignee.state || buyer.state}, Code : {consignee.state_code || buyer.state_code || ""}</> : null}
-            </td>
-            <td colSpan={4} className="erp-doc__party-body">
-              <strong>{buyer.name}</strong><br />
-              {buyer.billing_address || buyer.address}<br />
-              {buyer.phone ? <>Mobile No. : {buyer.phone}<br /></> : null}
-              {buyer.gstin ? <>GSTIN/UIN : {buyer.gstin}<br /></> : null}
-              {buyer.state ? <>State Name : {buyer.state}, Code : {buyer.state_code || ""}</> : null}
-            </td>
-          </tr>
-          <tr>
-            <td colSpan={COLS} className="erp-doc__place-supply">
-              <span className="erp-doc__lbl">Place of Supply</span> : {buyer.place_of_supply || buyer.placeOfSupply || buyer.state || ""}
+            <td colSpan={4} className="erp-doc__party-block">
+              <div className="erp-doc__party-label">{cfg.partyBillLabel}</div>
+              <div className="erp-doc__party-text">
+                <strong>{buyer.name}</strong><br />
+                {buyer.billing_address || buyer.address}<br />
+                {buyer.phone ? <>Mobile No. : {buyer.phone}<br /></> : null}
+                {buyer.gstin ? <>GSTIN/UIN : {buyer.gstin}<br /></> : null}
+                {buyer.state ? <>State Name : {buyer.state}, Code : {buyer.state_code || ""}<br /></> : null}
+                {(buyer.place_of_supply || buyer.placeOfSupply || buyer.state) ? (
+                  <>Place of Supply : {buyer.place_of_supply || buyer.placeOfSupply || buyer.state}</>
+                ) : null}
+              </div>
             </td>
           </tr>
 
@@ -317,7 +329,9 @@ export default function ErpDocumentTemplate({ data, docType = "invoice" }) {
             <tr className="erp-doc__tax-row">
               <td colSpan={5} />
               <td colSpan={2} className="erp-doc__tax-label">Less&nbsp;&nbsp;ROUNDED OFF</td>
-              <td className="erp-doc__num">({fmt(Math.abs(roundOff), 3)})</td>
+              <td className="erp-doc__num">
+                {roundOff < 0 ? `(-)${fmt(Math.abs(roundOff), 3)}` : fmt(roundOff, 3)}
+              </td>
             </tr>
           ) : null}
           <tr className="erp-doc__total-row">
@@ -416,16 +430,17 @@ export default function ErpDocumentTemplate({ data, docType = "invoice" }) {
             </td>
           </tr>
 
-          {data.remarks ? (
+          {data.remarks || docNo ? (
             <tr>
               <td colSpan={COLS} className="erp-doc__remarks-cell">
-                <span className="erp-doc__lbl">Remarks</span> : {data.remarks}
+                <span className="erp-doc__lbl">Remarks</span> :{" "}
+                {data.remarks || `Being material sold vide Invoice No : ${docNo}`}
               </td>
             </tr>
           ) : null}
 
           <tr>
-            <td colSpan={cfg.showRejectionPolicy ? 4 : COLS} className="erp-doc__decl-cell">
+            <td colSpan={COLS} className="erp-doc__decl-cell">
               <strong>Declaration</strong>
               <ol className="erp-doc__terms-list">
                 {declItems.map((t, i) => <li key={i}>{t.replace(/^\d+\.\s*/, "")}</li>)}

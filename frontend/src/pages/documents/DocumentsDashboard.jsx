@@ -14,6 +14,7 @@ import {
 } from "../../api/documentsApi";
 import { isAdmin } from "../../config/permissions";
 import Button from "../../components/common/Button";
+import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import {
   DOC_TYPES,
   VERSION_OPTIONS,
@@ -519,6 +520,7 @@ Description:  ${doc.description || "No description provided."}
           <table className="min-w-full text-left text-sm">
             <thead className="bg-slate-50/80 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-200/80">
               <tr>
+                <SerialNumberHeader className="px-3.5 py-3" />
                 {[
                   ["title", "Document Name"],
                   ["category", "Category"],
@@ -549,14 +551,15 @@ Description:  ${doc.description || "No description provided."}
             <tbody className="divide-y divide-slate-100 font-sans">
               {pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={9} className="px-4 py-12 text-center text-slate-500">
                     <FolderOpen className="mx-auto mb-2 h-8 w-8 text-slate-300" />
                     No documents found matching your filter.
                   </td>
                 </tr>
               ) : (
-                pageRows.map((doc) => (
+                pageRows.map((doc, rowIndex) => (
                   <tr key={doc.id} className="hover:bg-slate-50/80 transition-colors">
+                    <SerialNumberCell rowIndex={rowIndex} page={page} pageSize={PAGE_SIZE} className="px-3.5 py-3" />
                     <td className="px-3.5 py-3">
                       <div className="flex items-center gap-2.5">
                         <FileTypeIcon name={doc.file_name || doc.title} />
