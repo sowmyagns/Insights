@@ -694,7 +694,7 @@ export default function AddNewPartyModal({
             className="ui-btn-primary py-3 text-[14px] disabled:opacity-60"
           >
             {saving ? "Saving…" : "Submit"}
-          </Button>
+          </button>
         </div>
       </form>
 

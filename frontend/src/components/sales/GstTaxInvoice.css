@@ -126,10 +126,6 @@
 /* ──────────────────────────────────────────────
    Seller block
 ────────────────────────────────────────────── */
-.gti-seller-table {
-  /* stacked under irn row */
-}
-
 .gti-seller-cell {
   border: 1px solid #888;
   padding: 6px 8px;
