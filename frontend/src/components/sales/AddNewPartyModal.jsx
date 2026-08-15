@@ -541,13 +541,23 @@ export default function AddNewPartyModal({
               </SoftField>
             </div>
 
-            <div className="rounded-lg border border-[#e4e4ea] bg-[#fafafa] px-4 py-3.5">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-[13px] font-semibold text-[#1a1a1f]">
-                  <MapPin className="h-4 w-4 text-[#6b4eff]" />
-                  Billing Address
-                </div>
-                {addressText ? (
+            {!addressText ? (
+              <button
+                type="button"
+                onClick={() => setAddressOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#9aa5ff] bg-white px-3 py-2 text-[13px] font-semibold"
+                style={{ color: PURPLE }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Billing Address
+              </button>
+            ) : (
+              <div className="rounded-lg border border-[#e4e4ea] bg-[#fafafa] px-4 py-3.5">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[13px] font-semibold text-[#1a1a1f]">
+                    <MapPin className="h-4 w-4 text-[#6b4eff]" />
+                    Billing Address
+                  </div>
                   <button
                     type="button"
                     onClick={() => setAddressOpen(true)}
@@ -555,46 +565,46 @@ export default function AddNewPartyModal({
                   >
                     <Pencil className="h-3.5 w-3.5" /> Edit
                   </button>
-                ) : null}
-              </div>
-              <div className="space-y-2.5">
-                <input
-                  value={address.address_line1}
-                  onChange={(e) => setAddress((p) => ({ ...p, address_line1: e.target.value }))}
-                  placeholder="Street / Address Line"
-                  className={inputClass}
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    value={address.pincode}
-                    onChange={(e) =>
-                      setAddress((p) => ({
-                        ...p,
-                        pincode: e.target.value.replace(/\D/g, "").slice(0, 6),
-                      }))
-                    }
-                    placeholder="Pincode"
-                    className={inputClass}
-                  />
-                  <input
-                    value={address.city}
-                    onChange={(e) => setAddress((p) => ({ ...p, city: e.target.value }))}
-                    placeholder="City"
-                    className={inputClass}
-                  />
                 </div>
-                <select
-                  value={address.state}
-                  onChange={(e) => setAddress((p) => ({ ...p, state: e.target.value }))}
-                  className={inputClass}
-                >
-                  <option value="">Select State</option>
-                  {INDIAN_STATES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+                <div className="space-y-2.5">
+                  <input
+                    value={address.address_line1}
+                    onChange={(e) => setAddress((p) => ({ ...p, address_line1: e.target.value }))}
+                    placeholder="Street / Address Line"
+                    className={inputClass}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      value={address.pincode}
+                      onChange={(e) =>
+                        setAddress((p) => ({
+                          ...p,
+                          pincode: e.target.value.replace(/\D/g, "").slice(0, 6),
+                        }))
+                      }
+                      placeholder="Pincode"
+                      className={inputClass}
+                    />
+                    <input
+                      value={address.city}
+                      onChange={(e) => setAddress((p) => ({ ...p, city: e.target.value }))}
+                      placeholder="City"
+                      className={inputClass}
+                    />
+                  </div>
+                  <select
+                    value={address.state}
+                    onChange={(e) => setAddress((p) => ({ ...p, state: e.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">Select State</option>
+                    {INDIAN_STATES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="mt-4 border-t border-[#ececf0] pt-3.5">
@@ -608,7 +618,8 @@ export default function AddNewPartyModal({
               <button
                 type="button"
                 onClick={() => setBasicOpen(true)}
-                className="ui-btn-secondary inline-flex shrink-0 items-center gap-1 !py-1.5 !text-[12px]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#9aa5ff] bg-white px-3 py-2 text-[13px] font-semibold"
+                style={{ color: PURPLE }}
               >
                 <Plus className="h-3.5 w-3.5" />
                 Add
@@ -625,7 +636,8 @@ export default function AddNewPartyModal({
               <button
                 type="button"
                 onClick={() => setOtherOpen(true)}
-                className="ui-btn-secondary inline-flex shrink-0 items-center gap-1 !py-1.5 !text-[12px]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#9aa5ff] bg-white px-3 py-2 text-[13px] font-semibold"
+                style={{ color: PURPLE }}
               >
                 <Plus className="h-3.5 w-3.5" />
                 Add
