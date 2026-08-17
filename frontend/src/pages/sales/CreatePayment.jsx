@@ -98,7 +98,8 @@ export default function CreatePayment({ onClose } = {}) {
   if (loading) return <Loader label="Loading..." />;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-[1px]">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/35 p-4 backdrop-blur-[1px]">
+      <div className="flex min-h-full items-center justify-center">
       <div className="w-full max-w-xl">
         <div className="ui-card overflow-hidden shadow-[0_18px_45px_rgba(15,23,42,0.12)]">
           <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
@@ -214,6 +215,7 @@ export default function CreatePayment({ onClose } = {}) {
             </div>
           </form>
         </div>
+      </div>
       </div>
     </div>
   );

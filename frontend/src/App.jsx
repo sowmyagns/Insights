@@ -197,7 +197,7 @@ export default function App() {
 
   return (
     <div
-      className="app-shell relative flex h-screen overflow-hidden dark:bg-slate-950"
+      className="app-shell relative flex min-h-screen dark:bg-slate-950"
       data-sidebar-collapsed={sidebarCollapsed ? "true" : "false"}
     >
       <a
@@ -222,7 +222,7 @@ export default function App() {
           onClose={() => setSidebarOpen(false)}
         />
       </aside>
-      <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col">
         <Navbar onMenuClick={() => setSidebarOpen(true)} />
         <main
           id="main-content"
@@ -230,7 +230,7 @@ export default function App() {
           className={`min-h-0 min-w-0 w-full flex-1 bg-transparent outline-none ${
             isInvoiceEditor || isEInvoiceLogin
               ? "overflow-hidden"
-              : "overflow-y-auto"
+              : "overflow-y-auto overflow-x-auto"
           }`}
         >
           {isFullBleedSales || isInvoiceEditor || isEInvoiceLogin ? (

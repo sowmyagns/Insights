@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { Mail, MessageCircle, Printer, Share2 } from "lucide-react";
 
 import Loader from "../../components/common/Loader";

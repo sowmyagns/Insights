@@ -65,22 +65,22 @@ function SessionGate({ children }) {
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <ErrorBoundary>
-      <SettingsProvider>
-        <AuthProvider>
-          <ToastProvider>
-            <NetworkStatusProvider>
-              <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <SettingsProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <NetworkStatusProvider>
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              <ErrorBoundary>
                 <Suspense fallback={<LoadingFallback />}>
                   <SessionGate>
                     <App />
                   </SessionGate>
                 </Suspense>
-              </BrowserRouter>
-            </NetworkStatusProvider>
-          </ToastProvider>
-        </AuthProvider>
-      </SettingsProvider>
-    </ErrorBoundary>
+              </ErrorBoundary>
+            </BrowserRouter>
+          </NetworkStatusProvider>
+        </ToastProvider>
+      </AuthProvider>
+    </SettingsProvider>
   </React.StrictMode>
 );

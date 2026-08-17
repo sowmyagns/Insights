@@ -1,22 +1,33 @@
-from sqlalchemy import ForeignKey, String, JSON
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Column, Integer, String, Table, ForeignKey
+from sqlalchemy.orm import relationship
+from app.core.database import Base
 
-from app.models.base import Base, TimestampMixin
+role_permissions = Table(
+    "role_permissions",
+    Base.metadata,
+    Column("role_id", Integer, ForeignKey("roles.id")),
+    Column("permission_id", Integer, ForeignKey("permissions.id")),
+)
 
 
-class Role(Base, TimestampMixin):
+class Role(Base):
     __tablename__ = "roles"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    tenant_id: Mapped[int] = mapped_column(
-        ForeignKey("tenants.id"), nullable=False, index=True
-    )
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    description: Mapped[str | None] = mapped_column(String(255))
-    permissions: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(80), nullable=False)
+    code = Column(String(30), unique=True)  # admin, hr, employee, manager
+    description = Column(String(255))
 
-    tenant = relationship("Tenant", back_populates="roles")
-    users = relationship("User", secondary="user_roles", back_populates="roles")
-    permission_links = relationship(
-        "RolePermission", back_populates="role", cascade="all, delete-orphan"
-    )
+    permissions = relationship("Permission", secondary=role_permissions, back_populates="roles")
+
+
+class Permission(Base):
+    __tablename__ = "permissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    code = Column(String(80), unique=True)  # e.g. leave.approve, payroll.view
+    module = Column(String(50))  # leave, payroll, attendance, etc.
+    description = Column(String(255))
+
+    roles = relationship("Role", secondary=role_permissions, back_populates="permissions")

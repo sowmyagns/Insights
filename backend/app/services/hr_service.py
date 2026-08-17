@@ -5,15 +5,30 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
-from app.models.hr import Employee, HrAsset, SafetyIncident
+from app.models.hr import (
+    AttendanceRecord,
+    Employee,
+    HrAsset,
+    LeaveRequest,
+    PayrollRecord,
+    PerformanceReview,
+    SafetyIncident,
+    Shift,
+)
 from app.schemas.hr import (
+    AttendanceRecordCreate,
     EmployeeCreate,
     HrAssetCreate,
     HrAssetUpdate,
+    LeaveRequestCreate,
+    LeaveRequestUpdate,
+    PayrollRecordCreate,
+    PerformanceReviewCreate,
     SafetyIncidentCreate,
     SafetyIncidentUpdate,
     ShiftCreate,
 )
+from app.schemas.hr_extended import EmployeeListRead, EmployeeSummaryRead
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +69,79 @@ def create_employee(db: Session, payload: EmployeeCreate) -> Employee:
 def list_employees(db: Session, tenant_id: int) -> list[Employee]:
     stmt = select(Employee).where(Employee.tenant_id == tenant_id, Employee.is_active)
     return list(db.scalars(stmt).all())
+
+
+def get_employee_summary(db: Session, tenant_id: int) -> EmployeeSummaryRead:
+    employees = list_employees(db, tenant_id)
+    today = date.today()
+    present_today = db.scalar(
+        select(func.count(AttendanceRecord.id)).where(
+            AttendanceRecord.tenant_id == tenant_id,
+            AttendanceRecord.record_date == today,
+        )
+    ) or 0
+    on_leave = db.scalar(
+        select(func.count(LeaveRequest.id)).where(
+            LeaveRequest.tenant_id == tenant_id,
+            LeaveRequest.status == "pending",
+        )
+    ) or 0
+    overtime = float(
+        db.scalar(
+            select(func.coalesce(func.sum(AttendanceRecord.overtime_hours), 0)).where(
+                AttendanceRecord.tenant_id == tenant_id,
+                AttendanceRecord.record_date >= today - timedelta(days=30),
+            )
+        )
+        or 0
+    )
+    departments = len({emp.department for emp in employees if emp.department})
+    contract_employees = sum(
+        1
+        for emp in employees
+        if emp.employment_type and emp.employment_type.lower() in {"contract", "contractual", "temporary"}
+    )
+    new_joiners = sum(
+        1
+        for emp in employees
+        if emp.hire_date and emp.hire_date >= today - timedelta(days=30)
+    )
+    return EmployeeSummaryRead(
+        total_employees=len(employees),
+        present_today=present_today,
+        absent=max(0, len(employees) - present_today),
+        on_leave=on_leave,
+        overtime=overtime,
+        departments=departments,
+        contract_employees=contract_employees,
+        new_joiners=new_joiners,
+    )
+
+
+def list_employees_enriched(db: Session, tenant_id: int) -> list[EmployeeListRead]:
+    employees = list_employees(db, tenant_id)
+    items: list[EmployeeListRead] = []
+    for emp in employees:
+        items.append(
+            EmployeeListRead(
+                id=emp.id,
+                employee_id=str(emp.id),
+                employee_code=emp.employee_code,
+                full_name=emp.full_name,
+                department=emp.department,
+                designation=emp.designation,
+                shift=emp.shift_name,
+                reporting_manager=emp.reporting_manager,
+                employment_type=emp.employment_type,
+                status="active" if emp.is_active else "inactive",
+                phone=emp.phone,
+                email=emp.email,
+                joining_date=emp.hire_date.isoformat() if emp.hire_date else None,
+                salary=float(emp.salary) if emp.salary is not None else None,
+                initials="".join(part[:1].upper() for part in emp.full_name.split()[:2]) if emp.full_name else None,
+            )
+        )
+    return items
 
 
 def create_shift(db: Session, payload: ShiftCreate) -> Shift:
