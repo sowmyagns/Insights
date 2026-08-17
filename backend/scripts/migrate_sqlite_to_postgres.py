@@ -4,6 +4,10 @@
 Does NOT modify the SQLite source file. Run only after ``alembic upgrade head``
 on the PostgreSQL target.
 
+Idempotent: rows whose primary keys already exist in PostgreSQL are skipped.
+This allows safe re-runs after startup seed data (e.g. seed_users) without
+duplicate-key failures and without deleting existing PostgreSQL rows.
+
 Environment:
   SOURCE_DATABASE_URL  default: sqlite:///./smrt.db
   TARGET_DATABASE_URL  required for live run (postgresql+psycopg://...)
@@ -28,7 +32,21 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from scripts.migration_utils import LEGACY_HR_TABLES, tables_to_migrate  # noqa: E402
+from dotenv import load_dotenv
+
+load_dotenv(BACKEND_ROOT / ".env")
+
+from scripts.migration_utils import (  # noqa: E402
+    LEGACY_HR_TABLES,
+    fetch_existing_primary_keys,
+    fetch_existing_unique_keys,
+    filter_row_for_target,
+    missing_foreign_key_parents,
+    primary_key_columns,
+    row_should_skip,
+    tables_to_migrate,
+    unique_constraint_columns,
+)
 
 
 def _engine(url: str, *, read_only: bool = False) -> Engine:
@@ -80,6 +98,7 @@ def migrate(source_url: str, target_url: str, *, dry_run: bool = False) -> dict[
     plan = tables_to_migrate(source_tables)
     skipped_legacy = sorted(source_tables & set(LEGACY_HR_TABLES))
     counts: dict[str, int] = {}
+    skipped_counts: dict[str, int] = {}
 
     print(f"Active-schema tables to migrate: {len(plan)}")
     if skipped_legacy:
@@ -95,24 +114,78 @@ def migrate(source_url: str, target_url: str, *, dry_run: bool = False) -> dict[
 
     assert target_engine is not None
     metadata = MetaData()
+    target_insp = inspect(target_engine)
+    parent_pk_cache: dict[str, set] = {}
 
-    with source_engine.connect() as src, target_engine.begin() as tgt:
-        tgt.execute(text("SET session_replication_role = 'replica'"))
-        try:
-            for name in plan:
-                table = Table(name, metadata, autoload_with=source_engine)
-                rows = src.execute(select(table)).mappings().all()
-                if not rows:
-                    counts[name] = 0
-                    continue
-                payload = [dict(row) for row in rows]
-                tgt.execute(table.insert(), payload)
-                counts[name] = len(payload)
-                print(f"  migrated {name}: {counts[name]} rows")
-        finally:
-            tgt.execute(text("SET session_replication_role = 'origin'"))
+    with source_engine.connect() as src:
+        for name in plan:
+            source_table = Table(name, metadata, autoload_with=source_engine)
+            target_table = Table(name, metadata, autoload_with=target_engine)
+            target_columns = {column.name for column in target_table.columns}
+            pk_columns = primary_key_columns(target_insp, name)
+            unique_groups = unique_constraint_columns(target_insp, name)
+
+            rows = src.execute(select(source_table)).mappings().all()
+            if not rows:
+                counts[name] = 0
+                skipped_counts[name] = 0
+                continue
+
+            with target_engine.begin() as tgt:
+                existing_unique = {
+                    tuple(columns): fetch_existing_unique_keys(tgt, name, columns)
+                    for columns in unique_groups
+                }
+                existing_pks = fetch_existing_primary_keys(tgt, name, pk_columns)
+                to_insert: list[dict] = []
+                skipped = 0
+                fk_skipped = 0
+                for row in rows:
+                    payload = filter_row_for_target(dict(row), target_columns)
+                    if row_should_skip(
+                        payload,
+                        pk_columns=pk_columns,
+                        existing_pks=existing_pks,
+                        unique_groups=unique_groups,
+                        existing_unique=existing_unique,
+                    ):
+                        skipped += 1
+                        continue
+                    missing_parents = missing_foreign_key_parents(
+                        tgt,
+                        target_insp,
+                        name,
+                        payload,
+                        parent_pk_cache=parent_pk_cache,
+                    )
+                    if missing_parents:
+                        fk_skipped += 1
+                        continue
+                    to_insert.append(payload)
+
+                if to_insert:
+                    tgt.execute(target_table.insert(), to_insert)
+
+            if pk_columns:
+                with target_engine.connect() as refresh_conn:
+                    parent_pk_cache[name] = fetch_existing_primary_keys(
+                        refresh_conn, name, pk_columns
+                    )
+
+            counts[name] = len(to_insert)
+            skipped_counts[name] = skipped + fk_skipped
+            if to_insert or skipped or fk_skipped:
+                suffix = ""
+                if skipped:
+                    suffix += f", {skipped} skipped (already exist)"
+                if fk_skipped:
+                    suffix += f", {fk_skipped} skipped (missing FK parent)"
+                print(f"  migrated {name}: {counts[name]} inserted{suffix}")
 
     _reset_pg_sequences(target_engine, plan)
+    total_inserted = sum(counts.values())
+    total_skipped = sum(skipped_counts.values())
+    print(f"Inserted {total_inserted} rows; skipped {total_skipped} existing rows.")
     return counts
 
 
@@ -126,13 +199,13 @@ def main() -> None:
     )
     parser.add_argument(
         "--target",
-        default=os.environ.get("TARGET_DATABASE_URL", ""),
-        help="PostgreSQL target URL (required unless --dry-run)",
+        default=os.environ.get("TARGET_DATABASE_URL", os.environ.get("DATABASE_URL", "")),
+        help="PostgreSQL target URL (default: TARGET_DATABASE_URL or DATABASE_URL)",
     )
     args = parser.parse_args()
 
     if not args.dry_run and not args.target.strip():
-        raise SystemExit("Set TARGET_DATABASE_URL or pass --target for live migration.")
+        raise SystemExit("Set TARGET_DATABASE_URL or DATABASE_URL or pass --target for live migration.")
 
     try:
         counts = migrate(args.source, args.target, dry_run=args.dry_run)
@@ -140,7 +213,7 @@ def main() -> None:
         raise SystemExit(f"Migration failed: {exc}") from exc
 
     total = sum(counts.values())
-    print(f"Done. {len(counts)} tables, {total} total rows.")
+    print(f"Done. {len(counts)} tables, {total} total rows inserted.")
 
 
 if __name__ == "__main__":
