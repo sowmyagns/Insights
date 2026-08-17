@@ -20,16 +20,17 @@ import {
   MANUFACTURING_EVENTS,
   notifyManufacturingSpine,
 } from "../../utils/manufacturingEvents";
+import { escapeHtml } from "../../utils/htmlEscape";
 
 
 function printChallan(challan) {
   const linesHtml = (challan.lines || [])
     .map(
       (l, i) =>
-        `<tr><td>${i + 1}</td><td>${l.description || ""}</td><td>${l.quantity}</td><td>${l.unit || ""}</td><td>${l.line_total ?? ""}</td></tr>`
+        `<tr><td>${i + 1}</td><td>${escapeHtml(l.description || "")}</td><td>${Number(l.quantity || 0)}</td><td>${escapeHtml(l.unit || "")}</td><td>${escapeHtml(l.line_total ?? "")}</td></tr>`
     )
     .join("");
-  const html = `<!doctype html><html><head><title>${challan.challan_number}</title>
+  const html = `<!doctype html><html><head><title>${escapeHtml(challan.challan_number)}</title>
     <style>
       body{font-family:Segoe UI,Arial,sans-serif;padding:24px;color:#111}
       h1{font-size:18px;margin:0 0 4px} h2{font-size:14px;margin:16px 0 8px;color:#334}
@@ -38,11 +39,11 @@ function printChallan(challan) {
       th{background:#f1f5f9} .meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px}
       @media print{button{display:none}}
     </style></head><body>
-    <h1>Delivery Challan — ${challan.challan_number}</h1>
-    <p style="margin:0 0 12px;font-size:12px;color:#64748b">SO ${challan.so_number || "—"} · ${challan.dispatch_date || ""}</p>
+    <h1>Delivery Challan — ${escapeHtml(challan.challan_number)}</h1>
+    <p style="margin:0 0 12px;font-size:12px;color:#64748b">SO ${escapeHtml(challan.so_number || "—")} · ${escapeHtml(challan.dispatch_date || "")}</p>
     <div class="meta">
-      <div><strong>Customer</strong><br>${challan.customer_name || "—"}<br>${challan.customer_address || ""}</div>
-      <div><strong>Transport</strong><br>${challan.courier || "—"} · ${challan.vehicle_number || "—"}<br>Driver: ${challan.driver_name || "—"} · LR: ${challan.lr_number || "—"}</div>
+      <div><strong>Customer</strong><br>${escapeHtml(challan.customer_name || "—")}<br>${escapeHtml(challan.customer_address || "")}</div>
+      <div><strong>Transport</strong><br>${escapeHtml(challan.courier || "—")} · ${escapeHtml(challan.vehicle_number || "—")}<br>Driver: ${escapeHtml(challan.driver_name || "—")} · LR: ${escapeHtml(challan.lr_number || "—")}</div>
     </div>
     <h2>Line items</h2>
     <table><thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Unit</th><th>Amount</th></tr></thead>

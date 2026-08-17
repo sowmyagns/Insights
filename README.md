@@ -4,9 +4,9 @@
 
 **Tagline:** Business Intelligence • Analytics • AI
 
-Security hardening (auth lockout, email verification, refresh tokens, RBAC, tenant isolation, headers) is documented in [SECURITY_REPORT.md](./SECURITY_REPORT.md). Architecture and recent UI/live-data analysis: [PROJECT_ANALYSIS_REPORT.md](./PROJECT_ANALYSIS_REPORT.md).
+Security hardening (auth lockout, email verification, refresh tokens, RBAC, tenant isolation, headers) is documented in [SECURITY_REPORT.md](./SECURITY_REPORT.md). **Full security audit + hardening pass (16 Aug 2026)** — summary in [Security Audit & Hardening](#security-audit--hardening-aug-2026) below. **Frontend UI/UX audit (16 Aug 2026)** — [UI_UX_AUDIT_REPORT.md](./UI_UX_AUDIT_REPORT.md). Architecture and recent UI/live-data analysis: [PROJECT_ANALYSIS_REPORT.md](./PROJECT_ANALYSIS_REPORT.md).
 
-**Latest stability pass (Aug 2026):** Full-stack audit — frontend build, Vitest, backend pytest (86 tests), and sidebar→route mapping (96 links, 0 broken). **HR module dashboards (Aug 2026):** mockup-aligned UI for HR Hub, Attendance, Leave, Payroll, Performance, Recruitment, Training, and HR Settings — see [HR & Employee Management](#hr--employee-management). See [Stability Audit & Validation](#stability-audit--validation-aug-2026) below.
+**Latest stability pass (Aug 2026):** Full-stack audit — frontend build, Vitest, backend pytest, and sidebar→route mapping. **Security pass (16 Aug 2026):** Critical auth/RBAC/API fixes applied; core security tests pass. **HR module dashboards (Aug 2026):** mockup-aligned UI for HR Hub, Attendance, Leave, Payroll, Performance, Recruitment, Training, and HR Settings — see [HR & Employee Management](#hr--employee-management). See [Stability Audit & Validation](#stability-audit--validation-aug-2026) and [Security Audit & Hardening](#security-audit--hardening-aug-2026).
 
 ## Branding & Assets
 
@@ -808,13 +808,17 @@ Base URL: `http://localhost:8000` (or your `VITE_API_BASE_URL`).
 - **Register** (`/register`): `POST /auth/register`.
 - **Forgot / reset / verify:** `/forgot-password`, `/reset-password`, `/verify-email`.
 
-Optional `backend/.env` (security-related — full list in SECURITY_REPORT):
+Optional `backend/.env` (security-related — copy from `backend/.env.example`; full list in [SECURITY_REPORT.md](./SECURITY_REPORT.md)):
 
 ```env
-JWT_SECRET_KEY=your-long-random-secret
+JWT_SECRET_KEY=your-long-random-secret-min-32-chars
 ENVIRONMENT=development
 CORS_ORIGINS=http://localhost:5173
+SUPER_ADMIN_EMAIL=admin@example.com
+SUPER_ADMIN_PASSWORD=change-me-strong-password
 ```
+
+Never commit real `.env` files or use example placeholder passwords in production.
 
 ## Usage
 
@@ -855,7 +859,7 @@ CORS_ORIGINS=http://localhost:5173
 | `/meetings/` | list, create, get, update, delete; `POST /{id}/google-meet` |
 | `/integrations/google/calendar/` | status, connect, callback, disconnect |
 
-All list endpoints accept `tenant_id` as a query parameter (default: 1 for demo). Full docs: http://localhost:8000/docs
+All list endpoints accept `tenant_id` as a query parameter (default: 1 for demo). Interactive API docs: http://localhost:8000/docs (development only; disabled when `ENVIRONMENT=production`).
 
 ---
 
@@ -934,6 +938,75 @@ Shared UX: purple accent (`#6366f1`), KPI cards, Recharts donuts/line/area chart
 - **HR demo fallbacks** — Dashboard pages show `hrMasterData.js` preview when APIs return empty; live data replaces preview automatically when records exist.
 - **HR Settings** — UI-only; Save/Reset toasts do not persist to backend yet. Two-factor toggle is not enforced by auth.
 - **Recruitment / Training sub-routes** — `/hr/recruitment/candidates`, `/hr/training/sessions`, and some Performance/Leave/Payroll secondary tabs are placeholders.
+
+---
+
+## Security Audit & Hardening (Aug 2026)
+
+Authorized full-stack security review of Insights Iva (React + FastAPI + SQLite). Scope: authentication, RBAC/IDOR, API validation, CORS/headers, secrets, error handling, frontend session handling, print XSS, and PostgreSQL migration readiness. **No destructive testing.** Full findings: [SECURITY_REPORT.md](./SECURITY_REPORT.md).
+
+### Security model (baseline)
+
+| Layer | Mechanism |
+|-------|-----------|
+| **Authentication** | bcrypt passwords; JWT access (30 min) + refresh (7 days) with rotation/revocation; login lockout (5 attempts / 30 min); session inactivity timeout |
+| **Authorization** | RBAC via `require_permission`, `require_admin`, `tenant_scope`; action-level checks (`require_action`) on accounts mutations |
+| **Multi-tenant** | `tenant_id` scoping on services and queries — users cannot access another tenant’s records by ID alone |
+| **API** | Pydantic validation; generic 500/DB errors (no stack traces); JWT required on business routes |
+| **Headers** | `X-Content-Type-Options`, `X-Frame-Options`, CSP, HSTS (production), `Referrer-Policy` |
+| **CORS** | Explicit `CORS_ORIGINS`; localhost regex allowed **development only** |
+| **Frontend** | `ProtectedRoute` + path RBAC (UX); session requires JWT + user profile; axios auto-refresh on 401 |
+
+Backend authorization is **authoritative**. Frontend route checks improve UX only — never rely on them alone.
+
+### Critical fixes applied (16 Aug 2026)
+
+| Issue | Fix |
+|-------|-----|
+| Any authenticated user could clear/seed tenant data | `/api/system/*` — **Admin only** + **blocked in production** |
+| Client auth bypass via forged `localStorage` user | Session requires `smrt-token`; 401 clears all auth keys |
+| Tenant JWT overwrote platform `Authorization` | Axios skips tenant token on `/platform/*` routes |
+| Finance writes used module-only RBAC | Accounts create/update/delete use `require_action` |
+| Demo passwords reset every startup | Seed scripts skip password overwrite in production |
+| Real credentials in `.env.example` | Replaced with placeholders |
+| Platform login without rate limit | Rate limiting on `/platform/auth/login` |
+| OpenAPI exposed in production | `/docs`, `/openapi.json`, `/redoc` disabled when `ENVIRONMENT=production` |
+| XSS in print templates | HTML escaping on dynamic fields in dispatch challan + production print utils |
+
+### Verification (16 Aug 2026)
+
+| Check | Result |
+|-------|--------|
+| `npm run build` | Pass |
+| `test_auth.py`, `test_rbac.py`, `test_tenant_isolation.py`, `test_journal_entries_api.py` | Pass |
+| Full backend pytest | Some pre-existing repository-layer failures (documented in SECURITY_REPORT) |
+
+### Production deployment checklist
+
+1. Set `ENVIRONMENT=production`
+2. Set strong `JWT_SECRET_KEY` (min 32 chars — e.g. `openssl rand -hex 32`)
+3. Set `CORS_ORIGINS` to your production frontend URL only (no wildcards)
+4. Configure `SMTP_*` for email verification and password reset
+5. Set `FRONTEND_BASE_URL` to the public frontend URL
+6. Set unique `SUPER_ADMIN_*` credentials (never use `.env.example` placeholders)
+7. Deploy behind HTTPS (reverse proxy); HSTS is set automatically in production
+8. Keep `backend/smrt.db` out of version control; restrict filesystem permissions on the DB file
+
+### Remaining security TODOs
+
+| Priority | Item |
+|----------|------|
+| High | Extend `require_action` to DELETE/PUT on inventory, sales, HR, procurement, documents |
+| High | Move JWT from `localStorage` to httpOnly Secure cookies |
+| Medium | Encrypt Google OAuth / e-waybill credentials at rest (`field_crypto.py`) |
+| Medium | Redis or edge rate limiting for multi-instance deployments |
+| Medium | Replace or isolate `xlsx` export dependency (known npm advisories, no upstream fix) |
+| Low | Wire HR Settings security toggles (2FA, session policy) to backend |
+| Low | Alembic-only migrations before PostgreSQL cutover |
+
+### PostgreSQL migration notes
+
+SQLite-specific items to address before migration: `require_sqlite` in `config.py`, startup `ALTER TABLE` in `main.py`, boolean/JSON/datetime column types, and concurrent-write patterns. See [SECURITY_REPORT.md](./SECURITY_REPORT.md) for the full compatibility checklist.
 
 ---
 

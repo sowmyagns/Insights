@@ -13,6 +13,11 @@ export function getApiBaseURL() {
   return "http://localhost:8000";
 }
 
+function isPlatformRequest(config) {
+  const url = String(config?.url || "");
+  return url.startsWith("/platform") || config?.skipTenantAuth === true;
+}
+
 const api = axios.create({
   baseURL: getApiBaseURL(),
   timeout: 30000,
@@ -20,9 +25,12 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   try {
-    const token = localStorage.getItem("smrt-token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (!isPlatformRequest(config)) {
+      const token = localStorage.getItem("smrt-token");
+      if (token) {
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
   } catch {}
 
@@ -113,22 +121,15 @@ api.interceptors.response.use(
       original?.url?.includes("/auth/refresh");
 
     if (status === 401 && !isAuthUrl) {
-      let hasStoredUser = false;
-      try {
-        hasStoredUser = Boolean(localStorage.getItem("smrt-user"));
-      } catch {}
-
-      if (!hasStoredUser) {
-        clearAuthStorage();
-        if (typeof onUnauthorized === "function") {
-          onUnauthorized();
-        } else if (
-          typeof window !== "undefined" &&
-          !window.location.pathname.startsWith("/login") &&
-          !window.location.pathname.startsWith("/gns-admin")
-        ) {
-          window.location.assign("/login");
-        }
+      clearAuthStorage();
+      if (typeof onUnauthorized === "function") {
+        onUnauthorized();
+      } else if (
+        typeof window !== "undefined" &&
+        !window.location.pathname.startsWith("/login") &&
+        !window.location.pathname.startsWith("/gns-admin")
+      ) {
+        window.location.assign("/login");
       }
     } else if (typeof onApiError === "function" && !error.config?.skipGlobalError) {
       const shouldNotify = !status || status >= 500 || status === 503;
@@ -136,11 +137,7 @@ api.interceptors.response.use(
         const raw = error.response?.data?.detail ?? error.response?.data?.message;
         const message = !status
           ? "Network error - please check your connection."
-          : typeof raw === "string"
-            ? raw
-            : Array.isArray(raw)
-              ? raw.map((e) => e?.msg || String(e)).join("; ") || "Something went wrong. Please try again."
-              : "Something went wrong. Please try again.";
+          : "Something went wrong. Please try again.";
         onApiError(message);
       }
     }

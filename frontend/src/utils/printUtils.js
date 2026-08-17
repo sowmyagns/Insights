@@ -3,9 +3,11 @@
  * Standardized header: "Production | Welcome, [User] | Insights Iva"
  */
 
+import { escapeHtml } from "./htmlEscape";
+
 export function printProductionOrder(order, user) {
   if (!order) return;
-  const printedBy = user?.full_name || user?.name || "";
+  const printedBy = escapeHtml(user?.full_name || user?.name || "");
   const planned  = Number(order.planned_quantity || 0);
   const produced = Number(order.produced_quantity || 0);
   const balance  = Math.max(planned - produced, 0);
@@ -14,7 +16,7 @@ export function printProductionOrder(order, user) {
   const priority  = order.priority ? order.priority.charAt(0).toUpperCase() + order.priority.slice(1) : "—";
   const status    = order.status   ? order.status.charAt(0).toUpperCase()   + order.status.slice(1).replace(/_/g," ") : "—";
 
-  const html = `<!DOCTYPE html><html><head><title>Production Order ${order.order_number || ""}</title>
+  const html = `<!DOCTYPE html><html><head><title>Production Order ${escapeHtml(order.order_number || "")}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff;font-size:12px;line-height:1.5}
@@ -46,17 +48,17 @@ export function printProductionOrder(order, user) {
 </div>
 
 <div class="title">Production Order Details</div>
-<div class="subtitle">Order # ${order.order_number || "—"} &nbsp;|&nbsp; Printed on ${new Date().toLocaleDateString()} ${printedBy ? `&nbsp;|&nbsp; By: ${printedBy}` : ""}</div>
+<div class="subtitle">Order # ${escapeHtml(order.order_number || "—")} &nbsp;|&nbsp; Printed on ${new Date().toLocaleDateString()} ${printedBy ? `&nbsp;|&nbsp; By: ${printedBy}` : ""}</div>
 
 <div class="grid">
   <div class="section">
     <div class="section-label">Product Information</div>
-    <div class="section-value">${order.product_name || "—"}</div>
-    <div class="section-sub">BOM Version: ${order.bom_version || "BOM v1.0"}</div>
+    <div class="section-value">${escapeHtml(order.product_name || "—")}</div>
+    <div class="section-sub">BOM Version: ${escapeHtml(order.bom_version || "BOM v1.0")}</div>
   </div>
   <div class="section">
     <div class="section-label">Customer</div>
-    <div class="section-value">${order.customer_name || "Internal"}</div>
+    <div class="section-value">${escapeHtml(order.customer_name || "Internal")}</div>
   </div>
 </div>
 
@@ -64,8 +66,8 @@ export function printProductionOrder(order, user) {
   <div class="section">
     <div class="section-label">Priority &amp; Status</div>
     <div style="margin-top:4px">
-      <span class="badge">${priority}</span>
-      <span class="badge">${status}</span>
+      <span class="badge">${escapeHtml(priority)}</span>
+      <span class="badge">${escapeHtml(status)}</span>
     </div>
   </div>
   <div class="section">
@@ -89,8 +91,8 @@ export function printProductionOrder(order, user) {
   <div class="section">
     <div class="section-label">Assignment</div>
     <div style="margin-top:4px">
-      <div>Machine: ${order.machine_name || "—"}</div>
-      <div>Shift: ${order.shift || "—"}</div>
+      <div>Machine: ${escapeHtml(order.machine_name || "—")}</div>
+      <div>Shift: ${escapeHtml(order.shift || "—")}</div>
     </div>
   </div>
 </div>
@@ -106,7 +108,7 @@ export function printProductionOrder(order, user) {
 
 export function printWorkOrder(workOrder, user) {
   if (!workOrder) return;
-  const printedBy = user?.full_name || user?.name || "";
+  const printedBy = escapeHtml(user?.full_name || user?.name || "");
   const planned  = Number(workOrder.planned_quantity || 0);
   const produced = Number(workOrder.produced_quantity ?? workOrder.actual_quantity ?? 0);
   const balance  = Math.max(planned - produced, 0);
@@ -115,7 +117,7 @@ export function printWorkOrder(workOrder, user) {
   const priority  = workOrder.priority ? workOrder.priority.charAt(0).toUpperCase() + workOrder.priority.slice(1) : "—";
   const status    = workOrder.status   ? workOrder.status.charAt(0).toUpperCase()   + workOrder.status.slice(1).replace(/_/g," ") : "—";
 
-  const html = `<!DOCTYPE html><html><head><title>Work Order ${workOrder.work_order_number || ""}</title>
+  const html = `<!DOCTYPE html><html><head><title>Work Order ${escapeHtml(workOrder.work_order_number || "")}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff;font-size:12px;line-height:1.5}
@@ -147,18 +149,18 @@ export function printWorkOrder(workOrder, user) {
 </div>
 
 <div class="title">Work Order Details</div>
-<div class="subtitle">Order # ${workOrder.work_order_number || "—"} &nbsp;|&nbsp; Printed on ${new Date().toLocaleDateString()} ${printedBy ? `&nbsp;|&nbsp; By: ${printedBy}` : ""}</div>
+<div class="subtitle">Order # ${escapeHtml(workOrder.work_order_number || "—")} &nbsp;|&nbsp; Printed on ${new Date().toLocaleDateString()} ${printedBy ? `&nbsp;|&nbsp; By: ${printedBy}` : ""}</div>
 
 <div class="grid">
   <div class="section">
     <div class="section-label">Product Information</div>
-    <div class="section-value">${workOrder.product_name || "—"}</div>
-    ${workOrder.production_order_number ? `<div class="section-sub">Production Order: ${workOrder.production_order_number}</div>` : ""}
-    ${workOrder.department ? `<div class="section-sub">Department: ${workOrder.department}</div>` : ""}
+    <div class="section-value">${escapeHtml(workOrder.product_name || "—")}</div>
+    ${workOrder.production_order_number ? `<div class="section-sub">Production Order: ${escapeHtml(workOrder.production_order_number)}</div>` : ""}
+    ${workOrder.department ? `<div class="section-sub">Department: ${escapeHtml(workOrder.department)}</div>` : ""}
   </div>
   <div class="section">
     <div class="section-label">Customer</div>
-    <div class="section-value">${workOrder.customer_name || "—"}</div>
+    <div class="section-value">${escapeHtml(workOrder.customer_name || "—")}</div>
   </div>
 </div>
 
@@ -166,8 +168,8 @@ export function printWorkOrder(workOrder, user) {
   <div class="section">
     <div class="section-label">Priority &amp; Status</div>
     <div style="margin-top:4px">
-      <span class="badge">${priority}</span>
-      <span class="badge">${status}</span>
+      <span class="badge">${escapeHtml(priority)}</span>
+      <span class="badge">${escapeHtml(status)}</span>
       ${workOrder.materials_issued ? '<span class="badge">Materials ✔</span>' : ""}
     </div>
   </div>
@@ -192,9 +194,9 @@ export function printWorkOrder(workOrder, user) {
   <div class="section">
     <div class="section-label">Assignment</div>
     <div style="margin-top:4px">
-      <div>Machine: ${workOrder.machine_name || "—"}</div>
-      <div>Operator: ${workOrder.operator_name || "—"}</div>
-      <div>Shift: ${workOrder.shift || "—"}</div>
+      <div>Machine: ${escapeHtml(workOrder.machine_name || "—")}</div>
+      <div>Operator: ${escapeHtml(workOrder.operator_name || "—")}</div>
+      <div>Shift: ${escapeHtml(workOrder.shift || "—")}</div>
     </div>
   </div>
 </div>

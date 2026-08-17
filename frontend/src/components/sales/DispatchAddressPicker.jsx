@@ -251,6 +251,7 @@ export default function DispatchAddressPicker({
   value,
   onChange,
   addLabel = "+ Add Dispatch Address (Consignor)",
+  showSelectButton = true,
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -321,15 +322,17 @@ export default function DispatchAddressPicker({
             addLabel
           )}
         </button>
-        <button
-          type="button"
-          onClick={() => setPickerOpen((v) => !v)}
-          className="inline-flex items-center gap-1 rounded-full border border-[#e4e4ea] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#6b6b76] hover:bg-[#f5f5f7]"
-          title="Select saved address"
-        >
-          Select
-          <ChevronDown className="h-3.5 w-3.5" />
-        </button>
+        {showSelectButton ? (
+          <button
+            type="button"
+            onClick={() => setPickerOpen((v) => !v)}
+            className="inline-flex items-center gap-1 rounded-full border border-[#e4e4ea] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#6b6b76] hover:bg-[#f5f5f7]"
+            title="Select saved address"
+          >
+            Select
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
       </div>
 
       {pickerOpen && (

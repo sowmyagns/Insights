@@ -2,16 +2,16 @@ import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 export { default as Loader } from "../common/Loader";
 
-/** Ledger-derived design tokens for the Accounting module */
-export const ACCOUNTS_PAGE_BG = "#EEF5F9";
-export const ACCOUNTS_PURPLE = "#6C4CFF";
-export const ACCOUNTS_BLUE = "#0B74D1";
-export const ACCOUNTS_TEAL = "#0f6d84";
-export const ACCOUNTS_TEXT = "#17264A";
-export const ACCOUNTS_TEXT_MUTED = "#64748B";
-export const ACCOUNTS_BORDER = "#E2E8F0";
-export const ACCOUNTS_TABLE_HEADER = "#F2F0FF";
-export const ACCOUNTS_TABLE_HEADER_ALT = "#F8FAFC";
+/** Ledger-derived design tokens — aligned with global CSS variables */
+export const ACCOUNTS_PAGE_BG = "var(--color-bg)";
+export const ACCOUNTS_PURPLE = "var(--color-primary)";
+export const ACCOUNTS_BLUE = "var(--color-primary)";
+export const ACCOUNTS_TEAL = "var(--color-action-teal)";
+export const ACCOUNTS_TEXT = "var(--color-text)";
+export const ACCOUNTS_TEXT_MUTED = "var(--color-text-muted)";
+export const ACCOUNTS_BORDER = "var(--color-border)";
+export const ACCOUNTS_TABLE_HEADER = "var(--color-primary-soft)";
+export const ACCOUNTS_TABLE_HEADER_ALT = "var(--color-surface-muted)";
 export const ACCOUNTS_PAGE_SIZES = [10, 20, 50];
 
 export function formatAccountsInr(value) {
@@ -41,7 +41,7 @@ export function AccountsPageShell({ children, className = "" }) {
 
 export function AccountsCard({ children, className = "" }) {
   return (
-    <div className={`overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm ${className}`}>
+    <div className={`ui-card overflow-hidden ${className}`}>
       {children}
     </div>
   );
@@ -49,7 +49,7 @@ export function AccountsCard({ children, className = "" }) {
 
 export function AccountsTabs({ tabs, active, onChange }) {
   return (
-    <div className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
+    <div className="border-b border-[var(--color-border)] bg-[var(--color-surface-muted)]">
       <div className="flex overflow-x-auto">
         {tabs.map((t) => {
           const isActive = active === t.id;
@@ -58,10 +58,10 @@ export function AccountsTabs({ tabs, active, onChange }) {
               key={t.id}
               type="button"
               onClick={() => onChange(t.id)}
-              className={`relative shrink-0 whitespace-nowrap border-r border-[#E2E8F0] px-4 py-3.5 text-[13px] font-semibold transition-colors last:border-r-0 sm:px-5 ${
+              className={`relative shrink-0 whitespace-nowrap border-r border-[var(--color-border)] px-4 py-3.5 text-[13px] font-semibold transition-colors last:border-r-0 sm:px-5 ${
                 isActive
-                  ? "bg-white text-[#6C4CFF] after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:bg-[#6C4CFF]"
-                  : "bg-[#F8FAFC] text-[#64748B] hover:bg-white hover:text-[#17264A]"
+                  ? "bg-[var(--color-surface)] text-[var(--color-primary)] after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:bg-[var(--color-primary)]"
+                  : "bg-[var(--color-surface-muted)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
               }`}
             >
               {t.label}
@@ -76,21 +76,21 @@ export function AccountsTabs({ tabs, active, onChange }) {
 export function AccountsKpiCard({ label, value, sub, icon: Icon, tint, iconColor, valueColor = ACCOUNTS_TEXT }) {
   return (
     <div
-      className="flex min-h-[100px] items-center gap-3.5 rounded-xl border border-[#E2E8F0]/50 p-4 shadow-sm"
+      className="ui-kpi flex min-h-[100px] items-center gap-3.5 rounded-xl border border-[var(--color-border-soft)] p-4"
       style={{ backgroundColor: tint }}
     >
       <div
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/70 shadow-sm"
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--color-surface)]/70 shadow-sm"
         style={{ color: iconColor }}
       >
         <Icon className="h-5 w-5" aria-hidden />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-medium text-[#64748B]">{label}</p>
-        <p className="truncate text-[22px] font-bold leading-tight" style={{ color: valueColor }}>
+        <p className="text-[13px] font-medium text-[var(--color-text-muted)]">{label}</p>
+        <p className="ui-kpi__value truncate text-[22px] leading-tight" style={{ color: valueColor }}>
           {value}
         </p>
-        {sub ? <p className="mt-0.5 text-[12px] text-[#64748B]">{sub}</p> : null}
+        {sub ? <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">{sub}</p> : null}
       </div>
     </div>
   );
@@ -103,12 +103,12 @@ export function accountsKpiEntry(label, value, sub, icon, tint, iconColor, value
 export function AccountsSearchInput({ value, onChange, placeholder = "Search...", className = "" }) {
   return (
     <div className={`relative w-full max-w-xl ${className}`}>
-      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B]" />
+      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
       <input
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="w-full rounded-full border border-[#E2E8F0] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#17264A] placeholder:text-[#94A3B8] focus:border-[#6C4CFF] focus:outline-none focus:ring-2 focus:ring-[#6C4CFF]/20"
+        className="ui-input w-full !rounded-full py-2.5 pl-10 pr-4"
       />
     </div>
   );
@@ -120,13 +120,13 @@ export function AccountsPagination({ page, pageSize, total, onPage, onPageSize, 
   const to = Math.min(page * pageSize, total);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E2E8F0] px-1 pt-4 text-[13px] text-[#64748B]">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)] px-1 pt-4 text-[13px] text-[var(--color-text-muted)]">
       <div className="flex flex-wrap items-center gap-2">
         <span>Rows per page:</span>
         <select
           value={pageSize}
           onChange={(e) => onPageSize(Number(e.target.value))}
-          className="rounded-md border border-[#E2E8F0] bg-white px-2 py-1.5 text-[13px] text-[#17264A] outline-none focus:border-[#6C4CFF] focus:ring-2 focus:ring-[#6C4CFF]/20"
+          className="ui-select rounded-md px-2 py-1.5 text-[13px]"
         >
           {pageSizes.map((n) => (
             <option key={n} value={n}>
@@ -134,7 +134,7 @@ export function AccountsPagination({ page, pageSize, total, onPage, onPageSize, 
             </option>
           ))}
         </select>
-        <span className="font-medium text-[#17264A]">
+        <span className="font-medium text-[var(--color-text)]">
           {total === 0 ? "0-0 of 0" : `${from}-${to} of ${total}`}
         </span>
       </div>
@@ -143,14 +143,14 @@ export function AccountsPagination({ page, pageSize, total, onPage, onPageSize, 
           type="button"
           disabled={page <= 1}
           onClick={() => onPage(Math.max(1, page - 1))}
-          className="grid h-8 w-8 place-items-center rounded-md border border-[#E2E8F0] bg-white disabled:opacity-40"
+          className="ui-btn ui-btn-secondary grid h-8 w-8 place-items-center !p-0 disabled:opacity-40"
           aria-label="Previous page"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
         {accountsPageNumberItems(page, totalPages).map((item) =>
           typeof item === "string" ? (
-            <span key={item} className="px-1 text-xs text-[#64748B]">
+            <span key={item} className="px-1 text-xs text-[var(--color-text-muted)]">
               …
             </span>
           ) : (
@@ -160,8 +160,8 @@ export function AccountsPagination({ page, pageSize, total, onPage, onPageSize, 
               onClick={() => onPage(item)}
               className={`grid h-8 min-w-8 place-items-center rounded-md border px-2 text-[13px] font-semibold ${
                 item === page
-                  ? "border-[#6C4CFF] bg-[#6C4CFF] text-white"
-                  : "border-[#E2E8F0] bg-white text-[#17264A] hover:bg-[#F8FAFC]"
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
+                  : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-muted)]"
               }`}
             >
               {item}
@@ -172,7 +172,7 @@ export function AccountsPagination({ page, pageSize, total, onPage, onPageSize, 
           type="button"
           disabled={page >= totalPages}
           onClick={() => onPage(Math.min(totalPages, page + 1))}
-          className="grid h-8 w-8 place-items-center rounded-md border border-[#E2E8F0] bg-white disabled:opacity-40"
+          className="ui-btn ui-btn-secondary grid h-8 w-8 place-items-center !p-0 disabled:opacity-40"
           aria-label="Next page"
         >
           <ChevronRight className="h-4 w-4" />
@@ -182,14 +182,11 @@ export function AccountsPagination({ page, pageSize, total, onPage, onPageSize, 
   );
 }
 
-const btnBase =
-  "inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[13px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
-
 export function AccountsPrimaryButton({ children, className = "", ...props }) {
   return (
     <button
       type="button"
-      className={`${btnBase} bg-[#6C4CFF] text-white hover:bg-[#5a3fe0] focus-visible:outline-[#6C4CFF] ${className}`}
+      className={`ui-btn ui-btn-primary ${className}`}
       {...props}
     >
       {children}
@@ -199,12 +196,7 @@ export function AccountsPrimaryButton({ children, className = "", ...props }) {
 
 export function AccountsBlueButton({ children, className = "", ...props }) {
   return (
-    <button
-      type="button"
-      className={`${btnBase} text-white hover:opacity-90 focus-visible:outline-[#0B74D1] ${className}`}
-      style={{ backgroundColor: ACCOUNTS_BLUE }}
-      {...props}
-    >
+    <button type="button" className={`ui-btn ui-btn-primary ${className}`} {...props}>
       {children}
     </button>
   );
@@ -212,11 +204,7 @@ export function AccountsBlueButton({ children, className = "", ...props }) {
 
 export function AccountsOutlineButton({ children, className = "", ...props }) {
   return (
-    <button
-      type="button"
-      className={`${btnBase} border border-[#0B74D1] bg-white text-[#0B74D1] hover:bg-[#EEF6FF] focus-visible:outline-[#0B74D1] ${className}`}
-      {...props}
-    >
+    <button type="button" className={`ui-btn ui-btn-outline ${className}`} {...props}>
       {children}
     </button>
   );
@@ -224,21 +212,19 @@ export function AccountsOutlineButton({ children, className = "", ...props }) {
 
 export function AccountsSecondaryButton({ children, className = "", ...props }) {
   return (
-    <button
-      type="button"
-      className={`${btnBase} border border-[#E2E8F0] bg-white text-[#17264A] hover:bg-[#F8FAFC] focus-visible:outline-[#64748B] ${className}`}
-      {...props}
-    >
+    <button type="button" className={`ui-btn ui-btn-secondary ${className}`} {...props}>
       {children}
     </button>
   );
 }
 
-export const accountsTableHeadClass = "bg-[#F2F0FF] text-[12px] font-semibold text-[#17264A]";
-export const accountsTableHeadAltClass = "bg-[#F8FAFC] text-[12px] font-semibold text-[#64748B]";
-export const accountsTableWrapClass = "overflow-x-auto rounded-xl border border-[#E2E8F0]";
+export const accountsTableHeadClass =
+  "bg-[var(--color-surface-thead)] text-[12px] font-semibold text-[var(--color-text)]";
+export const accountsTableHeadAltClass =
+  "bg-[var(--color-surface-muted)] text-[12px] font-semibold text-[var(--color-text-muted)]";
+export const accountsTableWrapClass = "ui-table-wrap overflow-x-auto rounded-xl";
 export const accountsTableClass = "min-w-full w-full border-collapse text-left text-[13px]";
-export const accountsThClass = "border-b border-[#E2E8F0] px-4 py-3";
-export const accountsTdClass = "border-b border-[#E2E8F0] px-4 py-3.5";
+export const accountsThClass = "border-b border-[var(--color-border)] px-4 py-3";
+export const accountsTdClass = "border-b border-[var(--color-border-soft)] px-4 py-3.5";
 
 export { default as AccountsLoader } from "../common/Loader";

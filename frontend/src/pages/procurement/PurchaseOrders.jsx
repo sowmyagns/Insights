@@ -1,57 +1,139 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Download, Filter, Plus, ShoppingCart, Truck } from "lucide-react";
-import KpiCard from "../../components/common/KpiCard";
+import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Edit2,
+  Eye,
+  Filter,
+  ListFilter,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 
-import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
-import Button from "../../components/common/Button";
+import RowActionMenu from "../../components/common/RowActionMenu";
 import PODetailModal from "../../components/procurement/PODetailModal";
 import { useToast } from "../../context/ToastContext";
 import {
-  getPOSummary,
+  deletePurchaseOrder,
   getPurchaseOrdersEnriched,
   updatePurchaseOrderStatus,
 } from "../../api/procurementApi";
-import { formatInr, statusColor } from "../../data/procurementMasterData";
-import { exportToExcel } from "../../utils/exportUtils";
-import useManufacturingRefresh from "../../hooks/useManufacturingRefresh";
+import { formatInr } from "../../data/salesMasterData";
+import { apiErrorMessage } from "../../utils/apiError";
 
-const defaultFilters = { vendor: "", status: "", buyer: "" };
-const emptySummary = {
-  total_po: 0,
-  pending: 0,
-  approved: 0,
-  delivered: 0,
-  cancelled: 0,
-  po_value: 0,
+const PAGE_BG = "#F5F5F5";
+const PAGE_SIZES = [10, 20, 50];
+
+const SORT_OPTIONS = [
+  { id: "date_desc", label: "PO Date (Latest First)" },
+  { id: "date_asc", label: "PO Date (Oldest First)" },
+  { id: "amount_desc", label: "Amount (High to Low)" },
+  { id: "amount_asc", label: "Amount (Low to High)" },
+];
+
+const EMPTY_FILTERS = {
+  status: "",
+  vendor: "",
 };
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  const [y, m, d] = String(iso).slice(0, 10).split("-");
+  if (!y || !m || !d) return String(iso).slice(0, 10);
+  return `${d}/${m}/${y}`;
+}
+
+function isPendingPurchase(row) {
+  const s = String(row.status || "").toLowerCase();
+  return s === "draft" || s === "pending" || s === "approved";
+}
+
+function isPurchased(row) {
+  const s = String(row.status || "").toLowerCase();
+  return s === "received" || s === "delivered";
+}
+
+function Chip({ label, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center rounded-full px-3.5 py-1.5 text-[13px] font-medium transition ${
+        active
+          ? "bg-[#6b4eff] text-white"
+          : "bg-[#f0f0f3] text-[#4a4a55] hover:bg-[#e4e4ea]"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function FilterSection({ label, children }) {
+  return (
+    <div className="border-b border-[#e4e4ea] py-4 last:border-b-0">
+      <p className="mb-2.5 text-[12px] font-medium text-[#9a9aa5]">{label}</p>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
+function SummaryTab({ label, count, amount, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`min-w-0 flex-1 border-b-[3px] px-5 py-3.5 text-left transition ${
+        active
+          ? "border-[#6b4eff] bg-white text-[#6b4eff]"
+          : "border-transparent bg-transparent text-[#6b6b76] hover:bg-white/70"
+      }`}
+    >
+      <p className={`text-[13px] font-medium ${active ? "" : "text-[#6b6b76]"}`}>
+        {label}{" "}
+        <span className={active ? "opacity-70" : "text-[#a0a0ab]"}>({count})</span>
+      </p>
+      <p className={`mt-1 text-[18px] font-bold tabular-nums ${active ? "text-inherit" : "text-[#1a1a1f]"}`}>
+        {amount}
+      </p>
+    </button>
+  );
+}
 
 export default function PurchaseOrders() {
   const { addToast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState(emptySummary);
   const [rows, setRows] = useState([]);
-  const [filters, setFilters] = useState(defaultFilters);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [openMenu, setOpenMenu] = useState(null);
+  const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("2026-04-01");
+  const [dateTo, setDateTo] = useState("2027-03-31");
+  const [kpiFilter, setKpiFilter] = useState("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [showSort, setShowSort] = useState(false);
+  const [sortId, setSortId] = useState("date_desc");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [draftFilters, setDraftFilters] = useState(EMPTY_FILTERS);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
-      const [sumRes, listRes] = await Promise.allSettled([
-        getPOSummary(),
-        getPurchaseOrdersEnriched(),
-      ]);
-      if (sumRes.status === "fulfilled" && sumRes.value?.data) {
-        setSummary({ ...emptySummary, ...sumRes.value.data });
-      } else {
-        setSummary(emptySummary);
-      }
-      if (listRes.status === "fulfilled") setRows(listRes.value?.data || []);
-      else setRows([]);
+      const res = await getPurchaseOrdersEnriched();
+      setRows(Array.isArray(res?.data) ? res.data : []);
     } catch {
       addToast("Failed to load purchase orders", "error");
+      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -63,23 +145,17 @@ export default function PurchaseOrders() {
 
   useManufacturingRefresh(load);
 
-  const filtered = useMemo(() => {
-    let list = rows;
-    if (filters.vendor) {
-      list = list.filter((r) =>
-        (r.vendor_name || r.supplier_name || "")
-          .toLowerCase()
-          .includes(filters.vendor.toLowerCase())
-      );
+  const handleDelete = async (row) => {
+    if (!row?.id) return;
+    if (!window.confirm(`Delete purchase order ${row.po_number || row.id}?`)) return;
+    try {
+      await deletePurchaseOrder(row.id);
+      addToast("Purchase order deleted", "success");
+      await load(true);
+    } catch (err) {
+      addToast(apiErrorMessage(err, "Failed to delete purchase order"), "error");
     }
-    if (filters.status) list = list.filter((r) => r.status === filters.status);
-    if (filters.buyer) {
-      list = list.filter((r) =>
-        r.buyer?.toLowerCase().includes(filters.buyer.toLowerCase())
-      );
-    }
-    return list;
-  }, [rows, filters]);
+  };
 
   const handleStatus = async (po, status) => {
     if (typeof po.id !== "number") {
@@ -88,176 +164,398 @@ export default function PurchaseOrders() {
     }
     try {
       await updatePurchaseOrderStatus(po.id, status);
-      addToast(`PO marked as ${status}`);
+      addToast(`PO marked as ${status}`, "success");
       setSelected(null);
-      load();
+      load(true);
     } catch (err) {
-      addToast(err.response?.data?.detail || "Update failed", "error");
+      addToast(apiErrorMessage(err, "Update failed"), "error");
     }
   };
 
-  const columns = [
-    {
-      key: "po_number",
-      label: "Purchase Order Number",
-      render: (r) => (
-        <span className="font-medium text-[var(--color-primary)]">{r.po_number || `PO-${r.id}`}</span>
-      ),
-    },
-    {
-      key: "vendor_name",
-      label: "Vendor",
-      render: (r) => r.vendor_name || r.supplier_name || "—",
-    },
-    {
-      key: "order_date",
-      label: "Date",
-      render: (r) => String(r.order_date || "").slice(0, 10),
-    },
-    {
-      key: "total_amount",
-      label: "Amount",
-      render: (r) => (r.total_amount != null ? formatInr(r.total_amount) : "—"),
-    },
-    {
-      key: "expected_date",
-      label: "Delivery Date",
-      render: (r) => r.expected_date || "—",
-    },
-    {
-      key: "payment_terms",
-      label: "Payment Terms",
-      render: (r) => r.payment_terms || "—",
-    },
-    {
-      key: "status",
-      label: "Status",
-      render: (r) => (
-        <span
-          className={`rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${statusColor(r.status)}`}
-        >
-          {r.status}
-        </span>
-      ),
-    },
-    {
-      key: "actions",
-      label: "Actions",
-      render: (r) => (
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setSelected(r)}
-            className="text-xs font-semibold text-[var(--color-primary)] hover:underline"
-          >
-            View
-          </button>
-          <Link
-            to={`/procurement/goods-receipt/create?po_id=${r.id}`}
-            className="text-xs font-semibold text-[var(--color-success)] hover:underline"
-          >
-            GRN
-          </Link>
-        </div>
-      ),
-    },
-  ];
+  useEffect(() => {
+    setPage(1);
+  }, [search, filters, sortId, pageSize, dateFrom, dateTo, kpiFilter]);
 
-  if (loading) return <Loader label="Loading purchase orders..." />;
+  const tabStats = useMemo(() => {
+    const sum = (arr) => arr.reduce((s, r) => s + (Number(r.total_amount) || 0), 0);
+    const pending = rows.filter(isPendingPurchase);
+    const purchased = rows.filter(isPurchased);
+    return {
+      all: { count: rows.length, amount: sum(rows) },
+      pending: { count: pending.length, amount: sum(pending) },
+      purchased: { count: purchased.length, amount: sum(purchased) },
+    };
+  }, [rows]);
+
+  const filteredSorted = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let list = rows.filter((r) => {
+      if (kpiFilter === "pending" && !isPendingPurchase(r)) return false;
+      if (kpiFilter === "purchased" && !isPurchased(r)) return false;
+
+      const issue = String(r.order_date || "").slice(0, 10);
+      if (dateFrom && issue && issue < dateFrom) return false;
+      if (dateTo && issue && issue > dateTo) return false;
+
+      if (q) {
+        const hay = `${r.po_number || ""} ${r.vendor_name || ""} ${r.buyer || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+
+      if (filters.status && String(r.status).toLowerCase() !== filters.status) return false;
+      if (filters.vendor) {
+        const vendor = (r.vendor_name || "").toLowerCase();
+        if (!vendor.includes(filters.vendor.toLowerCase())) return false;
+      }
+      return true;
+    });
+
+    list = [...list].sort((a, b) => {
+      const da = String(a.order_date || "");
+      const db = String(b.order_date || "");
+      const aa = Number(a.total_amount) || 0;
+      const ab = Number(b.total_amount) || 0;
+      if (sortId === "date_asc") return da.localeCompare(db);
+      if (sortId === "amount_desc") return ab - aa;
+      if (sortId === "amount_asc") return aa - ab;
+      return db.localeCompare(da);
+    });
+    return list;
+  }, [rows, search, dateFrom, dateTo, kpiFilter, filters, sortId]);
+
+  const total = filteredSorted.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pageRows = filteredSorted.slice((page - 1) * pageSize, page * pageSize);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center" style={{ background: PAGE_BG }}>
+        <Loader label="Loading purchase orders..." />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-w-0 space-y-5 px-4 pb-4 sm:px-6">
-      <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
-        <Button
-          variant="primary"
-          to="/procurement/purchase-orders/create"
-          leftIcon={<Plus className="h-4 w-4" />}
-        >
-          New Purchase Order (PO)
-        </Button>
-        <Button
-          variant="secondary"
-          type="button"
-          onClick={() =>
-            exportToExcel(
-              filtered,
-              columns.filter((c) => !c.render),
-              "purchase-orders"
-            )
-          }
-        >
-          <Download className="h-4 w-4" /> Export
-        </Button>
-      </div>
-
-      <div className="ui-grid-kpi">
-        <KpiCard label="Total Purchase Orders (POs)" value={summary.total_po} icon={ShoppingCart} color="bg-[var(--color-primary)]" />
-        <KpiCard label="Pending" value={summary.pending} icon={ShoppingCart} color="bg-amber-500" />
-        <KpiCard label="Approved" value={summary.approved} icon={ShoppingCart} color="bg-green-600" />
-        <KpiCard label="Delivered" value={summary.delivered} icon={Truck} color="bg-teal-600" />
-        <KpiCard label="Cancelled" value={summary.cancelled} icon={ShoppingCart} color="bg-red-500" />
-        <KpiCard
-          label="Purchase Order (PO) Value"
-          value={formatInr(summary.po_value)}
-          icon={ShoppingCart}
-          color="bg-indigo-600"
-        />
-      </div>
-
-      <div className="ui-card p-4">
-        <button
-          type="button"
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="mb-3 inline-flex items-center gap-2 text-[var(--text-sm)] font-semibold text-[var(--color-text-secondary)]"
-        >
-          <Filter className="h-4 w-4" /> Filters
-        </button>
-        {showAdvanced && (
-          <div className="mb-4 grid gap-3 sm:grid-cols-3">
-            <input
-              value={filters.vendor}
-              onChange={(e) => setFilters({ ...filters, vendor: e.target.value })}
-              placeholder="Vendor"
-              className="ui-input"
+    <div className="min-h-full space-y-4 bg-[#F5F5F5] p-4 sm:p-6">
+      <div className="overflow-hidden rounded-xl border border-[#e4e4ea] bg-[#efeaf8]">
+        <div className="flex flex-col lg:flex-row lg:items-stretch">
+          <div className="flex min-w-0 flex-1 flex-wrap">
+            <SummaryTab
+              label="All"
+              count={tabStats.all.count}
+              amount={formatInr(tabStats.all.amount)}
+              active={kpiFilter === "all"}
+              onClick={() => setKpiFilter("all")}
             />
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              className="ui-select"
-            >
-              <option value="">All Status</option>
-              {["draft", "pending", "approved", "received", "delivered", "cancelled"].map(
-                (s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                )
-              )}
-            </select>
-            <input
-              value={filters.buyer}
-              onChange={(e) => setFilters({ ...filters, buyer: e.target.value })}
-              placeholder="Buyer"
-              className="ui-input"
+            <SummaryTab
+              label="Pending Purchase"
+              count={tabStats.pending.count}
+              amount={formatInr(tabStats.pending.amount)}
+              active={kpiFilter === "pending"}
+              onClick={() => setKpiFilter("pending")}
+            />
+            <SummaryTab
+              label="Purchased"
+              count={tabStats.purchased.count}
+              amount={formatInr(tabStats.purchased.amount)}
+              active={kpiFilter === "purchased"}
+              onClick={() => setKpiFilter("purchased")}
             />
           </div>
-        )}
-        <DataTable
-          columns={columns}
-          data={filtered}
-          searchPlaceholder="Search PO, vendor..."
-          searchKeys={["po_number", "vendor_name", "supplier_name", "buyer"]}
-        />
+          <div className="flex flex-wrap items-center gap-2.5 border-t border-[#e4e4ea] px-4 py-3 lg:border-l lg:border-t-0">
+            <div className="inline-flex items-center gap-2 rounded-lg border border-[#e4e4ea] bg-white px-3 py-2 text-[13px] text-[#4a4a55]">
+              <Calendar className="h-4 w-4 shrink-0 text-[#9a9aa5]" />
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-[118px] border-0 bg-transparent p-0 text-[13px] focus:outline-none"
+              />
+              <span className="text-[#9a9aa5]">→</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-[118px] border-0 bg-transparent p-0 text-[13px] focus:outline-none"
+              />
+            </div>
+            <Link
+              to="/procurement/purchase-orders/create"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f] shadow-sm hover:opacity-95"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.5} /> Create Purchase Order
+            </Link>
+          </div>
+        </div>
       </div>
 
-      {selected && (
+      <div className="rounded-t-2xl border border-[#e4e4ea] border-b-0 bg-white px-4 pb-6 pt-4 sm:px-6">
+        <div className="mb-3 flex flex-col gap-3 border-b border-[#e4e4ea] pb-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative w-full max-w-xl">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search"
+              className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] shadow-sm placeholder:text-[#9a9aa5] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/25"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                setDraftFilters(filters);
+                setShowFilters(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-lg border border-[#e4e4ea] bg-[#f5f5f5] px-3.5 py-2 text-[13px] font-medium text-[#4a4a55]"
+            >
+              <Filter className="h-4 w-4" /> Filters
+            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowSort((v) => !v)}
+                className="inline-flex items-center gap-2 rounded-lg border border-[#e4e4ea] bg-[#f5f5f5] px-3.5 py-2 text-[13px] font-medium text-[#4a4a55]"
+              >
+                <ListFilter className="h-4 w-4" /> Sort by
+              </button>
+              {showSort ? (
+                <>
+                  <button
+                    type="button"
+                    className="fixed inset-0 z-10 cursor-default"
+                    aria-label="Close sort"
+                    onClick={() => setShowSort(false)}
+                  />
+                  <div className="absolute right-0 z-20 mt-1.5 w-[280px] overflow-hidden rounded-xl border border-[#e4e4ea] bg-white py-1 shadow-lg">
+                    {SORT_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setSortId(opt.id);
+                          setShowSort(false);
+                        }}
+                        className={`block w-full border-b border-[#f0f0f3] px-4 py-2.5 text-left text-[13px] last:border-b-0 hover:bg-[#F5F5F5] ${
+                          sortId === opt.id ? "font-semibold" : "text-[#4a4a55]"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-xl border border-[#e4e4ea]">
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse text-left text-[13px]">
+              <thead className="bg-[#efeaf8] text-[12px] font-semibold uppercase tracking-wide text-[#6b6b76]">
+                <tr>
+                  {["PO No.", "Date", "Seller Name", "PO Amount", "Actions"].map((h) => (
+                    <th
+                      key={h}
+                      className="border-b border-r border-[#d0d0d8] px-4 py-3 last:border-r-0"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pageRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="border-t border-[#e4e4ea] px-4 py-16 text-center">
+                      <ClipboardList className="mx-auto h-12 w-12 text-[#c4c4cc]" strokeWidth={1.25} />
+                      <p className="mt-3 text-[14px] text-[#9a9aa5]">
+                        No Purchase Orders available, Create new purchase order
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  pageRows.map((r) => (
+                    <tr key={r.id} className="hover:bg-[#fafafa]">
+                      <td className="border-t border-r border-[#d0d0d8] px-4 py-3 font-semibold text-[#6b4eff]">
+                        {r.po_number || `PO-${r.id}`}
+                      </td>
+                      <td className="border-t border-r border-[#d0d0d8] px-4 py-3 text-[#4a4a55]">
+                        {fmtDate(r.order_date)}
+                      </td>
+                      <td className="border-t border-r border-[#d0d0d8] px-4 py-3">
+                        {r.vendor_name || "—"}
+                      </td>
+                      <td className="border-t border-r border-[#d0d0d8] px-4 py-3 tabular-nums font-medium">
+                        {r.total_amount != null ? formatInr(r.total_amount) : "—"}
+                      </td>
+                      <td className="border-t border-[#d0d0d8] px-4 py-3">
+                        <RowActionMenu
+                          rowId={r.id}
+                          openMenu={openMenu}
+                          setOpenMenu={setOpenMenu}
+                          items={[
+                            {
+                              label: "View",
+                              icon: <Eye className="h-4 w-4" />,
+                              onClick: () => setSelected(r),
+                            },
+                            {
+                              label: "Edit",
+                              icon: <Edit2 className="h-4 w-4" />,
+                              onClick: () => navigate(`/procurement/purchase-orders/${r.id}/edit`),
+                            },
+                            {
+                              label: "Create GRN",
+                              icon: <Plus className="h-4 w-4" />,
+                              onClick: () =>
+                                navigate(`/procurement/goods-receipt/create?po_id=${r.id}`),
+                            },
+                            {
+                              label: "Delete",
+                              icon: <Trash2 className="h-4 w-4" />,
+                              danger: true,
+                              onClick: () => handleDelete(r),
+                            },
+                          ]}
+                        />
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 border-t border-[#e4e4ea] pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-[13px] text-[#6b6b76]">
+            <span>Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="rounded-md border border-[#e4e4ea] bg-white px-2 py-1"
+            >
+              {PAGE_SIZES.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <span>
+              {total === 0
+                ? "1-0 of 0"
+                : `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} of ${total}`}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="rounded-md border border-[#e4e4ea] p-1.5 disabled:opacity-35"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span
+              className="min-w-[2rem] rounded-md border border-[#e4e4ea] px-2.5 py-1 text-center text-[13px] font-semibold"
+              style={{ background: "color-mix(in srgb, var(--color-primary) 28%, white)" }}
+            >
+              {page}
+            </span>
+            <button
+              type="button"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="rounded-md border border-[#e4e4ea] p-1.5 disabled:opacity-35"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {showFilters ? (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/35"
+          role="presentation"
+          onMouseDown={(e) => e.target === e.currentTarget && setShowFilters(false)}
+        >
+          <aside className="flex h-full w-full max-w-[400px] flex-col border-l border-[#e4e4ea] bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#e4e4ea] px-5 py-4">
+              <h2 className="text-[18px] font-bold text-[#1a1a1f]">Filters</h2>
+              <button
+                type="button"
+                onClick={() => setShowFilters(false)}
+                className="rounded-lg p-1 text-[#9a9aa5] hover:bg-[#F5F5F5]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5">
+              <FilterSection label="Status">
+                {[
+                  { id: "", label: "All" },
+                  { id: "draft", label: "Draft" },
+                  { id: "pending", label: "Pending" },
+                  { id: "approved", label: "Approved" },
+                  { id: "received", label: "Received" },
+                  { id: "delivered", label: "Delivered" },
+                  { id: "cancelled", label: "Cancelled" },
+                ].map((opt) => (
+                  <Chip
+                    key={opt.id || "all"}
+                    label={opt.label}
+                    active={draftFilters.status === opt.id}
+                    onClick={() => setDraftFilters((f) => ({ ...f, status: opt.id }))}
+                  />
+                ))}
+              </FilterSection>
+              <FilterSection label="Vendor">
+                <input
+                  value={draftFilters.vendor}
+                  onChange={(e) => setDraftFilters((f) => ({ ...f, vendor: e.target.value }))}
+                  placeholder="Search vendor name"
+                  className="w-full rounded-lg border border-[#e4e4ea] bg-white px-3 py-2.5 text-[13px] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/25"
+                />
+              </FilterSection>
+            </div>
+            <div className="flex gap-2 border-t border-[#e4e4ea] px-5 py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftFilters(EMPTY_FILTERS);
+                  setFilters(EMPTY_FILTERS);
+                  setShowFilters(false);
+                }}
+                className="flex-1 rounded-lg border border-[#e4e4ea] py-2.5 text-[13px] font-semibold text-[#4a4a55]"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters(draftFilters);
+                  setShowFilters(false);
+                }}
+                className="flex-1 rounded-lg bg-[var(--color-primary)] py-2.5 text-[13px] font-semibold text-[#1a1a1f]"
+              >
+                Apply
+              </button>
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
+      {selected ? (
         <PODetailModal
           po={selected}
           onClose={() => setSelected(null)}
           onApprove={(po) => handleStatus(po, "approved")}
           onReject={(po) => handleStatus(po, "cancelled")}
         />
-      )}
+      ) : null}
     </div>
   );
 }

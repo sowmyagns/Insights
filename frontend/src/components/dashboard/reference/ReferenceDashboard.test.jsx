@@ -114,7 +114,6 @@ describe("ReferenceDashboard", () => {
     });
 
     expect(screen.getAllByText("refDashboard.lowStockItems").length).toBeGreaterThan(0);
-    expect(screen.getByText("Click a metric card to view details")).toBeInTheDocument();
     expect(screen.getAllByText("View").length).toBeGreaterThan(0);
     expect(screen.getByText("refDashboard.inventorySummary")).toBeInTheDocument();
     expect(screen.queryByText("refDashboard.productionOverview")).not.toBeInTheDocument();

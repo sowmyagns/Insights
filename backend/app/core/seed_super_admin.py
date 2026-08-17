@@ -34,8 +34,11 @@ def seed_super_admin(db) -> None:
             if mobile and existing.mobile != mobile:
                 existing.mobile = mobile
                 changed = True
-            # Keep password in sync with .env (dev-friendly; required after first setup)
-            if not verify_password(password, existing.hashed_password):
+            # Dev-only: sync password from .env. Production requires explicit reset flow.
+            if (
+                not settings.is_production
+                and not verify_password(password, existing.hashed_password)
+            ):
                 existing.hashed_password = hash_password(password)
                 changed = True
             if not existing.is_active:

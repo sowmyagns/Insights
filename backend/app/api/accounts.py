@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 logger = logging.getLogger(__name__)
 
 from app.api.deps import get_db
-from app.core.permissions import require_permission, tenant_scope, user_has_permission
+from app.core.permissions import require_action, require_permission, tenant_scope, tenant_scope_action, user_has_permission
 from app.models.accounts import FixedAsset, GLAccount, JournalEntry
 from app.models.user import User
 from app.schemas.accounts import (
@@ -69,7 +69,7 @@ MODULE = "accounts"
 @router.post("/income", response_model=IncomeRead)
 def create_income_endpoint(
     payload: IncomeCreate,
-    user: User = Depends(require_permission(MODULE)),
+    user: User = Depends(require_action(MODULE, "create")),
     db: Session = Depends(get_db),
 ):
     try:
@@ -108,7 +108,7 @@ def list_income_endpoint(
 @router.post("/expenses", response_model=ExpenseRead)
 def create_expense_endpoint(
     payload: ExpenseCreate,
-    user: User = Depends(require_permission(MODULE)),
+    user: User = Depends(require_action(MODULE, "create")),
     db: Session = Depends(get_db),
 ):
     try:
@@ -169,7 +169,7 @@ def get_expense_endpoint(
 def update_expense_endpoint(
     expense_id: int,
     payload: ExpenseUpdate,
-    tenant_id: int = Depends(tenant_scope(MODULE)),
+    tenant_id: int = Depends(tenant_scope_action(MODULE, "update")),
     db: Session = Depends(get_db),
 ):
     try:
@@ -194,7 +194,7 @@ def update_expense_endpoint(
 @router.delete("/expenses/{expense_id}")
 def delete_expense_endpoint(
     expense_id: int,
-    tenant_id: int = Depends(tenant_scope(MODULE)),
+    tenant_id: int = Depends(tenant_scope_action(MODULE, "delete")),
     db: Session = Depends(get_db),
 ):
     try:
@@ -425,7 +425,7 @@ def list_journal_entries_endpoint(
 @router.post("/journal-entries", response_model=JournalEntryRead, status_code=status.HTTP_201_CREATED)
 def create_journal_entry_endpoint(
     payload: JournalEntryCreate,
-    user: User = Depends(require_permission(MODULE)),
+    user: User = Depends(require_action(MODULE, "create")),
     db: Session = Depends(get_db),
 ):
     entry_date = payload.date or date.today()
@@ -476,7 +476,7 @@ def get_journal_entry_endpoint(
 def update_journal_entry_endpoint(
     entry_id: int,
     payload: JournalEntryUpdate,
-    tenant_id: int = Depends(tenant_scope(MODULE)),
+    tenant_id: int = Depends(tenant_scope_action(MODULE, "update")),
     db: Session = Depends(get_db),
 ):
     data = payload.model_dump(exclude_unset=True)
@@ -511,7 +511,7 @@ def update_journal_entry_endpoint(
 @router.delete("/journal-entries/{entry_id}")
 def delete_journal_entry_endpoint(
     entry_id: int,
-    tenant_id: int = Depends(tenant_scope(MODULE)),
+    tenant_id: int = Depends(tenant_scope_action(MODULE, "delete")),
     db: Session = Depends(get_db),
 ):
     try:
@@ -558,7 +558,7 @@ def list_gl_accounts_endpoint(
 @router.post("/gl-accounts", response_model=GLAccountRead, status_code=status.HTTP_201_CREATED)
 def create_gl_account_endpoint(
     payload: GLAccountCreate,
-    user: User = Depends(require_permission(MODULE)),
+    user: User = Depends(require_action(MODULE, "create")),
     db: Session = Depends(get_db),
 ):
     existing = db.scalar(
@@ -608,7 +608,7 @@ def get_gl_account_endpoint(
 def update_gl_account_endpoint(
     account_id: int,
     payload: GLAccountUpdate,
-    tenant_id: int = Depends(tenant_scope(MODULE)),
+    tenant_id: int = Depends(tenant_scope_action(MODULE, "update")),
     db: Session = Depends(get_db),
 ):
     row = db.scalars(
@@ -643,7 +643,7 @@ def update_gl_account_endpoint(
 @router.delete("/gl-accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_gl_account_endpoint(
     account_id: int,
-    tenant_id: int = Depends(tenant_scope(MODULE)),
+    tenant_id: int = Depends(tenant_scope_action(MODULE, "delete")),
     db: Session = Depends(get_db),
 ):
     row = db.scalars(
@@ -671,7 +671,7 @@ def delete_gl_account_endpoint(
 
 @router.post("/gl-accounts/seed", response_model=list[GLAccountRead])
 def seed_gl_accounts_endpoint(
-    user: User = Depends(require_permission(MODULE)),
+    user: User = Depends(require_action(MODULE, "create")),
     db: Session = Depends(get_db),
 ):
     """Seed standard chart of accounts when the tenant has none."""
@@ -747,7 +747,7 @@ def list_fixed_assets_endpoint(
 @router.post("/fixed-assets", response_model=FixedAssetRead, status_code=status.HTTP_201_CREATED)
 def create_fixed_asset_endpoint(
     payload: FixedAssetCreate,
-    user: User = Depends(require_permission(MODULE)),
+    user: User = Depends(require_action(MODULE, "create")),
     db: Session = Depends(get_db),
 ):
     existing = db.scalar(
@@ -807,7 +807,7 @@ def get_tenant_pref(
 def put_tenant_pref(
     key: str,
     payload: dict,
-    user: User = Depends(require_permission(MODULE)),
+    user: User = Depends(require_action(MODULE, "update")),
     db: Session = Depends(get_db),
 ):
     import json

@@ -38,6 +38,6 @@ def register_exception_handlers(app: FastAPI) -> None:
         if request.url.path.startswith("/api/"):
             return JSONResponse(
                 status_code=500,
-                content=error_response("Internal server error", errors=[str(exc)]),
+                content=error_response("Internal server error"),
             )
         return JSONResponse(status_code=500, content={"detail": "Internal server error"})

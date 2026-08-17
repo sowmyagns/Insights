@@ -14,7 +14,7 @@ export const ROLES = [
 ];
 
 export const MODULES = [
-  "dashboard", "masters", "production", "inventory", "procurement", "hr", "attendance",
+  "dashboard", "masters", "production", "inventory", "procurement", "hr",
   "sales", "accounts", "quality", "maintenance", "analytics", "alerts", "admin",
   "documents", "documents_ops", "factoryMonitor", "iot", "settings", "meetings",
 ];
@@ -51,16 +51,16 @@ export const ROLE_PERMISSIONS = {
   procurement_manager: [
     "dashboard", "procurement", "inventory", "masters", "accounts", "alerts", "documents", "analytics",
   ],
-  "HR Manager": ["dashboard", "hr", "attendance", "analytics", "alerts", "documents", "masters", "meetings"],
-  hr_manager: ["dashboard", "hr", "attendance", "analytics", "alerts", "documents", "masters", "meetings"],
+  "HR Manager": ["dashboard", "hr", "analytics", "alerts", "documents", "masters", "meetings"],
+  hr_manager: ["dashboard", "hr", "analytics", "alerts", "documents", "masters", "meetings"],
   Accountant: ["dashboard", "accounts", "sales", "documents", "analytics", "alerts", "masters", "meetings"],
   accountant: ["dashboard", "accounts", "sales", "documents", "analytics", "alerts", "masters", "meetings"],
   Operator: [
-    "dashboard", "production", "factoryMonitor", "attendance", "documents", "alerts",
+    "dashboard", "production", "factoryMonitor", "documents", "alerts",
     "quality", "maintenance", "inventory",
   ],
   operator: [
-    "dashboard", "production", "factoryMonitor", "attendance", "documents", "alerts",
+    "dashboard", "production", "factoryMonitor", "documents", "alerts",
     "quality", "maintenance", "inventory",
   ],
 };
@@ -83,7 +83,6 @@ export const ROUTE_MODULE_OVERRIDES = {
   "/products": "masters",
   "/masters/bom": "masters",
   "/production/schedule": "production",
-  "/hr/attendance": "attendance",
   "/procurement/rfq": "procurement",
   "/procurement/vendors": "masters",
   "/masters/vendors": "masters",

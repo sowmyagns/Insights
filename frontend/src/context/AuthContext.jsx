@@ -21,6 +21,8 @@ function normalizeUser(raw) {
 
 function readStoredUser() {
   try {
+    const token = localStorage.getItem("smrt-token");
+    if (!token) return null;
     const stored = localStorage.getItem("smrt-user");
     if (stored) return normalizeUser(JSON.parse(stored));
   } catch {}
@@ -53,12 +55,6 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
-      let hasStoredUser = false;
-      try {
-        hasStoredUser = Boolean(localStorage.getItem("smrt-user"));
-      } catch {}
-      if (hasStoredUser) return;
-
       setUser(null);
       const isAuthPage =
         typeof window !== "undefined" &&
@@ -72,6 +68,16 @@ export function AuthProvider({ children }) {
     });
     return () => setUnauthorizedHandler(null);
   }, []);
+
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem("smrt-token");
+      if (!token && user) {
+        setUser(null);
+        localStorage.removeItem("smrt-user");
+      }
+    } catch {}
+  }, [user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,19 +101,13 @@ export function AuthProvider({ children }) {
       .catch((err) => {
         if (cancelled) return;
         if (err.response?.status === 401) {
-          let hasStoredUser = false;
           try {
-            hasStoredUser = Boolean(localStorage.getItem("smrt-user"));
+            clearTenantDataCaches();
+            localStorage.removeItem("smrt-token");
+            localStorage.removeItem("smrt-refresh-token");
+            localStorage.removeItem("smrt-user");
           } catch {}
-          if (!hasStoredUser) {
-            try {
-              clearTenantDataCaches();
-              localStorage.removeItem("smrt-token");
-              localStorage.removeItem("smrt-refresh-token");
-              localStorage.removeItem("smrt-user");
-            } catch {}
-            setUser(null);
-          }
+          setUser(null);
         }
       });
     return () => {
@@ -186,18 +186,21 @@ export function AuthProvider({ children }) {
 
   const clearSessionExpired = useCallback(() => setSessionExpired(false), []);
 
-  const value = useMemo(
-    () => ({
+  const value = useMemo(() => {
+    let hasToken = false;
+    try {
+      hasToken = Boolean(localStorage.getItem("smrt-token"));
+    } catch {}
+    return {
       user,
-      isAuthenticated: Boolean(user),
+      isAuthenticated: Boolean(user && hasToken),
       sessionExpired,
       clearSessionExpired,
       login,
       logout,
       refreshUser,
-    }),
-    [user, sessionExpired, clearSessionExpired, login, logout, refreshUser]
-  );
+    };
+  }, [user, sessionExpired, clearSessionExpired, login, logout, refreshUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -726,6 +726,38 @@ def update_invoice_endpoint(
         raise HTTPException(500, "Failed to update invoice") from exc
 
 
+@router.patch("/invoices/{invoice_id}/status")
+def patch_invoice_status_endpoint(
+    invoice_id: int,
+    status: str = Query(...),
+    amount_paid: float | None = Query(None),
+    user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy import select
+
+    from app.models.sales import Invoice
+    from app.services.sales_service import _resync_invoice_payment
+
+    inv = db.scalars(
+        select(Invoice).where(Invoice.id == invoice_id, Invoice.tenant_id == user.tenant_id)
+    ).first()
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    inv.status = status
+    if amount_paid is not None:
+        inv.amount_paid = amount_paid
+    _resync_invoice_payment(db, inv)
+    db.commit()
+    db.refresh(inv)
+    return {
+        "ok": True,
+        "id": inv.id,
+        "status": inv.status,
+        "amount_paid": float(inv.amount_paid or 0),
+    }
+
+
 @router.delete("/invoices/{invoice_id}")
 def cancel_invoice_endpoint(
     invoice_id: int,

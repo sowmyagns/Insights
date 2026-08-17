@@ -27,7 +27,9 @@ export function formatApiError(detail, fallback = "Something went wrong.") {
 }
 
 export function apiErrorMessage(err, fallback = "Something went wrong.") {
-  return formatApiError(err?.response?.data?.detail ?? err?.message, fallback);
+  const status = err?.response?.status;
+  if (status >= 500) return fallback;
+  return formatApiError(err?.response?.data?.detail, fallback);
 }
 
 export function asArray(data) {

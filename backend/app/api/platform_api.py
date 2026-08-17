@@ -19,6 +19,7 @@ from app.schemas.platform import (
     UpdateCompanyRequest,
     UpdateLicenseRequest,
 )
+from app.middleware.security import check_rate_limit
 from app.services.platform_company_service import PlatformCompanyService
 from app.services.super_admin_service import SuperAdminService
 from app.services.address_lookup_service import lookup_indian_pincode

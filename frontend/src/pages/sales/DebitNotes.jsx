@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
-import { Link } from "react-router-dom";
-import { Calendar, ChevronLeft, ChevronRight, FileText, Filter, ListFilter, Plus, Search, X } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Calendar, ChevronLeft, ChevronRight, Download, Edit2, Eye, FileText, Filter, ListFilter, Plus, Search, Trash2, X } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
-import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
+import RowActionMenu from "../../components/common/RowActionMenu";
 import { useToast } from "../../context/ToastContext";
-import { cancelInvoice, getInvoicesV2 } from "../../api/salesApi";
+import { cancelInvoice, downloadInvoicePdf, getInvoicesV2 } from "../../api/salesApi";
 import { apiErrorMessage } from "../../utils/apiError";
 import { formatInr } from "../../data/salesMasterData";
 
 const YELLOW = "#0025D4";
 const PAGE_BG = "var(--color-bg)";
+const YELLOW = "var(--color-primary)";
+const PAGE_BG = "#F5F5F5";
 const PAGE_SIZES = [10, 25, 50];
 
 const SORT_OPTIONS = [
@@ -128,17 +130,17 @@ function SummaryTab({ label, count, amount, active, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`min-w-0 flex-1 border-b-[3px] px-5 py-3.5 text-left transition ${
+      className={`min-w-[140px] flex-1 border-b-[3px] px-5 py-3.5 text-left transition ${
         active
-          ? "border-[#6b4eff] bg-white text-[#6b4eff]"
-          : "border-transparent bg-transparent text-[#6b6b76] hover:bg-white/70"
+          ? "border-[#3F51B5] bg-white text-[#3F51B5]"
+          : "border-transparent bg-[#f5f5f5] text-[#6b6b76] hover:bg-[#ececef]"
       }`}
     >
-      <p className={`text-[13px] font-medium ${active ? "" : "text-[#6b6b76]"}`}>
+      <p className={`text-[13px] font-medium ${active ? "text-[#3F51B5]" : "text-[#6b6b76]"}`}>
         {label}{" "}
-        <span className={active ? "opacity-70" : "text-[#a0a0ab]"}>({count})</span>
+        <span className={active ? "opacity-80" : "text-[#a0a0ab]"}>({count})</span>
       </p>
-      <p className={`mt-1 text-[18px] font-bold tabular-nums ${active ? "text-inherit" : "text-[#1a1a1f]"}`}>
+      <p className={`mt-1 text-[18px] font-bold tabular-nums ${active ? "text-[#3F51B5]" : "text-[#1a1a1f]"}`}>
         {amount}
       </p>
     </button>
@@ -147,8 +149,11 @@ function SummaryTab({ label, count, amount, active, onClick }) {
 
 export default function DebitNotes() {
   const { addToast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
+  const [openMenu, setOpenMenu] = useState(null);
+  const [pdfBusyId, setPdfBusyId] = useState(null);
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("2026-04-01");
   const [dateTo, setDateTo] = useState("2027-03-31");
@@ -193,6 +198,43 @@ export default function DebitNotes() {
   useEffect(() => {
     setPage(1);
   }, [search, filters, sortId, pageSize, dateFrom, dateTo, kpiFilter]);
+
+  const handleDownloadPdf = useCallback(
+    async (row) => {
+      if (!row?.id) return;
+      setPdfBusyId(row.id);
+      try {
+        const res = await downloadInvoicePdf(row.id);
+        const blob = new Blob([res.data], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `DebitNote-${row.invoice_number || row.id}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        addToast("PDF downloaded.", "success");
+      } catch (err) {
+        addToast(apiErrorMessage(err, "Could not download PDF."), "error");
+      } finally {
+        setPdfBusyId(null);
+      }
+    },
+    [addToast]
+  );
+
+  const handleDelete = useCallback(
+    async (row) => {
+      if (!window.confirm(`Delete debit note ${row.invoice_number}?`)) return;
+      try {
+        await cancelInvoice(row.id);
+        addToast("Debit note deleted", "success");
+        load();
+      } catch (err) {
+        addToast(apiErrorMessage(err, "Failed to delete"), "error");
+      }
+    },
+    [addToast, load]
+  );
 
   const tabStats = useMemo(() => {
     const sum = (arr) =>
@@ -276,44 +318,67 @@ export default function DebitNotes() {
   }
 
   return (
-    <div className="min-h-full" style={{ background: PAGE_BG }}>
-      <div className="space-y-4 p-4 sm:p-6">
+    <div className="min-h-full space-y-4 p-4 sm:p-6" style={{ background: PAGE_BG }}>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-stretch xl:justify-between">
+        <div className="flex min-w-0 flex-1 flex-wrap overflow-hidden rounded-lg border border-[#e4e4ea]">
+          <SummaryTab
+            label="Total Sales"
+            count={tabStats.all.count}
+            amount={formatInr(tabStats.all.amount)}
+            active={kpiFilter === "all"}
+            onClick={() => setKpiFilter("all")}
+          />
+          <SummaryTab
+            label="Unpaid"
+            count={tabStats.unpaid.count}
+            amount={formatInr(tabStats.unpaid.amount)}
+            active={kpiFilter === "unpaid"}
+            onClick={() => setKpiFilter("unpaid")}
+          />
+          <SummaryTab
+            label="Paid"
+            count={tabStats.paid.count}
+            amount={formatInr(tabStats.paid.amount)}
+            active={kpiFilter === "paid"}
+            onClick={() => setKpiFilter("paid")}
+          />
+          <SummaryTab
+            label="Partially Paid"
+            count={tabStats.partial.count}
+            amount={formatInr(tabStats.partial.amount)}
+            active={kpiFilter === "partial"}
+            onClick={() => setKpiFilter("partial")}
+          />
+        </div>
 
-        <div className="overflow-hidden rounded-xl border border-[#e4e4ea] bg-[#efeaf8]">
-          <div className="flex flex-wrap">
-            <SummaryTab
-              label="Total Sales"
-              count={tabStats.all.count}
-              amount={formatInr(tabStats.all.amount)}
-              active={kpiFilter === "all"}
-              onClick={() => setKpiFilter("all")}
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2.5">
+          <div className="inline-flex items-center gap-2 rounded-lg border border-[#e4e4ea] bg-white px-3 py-2 text-[13px] text-[#4a4a55] shadow-sm">
+            <Calendar className="h-4 w-4 shrink-0 text-[#9a9aa5]" />
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="w-[118px] border-0 bg-transparent p-0 text-[13px] focus:outline-none"
             />
-            <SummaryTab
-              label="Unpaid"
-              count={tabStats.unpaid.count}
-              amount={formatInr(tabStats.unpaid.amount)}
-              active={kpiFilter === "unpaid"}
-              onClick={() => setKpiFilter("unpaid")}
-            />
-            <SummaryTab
-              label="Paid"
-              count={tabStats.paid.count}
-              amount={formatInr(tabStats.paid.amount)}
-              active={kpiFilter === "paid"}
-              onClick={() => setKpiFilter("paid")}
-            />
-            <SummaryTab
-              label="Partially Paid"
-              count={tabStats.partial.count}
-              amount={formatInr(tabStats.partial.amount)}
-              active={kpiFilter === "partial"}
-              onClick={() => setKpiFilter("partial")}
+            <span className="text-[#9a9aa5]">→</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="w-[118px] border-0 bg-transparent p-0 text-[13px] focus:outline-none"
             />
           </div>
+          <Link
+            to="/sales/debit-notes/create"
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f] shadow-sm"
+            style={{ background: YELLOW }}
+          >
+            <Plus className="h-4 w-4" strokeWidth={2.5} /> Sales Debit Note
+          </Link>
         </div>
       </div>
 
-      <div className="rounded-t-2xl border border-[#e4e4ea] border-b-0 bg-white px-4 pb-6 pt-4 sm:px-6">
+      <div className="rounded-xl border border-[#e4e4ea] bg-white px-4 pb-6 pt-4 sm:px-6">
         <div className="mb-3 flex flex-col gap-3 border-b border-[#e4e4ea] pb-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative w-full max-w-xl">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
@@ -324,30 +389,7 @@ export default function DebitNotes() {
               className="w-full rounded-full border border-[#e4e4ea] bg-white py-2.5 pl-10 pr-4 text-[14px] text-[#1a1a1f] shadow-sm placeholder:text-[#9a9aa5] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/25"
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="inline-flex items-center gap-2 rounded-lg border border-[#e4e4ea] bg-white px-3 py-2 text-[13px] text-[#4a4a55]">
-              <Calendar className="h-4 w-4 shrink-0 text-[#9a9aa5]" />
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-[118px] border-0 bg-transparent p-0 text-[13px] focus:outline-none"
-              />
-              <span className="text-[#9a9aa5]">→</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-[118px] border-0 bg-transparent p-0 text-[13px] focus:outline-none"
-              />
-            </div>
-            <Link
-              to="/sales/debit-notes/create"
-              className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white shadow-sm"
-              style={{ background: YELLOW }}
-            >
-              <Plus className="h-4 w-4" strokeWidth={2.5} /> Sales Debit Note
-            </Link>
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <button
               type="button"
               onClick={() => {
@@ -362,7 +404,7 @@ export default function DebitNotes() {
               <button
                 type="button"
                 onClick={() => setShowSort((v) => !v)}
-                className="inline-flex items-center gap-2 rounded-lg border border-[#e4e4ea] bg-[#f5f5f5] px-3.5 py-2 text-[13px] font-medium text-[#4a4a55]"
+                className="inline-flex items-center gap-2 rounded-lg border border-[#e4e4ea] bg-white px-3.5 py-2 text-[13px] font-medium text-[#4a4a55]"
               >
                 <ListFilter className="h-4 w-4" /> Sort by
               </button>
@@ -400,14 +442,13 @@ export default function DebitNotes() {
         <div className="overflow-hidden rounded-xl border border-[#e4e4ea]">
           <div className="overflow-x-auto">
             <table className="min-w-full border-collapse text-left text-[13px]">
-              <thead className="bg-[#efeaf8] text-[12px] font-semibold uppercase tracking-wide text-[#6b6b76]">
+              <thead className="bg-[#f3f3f6] text-[12px] font-semibold uppercase tracking-wide text-[#9a9aa5]">
                 <tr>
-                  <SerialNumberHeader className="border-b border-r border-[#d0d0d8]" />
                   {["SDN No.", "Date", "Buyer Name", "Due In", "Amount", "Status", "Actions"].map(
                     (h) => (
                       <th
                         key={h}
-                        className="border-b border-r border-[#d0d0d8] px-4 py-3 last:border-r-0"
+                        className="border-b border-r border-[#e4e4ea] px-4 py-3 last:border-r-0"
                       >
                         {h}
                       </th>
@@ -418,14 +459,14 @@ export default function DebitNotes() {
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="border-t border-[#e4e4ea] px-4 py-16 text-center">
-                      <FileText className="mx-auto h-12 w-12 text-[#c4c4cc]" />
-                      <p className="mt-3 text-[14px] text-[#9a9aa5]">
-                        No sales debit notes yet. Create your first one.
+                    <td colSpan={7} className="px-4 py-20 text-center">
+                      <FileText className="mx-auto h-14 w-14 text-[#d8d8e0]" strokeWidth={1.25} />
+                      <p className="mt-4 text-[14px] text-[#6b6b76]">
+                        No Sales Debit Note available, Create new Sales Debit Note
                       </p>
                       <Link
                         to="/sales/debit-notes/create"
-                        className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-white"
+                        className="mt-5 inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold text-[#1a1a1f]"
                         style={{ background: YELLOW }}
                       >
                         <Plus className="h-4 w-4" /> Sales Debit Note
@@ -433,70 +474,62 @@ export default function DebitNotes() {
                     </td>
                   </tr>
                 ) : (
-                  pageRows.map((r, rowIndex) => {
+                  pageRows.map((r) => {
                     const pay = paymentStatus(r);
                     const totalAmt = Number(r.grand_total ?? r.total_amount) || 0;
                     return (
                       <tr key={r.id} className="hover:bg-[#fafafa]">
-                        <SerialNumberCell
-                          rowIndex={rowIndex}
-                          page={page}
-                          pageSize={pageSize}
-                          className="border-t border-r border-[#d0d0d8]"
-                        />
-                        <td className="border-t border-r border-[#d0d0d8] px-4 py-3 font-semibold text-[#6b4eff]">
+                        <td className="border-t border-r border-[#e4e4ea] px-4 py-3 font-semibold text-[#3F51B5]">
                           {r.invoice_number}
                         </td>
-                        <td className="border-t border-r border-[#d0d0d8] px-4 py-3 text-[#4a4a55]">
+                        <td className="border-t border-r border-[#e4e4ea] px-4 py-3 text-[#4a4a55]">
                           {fmtDate(r.issue_date)}
                         </td>
-                        <td className="border-t border-r border-[#d0d0d8] px-4 py-3">
+                        <td className="border-t border-r border-[#e4e4ea] px-4 py-3">
                           {r.customer_name || "—"}
                         </td>
-                        <td className="border-t border-r border-[#d0d0d8] px-4 py-3 text-[#4a4a55]">
+                        <td className="border-t border-r border-[#e4e4ea] px-4 py-3 text-[#4a4a55]">
                           {daysUntilDue(r.due_date)}
                         </td>
-                        <td className="border-t border-r border-[#d0d0d8] px-4 py-3 tabular-nums font-medium">
+                        <td className="border-t border-r border-[#e4e4ea] px-4 py-3 tabular-nums font-medium">
                           {formatInr(totalAmt)}
                         </td>
-                        <td className="border-t border-r border-[#d0d0d8] px-4 py-3">
+                        <td className="border-t border-r border-[#e4e4ea] px-4 py-3">
                           <span
                             className={`rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${statusColor(pay)}`}
                           >
                             {statusLabel(pay)}
                           </span>
                         </td>
-                        <td className="border-t border-[#d0d0d8] px-4 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            <Link
-                              to={`/sales/debit-notes/${r.id}/edit`}
-                              className="text-[12px] font-semibold text-[#6b4eff] hover:underline"
-                            >
-                              View
-                            </Link>
-                            <Link
-                              to={`/sales/debit-notes/${r.id}/edit`}
-                              className="text-[12px] font-semibold text-[#4a4a55] hover:underline"
-                            >
-                              Edit
-                            </Link>
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (!window.confirm(`Cancel debit note ${r.invoice_number}?`)) return;
-                                try {
-                                  await cancelInvoice(r.id);
-                                  addToast("Debit note cancelled", "success");
-                                  load();
-                                } catch (err) {
-                                  addToast(apiErrorMessage(err, "Failed to cancel"), "error");
-                                }
-                              }}
-                              className="text-[12px] font-semibold text-[#dc2626] hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
+                        <td className="border-t border-[#e4e4ea] px-4 py-3">
+                          <RowActionMenu
+                            rowId={r.id}
+                            openMenu={openMenu}
+                            setOpenMenu={setOpenMenu}
+                            items={[
+                              {
+                                label: "View",
+                                icon: <Eye className="h-4 w-4" />,
+                                onClick: () => navigate(`/sales/debit-notes/${r.id}`),
+                              },
+                              {
+                                label: "Edit",
+                                icon: <Edit2 className="h-4 w-4" />,
+                                onClick: () => navigate(`/sales/debit-notes/${r.id}/edit`),
+                              },
+                              {
+                                label: pdfBusyId === r.id ? "Downloading…" : "Download PDF",
+                                icon: <Download className="h-4 w-4" />,
+                                onClick: () => handleDownloadPdf(r),
+                              },
+                              {
+                                label: "Delete",
+                                icon: <Trash2 className="h-4 w-4" />,
+                                danger: true,
+                                onClick: () => handleDelete(r),
+                              },
+                            ]}
+                          />
                         </td>
                       </tr>
                     );

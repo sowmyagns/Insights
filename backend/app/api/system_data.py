@@ -1,15 +1,16 @@
 """System data management API: clear and undo/restore tenant operational data."""
 
 from datetime import date, datetime
-from fastapi import APIRouter, Depends
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.core.permissions import get_current_user
+from app.core.config import get_settings
+from app.core.permissions import require_admin
 from app.models.alert import Alert
 from app.models.document import Document
 from app.models.erp_notification import ErpNotification
-from app.models.hr import AttendanceRecord
 from app.models.machine import Machine
 from app.models.production import DailyProductionReport, ProductionOrder, WorkOrder
 from app.models.task import Task
@@ -20,6 +21,14 @@ router = APIRouter(prefix="/system", tags=["system-data"])
 
 # In-memory snapshot cache keyed by tenant_id
 _TENANT_SNAPSHOTS: dict[int, dict] = {}
+
+
+def _require_dev_only() -> None:
+    if get_settings().is_production:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This operation is not available in production.",
+        )
 
 
 def _serialize_model(obj) -> dict:
@@ -34,9 +43,10 @@ def _serialize_model(obj) -> dict:
 
 @router.post("/clear-tenant-data")
 def clear_tenant_data(
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    _require_dev_only()
     tenant_id = user.tenant_id
 
     # 1. Save exact snapshot before clearing
@@ -44,7 +54,6 @@ def clear_tenant_data(
         "daily_reports": [_serialize_model(r) for r in db.query(DailyProductionReport).filter(DailyProductionReport.tenant_id == tenant_id).all()],
         "work_orders": [_serialize_model(r) for r in db.query(WorkOrder).filter(WorkOrder.tenant_id == tenant_id).all()],
         "production_orders": [_serialize_model(r) for r in db.query(ProductionOrder).filter(ProductionOrder.tenant_id == tenant_id).all()],
-        "attendance": [_serialize_model(r) for r in db.query(AttendanceRecord).filter(AttendanceRecord.tenant_id == tenant_id).all()],
         "tasks": [_serialize_model(r) for r in db.query(Task).filter(Task.tenant_id == tenant_id).all()],
         "documents": [_serialize_model(r) for r in db.query(Document).filter(Document.tenant_id == tenant_id).all()],
         "notifications": [_serialize_model(r) for r in db.query(ErpNotification).filter(ErpNotification.tenant_id == tenant_id).all()],
@@ -57,7 +66,6 @@ def clear_tenant_data(
     db.query(DailyProductionReport).filter(DailyProductionReport.tenant_id == tenant_id).delete()
     db.query(WorkOrder).filter(WorkOrder.tenant_id == tenant_id).delete()
     db.query(ProductionOrder).filter(ProductionOrder.tenant_id == tenant_id).delete()
-    db.query(AttendanceRecord).filter(AttendanceRecord.tenant_id == tenant_id).delete()
     db.query(Task).filter(Task.tenant_id == tenant_id).delete()
     db.query(Document).filter(Document.tenant_id == tenant_id).delete()
     db.query(ErpNotification).filter(ErpNotification.tenant_id == tenant_id).delete()
@@ -70,9 +78,10 @@ def clear_tenant_data(
 
 @router.post("/seed-tenant-data")
 def seed_tenant_data(
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    _require_dev_only()
     tenant_id = user.tenant_id
 
     # If an exact snapshot exists from the recent Clear, restore that snapshot!
@@ -81,7 +90,6 @@ def seed_tenant_data(
         db.query(DailyProductionReport).filter(DailyProductionReport.tenant_id == tenant_id).delete()
         db.query(WorkOrder).filter(WorkOrder.tenant_id == tenant_id).delete()
         db.query(ProductionOrder).filter(ProductionOrder.tenant_id == tenant_id).delete()
-        db.query(AttendanceRecord).filter(AttendanceRecord.tenant_id == tenant_id).delete()
         db.query(Task).filter(Task.tenant_id == tenant_id).delete()
         db.query(Document).filter(Document.tenant_id == tenant_id).delete()
         db.query(ErpNotification).filter(ErpNotification.tenant_id == tenant_id).delete()
@@ -115,7 +123,6 @@ def seed_tenant_data(
         _restore_rows(DailyProductionReport, snapshot.get("daily_reports", []))
         _restore_rows(WorkOrder, snapshot.get("work_orders", []))
         _restore_rows(ProductionOrder, snapshot.get("production_orders", []))
-        _restore_rows(AttendanceRecord, snapshot.get("attendance", []))
         _restore_rows(Task, snapshot.get("tasks", []))
         _restore_rows(Document, snapshot.get("documents", []))
         _restore_rows(ErpNotification, snapshot.get("notifications", []))
@@ -127,13 +134,11 @@ def seed_tenant_data(
 
     # Fallback to initial seed if no snapshot exists
     from app.core.seed_dashboard import seed_dashboard_data
-    from app.core.seed_hr import seed_hr_data
     from app.core.seed_notifications import seed_notifications
     from app.core.seed_products import seed_products
 
     seed_products(db, tenant_id)
     seed_notifications(db, tenant_id)
-    seed_hr_data(db, tenant_id)
     seed_dashboard_data(db, tenant_id)
 
     return success_response("Tenant sample data restored successfully", {"restored": True, "type": "initial"})

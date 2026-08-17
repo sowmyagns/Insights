@@ -1,181 +1,283 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ChevronDown, ChevronUp, Search, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, Building2, ChevronDown, FileText, Grid2x2, ImagePlus, Paperclip, MapPin, Package, PenLine, Plane, Plus, Ban, Search, Ship, TrainFront, Trash2, Truck, User, X } from "lucide-react";
 
+import Loader from "../../components/common/Loader";
+import AddCustomFieldModal from "../../components/sales/AddCustomFieldModal";
+import AddNewItemModal from "../../components/sales/AddNewItemModal";
+import AddOtherChargesModal, {
+  computeOtherChargeTotal,
+} from "../../components/sales/AddOtherChargesModal";
+import AddNewPartyModal from "../../components/sales/AddNewPartyModal";
+import AddNoteModal from "../../components/sales/AddNoteModal";
+import AddPrefixModal from "../../components/sales/AddPrefixModal";
+import AddTermsAndConditionsModal from "../../components/sales/AddTermsAndConditionsModal";
+import AddTransporterDetailsModal from "../../components/sales/AddTransporterDetailsModal";
+import DispatchAddressPicker from "../../components/sales/DispatchAddressPicker";
+import EditCompanyDetailsModal from "../../components/sales/EditCompanyDetailsModal";
+import SignatureAndStampPanel from "../../components/sales/SignatureAndStampPanel";
+import TermsAndConditionsPicker, {
+  DEFAULT_TERMS_BODY,
+} from "../../components/sales/TermsAndConditionsPicker";
+import { getInventoryDashboard } from "../../api/inventoryApi";
 import {
-  getVendors,
-  createVendor,
   createPurchaseOrder,
   getPurchaseOrder,
+  getVendors,
   updatePurchaseOrder,
 } from "../../api/procurementApi";
-import { getInventoryDashboard } from "../../api/inventoryApi";
+import { getCompanySettings } from "../../api/settingsApi";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
-import usePageRefresh from "../../hooks/usePageRefresh";
-import { INDIAN_STATES } from "../../data/customersMasterData";
 import { apiErrorMessage, asArray } from "../../utils/apiError";
-import SearchableSelect from "../../components/common/SearchableSelect";
 
-const darkButton = "rounded-md bg-[#2d2a4a] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#1a1a1f] disabled:cursor-not-allowed disabled:opacity-50";
-const blueButton =
-  "rounded-md border border-[var(--color-action-blue)] bg-[var(--color-action-blue)] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[var(--color-action-blue-hover)] active:bg-[var(--color-action-blue-active)] disabled:cursor-not-allowed disabled:opacity-50";
-const outlineButton = "rounded-md border border-[#2d2a4a] bg-white px-4 py-2.5 text-sm font-bold text-[#2d2a4a] hover:bg-[#f7f5fb]";
-const softButton = "rounded-md border border-[#d0d0d8] bg-[#f0f0f4] px-4 py-2.5 text-sm font-bold text-[#2d2a4a] hover:bg-[#e8e8ee]";
-const underline = "w-full border-0 border-b border-slate-400 bg-transparent px-0 py-2 text-sm text-slate-900 outline-none focus:border-[#2d2a4a]";
-const field = "w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#2d2a4a]";
-const Section = ({ title, actions, children, className = "" }) => (
-  <section className={`overflow-hidden border-b border-[#d0d0d8] bg-white ${className}`}>
-    <div className="flex flex-wrap items-center justify-between gap-2 bg-[#efeaf8] px-4 py-2.5">
-      <h2 className="text-sm font-bold uppercase tracking-wide text-[#2d2a4a]">{title}</h2>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
-    </div>
-    {children != null ? <div className="p-4">{children}</div> : null}
-  </section>
-);
-const Field = ({ label, children }) => (
-  <label className="block text-[12px] font-semibold text-[#6b6b76]">
-    {label}
-    {children}
-  </label>
-);
+const LAVENDER = "var(--color-success-soft)";
+const PURPLE = "var(--color-action-teal)";
+const YELLOW = "var(--color-primary)";
+const PREFIX_STORAGE_KEY = "gns_purchase_order_prefixes";
+const DEFAULT_PREFIXES = ["PO"];
+const BLUE_ACTION_BTN =
+  "inline-flex items-center justify-center rounded-lg border border-[var(--color-action-blue)] bg-[var(--color-action-blue)] px-3 py-1.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-[var(--color-action-blue-hover)] active:bg-[var(--color-action-blue-active)]";
 
-function Modal({ title, children, onClose }) {
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
-    <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto bg-white shadow-2xl">
-      <div className="sticky top-0 z-10 flex items-center justify-between bg-[#2d2a4a] px-5 py-4 text-white"><h3 className="font-bold">{title}</h3><button type="button" aria-label="Close" onClick={onClose} className="grid h-7 w-7 place-items-center rounded-full bg-white text-[#2d2a4a]"><X size={17} /></button></div>
-      <div className="p-5">{children}</div>
-    </div>
-  </div>;
-}
-
-const vendorEmpty = { gstin: "", gst_registration_type: "CONSUMER", pan: "", name: "", address: "", city: "", pincode: "", state: "", phone: "", email: "", sells: false };
-const consigneeEmpty = { gstin: "", gst_registration_type: "CONSUMER", name: "", address: "", city: "", pincode: "", state: "", phone: "", email: "" };
-const chargeEmpty = { taxable: "", gst: "", amount: "0" };
-const GST_TYPES = ["CONSUMER", "REGISTERED BUSINESS", "COMPOSITION", "UNREGISTERED BUSINESS", "OVERSEAS / EXPORT", "SEZ"];
-const PRODUCT_UNITS = ["Nos", "Kg", "Gram", "Litre", "Ml", "Meter", "Box", "Pack", "Dozen", "Set", "Pair", "Hour", "Day"];
-const GST_RATES = ["GST @ 0%", "GST @ 0.1%", "GST @ 0.25%", "GST @ 1.5%", "GST @ 3%", "GST @ 5%", "GST @ 6%", "GST @ 12%", "GST @ 14%", "GST @ 18%", "GST @ 28%", "No GST", "Exempted", "Non-GST"];
-const productEmpty = {
-  item_id: null,
-  name: "",
-  description: "",
-  hsn: "",
-  quantity: "0",
-  unit: "",
-  unit_price: "",
-  taxType: "Exclusive",
-  discount: "0",
-  discountType: "Percentage",
-  gst: "GST @ 0%",
-  cess: "0",
-  cessType: "Percentage",
-  salesPrice: "",
-  secondaryUnit: "",
-  wholesale: "",
-  maintainStock: true,
-  openingStock: "",
-  lowStock: "",
-  barcode: "",
-};
-
-function gstLabelFromRate(rate) {
-  const n = Number(rate);
-  if (!Number.isFinite(n)) return "GST @ 0%";
-  const match = GST_RATES.find((label) => parseGstRate(label) === n && !/no gst|exempted|non-gst/i.test(label));
-  return match || `GST @ ${n}%`;
-}
-
-function parseGstRate(gst) {
-  if (!gst || /no gst|exempted|non-gst/i.test(gst)) return 0;
-  const match = String(gst).match(/([\d.]+)/);
-  return match ? Number(match[1]) : 0;
-}
-
-function productAmounts(p) {
-  const qty = Number(p.quantity) || 0;
-  const price = Number(p.unit_price) || 0;
-  const discount = Number(p.discount) || 0;
-  const cess = Number(p.cess) || 0;
-  const gstRate = parseGstRate(p.gst);
-  let base = qty * price;
-  if (p.discountType === "Percentage") base -= (base * discount) / 100;
-  else base -= discount;
-  base = Math.max(0, base);
-  let taxable;
-  let tax;
-  if (p.taxType === "Inclusive" && gstRate > 0) {
-    taxable = base / (1 + gstRate / 100);
-    tax = base - taxable;
-  } else {
-    taxable = base;
-    tax = (taxable * gstRate) / 100;
+function loadCustomPrefixes() {
+  try {
+    const prefixes = JSON.parse(localStorage.getItem(PREFIX_STORAGE_KEY) || "[]");
+    return Array.isArray(prefixes) ? prefixes.filter(Boolean) : [];
+  } catch {
+    return [];
   }
-  const cessAmt = p.cessType === "Unit Wise" ? cess * qty : (taxable * cess) / 100;
-  const final = p.taxType === "Inclusive" && gstRate > 0 ? base + cessAmt : taxable + tax + cessAmt;
-  return {
-    taxable: Math.round(taxable * 100) / 100,
-    tax: Math.round((tax + cessAmt) * 100) / 100,
-    final: Math.round(final * 100) / 100,
-    unitPrice: price,
-  };
 }
 
-function chargeAmount(taxable, gst) {
-  const t = Number(taxable) || 0;
-  const g = Number(gst) || 0;
-  return (Math.round((t + (t * g) / 100) * 100) / 100).toFixed(2);
+function saveCustomPrefixes(prefixes) {
+  try {
+    localStorage.setItem(PREFIX_STORAGE_KEY, JSON.stringify(prefixes));
+  } catch {
+    /* ignore */
+  }
 }
 
-function OutlinedField({ label, children }) {
+const emptyItem = () => ({
+  item_id: null,
+  item_description: "",
+  hsn: "",
+  qty: "",
+  unit: "",
+  rate: "",
+  tax_type: "Exclusive",
+  discount: "",
+  discount_type: "₹",
+  gst_pct: "",
+  amount: 0,
+});
+
+function money(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+function lineTotals(row) {
+  const qty = Number(row.qty) || 0;
+  const rate = Number(row.rate) || 0;
+  let discount = Number(row.discount) || 0;
+  if (row.discount_type === "%" && discount > 0) {
+    discount = money((qty * rate * discount) / 100);
+  }
+  const gstPct = Number(row.gst_pct) || 0;
+  let taxable = money(qty * rate - discount);
+  if (String(row.tax_type).toLowerCase() === "inclusive" && gstPct > 0) {
+    taxable = money(taxable / (1 + gstPct / 100));
+  }
+  const gst = money((taxable * gstPct) / 100);
+  return { taxable, gst, total: money(taxable + gst) };
+}
+
+function FieldLabel({ children }) {
+  return <span className="mb-1.5 block text-[12px] font-medium text-[#6b6b76]">{children}</span>;
+}
+
+function SoftInput({ className = "", ...props }) {
   return (
-    <label className="relative block">
-      <span className="absolute -top-2 left-3 z-10 bg-white px-1 text-[11px] font-medium text-[#6b6b76]">{label}</span>
-      {children}
-    </label>
+    <input
+      {...props}
+      className={`w-full rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-3 py-2.5 text-[13px] text-[#1a1a1f] placeholder:text-[#a0a0ab] focus:border-[#6b4eff] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#c4b5fd] ${className}`}
+    />
   );
 }
 
-function ChargeRow({ title, value, onChange }) {
-  const amount = chargeAmount(value.taxable, value.gst);
+function SoftSelect({ className = "", children, ...props }) {
   return (
-    <div className="space-y-2">
-      <p className="text-[13px] font-bold text-[#1a1a1f]">{title}</p>
-      <div className="grid gap-3 md:grid-cols-3">
-        <OutlinedField label="Taxable Amount">
-          <input
-            className={`${field} pt-3`}
-            placeholder="Enter Taxable Amount"
-            value={value.taxable}
-            onChange={(e) =>
-              onChange({
-                ...value,
-                taxable: e.target.value.replace(/[^\d.]/g, ""),
-                amount: chargeAmount(e.target.value.replace(/[^\d.]/g, ""), value.gst),
-              })
-            }
-          />
-        </OutlinedField>
-        <OutlinedField label="GST(%)">
-          <input
-            className={`${field} pt-3`}
-            placeholder="GST(%)"
-            value={value.gst}
-            onChange={(e) =>
-              onChange({
-                ...value,
-                gst: e.target.value.replace(/[^\d.]/g, ""),
-                amount: chargeAmount(value.taxable, e.target.value.replace(/[^\d.]/g, "")),
-              })
-            }
-          />
-        </OutlinedField>
-        <OutlinedField label="Amount">
-          <input className={`${field} pt-3 bg-[#f7f7f9]`} value={amount} readOnly />
-        </OutlinedField>
-      </div>
+    <select
+      {...props}
+      className={`w-full rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-3 py-2.5 text-[13px] text-[#1a1a1f] focus:border-[#6b4eff] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#c4b5fd] ${className}`}
+    >
+      {children}
+    </select>
+  );
+}
+
+function PrefixDropdown({ value, options, onChange, onAddNew }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-center justify-between border-0 border-b border-[#1a1a1f] bg-transparent py-2 text-left text-[13px] font-medium text-[#1a1a1f] focus:outline-none"
+      >
+        <span>{value || "No Prefix"}</span>
+        <ChevronDown className={`h-4 w-4 text-[#6b6b76] transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open ? (
+        <>
+          <button type="button" className="fixed inset-0 z-10 cursor-default" aria-label="Close prefix menu" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 right-0 z-20 mt-1 overflow-hidden rounded-xl border border-[#e4e4ea] bg-white shadow-lg">
+            <div className="space-y-2 p-2">
+              {["", ...options].map((prefix) => (
+                <button
+                  key={prefix || "none"}
+                  type="button"
+                  onClick={() => {
+                    onChange(prefix);
+                    setOpen(false);
+                  }}
+                  className={`block w-full rounded-lg border-2 py-2.5 text-center text-[13px] font-bold ${
+                    value === prefix ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)]" : "border-[var(--color-primary)]/70 bg-[var(--color-primary-soft)] hover:bg-[var(--color-primary-soft)]"
+                  }`}
+                >
+                  {prefix || "No Prefix"}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onAddNew();
+              }}
+              className="w-full bg-[#efeaf8] py-3 text-center text-[13px] font-semibold text-[#6b4eff] hover:bg-[#e6dff6]"
+            >
+              + Add New Prefix
+            </button>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
+
+function Pill({ active, onClick, children, soft }) {
+  if (soft) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition ${
+          active
+            ? "border-[#6b4eff] bg-[#efeaf8] text-[#4a3fd0]"
+            : "border-[#e4e4ea] bg-[#f7f7f9] text-[#4a4a55] hover:bg-[#efefef]"
+        }`}
+      >
+        {children}
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-3 py-1.5 text-[12px] font-medium transition ${
+        active
+          ? "bg-[#2d2a4a] text-white"
+          : "bg-[#f0f0f3] text-[#4a4a55] hover:bg-[#e4e4ea]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+const TRANSPORT_MODES = [
+  { id: "Road", label: "Road", Icon: Truck },
+  { id: "Rail", label: "Rail", Icon: TrainFront },
+  { id: "Air", label: "Air", Icon: Plane },
+  { id: "Ship/Road Cum Ship", label: "Ship/Road Cum Ship", Icon: Ship },
+  { id: "Not Applicable", label: "Not-Applicable", Icon: Ban },
+];
+
+function transportDocLabels(mode) {
+  if (mode === "Rail") {
+    return { number: "RR Number", numberPh: "Enter RR Number", date: "RR Date" };
+  }
+  if (mode === "Air") {
+    return {
+      number: "Airway Bill Number",
+      numberPh: "Enter Airway Bill Number",
+      date: "Airway Bill Date",
+    };
+  }
+  if (mode === "Ship/Road Cum Ship") {
+    return {
+      number: "Lading Number",
+      numberPh: "Enter Lading Number",
+      date: "Lading Date",
+    };
+  }
+  return { number: "LR Number", numberPh: "Enter LR Number", date: "LR Date" };
+}
+
+function showsVehicleNo(mode) {
+  return mode === "Road" || mode === "Ship/Road Cum Ship" || mode === "Not Applicable";
+}
+
+function SectionHeader({ icon: Icon, title, children, className = "", collapsible, open, onToggle }) {
+  const titleRow = (
+    <div className="flex min-w-0 items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-[#3d3560]">
+      {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
+      <span className="truncate">{title}</span>
+      {collapsible ? (
+        <ChevronDown
+          className={`ml-0.5 h-4 w-4 shrink-0 text-[#6b6b76] transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+      ) : null}
+    </div>
+  );
+
+  return (
+    <div
+      className={`flex flex-wrap items-center justify-between gap-2 border-b border-[#d0d0d8] px-4 py-3 ${className}`}
+      style={{ background: LAVENDER }}
+    >
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex min-w-0 items-center text-left"
+          aria-expanded={Boolean(open)}
+        >
+          {titleRow}
+        </button>
+      ) : (
+        titleRow
+      )}
+      {children ? (
+        <div className="relative z-10 flex flex-wrap items-center gap-2">{children}</div>
+      ) : null}
+    </div>
+  );
+}
+
+const INDIAN_STATES = [
+  "Andhra Pradesh",
+  "Delhi",
+  "Gujarat",
+  "Karnataka",
+  "Maharashtra",
+  "Tamil Nadu",
+  "Telangana",
+  "Uttar Pradesh",
+  "West Bengal",
+];
 
 export default function CreatePurchaseOrder() {
   const navigate = useNavigate();
@@ -185,909 +287,1294 @@ export default function CreatePurchaseOrder() {
   const isEdit = Boolean(editId);
   const tenantId = useTenantId();
   const { addToast } = useToast();
-  const [vendors, setVendors] = useState([]);
-  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [modal, setModal] = useState(null);
+  const [vendors, setVendors] = useState([]);
+  const [company, setCompany] = useState(null);
   const [vendorSearch, setVendorSearch] = useState("");
-  const [productSearch, setProductSearch] = useState("");
-  const [addVendor, setAddVendor] = useState(vendorEmpty);
-  const [newProduct, setNewProduct] = useState(productEmpty);
-  const [productTab, setProductTab] = useState("basic");
-  const [consignee, setConsignee] = useState(false);
-  const [selectedConsignee, setSelectedConsignee] = useState(null);
-  const [consignees, setConsignees] = useState([]);
-  const [consigneeSearch, setConsigneeSearch] = useState("");
-  const [addConsignee, setAddConsignee] = useState(consigneeEmpty);
-  const [otherOpen, setOtherOpen] = useState(false);
-  const [signature, setSignature] = useState(false);
-  const [charges, setCharges] = useState({
-    freight: { ...chargeEmpty },
-    insurance: { ...chargeEmpty },
-    loading: { ...chargeEmpty },
-    packing: { ...chargeEmpty },
-    other: { ...chargeEmpty, name: "" },
-    shipping_handling: "0",
-    other_charges: "0",
+  const [showSellerPicker, setShowSellerPicker] = useState(false);
+  const [addSellerOpen, setAddSellerOpen] = useState(false);
+  const [dispatchAddress, setDispatchAddress] = useState(null);
+  const [editCompanyOpen, setEditCompanyOpen] = useState(false);
+  const [addItemOpen, setAddItemOpen] = useState(false);
+  const [otherChargeOpen, setOtherChargeOpen] = useState(false);
+  const [otherChargeMeta, setOtherChargeMeta] = useState(null);
+  const [transportOpen, setTransportOpen] = useState(true);
+  const [otherDetailsOpen, setOtherDetailsOpen] = useState(true);
+  const [termsOpen, setTermsOpen] = useState(true);
+  const [termsAttached, setTermsAttached] = useState(true);
+  const [termsPickerOpen, setTermsPickerOpen] = useState(false);
+  const [termsAddOpen, setTermsAddOpen] = useState(false);
+  const [transporterModalOpen, setTransporterModalOpen] = useState(false);
+  const [customFieldOpen, setCustomFieldOpen] = useState(false);
+  const [customFields, setCustomFields] = useState([]);
+  const [prefixModalOpen, setPrefixModalOpen] = useState(false);
+  const [customPrefixes, setCustomPrefixes] = useState(loadCustomPrefixes);
+  const [signatureOn, setSignatureOn] = useState(true);
+  const [signatureDataUrl, setSignatureDataUrl] = useState(null);
+  const [stampDataUrl, setStampDataUrl] = useState(null);
+  const [catalogItems, setCatalogItems] = useState([]);
+  const [showGstTds, setShowGstTds] = useState(false);
+  const [showTaxType, setShowTaxType] = useState(false);
+  const [taxType, setTaxType] = useState("tcs");
+  const [tcsPct, setTcsPct] = useState("");
+  const [tcsOn, setTcsOn] = useState("taxable");
+  const [tdsCode, setTdsCode] = useState("");
+  const [tdsOn, setTdsOn] = useState("taxable");
+  const [showPurchaseDiscount, setShowPurchaseDiscount] = useState(false);
+  const [purchaseDiscountVal, setPurchaseDiscountVal] = useState("");
+  const [purchaseDiscountType, setPurchaseDiscountType] = useState("%");
+  const [attachmentName, setAttachmentName] = useState("");
+  const [notesText, setNotesText] = useState("");
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [paymentMode, setPaymentMode] = useState("");
+  const [dispatchedDocNo, setDispatchedDocNo] = useState("");
+  const [dispatchedThrough, setDispatchedThrough] = useState("");
+  const [destination, setDestination] = useState("");
+  const [reasonRemark, setReasonRemark] = useState("");
+  const [refInvoiceNo, setRefInvoiceNo] = useState("");
+  const [refInvoiceDate, setRefInvoiceDate] = useState("");
+  const [form, setForm] = useState({
+    supplier_id: "",
+    po_prefix: "",
+    po_number: "1",
+    order_date: new Date().toISOString().slice(0, 10),
+    expected_date: "",
+    other_charge: 0,
+    consignee_name: "",
+    consignee_address1: "",
+    consignee_address2: "",
+    consignee_state: "",
+    consignee_state_code: "",
+    consignee_gstin: "",
+    notes: DEFAULT_TERMS_BODY,
+    transport_mode: "Road",
+    lr_number: "",
+    lr_date: "",
+    vehicle_no: "",
+    distance_km: 0,
+    transporter_name: "",
+    transporter_id: "",
+    place_of_supply: "",
+    date_of_supply: "",
+    supply_type: "B2B",
+    po_number_ref: "",
+    po_date_ref: "",
+    challan_number: "",
+    ewaybill_number: "",
+    sales_person: "",
+    reverse_charge: false,
   });
-  const [form, setForm] = useState({ prefix: "PO-", number: "1", order_date: new Date().toISOString().slice(0, 10), expected_date: "", payment_terms: "", notes: "", supplier_id: "", terms: "1. This is an electronically generated document.\n2. All disputes are subject to BUYER CITY jurisdiction" });
-  const [selectedVendor, setSelectedVendor] = useState(null);
-  const [lines, setLines] = useState([]);
+  const [items, setItems] = useState([emptyItem(), emptyItem(), emptyItem()]);
+  const [saving, setSaving] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [vendorRes, itemRes] = await Promise.all([getVendors(), getInventoryDashboard()]);
-      const vendorList = asArray(vendorRes.data);
-      setVendors(vendorList);
-      setConsignees(vendorList);
-      const dash = itemRes.data;
-      const itemList = Array.isArray(dash)
-        ? dash
-        : asArray(dash?.items).length
-          ? asArray(dash.items)
-          : asArray(dash?.inventory_items);
-      setItems(itemList);
-
-      if (editId) {
-        const po =
-          location.state?.document ||
-          (await getPurchaseOrder(editId)).data;
-        if (!po) throw new Error("Purchase order not found");
-        const num = String(po.po_number || "");
-        const prefixMatch = num.match(/^([A-Za-z-]+)/);
-        const vendor = vendorList.find((v) => String(v.id) === String(po.supplier_id));
-        setSelectedVendor(vendor || null);
-        setForm((f) => ({
-          ...f,
-          prefix: prefixMatch?.[1] || f.prefix,
-          number: num.replace(/^[A-Za-z-]+/, "") || num || f.number,
-          order_date: po.order_date ? String(po.order_date).slice(0, 10) : f.order_date,
-          expected_date: po.expected_date ? String(po.expected_date).slice(0, 10) : "",
-          notes: po.notes || "",
-          supplier_id: po.supplier_id || "",
-        }));
-        const poLines = Array.isArray(po.line_items) ? po.line_items : [];
-        setLines(
-          poLines.map((line) => {
-            const inv = itemList.find((i) => String(i.id || i.item_id) === String(line.item_id));
-            return {
-              ...productEmpty,
-              item_id: line.item_id,
-              name: inv?.name || inv?.item_name || `Item #${line.item_id}`,
-              quantity: String(line.quantity ?? 0),
-              unit_price: line.unit_price ?? "",
-              unit: inv?.unit || "",
-            };
-          })
-        );
-      }
-    } catch (err) {
-      addToast(apiErrorMessage(err, "Could not load purchase order."), "error");
-      if (editId) navigate("/procurement/purchase-orders");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  usePageRefresh(load);
   useEffect(() => {
-    load();
-  }, [editId]); // eslint-disable-line react-hooks/exhaustive-deps
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const [vendorRes, companyRes, itemRes] = await Promise.allSettled([
+          getVendors(),
+          getCompanySettings(),
+          getInventoryDashboard(),
+        ]);
+        if (cancelled) return;
+        setVendors(vendorRes.status === "fulfilled" ? vendorRes.value?.data || [] : []);
+        const co = companyRes.status === "fulfilled" ? companyRes.value?.data || null : null;
+        setCompany(co);
+        const dash = itemRes.status === "fulfilled" ? itemRes.value?.data : null;
+        const itemList = Array.isArray(dash)
+          ? dash
+          : asArray(dash?.items).length
+            ? asArray(dash.items)
+            : asArray(dash?.inventory_items);
+        setCatalogItems(itemList);
 
-  const filteredVendors = useMemo(() => vendors.filter((v) => `${v.name} ${v.phone || ""} ${v.email || ""}`.toLowerCase().includes(vendorSearch.toLowerCase())), [vendors, vendorSearch]);
-  const filteredConsignees = useMemo(
+        if (editId) {
+          const po = location.state?.document || (await getPurchaseOrder(editId)).data;
+          if (!po) throw new Error("Purchase order not found");
+          const num = String(po.po_number || "");
+          const prefixMatch = num.match(/^([A-Za-z-]+)/);
+          setNotesText(po.notes || "");
+          setForm((f) => ({
+            ...f,
+            supplier_id: po.supplier_id ? String(po.supplier_id) : "",
+            po_prefix: prefixMatch?.[1] || f.po_prefix,
+            po_number: num.replace(/^[A-Za-z-]+/, "") || num || f.po_number,
+            order_date: po.order_date ? String(po.order_date).slice(0, 10) : f.order_date,
+            expected_date: po.expected_date ? String(po.expected_date).slice(0, 10) : "",
+            notes: po.notes || f.notes,
+          }));
+          const lineItems = Array.isArray(po.line_items) ? po.line_items : [];
+          setItems(
+            lineItems.length
+              ? lineItems.map((it) => {
+                  const inv = itemList.find((i) => String(i.id || i.item_id) === String(it.item_id));
+                  return {
+                    ...emptyItem(),
+                    item_id: it.item_id,
+                    item_description: inv?.name || inv?.item_name || `Item #${it.item_id}`,
+                    qty: it.qty ?? it.quantity ?? "",
+                    unit: inv?.unit || "pcs",
+                    rate: it.rate ?? it.unit_price ?? "",
+                  };
+                })
+              : [emptyItem(), emptyItem(), emptyItem()]
+          );
+        }
+      } catch (err) {
+        if (!cancelled) {
+          addToast(apiErrorMessage(err, "Failed to load purchase order"), "error");
+          if (editId) navigate("/procurement/purchase-orders");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [editId, addToast, navigate, location.state]);
+
+  const filteredVendors = useMemo(
     () =>
-      consignees.filter((v) =>
-        `${v.name} ${v.phone || ""} ${v.email || ""}`.toLowerCase().includes(consigneeSearch.toLowerCase())
+      vendors.filter((vendor) =>
+        [vendor.name, vendor.vendor_name, vendor.gstin, vendor.state]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(vendorSearch.toLowerCase()))
       ),
-    [consignees, consigneeSearch]
+    [vendors, vendorSearch]
   );
-  const filteredItems = useMemo(() => items.filter((i) => `${i.name || i.item_name || i.product_name || ""}`.toLowerCase().includes(productSearch.toLowerCase())), [items, productSearch]);
-  const newProductTotals = useMemo(() => productAmounts(newProduct), [newProduct]);
-  const lineTotal = (line) => Number(line.quantity || 0) * Number(line.unit_price || 0);
-  const updateLine = (index, key, value) => setLines((old) => old.map((line, i) => i === index ? { ...line, [key]: value } : line));
-  const chooseItem = (item) => {
-    const id = item.id || item.item_id;
-    if (!id) return;
-    if (lines.some((line) => String(line.item_id) === String(id))) {
-      addToast("This product is already on the purchase order.", "warning");
-      setModal(null);
-      return;
-    }
-    const price = item.unit_price ?? item.purchase_price ?? item.unit_cost ?? item.price ?? "";
-    const gstSource = item.gst ?? item.gst_rate ?? item.tax_rate;
-    setNewProduct({
-      ...productEmpty,
-      item_id: id,
-      name: item.name || item.item_name || item.product_name || `Item #${id}`,
-      description: item.description || "",
-      hsn: item.hsn || item.hsn_sac || item.hsn_code || "",
-      quantity: "0",
-      unit: item.unit || item.unit_of_measure || "",
-      unit_price: price === null || price === undefined ? "" : String(price),
-      gst: typeof gstSource === "string" && gstSource.includes("GST")
-        ? gstSource
-        : gstLabelFromRate(gstSource),
+
+  const selectedSeller = vendors.find((vendor) => String(vendor.id) === String(form.supplier_id));
+
+  const prefixOptions = useMemo(
+    () => [...new Set([...DEFAULT_PREFIXES, ...customPrefixes, form.po_prefix].filter(Boolean))],
+    [customPrefixes, form.po_prefix]
+  );
+
+  const handleVendorChange = (vendorId) => {
+    const vendor = vendors.find((row) => String(row.id) === String(vendorId));
+    setForm((f) => ({
+      ...f,
+      supplier_id: vendorId,
+      consignee_name: vendor?.name || vendor?.vendor_name || "",
+      consignee_address1: vendor?.address || vendor?.address_line1 || "",
+      consignee_state: vendor?.state || "",
+      consignee_gstin: vendor?.gstin || "",
+    }));
+    setShowSellerPicker(false);
+  };
+
+  const updateItem = (idx, field, val) => {
+    setItems((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], [field]: val };
+      next[idx].amount = lineTotals(next[idx]).total;
+      return next;
     });
-    setProductTab("basic");
-    setModal("addProduct");
   };
-  const openAddProductBlank = () => {
-    setNewProduct(productEmpty);
-    setProductTab("basic");
-    setModal("addProduct");
+
+  const syncCatalogItem = (idx, label) => {
+    const name = String(label || "").trim().toLowerCase();
+    if (!name) return;
+    const match = catalogItems.find(
+      (i) => String(i.name || i.item_name || i.product_name || "").trim().toLowerCase() === name
+    );
+    if (!match) return;
+    const id = match.id || match.item_id;
+    const price = match.unit_price ?? match.purchase_price ?? match.unit_cost ?? match.price ?? "";
+    setItems((prev) => {
+      const next = [...prev];
+      next[idx] = {
+        ...next[idx],
+        item_id: id,
+        item_description: match.name || match.item_name || match.product_name || next[idx].item_description,
+        hsn: match.hsn || match.hsn_sac || match.hsn_code || next[idx].hsn,
+        unit: match.unit || match.unit_of_measure || next[idx].unit || "pcs",
+        rate: price === null || price === undefined ? next[idx].rate : String(price),
+      };
+      next[idx].amount = lineTotals(next[idx]).total;
+      return next;
+    });
   };
-  const closeProductModal = () => {
-    setNewProduct(productEmpty);
-    setProductTab("basic");
-    setModal(null);
+
+  const removeItem = (idx) => {
+    setItems((prev) => (prev.length <= 1 ? [emptyItem()] : prev.filter((_, i) => i !== idx)));
+    addToast("Item Removed from List!", "alert");
   };
-  const chooseVendor = (vendor) => { setSelectedVendor(vendor); setForm((f) => ({ ...f, supplier_id: vendor.id })); setModal(null); };
-  const chooseConsignee = (party) => {
-    setSelectedConsignee(party);
-    setModal(null);
-  };
-  const saveConsignee = () => {
-    if (!addConsignee.name) {
-      addToast("Company name is required.", "error");
+
+  const filledItems = items.filter((i) => i.item_description?.trim() && Number(i.qty) > 0);
+  const taxableAmount = filledItems.reduce((s, i) => s + lineTotals(i).taxable, 0);
+  const gstAmount = filledItems.reduce((s, i) => s + lineTotals(i).gst, 0);
+  const itemsTotal = filledItems.reduce((s, i) => s + lineTotals(i).total, 0);
+  const otherCharge = Number(form.other_charge) || 0;
+  const purchaseDiscount = money(
+    purchaseDiscountType === "%"
+      ? (itemsTotal * (Number(purchaseDiscountVal) || 0)) / 100
+      : Number(purchaseDiscountVal) || 0
+  );
+  const gstTdsAmount = showGstTds ? money(taxableAmount * 0.02) : 0;
+  const taxBase = taxType === "tcs" ? (tcsOn === "final" ? itemsTotal + otherCharge : taxableAmount) : (tdsOn === "final" ? itemsTotal + otherCharge : taxableAmount);
+  const tcsOrTdsAmount = showTaxType
+    ? money((taxBase * (taxType === "tcs" ? Number(tcsPct) || 0 : tdsCode === "194Q" ? 0.1 : tdsCode === "194C" ? 1 : 0)) / 100)
+    : 0;
+  const finalAmount = money(itemsTotal + otherCharge - purchaseDiscount - gstTdsAmount - tcsOrTdsAmount);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.supplier_id) {
+      addToast("Please select a seller", "error");
+      setShowSellerPicker(true);
       return;
     }
-    const party = {
-      id: `local-consignee-${Date.now()}`,
-      ...addConsignee,
-      address_line1: addConsignee.address,
-    };
-    setConsignees((old) => [party, ...old]);
-    setSelectedConsignee(party);
-    setAddConsignee(consigneeEmpty);
-    setModal(null);
-    addToast("Consignee added.");
-  };
-  const saveVendor = async () => {
-    if (!addVendor.name || !addVendor.phone || !addVendor.email) { addToast("Company name, mobile and email are required.", "error"); return; }
-    try {
-      const gstType = addVendor.gst_registration_type === "COMPOSITION" ? "Composition" : addVendor.gst_registration_type === "REGISTERED BUSINESS" ? "Regular" : "Unregistered";
-      const res = await createVendor({ tenant_id: tenantId, name: addVendor.name, contact: addVendor.name, phone: addVendor.phone, email: addVendor.email, gstin: addVendor.gstin || null, pan: addVendor.pan || null, gst_registration_type: gstType, address_line1: addVendor.address || null, city: addVendor.city || null, pincode: addVendor.pincode || null, state: addVendor.state || null, vendor_type: "Raw Material Supplier" });
-      const created = res.data;
-      setVendors((old) => [...old, created]);
-      setConsignees((old) => [...old, created]);
-      chooseVendor(created);
-      setAddVendor(vendorEmpty);
-      addToast("Vendor added successfully.");
-    } catch (err) { addToast(apiErrorMessage(err, "Could not add vendor."), "error"); }
-  };
-  const addLocalProduct = () => {
-    if (!newProduct.name.trim()) { addToast("Enter a product name.", "error"); return; }
-    const qty = Number(newProduct.quantity);
-    if (!Number.isFinite(qty) || qty <= 0) {
-      addToast("Enter a quantity greater than 0.", "error");
+    if (filledItems.length === 0) {
+      addToast("Add at least one item", "error");
       return;
     }
-    const line = {
-      ...newProduct,
-      quantity: qty,
-      unit_price: newProduct.unit_price === "" ? "" : Number(newProduct.unit_price),
-      local: !newProduct.item_id,
-    };
-    setLines((old) => [...old, line]);
-    setNewProduct(productEmpty);
-    setProductTab("basic");
-    setModal(null);
-    if (newProduct.item_id) {
-      addToast("Product added to purchase order.");
-    } else {
-      addToast("Product added locally. Select an inventory item before saving this PO.", "warning");
+    const missingItemId = filledItems.some((i) => !i.item_id);
+    if (missingItemId) {
+      addToast("Each line item must be selected from inventory.", "error");
+      return;
     }
-  };
-  const submit = async (event) => {
-    event.preventDefault();
-    const validLines = lines.filter((line) => line.item_id && Number(line.quantity) > 0);
-    if (!form.supplier_id) return addToast("Select a vendor before submitting.", "error");
-    if (!validLines.length) return addToast("Select at least one inventory item with a quantity.", "error");
-    if (validLines.length !== lines.length) return addToast("Local products must be linked to inventory before saving.", "error");
     setSaving(true);
     try {
       const metaNotes = [
+        notesText || "",
         form.notes || "",
-        form.terms || "",
-        selectedConsignee ? `Consignee: ${selectedConsignee.name}` : "",
-        `Charges: ${JSON.stringify(charges)}`,
+        dispatchAddress ? `Consignee: ${JSON.stringify(dispatchAddress)}` : "",
+        customFields.length ? `Custom fields: ${JSON.stringify(customFields)}` : "",
       ]
         .filter(Boolean)
         .join("\n");
       const poPayload = {
+        tenant_id: tenantId,
         supplier_id: Number(form.supplier_id),
-        po_number: [form.prefix, form.number].filter(Boolean).join("") || `PO-${Date.now()}`,
+        po_number: [form.po_prefix, form.po_number].filter(Boolean).join("") || `PO-${Date.now()}`,
         order_date: form.order_date,
         expected_date: form.expected_date || null,
         notes: metaNotes || null,
-        line_items: validLines.map((line) => ({
-          item_id: Number(line.item_id),
-          quantity: Number(line.quantity),
-          unit_price: line.unit_price === "" ? null : Number(line.unit_price),
+        status: "draft",
+        line_items: filledItems.map((i) => ({
+          item_id: Number(i.item_id),
+          quantity: Number(i.qty) || 0,
+          unit_price: i.rate === "" ? null : Number(i.rate),
         })),
       };
       if (isEdit) {
         await updatePurchaseOrder(editId, poPayload);
-        addToast("Purchase order updated.");
+        addToast("Purchase order updated.", "success");
       } else {
-        await createPurchaseOrder({
-          tenant_id: tenantId,
-          status: "draft",
-          ...poPayload,
-        });
-        addToast("Purchase order created.");
+        await createPurchaseOrder(poPayload);
+        addToast("Purchase order created.", "success");
       }
       navigate("/procurement/purchase-orders");
-    } catch (err) { addToast(apiErrorMessage(err, "Could not save purchase order."), "error"); } finally { setSaving(false); }
+    } catch (err) {
+      addToast(apiErrorMessage(err, "Failed to save purchase order"), "error");
+    } finally {
+      setSaving(false);
+    }
   };
-  if (loading) return <div className="grid min-h-[40vh] place-items-center text-sm text-slate-500">Loading purchase order form…</div>;
 
-  return <form onSubmit={submit} className="flex h-full min-h-0 flex-col bg-[#F5F5F5] text-slate-800">
-    <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#e4e4ea] bg-white px-4 py-3 md:px-6">
-      <button type="button" onClick={() => navigate("/procurement/purchase-orders")} className="grid h-9 w-9 place-items-center rounded-full bg-[#2d2a4a] text-white" aria-label="Back"><ArrowLeft size={18} /></button>
-      <div className="flex gap-2">
-        <button type="button" onClick={() => navigate("/procurement/purchase-orders")} className={outlineButton}>Cancel</button>
-        <button type="submit" disabled={saving} className={darkButton}>{saving ? "Saving…" : isEdit ? "Update" : "Submit"}</button>
+  if (loading) {
+    return (
+      <div className="flex h-full min-h-[50vh] items-center justify-center bg-[#F5F5F5]">
+        <Loader label={isEdit ? "Loading purchase order…" : "Loading form…"} />
       </div>
-    </header>
-    <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
-      <div className="mx-auto max-w-5xl overflow-hidden border border-[#d0d0d8] bg-white">
-      <div className="grid gap-5 border-b border-[#d0d0d8] p-5 md:grid-cols-3">
-        <Field label="Purchase Order Prefix"><input className={underline} placeholder="Prefix" value={form.prefix} onChange={(e) => setForm({ ...form, prefix: e.target.value })} /></Field>
-        <Field label="Purchase Order No."><input className={underline} value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} /></Field>
-        <Field label="Purchase Order Date"><input type="date" className={underline} value={form.order_date} onChange={(e) => setForm({ ...form, order_date: e.target.value })} required /></Field>
-      </div>
-      <Section
-        title="Vendor Details"
-        actions={
-          <>
-            <button type="button" className={`${darkButton} !py-1.5 !text-[12px]`} onClick={() => setModal("selectVendor")}>Select Vendor</button>
-            <button type="button" className={`${softButton} !py-1.5 !text-[12px]`} onClick={() => setModal("addVendor")}>Add New Vendor</button>
-          </>
-        }
-      >
-        {selectedVendor ? (
-          <div className="text-sm">
-            <p className="font-bold text-[#2d2a4a]">{selectedVendor.name}</p>
-            <p className="text-[#6b6b76]">{[selectedVendor.address_line1 || selectedVendor.billing_address, selectedVendor.city, selectedVendor.state, selectedVendor.pincode].filter(Boolean).join(", ") || "No address available"}</p>
-          </div>
-        ) : (
-          <p className="py-1 text-sm text-[#9a9aa5]">No vendor selected.</p>
-        )}
-      </Section>
-      <div className="border-b border-[#d0d0d8] px-5 py-3">
-        <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold"><input type="checkbox" className="h-4 w-4 accent-[var(--color-cta)]" checked={consignee} onChange={(e) => setConsignee(e.target.checked)} />Add Consignee (if different from above)</label>
-      </div>
-      {consignee && (
-        <Section
-          title="Consignee Details"
-          actions={
-            <>
-              <button type="button" className={`${outlineButton} !py-1.5 !text-[12px]`} onClick={() => setModal("selectConsignee")}>Select Consignee</button>
-              <button type="button" className={`${outlineButton} !py-1.5 !text-[12px]`} onClick={() => setModal("addConsignee")}>Add New Consignee</button>
-            </>
-          }
-        >
-          {selectedConsignee ? (
-            <div className="text-sm">
-              <p className="font-bold text-[#2d2a4a]">{selectedConsignee.name}</p>
-              <p className="text-[#6b6b76]">{[selectedConsignee.address_line1 || selectedConsignee.address, selectedConsignee.city, selectedConsignee.state, selectedConsignee.pincode].filter(Boolean).join(", ") || "No address available"}</p>
-            </div>
-          ) : (
-            <p className="py-1 text-sm text-[#9a9aa5]">No consignee selected.</p>
-          )}
-        </Section>
-      )}
-      <Section
-        title="Products"
-        actions={
-          <>
-            <button type="button" className={`${darkButton} !py-1.5 !text-[12px]`} onClick={() => setModal("selectProduct")}>Select Item</button>
-            <button type="button" className={`${softButton} !py-1.5 !text-[12px]`} onClick={openAddProductBlank}>Add New Item</button>
-          </>
-        }
-      >
-        {lines.length === 0 ? (
-          <div className="flex justify-center py-2">
-            <button type="button" className="rounded-full border border-[#d0d0d8] bg-[#f7f7f9] px-5 py-1.5 text-[13px] font-medium text-[#6b6b76]">Other Fields</button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[660px] text-sm">
-              <thead className="border-y bg-[#f7f7f9] text-left text-xs uppercase text-slate-500">
-                <tr><th className="p-2">Item</th><th className="p-2">Qty</th><th className="p-2">Unit</th><th className="p-2">Price</th><th className="p-2">Amount</th><th /></tr>
-              </thead>
-              <tbody>
-                {lines.map((line, index) => (
-                  <tr key={`${line.item_id || line.name}-${index}`} className="border-b">
-                    <td className="p-2 font-semibold">{line.name}{line.local && <span className="ml-2 text-xs font-normal text-amber-700">(not linked)</span>}</td>
-                    <td className="p-2"><input type="number" min="0" className="w-20 border-b border-slate-300 p-1" value={line.quantity} onChange={(e) => updateLine(index, "quantity", e.target.value)} /></td>
-                    <td className="p-2">{line.unit}</td>
-                    <td className="p-2"><input type="number" min="0" className="w-24 border-b border-slate-300 p-1" value={line.unit_price} onChange={(e) => updateLine(index, "unit_price", e.target.value)} /></td>
-                    <td className="p-2 font-semibold">₹{lineTotal(line).toFixed(2)}</td>
-                    <td className="p-2"><button type="button" onClick={() => setLines((old) => old.filter((_, i) => i !== index))} className="text-red-500"><Trash2 size={17} /></button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="mt-3 flex justify-center">
-              <button type="button" className="rounded-full border border-[#d0d0d8] bg-[#f7f7f9] px-5 py-1.5 text-[13px] font-medium text-[#6b6b76]">Other Fields</button>
-            </div>
-          </div>
-        )}
-      </Section>
-      <section className="border-b border-[#d0d0d8] bg-white">
-        <button
-          type="button"
-          onClick={() => setOtherOpen(!otherOpen)}
-          className="flex w-full items-center justify-between bg-[#efeaf8] px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-[#2d2a4a]"
-        >
-          Other Details {otherOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-        </button>
-        {otherOpen ? (
-          <div className="space-y-5 p-4">
-            <ChargeRow
-              title="Freight Charge"
-              value={charges.freight}
-              onChange={(v) => setCharges((c) => ({ ...c, freight: v }))}
-            />
-            <ChargeRow
-              title="Insurance Charge"
-              value={charges.insurance}
-              onChange={(v) => setCharges((c) => ({ ...c, insurance: v }))}
-            />
-            <ChargeRow
-              title="Loading Charge"
-              value={charges.loading}
-              onChange={(v) => setCharges((c) => ({ ...c, loading: v }))}
-            />
-            <ChargeRow
-              title="Packing Charge"
-              value={charges.packing}
-              onChange={(v) => setCharges((c) => ({ ...c, packing: v }))}
-            />
-            <div className="space-y-2">
-              <p className="text-[13px] font-bold text-[#1a1a1f]">Other Charge</p>
-              <OutlinedField label="Other Charge Name">
-                <input
-                  className={`${field} pt-3`}
-                  placeholder="Other Charge Name"
-                  value={charges.other.name}
-                  onChange={(e) =>
-                    setCharges((c) => ({ ...c, other: { ...c.other, name: e.target.value } }))
-                  }
-                />
-              </OutlinedField>
-              <div className="grid gap-3 md:grid-cols-3">
-                <OutlinedField label="Taxable Amount">
-                  <input
-                    className={`${field} pt-3`}
-                    placeholder="Enter Taxable Amount"
-                    value={charges.other.taxable}
-                    onChange={(e) => {
-                      const taxable = e.target.value.replace(/[^\d.]/g, "");
-                      setCharges((c) => ({
-                        ...c,
-                        other: {
-                          ...c.other,
-                          taxable,
-                          amount: chargeAmount(taxable, c.other.gst),
-                        },
-                      }));
-                    }}
-                  />
-                </OutlinedField>
-                <OutlinedField label="GST(%)">
-                  <input
-                    className={`${field} pt-3`}
-                    placeholder="GST(%)"
-                    value={charges.other.gst}
-                    onChange={(e) => {
-                      const gst = e.target.value.replace(/[^\d.]/g, "");
-                      setCharges((c) => ({
-                        ...c,
-                        other: {
-                          ...c.other,
-                          gst,
-                          amount: chargeAmount(c.other.taxable, gst),
-                        },
-                      }));
-                    }}
-                  />
-                </OutlinedField>
-                <OutlinedField label="Amount">
-                  <input
-                    className={`${field} pt-3 bg-[#f7f7f9]`}
-                    value={chargeAmount(charges.other.taxable, charges.other.gst)}
-                    readOnly
-                  />
-                </OutlinedField>
-              </div>
-            </div>
-            <div>
-              <div className="mb-3 bg-[#f3f3f6] px-3 py-2 text-[13px] font-bold text-[#1a1a1f]">
-                Optional Fields
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <OutlinedField label="Shipping and Handling Charges">
-                  <input
-                    className={`${field} pt-3`}
-                    value={charges.shipping_handling}
-                    onChange={(e) =>
-                      setCharges((c) => ({
-                        ...c,
-                        shipping_handling: e.target.value.replace(/[^\d.]/g, ""),
-                      }))
-                    }
-                  />
-                </OutlinedField>
-                <OutlinedField label="Other Charges">
-                  <input
-                    className={`${field} pt-3`}
-                    value={charges.other_charges}
-                    onChange={(e) =>
-                      setCharges((c) => ({
-                        ...c,
-                        other_charges: e.target.value.replace(/[^\d.]/g, ""),
-                      }))
-                    }
-                  />
-                </OutlinedField>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </section>
-      <section className="border-b border-[#d0d0d8] bg-white p-5">
-        <h2 className="mb-3 text-sm font-bold text-[#2d2a4a]">Terms & Conditions</h2>
-        <textarea
-          className="min-h-24 w-full resize-y border-0 bg-transparent text-sm leading-6 outline-none"
-          value={form.terms}
-          onChange={(e) => setForm({ ...form, terms: e.target.value })}
-        />
-      </section>
-      <Section
-        title="Upload Signature (optional)"
-        actions={
+    );
+  }
+
+  const companyName = company?.company_name || company?.name || "My Company";
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="flex h-full min-h-0 flex-col bg-[#F5F5F5]"
+    >
+      {/* Sticky header — matches screenshot */}
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#e4e4ea] bg-white px-5 py-3.5">
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            aria-label="Toggle signature"
-            onClick={() => setSignature(!signature)}
-            className={`relative h-6 w-11 rounded-full ${signature ? "bg-[var(--color-cta)]" : "bg-slate-300"}`}
+            onClick={() => navigate("/procurement/purchase-orders")}
+            className="rounded-lg p-1.5 text-[#4a4a55] hover:bg-[#F5F5F5]"
+            aria-label="Back"
           >
-            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${signature ? "left-[22px]" : "left-0.5"}`} />
+            <ArrowLeft className="h-5 w-5" />
           </button>
-        }
-      >
-        {signature ? (
-          <div className="border-2 border-dashed border-slate-300 p-7 text-center">
-            <Upload className="mx-auto mb-2 text-slate-500" />
-            <p className="text-sm text-slate-500">Drop signature image here or choose a file</p>
-            <div className="mt-3 flex justify-center gap-2">
-              <button type="button" className={darkButton}>Upload</button>
-              <button type="button" className={outlineButton}>Remove</button>
-            </div>
-          </div>
-        ) : null}
-      </Section>
-      </div>
-    </main>
-    {modal === "selectVendor" && <Modal title="Select Seller" onClose={() => setModal(null)}><div className="mb-4 flex items-center gap-2 border-b border-slate-400"><Search size={18} /><input autoFocus className="w-full border-0 py-2 text-sm outline-none" placeholder="Search" value={vendorSearch} onChange={(e) => setVendorSearch(e.target.value)} /></div>{filteredVendors.length ? <div className="divide-y">{filteredVendors.map((vendor) => <button type="button" key={vendor.id} onClick={() => chooseVendor(vendor)} className="block w-full px-2 py-3 text-left hover:bg-[#f7f5fb]"><p className="font-semibold text-[#2d2a4a]">{vendor.name}</p><p className="text-xs text-slate-500">{vendor.phone || vendor.email || "No contact details"}</p></button>)}</div> : <p className="py-8 text-center text-sm text-slate-500">No contacts found.</p>}</Modal>}
-    {modal === "selectConsignee" && (
-      <Modal title="Select Consignee" onClose={() => setModal(null)}>
-        <div className="mb-4 flex items-center gap-2 border-b border-slate-400">
-          <Search size={18} />
-          <input
-            autoFocus
-            className="w-full border-0 py-2 text-sm outline-none"
-            placeholder="Search"
-            value={consigneeSearch}
-            onChange={(e) => setConsigneeSearch(e.target.value)}
-          />
         </div>
-        {filteredConsignees.length ? (
-          <div className="divide-y">
-            {filteredConsignees.map((party) => (
-              <button
-                type="button"
-                key={party.id}
-                onClick={() => chooseConsignee(party)}
-                className="block w-full px-2 py-3 text-left hover:bg-[#f7f5fb]"
-              >
-                <p className="font-semibold text-[#2d2a4a]">{party.name}</p>
-                <p className="text-xs text-slate-500">
-                  {party.phone || party.email || "No contact details"}
-                </p>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="py-8 text-center text-sm text-slate-500">No contacts found.</p>
-        )}
-      </Modal>
-    )}
-    {modal === "addConsignee" && (
-      <Modal title="Add Consignee" onClose={() => setModal(null)}>
-        <div className="grid gap-4 md:grid-cols-2">
-          <OutlinedField label="GSTIN no.">
-            <input
-              className={`${field} pt-3`}
-              placeholder="GSTIN No."
-              value={addConsignee.gstin}
-              onChange={(e) => setAddConsignee({ ...addConsignee, gstin: e.target.value })}
-            />
-          </OutlinedField>
-          <OutlinedField label="GST Treatment Type">
-            <select
-              className={`${field} pt-3`}
-              value={addConsignee.gst_registration_type}
-              onChange={(e) =>
-                setAddConsignee({ ...addConsignee, gst_registration_type: e.target.value })
-              }
-            >
-              {GST_TYPES.map((value) => (
-                <option key={value}>{value}</option>
-              ))}
-            </select>
-          </OutlinedField>
-          <OutlinedField label="Company Name">
-            <input
-              className={`${field} pt-3`}
-              placeholder="Enter Company Name"
-              value={addConsignee.name}
-              onChange={(e) => setAddConsignee({ ...addConsignee, name: e.target.value })}
-            />
-          </OutlinedField>
-          <OutlinedField label="Address">
-            <input
-              className={`${field} pt-3`}
-              placeholder="Enter Address"
-              value={addConsignee.address}
-              onChange={(e) => setAddConsignee({ ...addConsignee, address: e.target.value })}
-            />
-          </OutlinedField>
-          <OutlinedField label="Company City">
-            <input
-              className={`${field} pt-3`}
-              placeholder="Enter Company City"
-              value={addConsignee.city}
-              onChange={(e) => setAddConsignee({ ...addConsignee, city: e.target.value })}
-            />
-          </OutlinedField>
-          <OutlinedField label="Pincode">
-            <input
-              className={`${field} pt-3`}
-              placeholder="Enter Pincode"
-              value={addConsignee.pincode}
-              onChange={(e) => setAddConsignee({ ...addConsignee, pincode: e.target.value })}
-            />
-          </OutlinedField>
-          <OutlinedField label="Select State">
-            <SearchableSelect
-              value={addConsignee.state}
-              onChange={(v) => setAddConsignee({ ...addConsignee, state: v })}
-              options={INDIAN_STATES}
-              placeholder="Select State"
-              searchPlaceholder="Search state or UT…"
-              className="!rounded !border-slate-300 !shadow-none !py-2 !text-sm"
-            />
-          </OutlinedField>
-          <OutlinedField label="Mobile">
-            <input
-              className={`${field} pt-3`}
-              placeholder="Enter Mobile Number"
-              value={addConsignee.phone}
-              onChange={(e) => setAddConsignee({ ...addConsignee, phone: e.target.value })}
-            />
-          </OutlinedField>
-          <OutlinedField label="Email">
-            <input
-              className={`${field} pt-3`}
-              placeholder="Enter Email"
-              value={addConsignee.email}
-              onChange={(e) => setAddConsignee({ ...addConsignee, email: e.target.value })}
-            />
-          </OutlinedField>
-        </div>
-        <div className="mt-6 flex justify-end gap-3">
-          <button type="button" className={outlineButton} onClick={() => setModal(null)}>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate("/procurement/purchase-orders")}
+            className="rounded-lg border border-[#e4e4ea] bg-white px-4 py-2 text-[13px] font-semibold text-[#4a4a55] hover:bg-[#F5F5F5]"
+          >
             Cancel
           </button>
-          <button type="button" className={darkButton} onClick={saveConsignee}>
-            Save
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-lg px-5 py-2 text-[13px] font-semibold text-white shadow-sm disabled:opacity-60"
+            style={{ background: YELLOW }}
+          >
+            {saving ? "Saving…" : isEdit ? "Update Purchase Order" : "Create Purchase Order"}
           </button>
         </div>
-      </Modal>
-    )}
-    {modal === "addVendor" && <Modal title="Add Vendor" onClose={() => setModal(null)}><div className="grid gap-4 md:grid-cols-2">{[["GSTIN", "gstin"], ["Pancard", "pan"], ["Company Name *", "name"], ["Address", "address"], ["Company City", "city"], ["Pincode", "pincode"], ["Mobile *", "phone"], ["Email *", "email"]].map(([label, key]) => <Field key={key} label={label}><input className={`${field} mt-1`} value={addVendor[key]} onChange={(e) => setAddVendor({ ...addVendor, [key]: e.target.value })} /></Field>)}<Field label="GST Treatment Type"><select className={`${field} mt-1`} value={addVendor.gst_registration_type} onChange={(e) => setAddVendor({ ...addVendor, gst_registration_type: e.target.value })}>{GST_TYPES.map((value) => <option key={value}>{value}</option>)}</select></Field><Field label="Select State"><select className={`${field} mt-1`} value={addVendor.state} onChange={(e) => setAddVendor({ ...addVendor, state: e.target.value })}><option value="">Select state</option>{INDIAN_STATES.map((state) => <option key={state}>{state}</option>)}</select></Field></div><label className="mt-5 flex gap-2 text-sm"><input type="checkbox" className="accent-[var(--color-cta)]" checked={addVendor.sells} onChange={(e) => setAddVendor({ ...addVendor, sells: e.target.checked })} />Do you also Sell items to this seller?</label><div className="mt-6 flex justify-end gap-3"><button type="button" className={outlineButton} onClick={() => setModal(null)}>Cancel</button><button type="button" className={darkButton} onClick={saveVendor}>Save</button></div></Modal>}
-    {modal === "selectProduct" && (
-      <Modal title="Select Product" onClose={() => setModal(null)}>
-        <div className="mb-4 flex items-center gap-2 border-b border-slate-400">
-          <Search size={18} className="text-slate-400" />
-          <input
-            autoFocus
-            className="w-full border-0 py-2 text-sm outline-none placeholder:text-slate-400"
-            placeholder="Search"
-            value={productSearch}
-            onChange={(e) => setProductSearch(e.target.value)}
-          />
-        </div>
-        <div className="max-h-[55vh] space-y-2 overflow-y-auto">
-          {filteredItems.length ? (
-            filteredItems.map((item) => (
-              <button
-                type="button"
-                key={item.id || item.item_id}
-                onClick={() => chooseItem(item)}
-                className="block w-full rounded-lg bg-[#efeaf8] px-4 py-3 text-left text-sm font-bold text-[#1a1a1f] hover:bg-[#ded5f0]"
-              >
-                {item.name || item.item_name || item.product_name || `Item #${item.id}`}
-              </button>
-            ))
-          ) : (
-            <p className="py-10 text-center text-sm text-slate-500">No inventory products found.</p>
-          )}
-        </div>
-      </Modal>
-    )}
-    {modal === "addProduct" && (
-      <Modal title="Add New Product" onClose={closeProductModal}>
-        <div className="space-y-4">
-          <div className="relative flex border-b border-[#e4e4ea]">
-            {[
-              { id: "basic", label: "Basic Details" },
-              { id: "optional", label: "Optional Details" },
-            ].map((tab) => {
-              const active = productTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setProductTab(tab.id)}
-                  className={`relative z-[1] flex-1 px-3 py-3 text-sm font-bold transition-colors duration-300 ${
-                    active ? "text-[#2d2a4a]" : "text-[#9a9aa5] hover:text-[#6b6b76]"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-            <span
-              aria-hidden
-              className="pointer-events-none absolute bottom-0 left-0 h-[3px] w-1/2 rounded-full bg-[var(--color-cta)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
-              style={{ transform: productTab === "optional" ? "translateX(100%)" : "translateX(0)" }}
-            />
-          </div>
+      </div>
 
-          <div className="overflow-hidden">
-            <div
-              className="flex w-[200%] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
-              style={{ transform: productTab === "optional" ? "translateX(-50%)" : "translateX(0)" }}
-            >
-              <div className="w-1/2 shrink-0 space-y-4 pr-1">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <OutlinedField label="Product Name">
-                    <input
-                      className={`${field} pt-3`}
-                      value={newProduct.name}
-                      onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                      placeholder="Product Name"
-                    />
-                  </OutlinedField>
-                  <OutlinedField label="Description">
-                    <input
-                      className={`${field} pt-3`}
-                      value={newProduct.description}
-                      onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                      placeholder="Enter description"
-                    />
-                  </OutlinedField>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <OutlinedField label="HSN">
-                    <input
-                      className={`${field} pt-3`}
-                      value={newProduct.hsn}
-                      onChange={(e) => setNewProduct({ ...newProduct, hsn: e.target.value })}
-                      placeholder="Enter HSN"
-                    />
-                  </OutlinedField>
-                  <OutlinedField label="Quantity">
-                    <input
-                      className={`${field} pt-3`}
-                      value={newProduct.quantity}
-                      onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value.replace(/[^\d.]/g, "") })}
-                      placeholder="0"
-                    />
-                  </OutlinedField>
-                  <OutlinedField label="Unit">
-                    <select
-                      className={`${field} pt-3`}
-                      value={newProduct.unit}
-                      onChange={(e) => setNewProduct({ ...newProduct, unit: e.target.value })}
-                    >
-                      <option value="">Select unit</option>
-                      {[...new Set([newProduct.unit, ...PRODUCT_UNITS].filter(Boolean))].map((u) => (
-                        <option key={u}>{u}</option>
-                      ))}
-                    </select>
-                  </OutlinedField>
-                  <OutlinedField label="Unit Price">
-                    <input
-                      className={`${field} pt-3`}
-                      value={newProduct.unit_price}
-                      onChange={(e) => setNewProduct({ ...newProduct, unit_price: e.target.value.replace(/[^\d.]/g, "") })}
-                      placeholder="Unit Price"
-                    />
-                  </OutlinedField>
-                </div>
-                <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr]">
-                  <div className="flex flex-wrap items-start gap-6 pt-1">
-                    {[
-                      { value: "Inclusive", label: "Inclusive" },
-                      { value: "Exclusive", label: "Exclusive" },
-                    ].map((opt) => (
-                      <label key={opt.value} className="flex cursor-pointer items-start gap-2 text-sm">
-                        <input
-                          type="radio"
-                          name="productTaxType"
-                          className="mt-1 accent-[var(--color-cta)]"
-                          checked={newProduct.taxType === opt.value}
-                          onChange={() => setNewProduct({ ...newProduct, taxType: opt.value })}
-                        />
-                        <span>
-                          <span className="font-semibold text-[#1a1a1f]">{opt.label}</span>
-                          <span className="mt-0.5 block text-[12px] text-[#6b6b76]">
-                            ₹ {Number(newProduct.unit_price || 0).toFixed(opt.value === "Inclusive" ? 2 : 0)} / per unit
-                          </span>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                  <OutlinedField label="Discount">
-                    <input
-                      className={`${field} pt-3`}
-                      value={newProduct.discount}
-                      onChange={(e) => setNewProduct({ ...newProduct, discount: e.target.value.replace(/[^\d.]/g, "") })}
-                    />
-                  </OutlinedField>
-                  <OutlinedField label="Discount Type">
-                    <select
-                      className={`${field} pt-3`}
-                      value={newProduct.discountType}
-                      onChange={(e) => setNewProduct({ ...newProduct, discountType: e.target.value })}
-                    >
-                      <option>Percentage</option>
-                      <option>Value Wise</option>
-                    </select>
-                  </OutlinedField>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <OutlinedField label="Select Tax Type">
-                    <select
-                      className={`${field} pt-3`}
-                      value={newProduct.gst}
-                      onChange={(e) => setNewProduct({ ...newProduct, gst: e.target.value })}
-                    >
-                      {GST_RATES.map((rate) => (
-                        <option key={rate}>{rate}</option>
-                      ))}
-                    </select>
-                  </OutlinedField>
-                  <OutlinedField label="CESS">
-                    <input
-                      className={`${field} pt-3`}
-                      value={newProduct.cess}
-                      onChange={(e) => setNewProduct({ ...newProduct, cess: e.target.value.replace(/[^\d.]/g, "") })}
-                    />
-                  </OutlinedField>
-                  <OutlinedField label="Cess Type">
-                    <select
-                      className={`${field} pt-3`}
-                      value={newProduct.cessType}
-                      onChange={(e) => setNewProduct({ ...newProduct, cessType: e.target.value })}
-                    >
-                      <option>Percentage</option>
-                      <option>Unit Wise</option>
-                    </select>
-                  </OutlinedField>
-                </div>
-              </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-[1200px] space-y-4 p-5 pb-10">
+          {/* Top: purchase type + company buyer — bordered two-column panel */}
+          <div className="grid overflow-hidden rounded-xl border border-[#d0d0d8] bg-white lg:grid-cols-[1fr_1.35fr]">
+          <section className="border-b border-[#d0d0d8] p-4 lg:border-b-0 lg:border-r">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block">
+                <FieldLabel>Purchase Order Prefix</FieldLabel>
+                <PrefixDropdown
+                  value={form.po_prefix}
+                  options={prefixOptions}
+                  onChange={(poPrefix) => setForm((f) => ({ ...f, po_prefix: poPrefix }))}
+                  onAddNew={() => setPrefixModalOpen(true)}
+                />
+              </label>
+              <label className="block">
+                <FieldLabel>Purchase Order No.</FieldLabel>
+                <SoftInput
+                  value={form.po_number}
+                  onChange={(e) => setForm((f) => ({ ...f, po_number: e.target.value }))}
+                />
+              </label>
+              <label className="block">
+                <FieldLabel>Purchase Order Date</FieldLabel>
+                <SoftInput
+                  type="date"
+                  value={form.order_date}
+                  onChange={(e) => setForm((f) => ({ ...f, order_date: e.target.value }))}
+                />
+              </label>
+            </div>
+          </section>
 
-              <div className="w-1/2 shrink-0 space-y-4 pl-1">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <OutlinedField label="Sales Price">
-                    <input
-                      className={`${field} pt-3`}
-                      value={newProduct.salesPrice}
-                      onChange={(e) => setNewProduct({ ...newProduct, salesPrice: e.target.value.replace(/[^\d.]/g, "") })}
-                      placeholder="Sales Price"
-                    />
-                  </OutlinedField>
-                  <OutlinedField label="Secondary Unit">
-                    <select
-                      className={`${field} pt-3`}
-                      value={newProduct.secondaryUnit}
-                      onChange={(e) => setNewProduct({ ...newProduct, secondaryUnit: e.target.value })}
-                    >
-                      <option value="">Select unit</option>
-                      {PRODUCT_UNITS.map((u) => (
-                        <option key={u}>{u}</option>
-                      ))}
-                    </select>
-                  </OutlinedField>
-                  <OutlinedField label="Wholesale Price">
-                    <input
-                      className={`${field} pt-3`}
-                      value={newProduct.wholesale}
-                      onChange={(e) => setNewProduct({ ...newProduct, wholesale: e.target.value.replace(/[^\d.]/g, "") })}
-                      placeholder="Wholesale"
-                    />
-                  </OutlinedField>
-                  <OutlinedField label="Barcode / Item Code">
-                    <input
-                      className={`${field} pt-3`}
-                      value={newProduct.barcode}
-                      onChange={(e) => setNewProduct({ ...newProduct, barcode: e.target.value })}
-                      placeholder="Barcode"
-                    />
-                  </OutlinedField>
-                  <OutlinedField label="Opening Stock">
-                    <input
-                      className={`${field} pt-3`}
-                      value={newProduct.openingStock}
-                      onChange={(e) => setNewProduct({ ...newProduct, openingStock: e.target.value.replace(/[^\d.]/g, "") })}
-                      placeholder="0"
-                    />
-                  </OutlinedField>
-                  <OutlinedField label="Low Stock Alert">
-                    <input
-                      className={`${field} pt-3`}
-                      value={newProduct.lowStock}
-                      onChange={(e) => setNewProduct({ ...newProduct, lowStock: e.target.value.replace(/[^\d.]/g, "") })}
-                      placeholder="0"
-                    />
-                  </OutlinedField>
-                </div>
-                <label className="flex items-center justify-between gap-3 rounded-lg border border-[#e4e4ea] bg-[#fafafa] px-4 py-3 text-sm font-semibold text-[#2d2a4a]">
-                  Maintain Stock
+          <section className="overflow-hidden bg-white">
+            <SectionHeader icon={Building2} title="Buyer Details" />
+            <div className="flex items-start justify-between gap-4 border-t-0 p-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-[15px] font-semibold text-[#1a1a1f]">{companyName}</p>
                   <button
                     type="button"
-                    aria-label="Toggle maintain stock"
-                    onClick={() => setNewProduct({ ...newProduct, maintainStock: !newProduct.maintainStock })}
-                    className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-300 ${
-                      newProduct.maintainStock ? "bg-[var(--color-cta)]" : "bg-slate-300"
-                    }`}
+                    onClick={() => setEditCompanyOpen(true)}
+                    className="inline-flex items-center gap-1 text-[13px] font-medium text-[#6b4eff] hover:underline"
                   >
-                    <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all duration-300 ${
-                        newProduct.maintainStock ? "left-[22px]" : "left-0.5"
-                      }`}
-                    />
+                    <PenLine className="h-3.5 w-3.5" />
+                    Edit Company Details
                   </button>
-                </label>
+                </div>
+                <DispatchAddressPicker
+                  value={dispatchAddress}
+                  onChange={setDispatchAddress}
+                  addLabel="+ Add Shipping Address (Consignee)"
+                />
+                {dispatchAddress ? (
+                  <p className="mt-2 max-w-sm text-[12px] leading-relaxed text-[#6b6b76]">
+                    {[dispatchAddress.address, dispatchAddress.city, dispatchAddress.state, dispatchAddress.pincode]
+                      .filter(Boolean)
+                      .join(", ")}
+                    {dispatchAddress.gstin ? ` · ${dispatchAddress.gstin}` : ""}
+                  </p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditCompanyOpen(true)}
+                className="flex h-[72px] w-[72px] shrink-0 flex-col items-center justify-center overflow-hidden rounded-full border border-dashed border-[#c4c4cc] bg-[#fafafa] text-[10px] text-[#9a9aa5]"
+              >
+                {company?.logo_url ? (
+                  <img
+                    src={company.logo_url}
+                    alt="Logo"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <>
+                    <ImagePlus className="mb-1 h-5 w-5" />
+                    Add Logo
+                  </>
+                )}
+              </button>
+            </div>
+          </section>
+        </div>
+
+        {/* Seller */}
+        <section className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-white">
+          <SectionHeader icon={User} title="Seller Details">
+            <button
+              type="button"
+              onClick={() => setShowSellerPicker((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-action-teal)] px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-[var(--color-action-teal-hover)]"
+            >
+              <User className="h-3.5 w-3.5" />
+              Select Seller
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowSellerPicker(false);
+                setAddSellerOpen(true);
+              }}
+              className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-action-teal)] bg-white px-3 py-1.5 text-[13px] font-semibold text-[var(--color-action-teal)] hover:bg-[var(--color-success-soft)]"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add New Seller
+            </button>
+          </SectionHeader>
+          <div className="min-h-[88px] border-t-0 p-4">
+            <div className="min-h-[56px] rounded-lg border border-[#d0d0d8] bg-[#fafafa] p-3">
+            {showSellerPicker && (
+              <div className="mb-3 rounded-lg border border-[#d0d0d8] bg-white p-3">
+                <div className="relative mb-2">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
+                  <input
+                    type="search"
+                    placeholder="Search seller by name, GSTIN, state…"
+                    value={vendorSearch}
+                    onChange={(e) => setVendorSearch(e.target.value)}
+                    className="w-full rounded-lg border border-[#e4e4ea] bg-white py-2 pl-9 pr-3 text-[13px]"
+                  />
+                </div>
+                <div className="max-h-44 overflow-y-auto">
+                  {filteredVendors.length === 0 ? (
+                    <p className="p-2 text-[13px] text-[#8a8a95]">
+                      No sellers found.{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSellerPicker(false);
+                          setAddSellerOpen(true);
+                        }}
+                        className="font-medium text-[var(--color-action-teal)] hover:underline"
+                      >
+                        Add a seller
+                      </button>
+                    </p>
+                  ) : (
+                    filteredVendors.map((vendor) => (
+                      <button
+                        key={vendor.id}
+                        type="button"
+                        onClick={() => handleVendorChange(vendor.id)}
+                        className={`block w-full rounded-md px-3 py-2 text-left text-[13px] hover:bg-white ${
+                          String(form.supplier_id) === String(vendor.id) ? "bg-white font-semibold" : ""
+                        }`}
+                      >
+                        {vendor.name || vendor.vendor_name}
+                        {vendor.gstin ? ` · ${vendor.gstin}` : ""}
+                        {vendor.state ? ` · ${vendor.state}` : ""}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+            {selectedSeller ? (
+              <div className="grid gap-1 text-[13px] sm:grid-cols-2">
+                <p className="font-semibold text-[#1a1a1f]">{selectedSeller.name || selectedSeller.vendor_name}</p>
+                <p className="text-[#6b6b76]">{selectedSeller.gstin || "—"}</p>
+                <p className="text-[#6b6b76] sm:col-span-2">
+                  {[form.consignee_address1, form.consignee_address2, form.consignee_state]
+                    .filter(Boolean)
+                    .join(", ") || "—"}
+                </p>
+              </div>
+            ) : !showSellerPicker ? (
+              <p className="py-4 text-center text-[13px] text-[#a0a0ab]">Select a seller to continue</p>
+            ) : null}
+            </div>
+          </div>
+        </section>
+
+        {/* Items */}
+        <section className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-white">
+          <SectionHeader icon={Package} title="Item Details">
+            <button
+              type="button"
+              onClick={() => setAddItemOpen(true)}
+              className={BLUE_ACTION_BTN}
+            >
+              + Add New Item
+            </button>
+          </SectionHeader>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1100px] border-collapse text-left text-[12px]">
+              <thead>
+                <tr className="bg-[#f3f3f6] text-[#6b6b76]">
+                  {["#", "Item Name", "HSN", "Qty", "Unit", "Price", "Tax Type", "Discount", "Taxable Value", "GST", "Total Amt", ""].map(
+                    (h) => (
+                      <th
+                        key={h || "x"}
+                        className="whitespace-nowrap border-b border-r border-[#d0d0d8] px-2 py-2.5 font-semibold last:border-r-0"
+                      >
+                        {h}
+                      </th>
+                    )
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((row, idx) => {
+                  const t = lineTotals(row);
+                  const hasDesc = Boolean(row.item_description?.trim());
+                  const cell = "border-b border-r border-[#d0d0d8] px-2 py-2 last:border-r-0";
+                  return (
+                    <tr key={idx}>
+                      <td className={`${cell} text-[#9a9aa5]`}>{idx + 1}</td>
+                      <td className={cell}>
+                        <div className="relative min-w-[160px]">
+                          <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9a9aa5]" />
+                          <input
+                            list={`po-item-options-${idx}`}
+                            value={row.item_description}
+                            onChange={(e) => updateItem(idx, "item_description", e.target.value)}
+                            onBlur={(e) => syncCatalogItem(idx, e.target.value)}
+                            placeholder="Select Item"
+                            className="w-full rounded-md border border-[#d0d0d8] bg-[#f7f7f9] py-1.5 pl-7 pr-2 text-[12px]"
+                          />
+                          <datalist id={`po-item-options-${idx}`}>
+                            {catalogItems.map((item) => (
+                              <option
+                                key={item.id || item.item_id}
+                                value={item.name || item.item_name || item.product_name || ""}
+                              />
+                            ))}
+                          </datalist>
+                        </div>
+                      </td>
+                      <td className={cell}>
+                        <input
+                          value={row.hsn}
+                          onChange={(e) => updateItem(idx, "hsn", e.target.value)}
+                          className="w-16 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
+                        />
+                      </td>
+                      <td className={cell}>
+                        <input
+                          type="number"
+                          value={row.qty}
+                          onChange={(e) => updateItem(idx, "qty", e.target.value)}
+                          placeholder="0"
+                          className="w-14 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5 text-[12px] text-[#1a1a1f] focus:border-[var(--color-action-blue)] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[var(--color-action-blue)]/30"
+                        />
+                      </td>
+                      <td className={cell}>
+                        <select
+                          value={row.unit}
+                          onChange={(e) => updateItem(idx, "unit", e.target.value)}
+                          className="w-full rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1 py-1.5"
+                        >
+                          <option value="">Unit</option>
+                          <option value="pcs">pcs</option>
+                          <option value="KGS">KGS</option>
+                          <option value="MT">MT</option>
+                        </select>
+                      </td>
+                      <td className={cell}>
+                        <div className="flex items-center gap-0.5">
+                          <span className="text-[#9a9aa5]">₹</span>
+                          <input
+                            type="number"
+                            value={row.rate}
+                            onChange={(e) => updateItem(idx, "rate", e.target.value)}
+                            className="w-20 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
+                          />
+                        </div>
+                      </td>
+                      <td className={cell}>
+                        <select
+                          value={row.tax_type}
+                          onChange={(e) => updateItem(idx, "tax_type", e.target.value)}
+                          className="w-full rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
+                        >
+                          <option>Exclusive</option>
+                          <option>Inclusive</option>
+                        </select>
+                      </td>
+                      <td className={cell}>
+                        <div className="flex gap-1">
+                          <input
+                            type="number"
+                            value={row.discount}
+                            onChange={(e) => updateItem(idx, "discount", e.target.value)}
+                            className="w-14 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
+                          />
+                          <select
+                            value={row.discount_type}
+                            onChange={(e) => updateItem(idx, "discount_type", e.target.value)}
+                            className="rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1 py-1.5"
+                          >
+                            <option value="₹">₹</option>
+                            <option value="%">%</option>
+                          </select>
+                        </div>
+                      </td>
+                      <td className={`${cell} tabular-nums text-[#6b6b76]`}>
+                        {hasDesc ? t.taxable.toFixed(2) : "—"}
+                      </td>
+                      <td className={cell}>
+                        <select
+                          value={row.gst_pct}
+                          onChange={(e) => updateItem(idx, "gst_pct", e.target.value)}
+                          className="w-full rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
+                        >
+                          <option value="">—</option>
+                          <option value="0">0%</option>
+                          <option value="5">5%</option>
+                          <option value="12">12%</option>
+                          <option value="18">18%</option>
+                          <option value="28">28%</option>
+                        </select>
+                      </td>
+                      <td className={`${cell} font-semibold tabular-nums`}>
+                        {hasDesc ? t.total.toFixed(2) : "—"}
+                      </td>
+                      <td className="border-b border-[#d0d0d8] px-2 py-2">
+                        <button type="button" onClick={() => removeItem(idx)} className="text-red-500 hover:text-red-700">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-col gap-4 border-t border-[#d0d0d8] p-4 sm:flex-row sm:items-start sm:justify-between">
+            <button
+              type="button"
+              onClick={() => setAddItemOpen(true)}
+              className={BLUE_ACTION_BTN}
+            >
+              + Add More Item
+            </button>
+
+            <div className="min-w-[260px] overflow-hidden rounded-lg border border-[#d0d0d8] text-[13px]">
+              <div className="flex justify-between border-b border-dashed border-[#d0d0d8] px-3 py-2 text-[#6b6b76]">
+                <span>Taxable Amount</span>
+                <span className="tabular-nums">₹ {taxableAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between border-b border-dashed border-[#d0d0d8] px-3 py-2 text-[#6b6b76]">
+                <span>GST Amount</span>
+                <span className="tabular-nums">₹ {gstAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between border-b border-dashed border-[#d0d0d8] px-3 py-2 font-medium text-[#1a1a1f]">
+                <span>Total Amount</span>
+                <span className="tabular-nums">₹ {itemsTotal.toFixed(2)}</span>
+              </div>
+              {showGstTds ? (
+                <div className="flex items-center justify-between border-b border-dashed border-[#d0d0d8] px-3 py-2 text-[#b42318]">
+                  <span><button type="button" onClick={() => setShowGstTds(false)} className="mr-1"><X className="inline h-3.5 w-3.5" /></button>2% GST TDS</span>
+                  <span>₹ {gstTdsAmount.toFixed(2)} (deducted)</span>
+                </div>
+              ) : null}
+              {showTaxType ? (
+                <div className="space-y-2 border-b border-dashed border-[#d0d0d8] p-3">
+                  <div className="flex items-center justify-between text-[#1a1a1f]">
+                    <span className="font-medium">Select Tax Type</span>
+                    <button type="button" onClick={() => setShowTaxType(false)} className="text-[#b42318]"><X className="h-4 w-4" /></button>
+                  </div>
+                  <div className="flex gap-3 text-[12px]">
+                    {["tcs", "tds"].map((type) => <label key={type}><input type="radio" checked={taxType === type} onChange={() => setTaxType(type)} /> {type.toUpperCase()}</label>)}
+                  </div>
+                  {taxType === "tcs" ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <SoftInput type="number" placeholder="TCS %" value={tcsPct} onChange={(e) => setTcsPct(e.target.value)} />
+                      <label className="text-[11px] text-[#6b6b76]">TCS on<SoftSelect value={tcsOn} onChange={(e) => setTcsOn(e.target.value)}><option value="taxable">Taxable Amount</option><option value="final">Final Amount</option></SoftSelect></label>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <SoftSelect value={tdsCode} onChange={(e) => setTdsCode(e.target.value)}><option value="">Select TDS</option><option value="194Q">194Q (0.1%)</option><option value="194C">194C (1%)</option></SoftSelect>
+                      <label className="text-[11px] text-[#6b6b76]">TDS on<SoftSelect value={tdsOn} onChange={(e) => setTdsOn(e.target.value)}><option value="taxable">Taxable Amount</option><option value="final">Final Amount</option></SoftSelect></label>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-[#b42318]"><span>{taxType.toUpperCase()} deducted</span><span>₹ {tcsOrTdsAmount.toFixed(2)}</span></div>
+                </div>
+              ) : null}
+              {showPurchaseDiscount ? (
+                <div className="flex items-center gap-2 border-b border-dashed border-[#d0d0d8] p-3">
+                  <button type="button" onClick={() => setShowPurchaseDiscount(false)} className="text-[#b42318]"><X className="h-4 w-4" /></button>
+                  <SoftInput type="number" placeholder="Discount" value={purchaseDiscountVal} onChange={(e) => setPurchaseDiscountVal(e.target.value)} />
+                  <SoftSelect value={purchaseDiscountType} onChange={(e) => setPurchaseDiscountType(e.target.value)} className="max-w-16"><option>%</option><option>₹</option></SoftSelect>
+                </div>
+              ) : null}
+              <div className="flex justify-between border-b border-[#d0d0d8] bg-[#fafafa] px-3 py-2.5 text-[16px] font-bold text-[#1a1a1f]">
+                <span>Final Amount</span>
+                <span className="tabular-nums">₹ {finalAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex flex-col gap-2 p-3">
+                <button
+                  type="button"
+                  onClick={() => setOtherChargeOpen(true)}
+                  className="rounded-full border bg-white px-3 py-1.5 text-[12px] font-semibold"
+                  style={{ borderColor: PURPLE, color: PURPLE }}
+                >
+                  {otherChargeMeta?.charge_name
+                    ? `${otherChargeMeta.charge_name} · ₹ ${otherCharge.toFixed(2)}`
+                    : "+ Add Other Charge"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowGstTds(true)}
+                  className="rounded-full border bg-white px-3 py-1.5 text-[12px] font-semibold"
+                  style={{ borderColor: PURPLE, color: PURPLE }}
+                >
+                  + Add 2% GST TDS
+                </button>
+                <button type="button" onClick={() => setShowTaxType(true)} className="rounded-full border bg-white px-3 py-1.5 text-[12px] font-semibold" style={{ borderColor: PURPLE, color: PURPLE }}>
+                  + Add TCS/TDS
+                </button>
+                <button type="button" onClick={() => setShowPurchaseDiscount(true)} className="rounded-full border bg-white px-3 py-1.5 text-[12px] font-semibold" style={{ borderColor: PURPLE, color: PURPLE }}>
+                  + Add Purchase Order Level Discount
+                </button>
               </div>
             </div>
           </div>
+        </section>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-[#efeaf8] px-4 py-3 text-sm font-bold text-[#1a1a1f]">
-            <span>Taxable Amount ₹ {newProductTotals.taxable.toFixed(2)}</span>
-            <span>Tax Amount ₹ {newProductTotals.tax.toFixed(2)}</span>
-            <span>Final Amount ₹ {newProductTotals.final.toFixed(2)}</span>
+        {/* OPTIONAL FIELDS */}
+        <div className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-white">
+          <div
+            className="border-b border-[#d0d0d8] px-4 py-3 text-center text-[12px] font-bold uppercase tracking-[0.12em] text-[#3d3560]"
+            style={{ background: LAVENDER }}
+          >
+            Optional Fields
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <button type="button" className={`${outlineButton} w-full`} onClick={closeProductModal}>
-              Cancel
-            </button>
-            <button type="button" className={`${blueButton} w-full`} onClick={addLocalProduct}>
-              Add
-            </button>
+
+          <div className="grid gap-0 lg:grid-cols-2 lg:divide-x lg:divide-[#d0d0d8]">
+            {/* Transportation */}
+            <section className="overflow-hidden border-b border-[#d0d0d8] bg-white lg:border-b-0">
+              <SectionHeader
+                icon={Truck}
+                title="Transportation Details"
+                collapsible
+                open={transportOpen}
+                onToggle={() => setTransportOpen((v) => !v)}
+              />
+              {transportOpen ? (
+              <div className="space-y-4 border-t-0 p-4">
+                <div className="border-b border-[#e8e8ee] pb-4">
+                  <FieldLabel>Transportation Mode</FieldLabel>
+                  <div className="flex flex-wrap gap-2">
+                    {TRANSPORT_MODES.map(({ id, label, Icon }) => (
+                      <Pill
+                        key={id}
+                        soft
+                        active={form.transport_mode === id}
+                        onClick={() => setForm((f) => ({ ...f, transport_mode: id }))}
+                      >
+                        <Icon className="h-3.5 w-3.5" strokeWidth={2} />
+                        {label}
+                      </Pill>
+                    ))}
+                  </div>
+                </div>
+
+                {(() => {
+                  const docs = transportDocLabels(form.transport_mode);
+                  const withVehicle = showsVehicleNo(form.transport_mode);
+                  return (
+                    <div className={`grid gap-3 ${withVehicle ? "sm:grid-cols-2" : "sm:grid-cols-2"}`}>
+                      <label className="block">
+                        <FieldLabel>{docs.number}</FieldLabel>
+                        <SoftInput
+                          placeholder={docs.numberPh}
+                          value={form.lr_number}
+                          onChange={(e) => setForm((f) => ({ ...f, lr_number: e.target.value }))}
+                        />
+                      </label>
+                      <label className="block">
+                        <FieldLabel>{docs.date}</FieldLabel>
+                        <SoftInput
+                          type="date"
+                          value={form.lr_date}
+                          onChange={(e) => setForm((f) => ({ ...f, lr_date: e.target.value }))}
+                        />
+                      </label>
+                      {withVehicle ? (
+                        <label className="block">
+                          <FieldLabel>Vehicle No.</FieldLabel>
+                          <SoftInput
+                            placeholder="Enter Vehicle No."
+                            value={form.vehicle_no}
+                            onChange={(e) => setForm((f) => ({ ...f, vehicle_no: e.target.value }))}
+                          />
+                        </label>
+                      ) : null}
+                      <label className={`block ${withVehicle ? "" : "sm:col-span-2"}`}>
+                        <FieldLabel>Approximate Distance (in km)</FieldLabel>
+                        <div className="relative">
+                          <SoftInput
+                            type="number"
+                            value={form.distance_km}
+                            onChange={(e) =>
+                              setForm((f) => ({ ...f, distance_km: e.target.value }))
+                            }
+                            className="pr-28"
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-2 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 text-[12px] font-semibold text-[#2563eb]"
+                          >
+                            <MapPin className="h-3.5 w-3.5" />
+                            Calculate
+                          </button>
+                        </div>
+                      </label>
+                    </div>
+                  );
+                })()}
+
+                <div className="flex items-center justify-between border-t border-[#ececf0] pt-3">
+                  <div className="min-w-0">
+                    <span className="text-[13px] font-semibold text-[#1a1a1f]">Transporter Details</span>
+                    {form.transporter_name ? (
+                      <p className="truncate text-[12px] text-[#6b6b76]">
+                        {form.transporter_name}
+                        {form.transporter_id ? ` · ${form.transporter_id}` : ""}
+                      </p>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTransporterModalOpen(true)}
+                    className="shrink-0 text-[13px] font-semibold text-[#2563eb]"
+                  >
+                    {form.transporter_name ? "Edit Transporter" : "+ Add New Transporter"}
+                  </button>
+                </div>
+
+                <div className="space-y-3 border-t border-[#ececf0] pt-3">
+                  <p className="text-[13px] font-semibold text-[#1a1a1f]">Other Details</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <FieldLabel>Place of Supply</FieldLabel>
+                      <SoftSelect
+                        value={form.place_of_supply}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, place_of_supply: e.target.value }))
+                        }
+                      >
+                        <option value="">Select State</option>
+                        {INDIAN_STATES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </SoftSelect>
+                    </label>
+                    <label className="block">
+                      <FieldLabel>Date of Supply</FieldLabel>
+                      <SoftInput
+                        type="date"
+                        value={form.date_of_supply}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, date_of_supply: e.target.value }))
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div>
+                    <FieldLabel>Supply Type</FieldLabel>
+                    <div className="flex flex-wrap gap-2">
+                      {["B2B", "SEZWP", "SEZWOP", "EXPWP", "EXPWOP", "DEXP"].map((t) => (
+                        <Pill
+                          key={t}
+                          soft
+                          active={form.supply_type === t}
+                          onClick={() => setForm((f) => ({ ...f, supply_type: t }))}
+                        >
+                          {t}
+                        </Pill>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              ) : null}
+            </section>
+
+            {/* Other details */}
+            <section className="overflow-hidden bg-white">
+              <SectionHeader
+                icon={Grid2x2}
+                title="Other Details"
+                collapsible
+                open={otherDetailsOpen}
+                onToggle={() => setOtherDetailsOpen((v) => !v)}
+              />
+              {otherDetailsOpen ? (
+              <div className="space-y-3 p-4">
+                <div className="grid gap-0 sm:grid-cols-2 sm:divide-x sm:divide-[#e8e8ee]">
+                  <label className="block border-b border-[#e8e8ee] p-3 sm:border-b">
+                    <FieldLabel>Invoice No</FieldLabel>
+                    <SoftInput
+                      placeholder="Enter Invoice No"
+                      value={refInvoiceNo}
+                      onChange={(e) => setRefInvoiceNo(e.target.value)}
+                    />
+                  </label>
+                  <label className="block border-b border-[#e8e8ee] p-3">
+                    <FieldLabel>Invoice Date</FieldLabel>
+                    <SoftInput
+                      type="date"
+                      value={refInvoiceDate}
+                      onChange={(e) => setRefInvoiceDate(e.target.value)}
+                    />
+                  </label>
+                  <label className="block border-b border-[#e8e8ee] p-3">
+                    <FieldLabel>Challan Number</FieldLabel>
+                    <SoftInput
+                      placeholder="Enter Challan Number"
+                      value={form.challan_number}
+                      onChange={(e) => setForm((f) => ({ ...f, challan_number: e.target.value }))}
+                    />
+                  </label>
+                  <label className="block border-b border-[#e8e8ee] p-3">
+                    <FieldLabel>E-Waybill Number</FieldLabel>
+                    <SoftInput
+                      placeholder="Enter E-Waybill Number"
+                      value={form.ewaybill_number}
+                      onChange={(e) => setForm((f) => ({ ...f, ewaybill_number: e.target.value }))}
+                    />
+                  </label>
+                  <label className="block border-b border-[#e8e8ee] p-3">
+                    <FieldLabel>Payment Mode</FieldLabel>
+                    <SoftInput
+                      placeholder="Enter Payment Mode"
+                      value={paymentMode}
+                      onChange={(e) => setPaymentMode(e.target.value)}
+                    />
+                  </label>
+                  <label className="block border-b border-[#e8e8ee] p-3">
+                    <FieldLabel>Dispatched Doc No</FieldLabel>
+                    <SoftInput
+                      placeholder="Enter Dispatched Doc No"
+                      value={dispatchedDocNo}
+                      onChange={(e) => setDispatchedDocNo(e.target.value)}
+                    />
+                  </label>
+                  <label className="block border-b border-[#e8e8ee] p-3">
+                    <FieldLabel>Dispatched Through</FieldLabel>
+                    <SoftInput
+                      placeholder="Enter Dispatched Through"
+                      value={dispatchedThrough}
+                      onChange={(e) => setDispatchedThrough(e.target.value)}
+                    />
+                  </label>
+                  <label className="block border-b border-[#e8e8ee] p-3">
+                    <FieldLabel>Destination</FieldLabel>
+                    <SoftInput
+                      placeholder="Enter Destination"
+                      value={destination}
+                      onChange={(e) => setDestination(e.target.value)}
+                    />
+                  </label>
+                </div>
+                <label className="block border border-[#e8e8ee] p-3">
+                  <FieldLabel>Reason/Remark</FieldLabel>
+                  <SoftInput
+                    placeholder="Enter Reason/Remark"
+                    value={reasonRemark}
+                    onChange={(e) => setReasonRemark(e.target.value)}
+                  />
+                </label>
+                {customFields.map((field) => (
+                  <div
+                    key={field.id}
+                    className="flex items-start justify-between gap-3 rounded-lg border border-[#e8e8ee] bg-[#fafafa] px-3 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-semibold text-[#1a1a1f]">
+                        {field.label}
+                      </p>
+                      {field.value ? (
+                        <p className="mt-0.5 truncate text-[12px] text-[#6b6b76]">{field.value}</p>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCustomFields((rows) => rows.filter((x) => x.id !== field.id))
+                      }
+                      className="rounded p-1 text-[#9a9aa5] hover:bg-[#f0f0f4] hover:text-[#e11d48]"
+                      aria-label={`Remove ${field.label}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setCustomFieldOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#c4b5fd] bg-white px-3 py-2 text-[13px] font-semibold"
+                  style={{ color: PURPLE }}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Custom Field
+                </button>
+              </div>
+              ) : null}
+            </section>
           </div>
         </div>
-      </Modal>
-    )}
-  </form>;
+
+          {/* Terms */}
+          <section className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-white">
+            <SectionHeader
+              icon={FileText}
+              title="Terms and Conditions"
+              collapsible
+              open={termsOpen}
+              onToggle={() => setTermsOpen((v) => !v)}
+            >
+              {termsAttached ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setTermsAttached(false);
+                    setForm((f) => ({ ...f, notes: "" }));
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-white"
+                  style={{ background: PURPLE }}
+                >
+                  <X className="h-3.5 w-3.5" /> Remove
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setTermsPickerOpen(true);
+                }}
+                className="inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-white"
+                style={{ background: PURPLE }}
+              >
+                <User className="h-3.5 w-3.5" /> Select Terms and Conditions
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setTermsAddOpen(true);
+                }}
+                className="rounded-full border border-[#d8d8e0] bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#4a4a55]"
+              >
+                + Add New Terms and Conditions
+              </button>
+            </SectionHeader>
+            {termsOpen && termsAttached && form.notes ? (
+              <div className="border-t border-[#d0d0d8] p-4">
+                <textarea
+                  rows={3}
+                  value={form.notes}
+                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                  className="w-full rounded-md border border-[#d0d0d8] bg-white px-3 py-2.5 text-[13px] leading-relaxed text-[#1a1a1f] focus:border-[#6b4eff] focus:outline-none focus:ring-1 focus:ring-[#c4b5fd]"
+                />
+              </div>
+            ) : null}
+          </section>
+
+          <section className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-white">
+            <SectionHeader icon={Paperclip} title="Attach Document" />
+            <label className="m-4 flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#d0d0d8] bg-[#fafafa] text-[13px] text-[#6b6b76] hover:bg-[#f8f5ff]">
+              <Paperclip className="mb-2 h-5 w-5 text-[#6b4eff]" />
+              {attachmentName || "Choose or drop a purchase document"}
+              <input type="file" className="sr-only" onChange={(e) => setAttachmentName(e.target.files?.[0]?.name || "")} />
+            </label>
+          </section>
+
+          {/* Notes */}
+          <section className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-white">
+            <SectionHeader icon={FileText} title="Notes">
+              <button
+                type="button"
+                onClick={() => setNoteModalOpen(true)}
+                className="rounded-full border border-[#d0d0d8] bg-white px-3.5 py-1.5 text-[12px] font-semibold text-[#4a4a55]"
+              >
+                + Add New Note
+              </button>
+            </SectionHeader>
+            {notesText ? (
+              <div className="border-t border-[#d0d0d8] p-4 text-[13px] leading-relaxed text-[#4a4a55] whitespace-pre-wrap">
+                {notesText}
+              </div>
+            ) : (
+              <div className="min-h-[48px] border-t border-[#d0d0d8]" />
+            )}
+          </section>
+
+          <section className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-white">
+            <SectionHeader icon={User} title="Signature and Stamp">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={signatureOn}
+                onClick={() => setSignatureOn((current) => !current)}
+                className={`relative h-6 w-11 rounded-full transition ${signatureOn ? "bg-[var(--color-primary)]" : "bg-[#d4d4d8]"}`}
+              >
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${signatureOn ? "left-[22px]" : "left-0.5"}`} />
+              </button>
+            </SectionHeader>
+            <SignatureAndStampPanel
+              companyName={companyName}
+              enabled={signatureOn}
+              signatureDataUrl={signatureDataUrl}
+              stampDataUrl={stampDataUrl}
+              onSignatureChange={setSignatureDataUrl}
+              onStampChange={setStampDataUrl}
+            />
+          </section>
+
+        </div>
+      </div>
+
+      <AddNewPartyModal
+        open={addSellerOpen}
+        variant="vendor"
+        title="Add New Party"
+        onClose={() => setAddSellerOpen(false)}
+        onSaved={async (party) => {
+          if (!party) return;
+          try {
+            const res = await getVendors();
+            const list = res?.data || [];
+            setVendors(list);
+            const match =
+              list.find((v) => String(v.id) === String(party.id)) ||
+              list.find((v) => v.name === party.name && v.phone === party.phone) ||
+              party;
+            handleVendorChange(match.id);
+          } catch {
+            const vendor = {
+              ...party,
+              name: party.name || party.vendor_name || "Unnamed seller",
+            };
+            setVendors((rows) => [vendor, ...rows.filter((row) => String(row.id) !== String(vendor.id))]);
+            if (vendor.id) handleVendorChange(vendor.id);
+          }
+        }}
+      />
+      <EditCompanyDetailsModal
+        open={editCompanyOpen}
+        onClose={() => setEditCompanyOpen(false)}
+        onSaved={(data) => setCompany(data)}
+      />
+      <AddPrefixModal
+        open={prefixModalOpen}
+        onClose={() => setPrefixModalOpen(false)}
+        onSave={(prefix) => {
+          const next = [...new Set([...customPrefixes, prefix].filter(Boolean))];
+          setCustomPrefixes(next);
+          saveCustomPrefixes(next);
+          setForm((f) => ({ ...f, po_prefix: prefix }));
+          setPrefixModalOpen(false);
+        }}
+      />
+      <AddNewItemModal
+        open={addItemOpen}
+        onClose={() => setAddItemOpen(false)}
+        onSaved={(line, product) => {
+          if (!line) return;
+          const withAmount = {
+            ...emptyItem(),
+            ...line,
+            item_id: product?.id || line?.item_id || null,
+            amount: lineTotals(line).total,
+          };
+          setItems((prev) => {
+            const blankIdx = prev.findIndex((r) => !r.item_description?.trim());
+            if (blankIdx >= 0) {
+              const next = [...prev];
+              next[blankIdx] = withAmount;
+              return next;
+            }
+            return [...prev, withAmount];
+          });
+        }}
+      />
+      <AddOtherChargesModal
+        open={otherChargeOpen}
+        onClose={() => setOtherChargeOpen(false)}
+        initial={otherChargeMeta}
+        onSave={(charge) => {
+          setOtherChargeMeta(charge);
+          setForm((f) => ({
+            ...f,
+            other_charge: computeOtherChargeTotal(charge),
+          }));
+        }}
+      />
+      <AddTransporterDetailsModal
+        open={transporterModalOpen}
+        onClose={() => setTransporterModalOpen(false)}
+        initial={{
+          transporter_name: form.transporter_name,
+          transporter_id: form.transporter_id,
+        }}
+        onSave={(data) => {
+          setForm((f) => ({
+            ...f,
+            transporter_name: data.transporter_name || "",
+            transporter_id: data.transporter_id || "",
+          }));
+        }}
+      />
+      <AddCustomFieldModal
+        open={customFieldOpen}
+        onClose={() => setCustomFieldOpen(false)}
+        onSave={(field) => setCustomFields((rows) => [...rows, field])}
+      />
+      <TermsAndConditionsPicker
+        open={termsPickerOpen}
+        onClose={() => setTermsPickerOpen(false)}
+        value={form.notes}
+        onChange={(body) => {
+          setTermsAttached(true);
+          setTermsOpen(true);
+          setForm((f) => ({ ...f, notes: body }));
+        }}
+        onRemove={() => {
+          setTermsAttached(false);
+          setForm((f) => ({ ...f, notes: "" }));
+        }}
+      />
+      <AddTermsAndConditionsModal
+        open={termsAddOpen}
+        onClose={() => setTermsAddOpen(false)}
+        onSave={(item) => {
+          try {
+            const raw = localStorage.getItem("gns_invoice_terms_templates");
+            const list = raw ? JSON.parse(raw) : [];
+            const next = Array.isArray(list) ? [...list, item] : [item];
+            localStorage.setItem("gns_invoice_terms_templates", JSON.stringify(next));
+          } catch {
+            /* ignore */
+          }
+          setTermsAttached(true);
+          setTermsOpen(true);
+          setForm((f) => ({ ...f, notes: item.body }));
+        }}
+      />
+      <AddNoteModal
+        open={noteModalOpen}
+        onClose={() => setNoteModalOpen(false)}
+        initial={notesText}
+        onSave={(text) => setNotesText(text)}
+      />
+    </form>
+  );
 }

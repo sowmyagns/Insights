@@ -17,13 +17,11 @@ import {
   updatePurchaseOrderStatus,
 } from "../../api/procurementApi";
 import { getProductionOrders } from "../../api/productionApi";
-import { getLeaveRequests } from "../../api/hrApi";
 
 const CATEGORY_TAGS = {
   po: { label: "Purchase Order", bg: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
   mr: { label: "Material Request", bg: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
   vendor: { label: "Vendor Registration", bg: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300" },
-  leave: { label: "Leave Application", bg: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" },
   production: { label: "Production Order", bg: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300" },
 };
 
@@ -51,11 +49,10 @@ export default function PendingApprovals() {
       }
     };
 
-    const [mrs, pos, vendors, leaves, prods, usersList] = await Promise.all([
+    const [mrs, pos, vendors, prods, usersList] = await Promise.all([
       safeFetch(getMaterialRequests),
       safeFetch(getPurchaseOrders),
       safeFetch(getVendors),
-      safeFetch(getLeaveRequests),
       safeFetch(getProductionOrders),
       safeFetch(getUsers),
     ]);
@@ -128,28 +125,6 @@ export default function PendingApprovals() {
             amount: v.tax_number ? `GST: ${v.tax_number}` : "Vendor Approval",
             reason: v.remarks || v.notes || v.purpose || null,
             submitted: v.created_at ? String(v.created_at).slice(0, 10) : "Today",
-            status: "pending",
-          });
-        }
-      });
-    }
-
-    if (Array.isArray(leaves)) {
-      leaves.forEach((l) => {
-        const st = (l.status || "").toLowerCase();
-        if (st === "pending") {
-          const rawName = l.employee_name || (l.employee_id && userMap[l.employee_id]);
-          const uName = rawName && rawName !== "Production Manager" ? rawName : fallbackCreatorName;
-          realItems.push({
-            id: `LV-${l.id}`,
-            realId: l.id,
-            category: "leave",
-            code: `LV-${l.id}`,
-            user_name: uName,
-            title: `Leave Application (${l.leave_type || "Earned Leave"})`,
-            amount: l.days ? `${l.days} Days` : "Leave Request",
-            reason: l.reason || l.remarks || l.note || null,
-            submitted: l.created_at ? String(l.created_at).slice(0, 10) : "Today",
             status: "pending",
           });
         }
@@ -416,9 +391,7 @@ export default function PendingApprovals() {
               </div>
               <div className="flex justify-between">
                 <span className="text-[var(--color-text-muted)]">
-                  {selectedDetail.category === "leave"
-                    ? "Days:"
-                    : selectedDetail.category === "po"
+                  {selectedDetail.category === "po"
                     ? "Order Value:"
                     : selectedDetail.category === "mr" || selectedDetail.category === "production"
                     ? "Quantity:"

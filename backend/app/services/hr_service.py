@@ -5,25 +5,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
-from app.models.hr import (
-    AttendanceRecord,
-    Employee,
-    HrAsset,
-    LeaveRequest,
-    PayrollRecord,
-    PerformanceReview,
-    SafetyIncident,
-    Shift,
-)
+from app.models.hr import Employee, HrAsset, SafetyIncident
 from app.schemas.hr import (
-    AttendanceRecordCreate,
     EmployeeCreate,
     HrAssetCreate,
     HrAssetUpdate,
-    LeaveRequestCreate,
-    LeaveRequestUpdate,
-    PayrollRecordCreate,
-    PerformanceReviewCreate,
     SafetyIncidentCreate,
     SafetyIncidentUpdate,
     ShiftCreate,

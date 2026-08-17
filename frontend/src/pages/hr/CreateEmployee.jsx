@@ -73,7 +73,7 @@ export default function CreateEmployee() {
 
       <PageHeader
         title="Create Employee"
-        subtitle="Add a new employee record for attendance, leave, and payroll."
+        subtitle="Add a new employee record for your organization."
       />
 
       <form onSubmit={handleSubmit} className="ui-card space-y-5 p-6 sm:p-8">

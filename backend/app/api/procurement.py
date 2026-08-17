@@ -123,6 +123,7 @@ from app.schemas.procurement_extended import (
     VendorBillListRead,
     VendorBillStatusUpdate,
     VendorBillSummaryRead,
+    VendorBillUpdate,
     VendorComparisonRead,
     VendorQuotationCreate,
 )
@@ -133,6 +134,7 @@ from app.services.procurement_extended_service import (
     create_vendor_quotation,
     delete_rfq,
     delete_vendor_bill,
+    update_vendor_bill,
     update_vendor_bill_status,
     get_grn_summary,
     get_mr_summary,
@@ -787,6 +789,23 @@ def update_vendor_bill_status_endpoint(
     db: Session = Depends(get_db),
 ):
     bill = update_vendor_bill_status(db, tenant_id, bill_id, payload.status)
+    if not bill:
+        raise HTTPException(404, "Vendor bill not found")
+    rows = list_vendor_bills_enriched(db, tenant_id)
+    match = next((r for r in rows if r.id == bill.id), None)
+    if not match:
+        raise HTTPException(500, "Vendor bill updated but could not be loaded")
+    return match
+
+
+@router.put("/vendor-bills/{bill_id}", response_model=VendorBillListRead)
+def update_vendor_bill_endpoint(
+    bill_id: int,
+    payload: VendorBillUpdate,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    bill = update_vendor_bill(db, tenant_id, bill_id, payload)
     if not bill:
         raise HTTPException(404, "Vendor bill not found")
     rows = list_vendor_bills_enriched(db, tenant_id)

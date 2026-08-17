@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { Download, Printer } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
@@ -10,6 +10,10 @@ import { apiErrorMessage } from "../../utils/apiError";
 
 export default function PurchaseCopyPage() {
   const { id } = useParams();
+  const location = useLocation();
+  const isDebitNote = location.pathname.includes("/debit-notes/");
+  const listPath = isDebitNote ? "/purchases/debit-notes" : "/purchases";
+  const listLabel = isDebitNote ? "Debit Notes" : "Purchases";
   const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [docPayload, setDocPayload] = useState(null);
@@ -36,7 +40,7 @@ export default function PurchaseCopyPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Purchase-${docNo}.pdf`;
+      a.download = `${isDebitNote ? "DebitNote" : "Purchase"}-${docNo}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
       addToast("PDF downloaded.", "success");
@@ -45,15 +49,15 @@ export default function PurchaseCopyPage() {
     } finally {
       setBusy("");
     }
-  }, [id, docNo, addToast]);
+  }, [id, docNo, addToast, isDebitNote]);
 
-  if (loading) return <Loader label="Loading purchase preview..." />;
+  if (loading) return <Loader label={`Loading ${isDebitNote ? "debit note" : "purchase"} preview...`} />;
 
   return (
     <div className="space-y-4 pb-8">
       <div className="no-print flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <Link to="/purchases" className="text-sm font-semibold text-[var(--color-success)] hover:underline">
-          ← Back to Purchases
+        <Link to={listPath} className="text-sm font-semibold text-[var(--color-success)] hover:underline">
+          ← Back to {listLabel}
         </Link>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={handlePrint} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium hover:bg-slate-50">

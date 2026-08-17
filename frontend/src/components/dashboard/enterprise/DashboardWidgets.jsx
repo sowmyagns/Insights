@@ -297,7 +297,7 @@ export function RecentWorkOrdersWidget() {
 export function EmployeeAttendanceWidget() {
   const pct = Math.round((employeeAttendance.present / employeeAttendance.total) * 100);
   return (
-    <ChartPanel title="Employee Attendance" action={<WidgetLink to="/hr/attendance" label="Human Resources (HR)" />}>
+    <ChartPanel title="Employees" action={<WidgetLink to="/hr/employees" label="Human Resources (HR)" />}>
       <div className="flex items-center gap-3 mb-3">
         <Users className="h-5 w-5 text-[#2563EB]" />
         <div>

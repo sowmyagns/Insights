@@ -162,7 +162,7 @@ def _po_status_counts(db: Session, tenant_id: int) -> dict[str, int]:
 
 def build_admin_kpis(db: Session, tenant_id: int, user: User | None, ctx: dict[str, Any]) -> list[dict]:
     from app.services.approval_service import get_pending_approvals
-    from app.services.hr_extended_service import get_employee_summary
+    from app.services.hr_service import get_employee_summary
     from app.services.rbac_service import get_user_stats
 
     stats = get_user_stats(db, tenant_id)
@@ -345,35 +345,14 @@ def build_store_kpis(db: Session, tenant_id: int, ctx: dict[str, Any]) -> list[d
 
 
 def build_hr_kpis(db: Session, tenant_id: int) -> list[dict]:
-    from app.services.hr_extended_service import get_attendance_summary, get_employee_summary, get_leave_summary
+    from app.services.hr_service import get_employee_summary
 
     emp = get_employee_summary(db, tenant_id)
-    att = get_attendance_summary(db, tenant_id)
-    leave = get_leave_summary(db, tenant_id)
-    attendance_rate = 0.0
-    if emp.total_employees:
-        attendance_rate = round((emp.present_today / emp.total_employees) * 100, 1)
     return [
         _kpi("total-employees", "Total Employees", emp.total_employees, trend_label="active employees", link="/hr/employees"),
-        _kpi("present-today", "Present Today", emp.present_today, trend_label="clocked in", link="/hr/attendance"),
-        _kpi("absent-today", "Absent Today", emp.absent, trend_label="not present", link="/hr/attendance"),
-        _kpi("on-leave", "On Leave", emp.on_leave, trend_label="approved leave", link="/hr/leave"),
-        _kpi(
-            "pending-leave-requests",
-            "Pending Leave Requests",
-            leave.pending_leave,
-            trend_label="awaiting approval",
-            link="/hr/leave",
-        ),
         _kpi("new-employees", "New Employees", emp.new_joiners, trend_label="last 30 days", link="/hr/employees"),
-        _kpi("attendance-rate", "Attendance Rate", f"{attendance_rate}%", trend_label="present / headcount", link="/hr/attendance"),
-        _kpi(
-            "pending-hr-requests",
-            "Pending HR Requests",
-            leave.pending_leave,
-            trend_label="leave queue",
-            link="/hr/leave",
-        ),
+        _kpi("departments", "Departments", emp.departments, trend_label="active departments", link="/masters/departments"),
+        _kpi("contract-employees", "Contract Employees", emp.contract_employees, trend_label="contract staff", link="/hr/employees"),
     ]
 
 

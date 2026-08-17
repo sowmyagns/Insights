@@ -111,7 +111,7 @@ export default function SupplyChainDashboard() {
         <QuickLink to="/procurement/rfq" label="Request for Quotation (RFQ)" />
         <QuickLink to="/procurement/purchase-orders" label="Purchase Orders" />
         <QuickLink to="/procurement/goods-receipt" label="Goods Receipt Note (GRN)" />
-        <QuickLink to="/procurement/supplier-payments" label="Vendor Bills" />
+        <QuickLink to="/procurement/vendor-bills" label="Vendor Bills" />
         <QuickLink to="/procurement/vendors" label="Vendors" />
         <QuickLink to="/inventory/raw-materials" label="Raw Materials" />
         <QuickLink to="/inventory/stock-ledger" label="Stock Ledger" />

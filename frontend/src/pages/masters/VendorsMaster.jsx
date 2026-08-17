@@ -44,17 +44,17 @@ function DeleteConfirmModal({ open, onClose, onConfirm, busy }) {
       className="fixed inset-0 z-[90] flex items-center justify-center bg-black/45 p-4"
       onMouseDown={(e) => e.target === e.currentTarget && !busy && onClose?.()}
     >
-      <div className="w-full max-w-[420px] rounded-2xl bg-white px-8 py-8 text-center shadow-2xl">
-        <div className="mx-auto mb-5 grid h-[72px] w-[72px] place-items-center rounded-full bg-[#fee2e2]">
-          <Trash2 className="h-9 w-9 text-[#ef4444]" strokeWidth={1.75} />
+      <div className="w-full max-w-[400px] rounded-2xl bg-white px-6 py-6 text-center shadow-2xl">
+        <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-[var(--color-danger-soft)]">
+          <Trash2 className="h-6 w-6 text-[var(--color-danger)]" strokeWidth={1.75} />
         </div>
-        <h3 className="text-[28px] font-bold leading-tight text-[#1a1a1f]">Delete Vendor?</h3>
-        <p className="mt-3 text-[14px] leading-relaxed text-[#5a5a66]">
-          Are you sure you want to delete this Vendor?
+        <h3 className="text-lg font-semibold leading-snug text-[var(--color-text)]">Delete Vendor?</h3>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-muted)]">
+          Are you sure you want to delete this vendor?
           <br />
-          This action is not reversible.
+          This action cannot be undone.
         </p>
-        <div className="mt-7 grid grid-cols-2 gap-4">
+        <div className="mt-6 grid grid-cols-2 gap-3">
           <Button type="button" variant="secondary" disabled={busy} onClick={onClose} fullWidth>
             No
           </Button>

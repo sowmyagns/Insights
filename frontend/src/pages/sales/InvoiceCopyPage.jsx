@@ -16,6 +16,11 @@ import { apiErrorMessage } from "../../utils/apiError";
 
 export default function InvoiceCopyPage() {
   const { id } = useParams();
+  const location = useLocation();
+  const isDebitNote = location.pathname.includes("/debit-notes/");
+  const listPath = isDebitNote ? "/sales/debit-notes" : "/sales/invoices";
+  const listLabel = isDebitNote ? "Debit Notes" : "Invoices";
+  const docLabel = isDebitNote ? "Debit Note" : "Invoice";
   const { settings } = useCompanySettings();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(Boolean(id));
@@ -108,7 +113,7 @@ export default function InvoiceCopyPage() {
     window.open(url, "_blank", "noopener,noreferrer");
   }, [copyData, invoiceNo]);
 
-  if (loading) return <Loader label="Loading invoice preview..." />;
+  if (loading) return <Loader label={`Loading ${docLabel.toLowerCase()} preview...`} />;
 
   return (
     <div className="space-y-4 pb-8">
@@ -145,7 +150,7 @@ export default function InvoiceCopyPage() {
               to={`/sales/invoices/${id}/edit`}
               className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-700"
             >
-              <Share2 className="h-4 w-4" /> Edit Invoice
+              <Share2 className="h-4 w-4" /> Edit {docLabel}
             </Link>
           ) : null}
         </div>

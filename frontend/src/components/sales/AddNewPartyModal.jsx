@@ -18,10 +18,11 @@ import { INDIAN_STATES, CITIES_BY_STATE } from "../../data/indiaLocations";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
 
-const PURPLE = "#6b4eff";
+const PANEL_CLASS =
+  "flex max-h-[90vh] w-full max-w-[440px] flex-col overflow-hidden rounded-l-xl bg-white shadow-2xl animate-[slideInRight_0.28s_ease-out]";
 
 const inputClass =
-  "w-full rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3 py-2.5 text-[13px] text-[#1a1a1f] placeholder:text-[#a0a0ab] focus:border-[#c4b5fd] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#c4b5fd]";
+  "w-full rounded-lg border border-[#e4e4ea] bg-[#f3f3f6] px-3 py-2 text-[13px] text-[#1a1a1f] placeholder:text-[#a0a0ab] focus:border-[var(--color-action-teal)] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[color-mix(in_srgb,var(--color-action-teal)_25%,transparent)]";
 
 const EMPTY = {
   gstin: "",
@@ -55,7 +56,7 @@ const EMPTY_OTHER = {
 function SoftField({ label, required, children }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[12px] font-medium text-[#8a8a95]">
+      <span className="mb-1 block text-[12px] font-medium text-[#8a8a95]">
         {label}
         {required ? <span className="text-[#e11d48]"> *</span> : null}
       </span>
@@ -151,25 +152,22 @@ function AddressModal({ open, onClose, initial, onSave }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-end bg-black/45"
       onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
       role="presentation"
     >
-      <div
-        className="w-full max-w-[680px] rounded-xl border border-[#d0d0d8] bg-white shadow-2xl"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-[#ececf0] px-5 py-4">
-          <h3 className="text-[30px] font-bold text-[#1a1a1f]">Add Billing Address</h3>
+      <div className={PANEL_CLASS} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-[#ececf0] px-5 py-3.5">
+          <h3 className="text-[17px] font-bold text-[#1a1a1f]">Add Billing Address</h3>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-[#6b6b76] hover:bg-[#f2f2f4]"
+            className="rounded-lg p-1 text-[#6b6b76] hover:bg-[#f2f2f4]"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="space-y-3 px-5 py-4">
+        <div className="space-y-3 overflow-y-auto px-5 py-4">
           <SoftField label="Address">
             <input
               value={address.address_line1}
@@ -220,7 +218,7 @@ function AddressModal({ open, onClose, initial, onSave }) {
                 }}
                 options={INDIAN_STATES}
                 placeholder="Select State"
-                className="!rounded-lg !border-[#d0d0d8] !bg-[#f3f3f6] !py-2.5 !text-[13px] !shadow-none"
+                className="!rounded-lg !border-[#d0d0d8] !bg-[#f3f3f6] !py-2 !text-[13px] !shadow-none"
               />
             </SoftField>
             <SoftField label="Country">
@@ -235,7 +233,7 @@ function AddressModal({ open, onClose, initial, onSave }) {
             </SoftField>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 border-t border-[#ececf0] px-5 py-4">
+        <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-[#ececf0] px-5 py-3.5">
           <Button type="button" variant="secondary" onClick={onClose} fullWidth>
             Cancel
           </Button>
@@ -475,17 +473,17 @@ export default function AddNewPartyModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-[80] flex items-center justify-end bg-black/40"
       role="presentation"
       onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
     >
       <form
         onSubmit={onSubmit}
-        className="flex max-h-[92vh] w-full max-w-[690px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className={PANEL_CLASS}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-[#ececf0] px-6 py-4">
-          <h2 className="text-xl font-bold text-[#1a1a1f] sm:text-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-[#ececf0] px-5 py-3.5">
+          <h2 className="text-[17px] font-bold text-[#1a1a1f]">
             {title || (isEdit ? (isVendor ? "Edit Vendor" : "Edit Customer") : (isVendor ? "Add Vendor" : "Add Customer"))}
           </h2>
           <button
@@ -494,12 +492,12 @@ export default function AddNewPartyModal({
             className="rounded-lg p-1 text-[#1a1a1f] hover:bg-[#f5f5f7]"
             aria-label="Close"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          <div className="space-y-3.5">
+        <div className="overflow-y-auto px-5 py-4">
+          <div className="space-y-3">
             <SoftField label="GSTIN">
               <div className="relative">
                 <input
@@ -542,14 +540,28 @@ export default function AddNewPartyModal({
               </SoftField>
             </div>
 
-            {!addressText ? (
+            {addressText ? (
+              <div className="rounded-lg border border-[#ececf0] bg-white px-3 py-2.5">
+                <div className="mb-0.5 text-[12px] font-semibold text-[#1a1a1f]">Billing Address</div>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[13px] text-[#4a4a55]">{addressText}</p>
+                  <div className="flex items-center gap-3 text-[#1a1a1f]">
+                    <button type="button" onClick={() => setAddressOpen(true)}>
+                      <Pencil className="h-4 w-4 text-[var(--color-action-teal)]" />
+                    </button>
+                    <button type="button">
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
               <button
                 type="button"
                 onClick={() => setAddressOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#9aa5ff] bg-white px-3 py-2 text-[13px] font-semibold"
-                style={{ color: PURPLE }}
+                className="inline-flex items-center gap-1 rounded-full border border-[#f4c116] bg-[#fff2b8] px-2.5 py-1 text-[11px] font-semibold text-[#1a1a1f]"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-3 w-3" />
                 Add Billing Address
               </button>
             ) : (
@@ -608,49 +620,49 @@ export default function AddNewPartyModal({
             )}
           </div>
 
-          <div className="mt-4 border-t border-[#ececf0] pt-3.5">
+          <div className="mt-3 border-t border-[#ececf0] pt-3">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-semibold text-[#1a1a1f]">Basic Details</p>
-                <p className="truncate text-[12px] text-[#6b6b76]">
+                <p className="text-[13px] font-semibold text-[#1a1a1f]">Basic Details</p>
+                <p className="truncate text-[11px] text-[#6b6b76]">
                   Opening Balance, Payment Terms, Credit Limit
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setBasicOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#9aa5ff] bg-white px-3 py-2 text-[13px] font-semibold"
-                style={{ color: PURPLE }}
+                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#f4c116] px-2.5 py-1 text-[11px] font-semibold text-[#1a1a1f]"
+                style={{ background: "#fff2b8" }}
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-3 w-3" />
                 Add
               </button>
             </div>
           </div>
 
-          <div className="mt-2 border-t border-[#ececf0] pt-3.5">
+          <div className="mt-2 border-t border-[#ececf0] pt-3">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-semibold text-[#1a1a1f]">Other Details</p>
-                <p className="truncate text-[12px] text-[#6b6b76]">Tax Settings, TDS / TCS , Party type</p>
+                <p className="text-[13px] font-semibold text-[#1a1a1f]">Other Details</p>
+                <p className="truncate text-[11px] text-[#6b6b76]">Tax Settings, TDS / TCS , Party type</p>
               </div>
               <button
                 type="button"
                 onClick={() => setOtherOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#9aa5ff] bg-white px-3 py-2 text-[13px] font-semibold"
-                style={{ color: PURPLE }}
+                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#f4c116] px-2.5 py-1 text-[11px] font-semibold text-[#1a1a1f]"
+                style={{ background: "#fff2b8" }}
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-3 w-3" />
                 Add
               </button>
             </div>
           </div>
 
-          <div className="mt-2 border-t border-[#ececf0] pt-3.5">
+          <div className="mt-2 border-t border-[#ececf0] pt-3">
             {customFields.map((field) => (
               <div
                 key={field.id}
-                className="mb-2 flex items-start justify-between gap-3 rounded-lg border border-[#e8e8ee] bg-[#fafafa] px-3 py-2.5"
+                className="mb-2 flex items-start justify-between gap-3 rounded-lg border border-[#e8e8ee] bg-[#fafafa] px-3 py-2"
               >
                 <div className="min-w-0">
                   <p className="truncate text-[13px] font-semibold text-[#1a1a1f]">{field.label}</p>
@@ -671,21 +683,16 @@ export default function AddNewPartyModal({
             <button
               type="button"
               onClick={() => setCustomOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#9aa5ff] bg-white px-3 py-2 text-[13px] font-semibold"
-              style={{ color: PURPLE }}
+              className="inline-flex items-center gap-1 rounded-full border border-[color-mix(in_srgb,var(--color-action-teal)_35%,transparent)] bg-white px-2.5 py-1.5 text-[12px] font-semibold text-[var(--color-action-teal)]"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-3.5 w-3.5" />
               Add Custom Field
             </button>
           </div>
         </div>
 
-        <div className="grid shrink-0 grid-cols-2 gap-4 border-t border-[#ececf0] px-6 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="ui-btn-secondary py-3 text-[14px]"
-          >
+        <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-[#ececf0] px-5 py-3.5">
+          <Button type="button" variant="secondary" onClick={onClose} fullWidth>
             Cancel
           </button>
           <button

@@ -38,7 +38,7 @@ import EmptyChart from "../../common/EmptyChart";
 import SkeletonCard, { SkeletonChart } from "../../common/SkeletonCard";
 import { quickActionsRef } from "../../../data/referenceDashboardData";
 import { getErpDashboard } from "../../../api/dashboardApi";
-import { getEmployeesEnriched, getLeaveRequests } from "../../../api/hrApi";
+import { getEmployeesEnriched } from "../../../api/hrApi";
 import { getMaterialRequests, getPurchaseOrders, getVendors } from "../../../api/procurementApi";
 import { getProductionOrders, getWorkOrders } from "../../../api/productionApi";
 import { getUsers } from "../../../api/adminApi";
@@ -219,7 +219,7 @@ const DEFAULT_CARD_LINKS = {
   "total-sales-orders": "/sales/orders",
   "pending-sales-orders": "/sales/orders",
   "todays-sales": "/sales/orders",
-  "outstanding-receivables": "/accounts/accounts-receivable",
+  "outstanding-receivables": "/finance/accounts-receivable",
   "monthly-revenue": "/sales/invoices",
   quotations: "/sales/quotations",
   "conversion-rate": "/sales/quotations",
@@ -236,14 +236,14 @@ const DEFAULT_CARD_LINKS = {
   "out-of-stock": "/inventory",
   "pending-material-issues": "/procurement/material-requests",
   "pending-goods-receipts": "/procurement/goods-receipt",
-  "present-today": "/hr/attendance",
-  "absent-today": "/hr/attendance",
-  "on-leave": "/hr/leave",
-  "pending-leave-requests": "/hr/leave",
+  "present-today": "/hr/employees",
+  "absent-today": "/hr/employees",
+  "on-leave": "/hr/employees",
+  "pending-leave-requests": "/hr/employees",
   "new-employees": "/hr/employees",
-  "attendance-rate": "/hr/attendance",
-  "pending-hr-requests": "/hr/leave",
-  "total-receivables": "/accounts/accounts-receivable",
+  "attendance-rate": "/hr/employees",
+  "pending-hr-requests": "/hr/employees",
+  "total-receivables": "/finance/accounts-receivable",
   "total-payables": "/finance/accounts-payable",
   "todays-revenue": "/sales/invoices",
   "pending-invoices": "/sales/invoices",
@@ -271,15 +271,8 @@ function KpiStrip({ cards = [] }) {
       </div>
     );
   }
-  const linkedCount = cards.filter((c) => c.link).length;
   return (
-    <div className="space-y-2">
-      {linkedCount > 0 ? (
-        <p className="text-[12px] font-medium text-[#8a8a96]">
-          {t("refDashboard.kpiClickHint", "Click a metric card to view details")}
-        </p>
-      ) : null}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {cards.map((card) => {
         const titleKey = KPI_TITLE_KEYS[card.id];
         const trendKey = TREND_LABEL_KEYS[card.trendLabel];
@@ -352,7 +345,6 @@ function KpiStrip({ cards = [] }) {
           </div>
         );
       })}
-      </div>
     </div>
   );
 }
@@ -957,8 +949,7 @@ export default function ReferenceDashboard() {
       getMaterialRequests(),
       getPurchaseOrders(),
       getVendors(),
-      getLeaveRequests(),
-    ]).then(([dashRes, empRes, prodRes, userRes, woRes, mrRes, poRes, vndRes, lvRes]) => {
+    ]).then(([dashRes, empRes, prodRes, userRes, woRes, mrRes, poRes, vndRes]) => {
       if (dashRes.status === "fulfilled") {
         setApiData(dashRes.value?.data || null);
       } else {
@@ -1011,12 +1002,6 @@ export default function ReferenceDashboard() {
         vndRes.value.data.forEach((v) => {
           const st = (v.approval_status || "").toLowerCase();
           if (st === "pending") pendingItems.push(`VND-${v.id}`);
-        });
-      }
-      if (lvRes.status === "fulfilled" && Array.isArray(lvRes.value?.data)) {
-        lvRes.value.data.forEach((l) => {
-          const st = (l.status || "").toLowerCase();
-          if (st === "pending") pendingItems.push(`LV-${l.id}`);
         });
       }
       if (prodRes.status === "fulfilled" && Array.isArray(prodRes.value?.data)) {

@@ -3,6 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models.role import Role
 from app.models.tenant import Tenant
 from app.models.user import User
@@ -33,6 +34,7 @@ DEFAULT_USERS = [
 
 def seed_admin_user(db: Session, tenant_id: int = 1) -> None:
     """Seed default demo accounts (Operator, Admin, HR) for tenant."""
+    settings = get_settings()
     tenant = db.get(Tenant, tenant_id)
     if not tenant:
         return
@@ -59,7 +61,9 @@ def seed_admin_user(db: Session, tenant_id: int = 1) -> None:
                 user.roles.append(role)
             db.add(user)
         else:
-            user.hashed_password = hash_password(u_info["password"])
+            # Never reset known demo passwords in production — preserves user-chosen credentials.
+            if not settings.is_production:
+                user.hashed_password = hash_password(u_info["password"])
             user.is_active = True
             user.email_verified = True
             if role and role not in user.roles:

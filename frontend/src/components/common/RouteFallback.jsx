@@ -5,16 +5,16 @@
 export default function RouteFallback() {
   return (
     <div
-      className="flex min-h-[12rem] flex-col items-center justify-center rounded-2xl border border-slate-100 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800/40"
+      className="ui-card ui-card--padded flex min-h-[12rem] flex-col items-center justify-center"
       role="status"
       aria-live="polite"
       aria-label="Loading page"
     >
       <div
-        className="h-8 w-8 animate-spin rounded-full border-2 border-teal-600 border-t-transparent dark:border-teal-400"
+        className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent"
         aria-hidden
       />
-      <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Loading…</p>
+      <p className="mt-3 text-sm text-[var(--color-text-muted)]">Loading…</p>
     </div>
   );
 }

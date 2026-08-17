@@ -23,6 +23,6 @@ describe("RowActionMenu", () => {
     fireEvent.mouseDown(screen.getByRole("button", { name: /open actions/i }));
     fireEvent.click(screen.getByRole("button", { name: /open actions/i }));
 
-    expect(screen.getByRole("button", { name: /view profile/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /view profile/i })).toBeInTheDocument();
   });
 });

@@ -98,8 +98,13 @@ def _svc(db: Session, admin: User) -> SettingsService:
 
 
 @router.get("/roles", response_model=list[RoleOptionResponse])
-def list_registerable_roles(db: Session = Depends(get_db)):
-    """Public list of roles shown on the Register page."""
+def list_registerable_roles(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Authenticated list of roles (registration is disabled in SaaS mode)."""
+    _ = current_user
+    _ = db
     items = []
     for name in REGISTERABLE_ROLES:
         spec = PERMISSION_MATRIX.get(name, {})
@@ -186,25 +191,6 @@ def get_sidebar_menus(
         children_src = section.get("children") or []
         # Parent module must be granted (prevents Operator seeing Masters via Machines).
         if not _user_can_see_module(current_user, section["module"]):
-            # Exception: HR/Attendance — show truncated HR section when only attendance is granted.
-            if section["key"] == "hr" and _user_can_see_module(current_user, "attendance"):
-                menus.append(
-                    SidebarItemResponse(
-                        key=section["key"],
-                        label=section["label"],
-                        path=section.get("path"),
-                        module=section["module"],
-                        children=[
-                            SidebarChildResponse(
-                                label=c["label"],
-                                path=c["path"],
-                                module=c["module"],
-                            )
-                            for c in children_src
-                            if _user_can_see_module(current_user, c["module"])
-                        ],
-                    )
-                )
             continue
 
         if children_src:

@@ -463,6 +463,34 @@ def update_vendor_bill_status(db: Session, tenant_id: int, bill_id: int, new_sta
     return bill
 
 
+def update_vendor_bill(db: Session, tenant_id: int, bill_id: int, payload) -> VendorBill | None:
+    bill = db.scalars(select(VendorBill).where(VendorBill.id == bill_id, VendorBill.tenant_id == tenant_id)).first()
+    if not bill:
+        return None
+    if payload.bill_number is not None:
+        bill.bill_number = payload.bill_number.strip() or bill.bill_number
+    if payload.amount is not None:
+        bill.amount = payload.amount
+    if payload.gst_amount is not None:
+        bill.gst_amount = payload.gst_amount
+    if payload.bill_date:
+        try:
+            bill.bill_date = date.fromisoformat(payload.bill_date)
+        except ValueError:
+            pass
+    if payload.due_date is not None:
+        if payload.due_date == "":
+            bill.due_date = None
+        else:
+            try:
+                bill.due_date = date.fromisoformat(payload.due_date)
+            except ValueError:
+                pass
+    db.commit()
+    db.refresh(bill)
+    return bill
+
+
 def delete_rfq(db: Session, tenant_id: int, rfq_id: int) -> bool:
     rfq = db.scalars(select(RFQ).where(RFQ.id == rfq_id, RFQ.tenant_id == tenant_id)).first()
     if not rfq:

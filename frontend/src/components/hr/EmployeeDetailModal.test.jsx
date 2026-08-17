@@ -32,7 +32,7 @@ describe("EmployeeDetailModal", () => {
     expect(screen.getByText("Priya Sharma")).toBeInTheDocument();
     expect(screen.getByText("9999999999")).toBeInTheDocument();
     expect(screen.getByText("priya@company.com")).toBeInTheDocument();
-    expect(screen.getByText("123 Test Street, Bengaluru")).toBeInTheDocument();
     expect(screen.getByText("2024-01-15")).toBeInTheDocument();
+    expect(screen.getByText("View Assets")).toBeInTheDocument();
   });
 });

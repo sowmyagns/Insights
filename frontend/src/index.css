@@ -200,6 +200,17 @@ input[type="number"] {
   }
 }
 
+@keyframes slideInUp {
+  from {
+    opacity: 0.6;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes slideInRight {
   from {
     opacity: 0.6;
@@ -578,7 +589,7 @@ textarea {
   }
 }
 
-/* Status badges */
+/* Status badges — single definition; legacy + BEM modifier aliases */
 .ui-badge {
   display: inline-flex;
   align-items: center;
@@ -586,38 +597,46 @@ textarea {
   border-radius: var(--radius-full);
   padding: 0.2rem 0.625rem;
   font-size: var(--text-xs);
-  font-weight: 700;
-  line-height: 1.25;
+  font-weight: 600;
+  line-height: 1.35;
   border: 1px solid transparent;
+  text-transform: capitalize;
+  white-space: nowrap;
 }
-.ui-badge-success {
+.ui-badge-success,
+.ui-badge--success {
   background: var(--color-success-soft);
   color: var(--color-success);
   border-color: color-mix(in srgb, var(--color-success) 22%, transparent);
 }
 .ui-badge-info,
-.ui-badge-progress {
+.ui-badge-progress,
+.ui-badge--info {
   background: var(--color-info-soft);
   color: var(--color-info);
   border-color: color-mix(in srgb, var(--color-info) 22%, transparent);
 }
-.ui-badge-pending {
+.ui-badge-pending,
+.ui-badge--primary {
   background: var(--color-primary-soft);
   color: var(--color-primary-dark);
   border-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
 }
-.ui-badge-warning {
+.ui-badge-warning,
+.ui-badge--warning {
   background: var(--color-warning-soft);
   color: #7a5a00;
   border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
 }
 .ui-badge-danger,
-.ui-badge-error {
+.ui-badge-error,
+.ui-badge--danger {
   background: var(--color-danger-soft);
   color: var(--color-danger);
   border-color: color-mix(in srgb, var(--color-danger) 22%, transparent);
 }
-.ui-badge-neutral {
+.ui-badge-neutral,
+.ui-badge--neutral {
   background: var(--color-surface-muted);
   color: var(--color-text-muted);
   border-color: var(--color-border);
@@ -844,42 +863,25 @@ select.pl-10 {
   font-feature-settings: "tnum" 1, "lnum" 1;
 }
 
-/* Status badges */
-.ui-badge {
-  display: inline-flex;
+/* Modal shell (common/Modal.jsx) */
+.ui-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
   align-items: center;
-  gap: 0.25rem;
-  border-radius: var(--radius-full);
-  padding: 0.125rem 0.625rem;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  line-height: 1.4;
-  text-transform: capitalize;
-  white-space: nowrap;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgba(15, 17, 23, 0.45);
+  backdrop-filter: blur(2px);
 }
-.ui-badge--neutral {
-  background: var(--color-surface-muted);
-  color: var(--color-text-secondary);
-}
-.ui-badge--success {
-  background: var(--color-success-soft);
-  color: var(--color-success);
-}
-.ui-badge--warning {
-  background: var(--color-warning-soft);
-  color: var(--color-warning);
-}
-.ui-badge--danger {
-  background: var(--color-danger-soft);
-  color: #b91c1c;
-}
-.ui-badge--info {
-  background: var(--color-info-soft);
-  color: var(--color-info);
-}
-.ui-badge--primary {
-  background: var(--color-primary-soft);
-  color: var(--color-primary-dark);
+.ui-modal {
+  width: 100%;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: var(--space-6);
+  box-shadow: 0 12px 40px rgba(26, 26, 31, 0.12);
 }
 
 /* Tables */

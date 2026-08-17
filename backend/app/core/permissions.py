@@ -194,3 +194,12 @@ def tenant_scope_any(*modules: str):
         return current_user.tenant_id
 
     return dependency
+
+
+def tenant_scope_action(module: str, action: str):
+    """Tenant id for mutating endpoints — module access plus action-level RBAC."""
+
+    def dependency(current_user: User = Depends(require_action(module, action))) -> int:
+        return current_user.tenant_id
+
+    return dependency

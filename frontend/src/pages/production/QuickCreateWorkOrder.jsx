@@ -10,7 +10,6 @@ import {
 } from "../../api/productionApi";
 import { fetchProductsWithFallback } from "../../utils/productOptions";
 import { getRawMaterials } from "../../api/inventoryApi";
-import { getShifts } from "../../api/hrApi";
 import useTenantId from "../../hooks/useTenantId";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { PRIORITIES, SHIFTS } from "../../data/productionPlanningMasterData";
@@ -58,10 +57,9 @@ export default function QuickCreateWorkOrder() {
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     try {
-      const [pRes, mRes, sRes, rmRes] = await Promise.all([
+      const [pRes, mRes, rmRes] = await Promise.all([
         fetchProductsWithFallback().catch(() => []),
         getMachines(tenantId).catch(() => ({ data: [] })),
-        getShifts(tenantId).catch(() => ({ data: [] })),
         getRawMaterials().catch(() => ({ data: [] })),
       ]);
       const rawProducts = Array.isArray(pRes) ? pRes : (pRes?.data || []);
@@ -75,7 +73,7 @@ export default function QuickCreateWorkOrder() {
         }));
       }
       setMachines(mRes?.data || []);
-      setShifts(sRes?.data || []);
+      setShifts([]);
 
       const rmApi = rmRes?.data || [];
       const rmProducts = sortedProducts.filter(

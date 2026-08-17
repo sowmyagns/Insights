@@ -99,12 +99,16 @@ app = FastAPI(
     title="Insights Iva API",
     version="1.0.0",
     redoc_url=None,
+    docs_url=None if settings.is_production else "/docs",
+    openapi_url=None if settings.is_production else "/openapi.json",
 )
 
 
 @app.get("/redoc", include_in_schema=False)
 async def redoc_ui() -> HTMLResponse:
     """ReDoc with a pinned CDN bundle (redoc@next is unpublished / 404)."""
+    if settings.is_production:
+        return JSONResponse(status_code=404, content={"detail": "Not found"})
     return get_redoc_html(
         openapi_url=app.openapi_url,
         title=f"{app.title} - ReDoc",
@@ -119,14 +123,15 @@ if settings.is_production:
     )
 
 app.add_middleware(AuditMiddleware)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+_cors_kwargs = {
+    "allow_origins": settings.cors_origin_list,
+    "allow_credentials": True,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+if not settings.is_production:
+    _cors_kwargs["allow_origin_regex"] = r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 
 @app.middleware("http")
@@ -285,6 +290,8 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health", tags=["health"])
 def health():
+    if settings.is_production:
+        return {"status": "ok"}
     return {"status": "ok", "environment": settings.environment}
 
 
@@ -780,7 +787,6 @@ def on_startup():
         pass
     from app.core.database import SessionLocal
     from app.core.seed_dashboard import seed_dashboard_data
-    from app.core.seed_hr import seed_hr_data
     from app.core.seed_notifications import seed_notifications
     from app.core.seed_products import seed_products
     from app.core.seed_roles import seed_roles

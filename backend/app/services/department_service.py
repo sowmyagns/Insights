@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.department import Department
-from app.models.hr import AttendanceRecord, Employee
+from app.models.hr import Employee
 from app.models.machine import Machine
 from app.models.production import DailyProductionReport, WorkOrder
 from app.schemas.department import (
@@ -133,20 +133,8 @@ def get_department_detail(
     ctx = _counts_for_department(db, tenant_id, dept.name)
     detail = DepartmentDetailRead.model_validate(_to_list_read(db, tenant_id, dept))
 
-    today = date.today()
-    employee_ids = [e.id for e in ctx["employees"]]
-    present = 0
-    if employee_ids:
-        present = db.scalar(
-            select(func.count(func.distinct(AttendanceRecord.employee_id))).where(
-                AttendanceRecord.tenant_id == tenant_id,
-                AttendanceRecord.employee_id.in_(employee_ids),
-                AttendanceRecord.record_date == today,
-                AttendanceRecord.clock_in.isnot(None),
-            )
-        ) or 0
-    detail.present_today = int(present)
-    detail.absent_today = max(detail.employee_count - detail.present_today, 0)
+    detail.present_today = 0
+    detail.absent_today = detail.employee_count
     detail.shift_a_count = max(detail.employee_count // 3, 0)
     detail.shift_b_count = max(detail.employee_count // 3, 0)
     detail.shift_c_count = max(

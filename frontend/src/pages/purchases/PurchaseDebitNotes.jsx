@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import usePageRefresh from "../../hooks/usePageRefresh";
-import { Link } from "react-router-dom";
-import { Calendar, ChevronLeft, ChevronRight, FileText, Filter, ListFilter, Plus, Search, X } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Calendar, ChevronLeft, ChevronRight, Download, Edit2, Eye, FileText, Filter, ListFilter, Plus, Search, Trash2, X } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
+import RowActionMenu from "../../components/common/RowActionMenu";
 import { SerialNumberCell, SerialNumberHeader } from "../../components/common/SerialNumberCell";
 import { useToast } from "../../context/ToastContext";
-import { deleteBizDocument, listBizDocuments } from "../../api/bizDocumentsApi";
+import { deleteBizDocument, downloadPurchasePdf, listBizDocuments } from "../../api/bizDocumentsApi";
 import { apiErrorMessage } from "../../utils/apiError";
 import { formatInr } from "../../data/salesMasterData";
 
@@ -119,8 +120,11 @@ function SummaryTab({ label, count, amount, active, onClick }) {
 
 export default function PurchaseDebitNotes() {
   const { addToast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
+  const [openMenu, setOpenMenu] = useState(null);
+  const [pdfBusyId, setPdfBusyId] = useState(null);
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("2026-04-01");
   const [dateTo, setDateTo] = useState("2027-03-31");
@@ -171,6 +175,29 @@ export default function PurchaseDebitNotes() {
       addToast(apiErrorMessage(err, "Failed to delete debit note"), "error");
     }
   };
+
+  const handleDownloadPdf = useCallback(
+    async (row) => {
+      if (!row?.id) return;
+      setPdfBusyId(row.id);
+      try {
+        const res = await downloadPurchasePdf(row.id);
+        const blob = new Blob([res.data], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `DebitNote-${row.document_number || row.id}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        addToast("PDF downloaded.", "success");
+      } catch (err) {
+        addToast(apiErrorMessage(err, "Could not download PDF."), "error");
+      } finally {
+        setPdfBusyId(null);
+      }
+    },
+    [addToast]
+  );
 
   useEffect(() => {
     setPage(1);
@@ -429,29 +456,37 @@ export default function PurchaseDebitNotes() {
                           {settle === "partial" ? "Partially Settled" : settle}
                         </td>
                         <td className="border-t border-[#d0d0d8] px-4 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            <Link
-                              to={`/purchases/debit-notes/${r.id}/edit`}
-                              state={{ viewId: r.id, document: r }}
-                              className="text-[12px] font-semibold text-[#6b4eff] hover:underline"
-                            >
-                              View
-                            </Link>
-                            <Link
-                              to={`/purchases/debit-notes/${r.id}/edit`}
-                              state={{ viewId: r.id, document: r }}
-                              className="text-[12px] font-semibold text-[#4a4a55] hover:underline"
-                            >
-                              Edit
-                            </Link>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(r)}
-                              className="text-[12px] font-semibold text-[#dc2626] hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
+                          <RowActionMenu
+                            rowId={r.id}
+                            openMenu={openMenu}
+                            setOpenMenu={setOpenMenu}
+                            items={[
+                              {
+                                label: "View",
+                                icon: <Eye className="h-4 w-4" />,
+                                onClick: () => navigate(`/purchases/debit-notes/${r.id}`),
+                              },
+                              {
+                                label: "Edit",
+                                icon: <Edit2 className="h-4 w-4" />,
+                                onClick: () =>
+                                  navigate(`/purchases/debit-notes/${r.id}/edit`, {
+                                    state: { viewId: r.id, document: r },
+                                  }),
+                              },
+                              {
+                                label: pdfBusyId === r.id ? "Downloading…" : "Download PDF",
+                                icon: <Download className="h-4 w-4" />,
+                                onClick: () => handleDownloadPdf(r),
+                              },
+                              {
+                                label: "Delete",
+                                icon: <Trash2 className="h-4 w-4" />,
+                                danger: true,
+                                onClick: () => handleDelete(r),
+                              },
+                            ]}
+                          />
                         </td>
                       </tr>
                     );

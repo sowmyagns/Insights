@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import AdminModal from "../admin/AdminModal";
+import Button from "./Button";
 import DataTable from "./DataTable";
 import EmptyState from "./EmptyState";
+import { Input, Select, Textarea } from "./FormField";
 import PageHeader from "./PageHeader";
 import SkeletonTable from "./SkeletonTable";
 import { ErrorState, OfflineState } from "./states";
@@ -198,19 +200,14 @@ export default function ResourcePage({
         subtitle={subtitle}
         action={
           createFn && !isOperator ? (
-            <button
-              type="button"
-              onClick={openModal}
-              className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:opacity-90"
-              style={{ backgroundColor: "var(--color-primary)" }}
-            >
+            <Button type="button" onClick={openModal}>
               {createLabel}
-            </button>
+            </Button>
           ) : null
         }
       />
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="ui-card ui-card--padded">
         {loading ? (
           <SkeletonTable rows={6} cols={Math.min(columns.length || 5, 6)} />
         ) : !online && loadError ? (
@@ -243,78 +240,44 @@ export default function ResourcePage({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {fields.map((field) => {
                 const invalid = Boolean(fieldErrors[field.name]);
-                const inputClass = `w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-slate-100 ${
-                  invalid
-                    ? "border-red-400 focus:ring-red-400 dark:border-red-500"
-                    : "border-slate-300 focus:ring-teal-500 dark:border-slate-600"
-                }`;
+                const errMsg = invalid ? fieldErrors[field.name] : undefined;
+                const wrapClass = field.full ? "sm:col-span-2" : "";
+                const common = {
+                  label: field.label,
+                  required: field.required,
+                  error: errMsg,
+                  value: form[field.name] ?? "",
+                  onChange: (e) => setField(field.name, e.target.value),
+                };
                 return (
-                  <div key={field.name} className={field.full ? "sm:col-span-2" : ""}>
-                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                      {field.label}
-                      {field.required && <span className="text-red-500"> *</span>}
-                    </label>
+                  <div key={field.name} className={wrapClass}>
                     {field.type === "select" ? (
-                      <select
-                        value={form[field.name] ?? ""}
-                        onChange={(e) => setField(field.name, e.target.value)}
-                        aria-invalid={invalid}
-                        className={inputClass}
-                      >
-                        <option value="">Select...</option>
-                        {(field.options || []).map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
+                      <Select {...common} options={field.options || []} />
                     ) : field.type === "textarea" ? (
-                      <textarea
-                        value={form[field.name] ?? ""}
-                        onChange={(e) => setField(field.name, e.target.value)}
-                        rows={3}
-                        placeholder={field.placeholder}
-                        aria-invalid={invalid}
-                        className={inputClass}
-                      />
+                      <Textarea {...common} placeholder={field.placeholder} rows={3} />
                     ) : (
-                      <input
+                      <Input
+                        {...common}
                         type={
                           field.type === "datetime"
                             ? "datetime-local"
                             : field.type || "text"
                         }
                         step={field.step}
-                        value={form[field.name] ?? ""}
-                        onChange={(e) => setField(field.name, e.target.value)}
                         placeholder={field.placeholder}
-                        aria-invalid={invalid}
-                        className={inputClass}
                       />
                     )}
-                    {invalid ? (
-                      <p className="mt-1 text-xs text-red-600">{fieldErrors[field.name]}</p>
-                    ) : null}
                   </div>
                 );
               })}
             </div>
             <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-              >
+              <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
                 Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: "var(--color-primary)" }}
-              >
-                {saving ? "Saving..." : "Save"}
-              </button>
+              </Button>
+              <Button type="submit" loading={saving} disabled={saving}>
+                {saving ? "Saving…" : "Save"}
+              </Button>
             </div>
           </form>
         </AdminModal>

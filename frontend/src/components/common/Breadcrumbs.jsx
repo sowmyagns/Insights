@@ -175,6 +175,7 @@ const PAGE_TITLE_OVERRIDES = {
   "/inventory/warehouses/create": "Create Warehouse",
   "/inventory/suppliers/create": "Create Supplier",
   "/meetings": "Meetings",
+  "/procurement/purchase-orders/create": "Create Purchase Order",
 };
 
 function getLabel(segment, segments, index) {
@@ -231,6 +232,7 @@ export function getPageTitle(pathname) {
   if (PAGE_TITLE_OVERRIDES[path]) return PAGE_TITLE_OVERRIDES[path];
   if (/^\/inventory\/items\/[^/]+$/.test(path)) return "Item Details";
   if (/^\/meetings\/[^/]+$/.test(path)) return "Meeting Details";
+  if (/^\/procurement\/purchase-orders\/[^/]+\/edit$/.test(path)) return "Edit Purchase Order";
   const trail = getBreadcrumbTrail(pathname);
   return trail[trail.length - 1]?.label || "Dashboard";
 }

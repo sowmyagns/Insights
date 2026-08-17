@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Building2, ChevronDown, FileText, Grid2x2, ImagePlus, MapPin, Package, PenLine, Plane, Plus, Ban, Search, Ship, TrainFront, Trash2, Truck, User, X } from "lucide-react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Building2, Calendar, ChevronDown, FileText, Grid2x2, GripVertical, ImagePlus, MapPin, Package, PenLine, Plane, Plus, Ban, Search, Ship, TrainFront, Trash2, Truck, User, X } from "lucide-react";
 
 import Loader from "../../components/common/Loader";
 import AddBankAccountModal from "../../components/sales/AddBankAccountModal";
@@ -341,13 +341,6 @@ export default function DebitNoteForm() {
   const [invoiceType, setInvoiceType] = useState("debit_note");
   const [notesText, setNotesText] = useState("");
   const [noteModalOpen, setNoteModalOpen] = useState(false);
-  const [paymentMode, setPaymentMode] = useState("");
-  const [dispatchedDocNo, setDispatchedDocNo] = useState("");
-  const [dispatchedThrough, setDispatchedThrough] = useState("");
-  const [destination, setDestination] = useState("");
-  const [reasonRemark, setReasonRemark] = useState("");
-  const [refInvoiceNo, setRefInvoiceNo] = useState("");
-  const [refInvoiceDate, setRefInvoiceDate] = useState("");
   const [pendingInvoiceType, setPendingInvoiceType] = useState(null);
   const [prefixModalOpen, setPrefixModalOpen] = useState(false);
   const [customPrefixes, setCustomPrefixes] = useState(loadCustomPrefixes);
@@ -641,30 +634,16 @@ export default function DebitNoteForm() {
         place_of_supply: form.place_of_supply || null,
         date_of_supply: form.date_of_supply || null,
         supply_type: form.supply_type || null,
-        po_number: refInvoiceNo || form.po_number || null,
-        po_date: refInvoiceDate || form.po_date || null,
+        po_number: form.po_number || null,
+        po_date: form.po_date || null,
         challan_number: form.challan_number || null,
         ewaybill_number: form.ewaybill_number || null,
         sales_person: form.sales_person || null,
         reverse_charge: Boolean(form.reverse_charge),
         terms_and_conditions: termsAttached ? form.notes || null : null,
         show_signature: Boolean(signatureOn),
-        custom_fields: [
-          ...(paymentMode ? [{ label: "Payment Mode", value: paymentMode }] : []),
-          ...(dispatchedDocNo ? [{ label: "Dispatched Doc No", value: dispatchedDocNo }] : []),
-          ...(dispatchedThrough ? [{ label: "Dispatched Through", value: dispatchedThrough }] : []),
-          ...(destination ? [{ label: "Destination", value: destination }] : []),
-          ...(reasonRemark ? [{ label: "Reason/Remark", value: reasonRemark }] : []),
-          ...customFields.map((f) => ({ label: f.label, value: f.value })),
-        ],
+        custom_fields: customFields.map((f) => ({ label: f.label, value: f.value })),
         notes: [
-          ...(refInvoiceNo ? [`Invoice No: ${refInvoiceNo}`] : []),
-          ...(refInvoiceDate ? [`Invoice Date: ${refInvoiceDate}`] : []),
-          ...(paymentMode ? [`Payment Mode: ${paymentMode}`] : []),
-          ...(dispatchedDocNo ? [`Dispatched Doc No: ${dispatchedDocNo}`] : []),
-          ...(dispatchedThrough ? [`Dispatched Through: ${dispatchedThrough}`] : []),
-          ...(destination ? [`Destination: ${destination}`] : []),
-          ...(reasonRemark ? [`Reason/Remark: ${reasonRemark}`] : []),
           ...(notesText ? [`Notes:\n${notesText}`] : []),
           ...customFields.map((f) => `${f.label}: ${f.value}`),
           bankAccount
@@ -737,6 +716,15 @@ export default function DebitNoteForm() {
   }
 
   const companyName = company?.company_name || company?.name || "My Company";
+  const companyAddress = [
+    company?.address_line1,
+    company?.address_line2,
+    company?.city,
+    company?.state,
+    company?.pincode,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <form
@@ -813,11 +801,15 @@ export default function DebitNoteForm() {
               </label>
               <label className="block">
                 <FieldLabel>Invoice Date</FieldLabel>
-                <SoftInput
-                  type="date"
-                  value={form.issue_date}
-                  onChange={(e) => setForm((f) => ({ ...f, issue_date: e.target.value }))}
-                />
+                <div className="relative">
+                  <SoftInput
+                    type="date"
+                    value={form.issue_date}
+                    onChange={(e) => setForm((f) => ({ ...f, issue_date: e.target.value }))}
+                    className="pr-10"
+                  />
+                  <Calendar className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
+                </div>
               </label>
             </div>
           </section>
@@ -825,19 +817,27 @@ export default function DebitNoteForm() {
           <section className="overflow-hidden bg-white">
             <SectionHeader icon={Building2} title="Supplier Details" />
             <div className="flex items-start justify-between gap-4 border-t-0 p-4">
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-[15px] font-semibold text-[#1a1a1f]">{companyName}</p>
                   <button
                     type="button"
                     onClick={() => setEditCompanyOpen(true)}
-                    className="inline-flex items-center gap-1 text-[13px] font-medium text-[#6b4eff] hover:underline"
+                    className="inline-flex items-center gap-1 text-[13px] font-medium text-[#2563eb] hover:underline"
                   >
                     <PenLine className="h-3.5 w-3.5" />
                     Edit Company Details
                   </button>
                 </div>
-                <DispatchAddressPicker value={dispatchAddress} onChange={setDispatchAddress} />
+                <div className="mt-2 space-y-0.5 text-[12px] leading-relaxed text-[#6b6b76]">
+                  {companyAddress ? <p>{companyAddress}</p> : null}
+                  {company?.gstin ? <p>GSTIN: {company.gstin}</p> : null}
+                </div>
+                <DispatchAddressPicker
+                  value={dispatchAddress}
+                  onChange={setDispatchAddress}
+                  showSelectButton={false}
+                />
                 {dispatchAddress ? (
                   <p className="mt-2 max-w-sm text-[12px] leading-relaxed text-[#6b6b76]">
                     {[dispatchAddress.address, dispatchAddress.city, dispatchAddress.state, dispatchAddress.pincode]
@@ -884,16 +884,15 @@ export default function DebitNoteForm() {
             <button
               type="button"
               onClick={() => setAddBuyerOpen(true)}
-              className="inline-flex items-center gap-1 rounded-lg border border-[#6b4eff] bg-white px-3 py-1.5 text-[13px] font-semibold text-[#6b4eff]"
+              className="inline-flex items-center gap-1 rounded-lg border border-[#d0d0d8] bg-white px-3 py-1.5 text-[13px] font-semibold text-[#4a4a55]"
             >
               <Plus className="h-3.5 w-3.5" />
               Add New Buyer
             </button>
           </SectionHeader>
           <div className="min-h-[88px] border-t-0 p-4">
-            <div className="min-h-[56px] rounded-lg border border-[#d0d0d8] bg-[#fafafa] p-3">
             {showBuyerPicker && (
-              <div className="mb-3 rounded-lg border border-[#d0d0d8] bg-white p-3">
+              <div className="mb-3 rounded-lg border border-[#e4e4ea] bg-[#fafafa] p-3">
                 <div className="relative mb-2">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
                   <input
@@ -949,7 +948,6 @@ export default function DebitNoteForm() {
             ) : !showBuyerPicker ? (
               <p className="py-4 text-center text-[13px] text-[#a0a0ab]">Select a buyer to continue</p>
             ) : null}
-            </div>
           </div>
         </section>
 
@@ -959,20 +957,21 @@ export default function DebitNoteForm() {
             <button
               type="button"
               onClick={() => setAddItemOpen(true)}
-              className="rounded-lg border border-[#d0d0d8] bg-white px-3 py-1.5 text-[13px] font-semibold text-[#4a4a55]"
+              className="rounded-lg border bg-white px-3 py-1.5 text-[13px] font-semibold"
+              style={{ borderColor: PURPLE, color: PURPLE }}
             >
               + Add New Item
             </button>
           </SectionHeader>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] border-collapse text-left text-[12px]">
+            <table className="w-full min-w-[1180px] border-collapse text-left text-[12px]">
               <thead>
                 <tr className="bg-[#f3f3f6] text-[#6b6b76]">
-                  {["#", "Item Name", "HSN", "Qty", "Unit", "Price", "Tax Type", "Discount", "Taxable Value", "GST", "Total Amt", ""].map(
-                    (h) => (
+                  {["", "#", "Item Name", "HSN", "Qty", "Unit", "Price", "Tax Type", "Discount", "Taxable Value", "GST", "Total Amt", ""].map(
+                    (h, hi) => (
                       <th
-                        key={h || "x"}
+                        key={`${h}-${hi}`}
                         className="whitespace-nowrap border-b border-r border-[#d0d0d8] px-2 py-2.5 font-semibold last:border-r-0"
                       >
                         {h}
@@ -988,6 +987,9 @@ export default function DebitNoteForm() {
                   const cell = "border-b border-r border-[#d0d0d8] px-2 py-2 last:border-r-0";
                   return (
                     <tr key={idx}>
+                      <td className="border-b border-r border-[#d0d0d8] px-1.5 py-2 text-[#c4c4cc]">
+                        <GripVertical className="mx-auto h-4 w-4" />
+                      </td>
                       <td className={`${cell} text-[#9a9aa5]`}>{idx + 1}</td>
                       <td className={cell}>
                         <div className="relative min-w-[160px]">
@@ -1004,6 +1006,7 @@ export default function DebitNoteForm() {
                         <input
                           value={row.hsn}
                           onChange={(e) => updateItem(idx, "hsn", e.target.value)}
+                          placeholder="-"
                           className="w-16 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
                         />
                       </td>
@@ -1012,7 +1015,7 @@ export default function DebitNoteForm() {
                           type="number"
                           value={row.qty}
                           onChange={(e) => updateItem(idx, "qty", e.target.value)}
-                          placeholder="0"
+                          placeholder="-"
                           className="w-14 rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1.5 py-1.5"
                         />
                       </td>
@@ -1022,7 +1025,7 @@ export default function DebitNoteForm() {
                           onChange={(e) => updateItem(idx, "unit", e.target.value)}
                           className="w-full rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-1 py-1.5"
                         >
-                          <option value="">Unit</option>
+                          <option value="">-</option>
                           <option value="pcs">pcs</option>
                           <option value="KGS">KGS</option>
                           <option value="MT">MT</option>
@@ -1153,17 +1156,14 @@ export default function DebitNoteForm() {
         </section>
 
         {/* OPTIONAL FIELDS */}
-        <div className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-white">
-          <div
-            className="border-b border-[#d0d0d8] px-4 py-3 text-center text-[12px] font-bold uppercase tracking-[0.12em] text-[#3d3560]"
-            style={{ background: LAVENDER }}
-          >
+        <div className="space-y-3">
+          <p className="text-center text-[12px] font-bold uppercase tracking-[0.12em] text-[#6b6b76]">
             Optional Fields
-          </div>
+          </p>
 
-          <div className="grid gap-0 lg:grid-cols-2 lg:divide-x lg:divide-[#d0d0d8]">
+          <div className="grid gap-4 lg:grid-cols-2">
             {/* Transportation */}
-            <section className="overflow-hidden border-b border-[#d0d0d8] bg-white lg:border-b-0">
+            <section className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-white">
               <SectionHeader
                 icon={Truck}
                 title="Transportation Details"
@@ -1315,7 +1315,7 @@ export default function DebitNoteForm() {
             </section>
 
             {/* Other details */}
-            <section className="overflow-hidden bg-white">
+            <section className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-white">
               <SectionHeader
                 icon={Grid2x2}
                 title="Other Details"
@@ -1325,24 +1325,24 @@ export default function DebitNoteForm() {
               />
               {otherDetailsOpen ? (
               <div className="space-y-3 p-4">
-                <div className="grid gap-0 sm:grid-cols-2 sm:divide-x sm:divide-[#e8e8ee]">
-                  <label className="block border-b border-[#e8e8ee] p-3 sm:border-b">
-                    <FieldLabel>Invoice No</FieldLabel>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <FieldLabel>PO Number</FieldLabel>
                     <SoftInput
-                      placeholder="Enter Invoice No"
-                      value={refInvoiceNo}
-                      onChange={(e) => setRefInvoiceNo(e.target.value)}
+                      placeholder="Enter PO Number"
+                      value={form.po_number}
+                      onChange={(e) => setForm((f) => ({ ...f, po_number: e.target.value }))}
                     />
                   </label>
-                  <label className="block border-b border-[#e8e8ee] p-3">
-                    <FieldLabel>Invoice Date</FieldLabel>
+                  <label className="block">
+                    <FieldLabel>PO Date</FieldLabel>
                     <SoftInput
                       type="date"
-                      value={refInvoiceDate}
-                      onChange={(e) => setRefInvoiceDate(e.target.value)}
+                      value={form.po_date}
+                      onChange={(e) => setForm((f) => ({ ...f, po_date: e.target.value }))}
                     />
                   </label>
-                  <label className="block border-b border-[#e8e8ee] p-3">
+                  <label className="block">
                     <FieldLabel>Challan Number</FieldLabel>
                     <SoftInput
                       placeholder="Enter Challan Number"
@@ -1350,7 +1350,7 @@ export default function DebitNoteForm() {
                       onChange={(e) => setForm((f) => ({ ...f, challan_number: e.target.value }))}
                     />
                   </label>
-                  <label className="block border-b border-[#e8e8ee] p-3">
+                  <label className="block">
                     <FieldLabel>E-Waybill Number</FieldLabel>
                     <SoftInput
                       placeholder="Enter E-Waybill Number"
@@ -1358,46 +1358,31 @@ export default function DebitNoteForm() {
                       onChange={(e) => setForm((f) => ({ ...f, ewaybill_number: e.target.value }))}
                     />
                   </label>
-                  <label className="block border-b border-[#e8e8ee] p-3">
-                    <FieldLabel>Payment Mode</FieldLabel>
+                  <label className="block">
+                    <FieldLabel>Sales Person</FieldLabel>
                     <SoftInput
-                      placeholder="Enter Payment Mode"
-                      value={paymentMode}
-                      onChange={(e) => setPaymentMode(e.target.value)}
+                      placeholder="Enter Sales Person"
+                      value={form.sales_person}
+                      onChange={(e) => setForm((f) => ({ ...f, sales_person: e.target.value }))}
                     />
                   </label>
-                  <label className="block border-b border-[#e8e8ee] p-3">
-                    <FieldLabel>Dispatched Doc No</FieldLabel>
+                  <label className="block">
+                    <FieldLabel>Due Date</FieldLabel>
                     <SoftInput
-                      placeholder="Enter Dispatched Doc No"
-                      value={dispatchedDocNo}
-                      onChange={(e) => setDispatchedDocNo(e.target.value)}
-                    />
-                  </label>
-                  <label className="block border-b border-[#e8e8ee] p-3">
-                    <FieldLabel>Dispatched Through</FieldLabel>
-                    <SoftInput
-                      placeholder="Enter Dispatched Through"
-                      value={dispatchedThrough}
-                      onChange={(e) => setDispatchedThrough(e.target.value)}
-                    />
-                  </label>
-                  <label className="block border-b border-[#e8e8ee] p-3">
-                    <FieldLabel>Destination</FieldLabel>
-                    <SoftInput
-                      placeholder="Enter Destination"
-                      value={destination}
-                      onChange={(e) => setDestination(e.target.value)}
+                      type="date"
+                      value={form.due_date}
+                      onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
                     />
                   </label>
                 </div>
-                <label className="block border border-[#e8e8ee] p-3">
-                  <FieldLabel>Reason/Remark</FieldLabel>
-                  <SoftInput
-                    placeholder="Enter Reason/Remark"
-                    value={reasonRemark}
-                    onChange={(e) => setReasonRemark(e.target.value)}
+                <label className="inline-flex items-center gap-2 text-[13px] text-[#4a4a55]">
+                  <input
+                    type="checkbox"
+                    checked={form.reverse_charge}
+                    onChange={(e) => setForm((f) => ({ ...f, reverse_charge: e.target.checked }))}
+                    className="h-4 w-4 rounded border-[#c4c4cc]"
                   />
+                  Reverse Charge Applicable?
                 </label>
                 {customFields.map((field) => (
                   <div
@@ -1437,6 +1422,37 @@ export default function DebitNoteForm() {
               ) : null}
             </section>
           </div>
+
+          {/* Bank */}
+          <section className="overflow-hidden rounded-xl border border-[#d0d0d8] bg-white">
+            <SectionHeader icon={Building2} title="Bank / Payment Details (Optional)">
+              <button
+                type="button"
+                onClick={() => setBankModalOpen(true)}
+                className="rounded-lg border border-[#d8d8e0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4a4a55]"
+              >
+                {bankAccount ? "Edit Bank Details" : "+ Add New Bank Details"}
+              </button>
+            </SectionHeader>
+            {bankAccount ? (
+              <div className="space-y-1 border-t border-[#ececf0] p-4 text-[13px] text-[#4a4a55]">
+                <p className="font-semibold text-[#1a1a1f]">{bankAccount.bank_name}</p>
+                {bankAccount.account_holder ? <p>{bankAccount.account_holder}</p> : null}
+                {bankAccount.account_number ? (
+                  <p className="tabular-nums">A/C: {bankAccount.account_number}</p>
+                ) : null}
+                <p>
+                  {[bankAccount.ifsc, bankAccount.branch_name].filter(Boolean).join(" · ")}
+                </p>
+                {bankAccount.upi_id ? (
+                  <p>
+                    UPI: {bankAccount.upi_id}
+                    {bankAccount.show_upi_qr ? " · QR on invoice" : ""}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
         </div>
 
           {/* Terms */}

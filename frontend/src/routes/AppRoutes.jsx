@@ -94,6 +94,18 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/production/daily-reports"
+        element={<Navigate to="/production/reports" replace />}
+      />
+      <Route
+        path="/production/batch-tracking"
+        element={
+          <ProtectedRoute>
+            <P.BatchTracking />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/production/create"
         element={
           <ProtectedRoute>
@@ -289,102 +301,7 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/hr"
-        element={
-          <ProtectedRoute>
-            <P.HRDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/attendance"
-        element={
-          <ProtectedRoute>
-            <P.Attendance />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/attendance/daily"
-        element={
-          <ProtectedRoute>
-            <P.Attendance />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/attendance/calendar"
-        element={
-          <ProtectedRoute>
-            <P.Attendance />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/attendance/leave-summary"
-        element={
-          <ProtectedRoute>
-            <P.Attendance />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/attendance/reports"
-        element={
-          <ProtectedRoute>
-            <P.Attendance />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/leave"
-        element={
-          <ProtectedRoute>
-            <P.Leave />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/leave/create"
-        element={
-          <ProtectedRoute>
-            <P.Leave autoOpenCreate={true} />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/shifts"
-        element={
-          <ProtectedRoute>
-            <P.Shifts />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/shifts/create"
-        element={
-          <ProtectedRoute>
-            <P.Shifts autoOpenCreate={true} />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/payroll"
-        element={
-          <ProtectedRoute>
-            <P.Payroll />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/performance"
-        element={
-          <ProtectedRoute>
-            <P.Performance />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/hr" element={<Navigate to="/hr/employees" replace />} />
       <Route
         path="/hr/employees"
         element={
@@ -398,22 +315,6 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute>
             <P.Employees autoOpenCreate={true} />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/payroll/create"
-        element={
-          <ProtectedRoute>
-            <P.Payroll autoOpenCreate={true} />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/performance/create"
-        element={
-          <ProtectedRoute>
-            <P.Performance autoOpenCreate={true} />
           </ProtectedRoute>
         }
       />
@@ -446,62 +347,6 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute>
             <P.IncidentReports autoOpenCreate={true} />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/documents"
-        element={
-          <ProtectedRoute>
-            <P.HRDocuments />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/recruitment"
-        element={
-          <ProtectedRoute>
-            <P.Recruitment />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/recruitment/candidates"
-        element={
-          <ProtectedRoute>
-            <P.Recruitment />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/recruitment/interviews"
-        element={
-          <ProtectedRoute>
-            <P.Recruitment />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/training"
-        element={
-          <ProtectedRoute>
-            <P.Training />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/training/sessions"
-        element={
-          <ProtectedRoute>
-            <P.Training />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/settings"
-        element={
-          <ProtectedRoute>
-            <P.HRSettings />
           </ProtectedRoute>
         }
       />
@@ -738,6 +583,7 @@ export default function AppRoutes() {
       <Route path="/sales/debit-notes" element={<ProtectedRoute><P.DebitNotes /></ProtectedRoute>} />
       <Route path="/sales/debit-notes/create" element={<ProtectedRoute><P.DebitNoteForm /></ProtectedRoute>} />
       <Route path="/sales/debit-notes/:id/edit" element={<ProtectedRoute><P.DebitNoteForm /></ProtectedRoute>} />
+      <Route path="/sales/debit-notes/:id" element={<ProtectedRoute><P.InvoiceCopyPage /></ProtectedRoute>} />
       <Route path="/sales/e-invoice" element={<ProtectedRoute><P.EInvoiceLogin /></ProtectedRoute>} />
       <Route path="/ewaybill/login" element={<ProtectedRoute><P.EwaybillLogin /></ProtectedRoute>} />
       <Route path="/digital-signature" element={<ProtectedRoute><P.DigitalSignatureSetup /></ProtectedRoute>} />
@@ -751,6 +597,7 @@ export default function AppRoutes() {
       <Route path="/purchases/debit-notes" element={<ProtectedRoute><P.PurchaseDebitNotes /></ProtectedRoute>} />
       <Route path="/purchases/debit-notes/create" element={<ProtectedRoute><P.PurchaseDebitNoteForm /></ProtectedRoute>} />
       <Route path="/purchases/debit-notes/:id/edit" element={<ProtectedRoute><P.PurchaseDebitNoteForm /></ProtectedRoute>} />
+      <Route path="/purchases/debit-notes/:id" element={<ProtectedRoute><P.PurchaseCopyPage /></ProtectedRoute>} />
       <Route path="/accounts/reports" element={<ProtectedRoute><P.AccountingReports /></ProtectedRoute>} />
       <Route path="/accounts/reports/:reportId" element={<ProtectedRoute><P.ReportDetailV2 /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><P.AccountingReports /></ProtectedRoute>} />
@@ -797,6 +644,7 @@ export default function AppRoutes() {
       <Route path="/procurement/goods-receipt/create" element={<ProtectedRoute><P.CreateGoodsReceipt /></ProtectedRoute>} />
       <Route path="/procurement/supplier-payments" element={<ProtectedRoute><P.SupplierPayments /></ProtectedRoute>} />
       <Route path="/procurement/supplier-payments/create" element={<ProtectedRoute><P.CreateSupplierPayment /></ProtectedRoute>} />
+      <Route path="/procurement/vendor-bills" element={<ProtectedRoute><P.VendorBills /></ProtectedRoute>} />
       <Route path="/procurement/supply-chain" element={<ProtectedRoute><P.SupplyChainDashboard /></ProtectedRoute>} />
       <Route path="/quality" element={<ProtectedRoute><P.QualityDashboard /></ProtectedRoute>} />
       <Route path="/quality/incoming" element={<ProtectedRoute><P.IncomingInspection /></ProtectedRoute>} />
@@ -886,6 +734,7 @@ export default function AppRoutes() {
       <Route path="/procurement/rfq" element={<ProtectedRoute><P.RFQ /></ProtectedRoute>} />
       <Route path="/finance/accounts-payable" element={<ProtectedRoute><Navigate to="/accounts/accounts-payable" replace /></ProtectedRoute>} />
       <Route path="/finance/accounts-receivable" element={<ProtectedRoute><P.AccountsReceivable /></ProtectedRoute>} />
+      <Route path="/accounts/accounts-receivable" element={<Navigate to="/finance/accounts-receivable" replace />} />
       <Route path="/finance/payment-tracking" element={<ProtectedRoute><P.PaymentTracking /></ProtectedRoute>} />
       <Route path="/finance/general-ledger" element={<ProtectedRoute><P.GeneralLedger /></ProtectedRoute>} />
       <Route path="/finance" element={<ProtectedRoute><Navigate to="/accounts" replace /></ProtectedRoute>} />

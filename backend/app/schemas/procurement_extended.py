@@ -127,6 +127,14 @@ class VendorBillCreate(BaseModel):
     due_date: str | None = None
 
 
+class VendorBillUpdate(BaseModel):
+    bill_number: str | None = None
+    amount: float | None = None
+    gst_amount: float | None = None
+    bill_date: str | None = None
+    due_date: str | None = None
+
+
 class VendorBillStatusUpdate(BaseModel):
     status: str
 

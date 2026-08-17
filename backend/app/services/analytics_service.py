@@ -5,9 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.models.hr import Employee, PerformanceReview
-
-logger = logging.getLogger(__name__)
+from app.models.hr import Employee
 from app.models.inventory import InventoryItem, StockLevel, StockMovement
 from app.models.machine import Machine
 from app.models.production import DailyProductionReport
@@ -192,64 +190,19 @@ def get_inventory_turnover_rate(db: Session, tenant_id: int) -> dict:
 
 
 def get_worker_performance_score(db: Session, tenant_id: int) -> dict:
-    """Average performance score from PerformanceReview (productivity_score, rating)."""
-    try:
-        stmt = (
-            select(
-                func.avg(PerformanceReview.productivity_score),
-                func.avg(PerformanceReview.rating),
-                func.count(PerformanceReview.id),
-            )
-            .where(PerformanceReview.tenant_id == tenant_id)
+    """Worker performance metrics (HR performance reviews removed)."""
+    active_employees = db.scalar(
+        select(func.count(Employee.id)).where(
+            Employee.tenant_id == tenant_id,
+            Employee.is_active == True,
         )
-        row = db.execute(stmt).first()
-        prod_avg = float(row[0] or 0)
-        rating_avg = float(row[1] or 0)
-        count = row[2] or 0
-
-        # Score: blend productivity (0-100) and rating (often 1-5), normalize to 0-100
-        if count > 0:
-            if rating_avg and rating_avg <= 5:
-                rating_norm = (rating_avg / 5) * 100
-            else:
-                rating_norm = rating_avg
-            score = round((prod_avg + rating_norm) / 2, 1) if (prod_avg or rating_norm) else 0.0
-        else:
-            score = 0.0  # no reviews yet — return 0 so frontend shows empty state
-
-        # Top performers from recent reviews
-        top_stmt = (
-            select(PerformanceReview.employee_id, PerformanceReview.productivity_score)
-            .where(PerformanceReview.tenant_id == tenant_id)
-            .where(PerformanceReview.productivity_score.isnot(None))
-            .order_by(PerformanceReview.productivity_score.desc())
-            .limit(5)
-        )
-        top_ids = [r[0] for r in db.execute(top_stmt).all()]
-
-        return {
-            "average_score": min(100, max(0, score)),
-            "reviews_count": count,
-            "top_performer_ids": top_ids,
-        }
-    except SQLAlchemyError as e:
-        logger.error(
-            f"Database error in get_worker_performance_score for tenant {tenant_id}: {str(e)}"
-        )
-        return {
-            "average_score": 0.0,
-            "reviews_count": 0,
-            "top_performer_ids": [],
-        }
-    except Exception as e:
-        logger.error(
-            f"Unexpected error in get_worker_performance_score for tenant {tenant_id}: {str(e)}"
-        )
-        return {
-            "average_score": 0.0,
-            "reviews_count": 0,
-            "top_performer_ids": [],
-        }
+    ) or 0
+    return {
+        "average_score": 0.0,
+        "reviews_count": 0,
+        "top_performer_ids": [],
+        "active_employees": int(active_employees),
+    }
 
 
 def get_profit_analysis(db: Session, tenant_id: int, year: int) -> dict:

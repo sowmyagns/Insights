@@ -9,10 +9,16 @@ import EmployeeAddressModal from "../../components/hr/EmployeeAddressModal";
 import EmployeeDetailModal from "../../components/hr/EmployeeDetailModal";
 import { DepartmentFormModal } from "../../components/hr/DepartmentDetailModal";
 import { useToast } from "../../context/ToastContext";
-import { getEmployeeSummary, getEmployeesEnriched, createEmployee, getShifts, getDepartments, createDepartment } from "../../api/hrApi";
+import { getEmployeeSummary, getEmployeesEnriched, createEmployee, getDepartments, createDepartment } from "../../api/hrApi";
 import useTenantId from "../../hooks/useTenantId";
 import usePageRefresh from "../../hooks/usePageRefresh";
 import { deptColor, formatInr, statusColor } from "../../data/hrMasterData";
+
+const DEFAULT_SHIFT_OPTIONS = [
+  { id: 1, name: "Day Shift", start_time: "08:00:00", end_time: "16:30:00" },
+  { id: 2, name: "Night Shift", start_time: "20:00:00", end_time: "04:30:00" },
+  { id: 3, name: "General Shift", start_time: "09:00:00", end_time: "17:30:00" },
+];
 
 import Button from "../../components/common/Button";
 const inputClass =
@@ -66,10 +72,9 @@ export default function Employees() {
     async (isManual = false) => {
       setLoading(true);
       try {
-        const [sumRes, listRes, shiftRes] = await Promise.allSettled([
+        const [sumRes, listRes] = await Promise.allSettled([
           getEmployeeSummary(),
           getEmployeesEnriched(),
-          getShifts(),
         ]);
         if (sumRes.status === "fulfilled" && sumRes.value?.data) {
           setSummary(sumRes.value.data || {});
@@ -81,11 +86,7 @@ export default function Employees() {
         } else {
           setRows([]);
         }
-        if (shiftRes.status === "fulfilled" && Array.isArray(shiftRes.value?.data)) {
-          setShifts([...shiftRes.value.data]);
-        } else {
-          setShifts([]);
-        }
+        setShifts(DEFAULT_SHIFT_OPTIONS);
         await loadDepts();
       } catch {
         setSummary({});
@@ -265,7 +266,7 @@ export default function Employees() {
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Create Employee</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Add a new employee record for attendance, leave, and payroll.</p>
+                <p className="text-xs text-slate-500 mt-0.5">Add a new employee record for your organization.</p>
               </div>
               <button
                 type="button"

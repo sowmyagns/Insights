@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.permissions import tenant_scope
-from app.models.hr import AttendanceRecord, Employee, Shift
+from app.models.hr import Employee
 from app.models.machine import Machine
 from app.models.product import Product
 from app.models.production import DailyProductionReport, ProductionOrder, WorkOrder
@@ -91,11 +91,10 @@ def get_schedule_dashboard(
 
     # Operators present today
     operators_present = db.scalar(
-        select(func.count()).select_from(AttendanceRecord)
+        select(func.count()).select_from(Employee)
         .where(
-            AttendanceRecord.tenant_id == tenant_id,
-            AttendanceRecord.record_date == today,
-            AttendanceRecord.status == "present",
+            Employee.tenant_id == tenant_id,
+            Employee.is_active == True,
         )
     ) or 0
 

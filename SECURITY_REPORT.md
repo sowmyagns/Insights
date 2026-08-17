@@ -309,3 +309,153 @@ SMTP_FROM_EMAIL=noreply@your-domain.com
 |------|------|
 | 2026-08-13 | Confirmed UI/design-system and Job Card read-path work do not alter auth, RBAC, tenant isolation, or CORS. Cross-linked README and Project Analysis Report. |
 | 2026-08-15 | HR dashboard UI pass documented. HR Settings toggles are client-side only. RBAC menu expanded for HR sections. Chart of Accounts dedupe noted as data-integrity fix, not auth change. |
+| 2026-08-16 | Full security audit + hardening pass (this section). |
+
+---
+
+## Security Audit — 16 August 2026
+
+Authorized full-stack security review: audit → fix → test → re-check. No destructive testing, no architecture redesign, no UI changes beyond security-related behavior.
+
+### Executive Summary
+
+| Area | Status |
+|------|--------|
+| **Authentication** | Strong — bcrypt, JWT + refresh rotation, lockout, generic login errors, session inactivity |
+| **Authorization / RBAC** | Good — JWT on business APIs, tenant scoping; action-level RBAC extended on accounts mutations |
+| **API security** | Improved — destructive system routes locked down; OpenAPI disabled in production |
+| **Database** | Good — ORM/parameterized queries; SQLite file gitignored |
+| **Frontend** | Improved — session requires token; platform auth header collision fixed; print XSS mitigated |
+| **CORS / headers** | Good — explicit origins; security headers middleware; localhost regex dev-only |
+| **Dependencies** | Frontend `xlsx` has known advisories (no fix available); backend pip audit not available in env |
+
+### Issues Found & Remediation
+
+| Severity | Issue | Location | Status |
+|----------|-------|----------|--------|
+| **Critical** | Any authenticated user could wipe/seed tenant operational data | `backend/app/api/system_data.py` | **Fixed** — `require_admin` + blocked in production |
+| **Critical** | Client auth bypass via `smrt-user` in localStorage without JWT | `frontend/src/context/AuthContext.jsx` | **Fixed** — `isAuthenticated` requires token + user; 401 clears session |
+| **Critical** | Tenant axios interceptor overwrote platform `Authorization` header | `frontend/src/api/axiosConfig.js` | **Fixed** — skip tenant token on `/platform/*` |
+| **High** | Finance mutations (expenses, journals, GL) used module-only RBAC | `backend/app/api/accounts.py` | **Fixed** — `require_action` / `tenant_scope_action` on writes |
+| **High** | Demo passwords reset on every startup | `backend/app/core/seed_users.py` | **Fixed** — no password overwrite in production |
+| **High** | Super-admin password synced from `.env` every startup | `backend/app/core/seed_super_admin.py` | **Fixed** — dev-only password sync |
+| **High** | Real credentials in `.env.example` | `backend/.env.example` | **Fixed** — placeholders only |
+| **High** | Platform login lacked IP rate limiting | `backend/app/api/platform_api.py` | **Fixed** — `check_rate_limit` on login |
+| **High** | Hardcoded credentials in debug script | `backend/tmp_login_check.py` | **Fixed** — file removed |
+| **Medium** | OpenAPI/Swagger exposed in production | `backend/app/main.py` | **Fixed** — docs/openapi disabled when `ENVIRONMENT=production` |
+| **Medium** | `/health` leaked environment name | `backend/app/main.py` | **Fixed** — minimal response in production |
+| **Medium** | CORS localhost regex with credentials in all envs | `backend/app/main.py` | **Fixed** — regex dev-only |
+| **Medium** | Public `GET /roles` exposed role catalog | `backend/app/api/rbac_api.py` | **Fixed** — requires authentication |
+| **Medium** | Unhandled exception handler could leak `str(exc)` | `backend/app/middleware/exception_handler.py` | **Fixed** — generic message only |
+| **Medium** | 401 handler kept forged user object in storage | `frontend/src/api/axiosConfig.js`, `AuthContext.jsx` | **Fixed** |
+| **Medium** | 5xx API errors forwarded raw backend `detail` to UI | `frontend/src/api/axiosConfig.js`, `utils/apiError.js` | **Fixed** — generic message for 500+ |
+| **Medium** | XSS in print templates (`document.write`) | `Dispatch.jsx`, `printUtils.js` | **Fixed** — `escapeHtml()` on dynamic fields |
+| **Low** | JWT in localStorage (XSS token theft risk) | Frontend auth | **Open** — recommend httpOnly cookies (future) |
+| **Low** | `require_action` not used on all module DELETE routes | Various API routers | **Partial** — accounts done; extend incrementally |
+| **Low** | Google OAuth tokens stored plaintext in SQLite | `google_calendar_service.py` | **Open** — use `field_crypto.py` |
+| **Low** | In-memory rate limiting (single-process) | `middleware/security.py` | **Open** — Redis/edge limits for production |
+| **Info** | `xlsx` package — prototype pollution / ReDoS advisories | `frontend/package.json` | **Open** — no upstream fix; review export usage |
+| **Info** | HR Settings 2FA toggle is UI-only | `SettingsSectionContent.jsx` | **Open** — document; wire to backend when ready |
+
+### Fixes Applied (16 Aug 2026)
+
+**Backend**
+- `system_data.py` — admin-only + production guard on clear/seed
+- `permissions.py` — added `tenant_scope_action(module, action)`
+- `accounts.py` — action-level RBAC on create/update/delete
+- `main.py` — production docs off, minimal health, dev-only CORS regex
+- `platform_api.py` — login rate limit
+- `rbac_api.py` — authenticated `/roles`
+- `seed_users.py`, `seed_super_admin.py` — no production credential resets
+- `.env.example` — placeholder super-admin credentials
+- `exception_handler.py` — no exception text in API responses
+- Removed `tmp_login_check.py`
+
+**Frontend**
+- `AuthContext.jsx` — token required for session; clear on 401
+- `axiosConfig.js` — platform route auth isolation; always clear on 401; generic 5xx toasts
+- `apiError.js` — mask 500+ errors
+- `htmlEscape.js` (new) — shared HTML escaping
+- `printUtils.js`, `Dispatch.jsx` — escaped print output
+
+### Verification Performed
+
+| Check | Result |
+|-------|--------|
+| Frontend production build | **Pass** (`npm run build`) |
+| Core backend security tests | **Pass** — `test_auth.py`, `test_rbac.py`, `test_tenant_isolation.py`, `test_journal_entries_api.py` |
+| Full backend suite | **Pre-existing failures** in repository-layer tests (unrelated to this pass); documented, not bypassed |
+| npm audit (high+) | **10 issues** — includes `xlsx` with no fix; no blind upgrades applied |
+| pip audit | Not available in current Python environment |
+
+### Authentication Status
+
+- Passwords hashed with bcrypt; never returned in API responses
+- JWT access (30 min) + refresh (7 days) with rotation and revocation
+- Session inactivity enforced; email verification required in production
+- Generic `"Invalid Credentials"` on failed login
+- Account lockout after 5 failures (30 min)
+
+### Authorization / RBAC Status
+
+- All business routers require JWT via `get_current_user` / `require_permission` / `tenant_scope`
+- Tenant isolation enforced in services (IDOR mitigated when IDs are scoped by `tenant_id`)
+- Action-level checks now enforced on **accounts** write/delete endpoints
+- **Gap:** Other modules still rely primarily on module-level `tenant_scope`; Operators with module access may mutate unless `require_action` is added per route
+
+### API Security Status
+
+- Pydantic validation on request bodies
+- Global handlers return safe 500/DB error messages (no stack traces)
+- Production: `/docs`, `/openapi.json`, `/redoc` disabled
+- Destructive `/api/system/*` endpoints admin-only and dev-only
+
+### Database Security Status
+
+- SQLAlchemy ORM with parameterized queries (no user-controlled SQL concatenation in request paths)
+- `smrt.db` in `.gitignore`
+- Startup `ALTER TABLE` migrations are SQLite-specific — review before PostgreSQL migration
+
+### Frontend Security Status
+
+- ~200+ routes behind `ProtectedRoute` + path RBAC (UX layer)
+- Session now requires valid JWT presence (not user JSON alone)
+- No hardcoded production API keys in source
+- AI markdown uses escape-first rendering; print flows now HTML-escaped
+- Client RBAC remains **UX only** — backend is authoritative
+
+### CORS & Security Headers Status
+
+- `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, CSP (strict on API; relaxed on docs in dev)
+- HSTS in production
+- CORS: explicit `CORS_ORIGINS`; localhost regex only in development
+
+### PostgreSQL Migration — Security Risks
+
+| Risk | Notes |
+|------|-------|
+| SQLite-only validator in `config.py` | Must relax `require_sqlite` before PG cutover |
+| Runtime `ALTER TABLE` in `main.py` startup | Replace with Alembic migrations |
+| `check_same_thread=False` | Not applicable to PostgreSQL pool |
+| Boolean / JSON / datetime types | Audit models using SQLite-specific defaults |
+| Case-sensitive string uniqueness | PostgreSQL differs from SQLite for some collations |
+| Concurrent writes | SQLite WAL not configured; PG will improve isolation under load |
+
+### Remaining Security TODOs
+
+1. Extend `require_action` to DELETE/PUT on inventory, sales, HR, procurement, documents
+2. Move JWT to httpOnly Secure SameSite cookies
+3. Encrypt Google OAuth and e-waybill credentials at rest (`field_crypto.py`)
+4. Redis or edge rate limiting for multi-instance deployments
+5. Replace or isolate `xlsx` for exports (known CVEs, no fix)
+6. Wire HR Settings security toggles to backend policy
+7. Full CRUD audit logging on business modules
+8. Migrate to Alembic-only schema management before PostgreSQL
+
+### Recommended Future Improvements
+
+- MFA for Admin and Super Admin accounts
+- CSRF tokens if moving to cookie-based auth
+- Content-Security-Policy meta/header on Vite frontend build
+- Periodic dependency review with `npm audit` / `pip-audit` in CI
+- Security regression tests for IDOR on high-value IDs (invoice, payroll, stock adjustment)

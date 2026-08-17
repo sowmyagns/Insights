@@ -263,7 +263,7 @@ export default function MachineDetailModal({ machine, detail, onClose, onStatusC
                 <Link to="/maintenance/schedule" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                   Schedule Maintenance
                 </Link>
-                <Link to="/production/daily-reports" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                <Link to="/production/reports" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                   View Production
                 </Link>
                 <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
