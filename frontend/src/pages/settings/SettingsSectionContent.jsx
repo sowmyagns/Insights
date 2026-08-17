@@ -830,7 +830,6 @@ function ProductionSection() {
     <PanelShell title="Production Settings" description="Shifts, work orders, machines, and scheduling defaults.">
       <div className="grid gap-4 sm:grid-cols-2">
         {[
-          { title: "Shift timings", desc: "Define plant shifts and working hours.", to: "/hr/shifts" },
           { title: "Work orders", desc: "Manage WO lifecycle and shop-floor flow.", to: "/production/work-orders" },
           { title: "Machine allocation", desc: "Assign machines and monitor status.", to: "/production/machines" },
           { title: "Production calendar", desc: "Plan capacity and schedules.", to: "/production/schedule" },
@@ -1049,7 +1048,7 @@ function ApiSection() {
 function BackupSection() {
   const { addToast } = useToast();
   return (
-    <PanelShell title="Backup & Restore" description="Protect your SQLite database with scheduled backups.">
+    <PanelShell title="Backup & Restore" description="Protect your PostgreSQL database with scheduled backups.">
       <div className="grid gap-4 sm:grid-cols-2">
         <SectionCard title="Actions">
           <div className="flex flex-col gap-2">
@@ -1137,7 +1136,7 @@ function AboutSection() {
             ["Build", "2026.07"],
             ["License", user?.license_status || "Active"],
             ["Plan", user?.subscription_plan || "Trial"],
-            ["Database", "SQLite"],
+            ["Database", "PostgreSQL"],
             ["Company", user?.company_name || user?.tenant_name || "—"],
             ["Last update", "July 2026"],
           ].map(([k, v]) => (

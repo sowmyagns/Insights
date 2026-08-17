@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.permissions import user_is_admin
@@ -72,6 +73,13 @@ def record_login_history(
         full_name = None
         user_id = None
         resolved_role = role
+    try:
+        parsed = parse_user_agent(user_agent)
+        company_id = None
+        company_name = None
+        full_name = None
+        user_id = None
+        resolved_role = role
 
         if user is not None:
             user_id = user.id
@@ -126,6 +134,10 @@ def mark_logout(
     *,
     user_id: int | None = None,
     email: str | None = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+    history_id: int | None = None,
+    all_sessions: bool = False,
 ) -> LoginHistory | None:
     """Set logout_at on the latest open successful session for the user."""
     try:
@@ -191,13 +203,37 @@ def delete_history(db: Session, *, history_id: int, admin: User) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Administrator privileges are required.",
         )
-    row = db.get(LoginHistory, history_id)
-    if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Login history not found.")
-    if row.company_id != admin.tenant_id:
+    try:
+        row = db.get(LoginHistory, history_id)
+        if not row:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Login history not found.")
+        if row.company_id != admin.tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot delete login history outside your company.",
+            )
+        db.delete(row)
+        db.commit()
+    except HTTPException:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("delete_history database error for history_id=%s: %s", history_id, exc)
+        try:
+            db.rollback()
+        except Exception:
+            pass
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot delete login history outside your company.",
-        )
-    db.delete(row)
-    db.commit()
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error while deleting login history.",
+        ) from exc
+    except Exception as exc:
+        logger.exception("delete_history unexpected error for history_id=%s: %s", history_id, exc)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise

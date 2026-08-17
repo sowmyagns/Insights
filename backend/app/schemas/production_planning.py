@@ -1,17 +1,17 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ProductionOrderListRead(BaseModel):
-    id: int
-    tenant_id: int
-    product_id: int
+    id: int = Field(..., ge=1)
+    tenant_id: int = Field(..., ge=1)
+    product_id: int = Field(..., ge=1)
     order_number: str
-    planned_quantity: float
-    produced_quantity: float = 0
-    balance_quantity: float = 0
-    scrap_quantity: float = 0
+    planned_quantity: float = Field(..., ge=0.0)
+    produced_quantity: float = Field(0.0, ge=0.0)
+    balance_quantity: float | None = Field(None, ge=0.0)
+    scrap_quantity: float = Field(0.0, ge=0.0)
     start_date: datetime | None = None
     due_date: datetime | None = None
     status: str = "planned"
@@ -26,9 +26,23 @@ class ProductionOrderListRead(BaseModel):
     work_order_number: str | None = None
     machine_name: str | None = None
     machine_code: str | None = None
-    progress_pct: float = 0
+    progress_pct: float = Field(0.0, ge=0.0, le=100.0)
     is_delayed: bool = False
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def validate_balance_quantity(self) -> "ProductionOrderListRead":
+        if self.planned_quantity is not None and self.produced_quantity is not None:
+            expected_balance = max(self.planned_quantity - self.produced_quantity, 0.0)
+            if self.balance_quantity is None:
+                self.balance_quantity = expected_balance
+            elif abs(self.balance_quantity - expected_balance) > 0.01:
+                raise ValueError(
+                    f"balance_quantity ({self.balance_quantity}) is inconsistent with "
+                    f"planned_quantity ({self.planned_quantity}) and produced_quantity ({self.produced_quantity}). "
+                    f"Expected balance is {expected_balance}."
+                )
+        return self
 
 
 class ProductionPlanningSummaryRead(BaseModel):
@@ -44,19 +58,19 @@ class ProductionPlanningSummaryRead(BaseModel):
 
 class ProductionMaterialRead(BaseModel):
     component_name: str
-    required_qty: float
-    available_qty: float
-    issued_qty: float = 0
-    balance_qty: float = 0
+    required_qty: float = Field(..., ge=0.0)
+    available_qty: float = Field(..., ge=0.0)
+    issued_qty: float = Field(0.0, ge=0.0)
+    balance_qty: float = Field(0.0, ge=0.0)
     unit: str = "pcs"
 
 
 class ProductionWorkOrderRead(BaseModel):
-    id: int
+    id: int = Field(..., ge=1)
     work_order_number: str
     status: str
-    planned_quantity: float
-    actual_quantity: float | None = None
+    planned_quantity: float = Field(..., ge=0.0)
+    actual_quantity: float | None = Field(None, ge=0.0)
     machine_name: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
@@ -73,12 +87,12 @@ class ProductionOrderDetailRead(ProductionOrderListRead):
     operator_name: str | None = None
     supervisor: str | None = None
     machine_status: str | None = None
-    machine_utilization_pct: float | None = None
-    operator_efficiency_pct: float | None = None
-    scrap_pct: float = 0
-    production_efficiency_pct: float = 0
-    downtime_minutes: int = 0
-    oee_pct: float | None = None
+    machine_utilization_pct: float | None = Field(None, ge=0.0, le=100.0)
+    operator_efficiency_pct: float | None = Field(None, ge=0.0, le=100.0)
+    scrap_pct: float = Field(0.0, ge=0.0, le=100.0)
+    production_efficiency_pct: float = Field(0.0, ge=0.0, le=100.0)
+    downtime_minutes: int = Field(0, ge=0)
+    oee_pct: float | None = Field(None, ge=0.0, le=100.0)
     quality_status: str = "pending"
     materials: list[ProductionMaterialRead] = Field(default_factory=list)
     work_orders: list[ProductionWorkOrderRead] = Field(default_factory=list)

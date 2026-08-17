@@ -332,15 +332,35 @@ def list_roles(db: Session, tenant_id: int) -> list[dict]:
         from app.core.seed_roles import seed_roles_for_tenant
 
         seed_roles_for_tenant(db, tenant_id, commit=True)
-    except Exception:
-        pass
-    stmt = (
-        select(Role)
-        .where(Role.tenant_id == tenant_id)
-        .options(selectinload(Role.users))
-        .order_by(Role.name)
-    )
-    return [serialize_role(r) for r in db.scalars(stmt).all()]
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        logger.warning(
+            "Role seeding encountered an exception for tenant_id=%s, proceeding to query existing roles: %s",
+            tenant_id,
+            exc,
+        )
+
+    try:
+        stmt = (
+            select(Role)
+            .where(Role.tenant_id == tenant_id)
+            .options(selectinload(Role.users))
+            .order_by(Role.name)
+        )
+        return [serialize_role(r) for r in db.scalars(stmt).all()]
+    except Exception as exc:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        logger.exception("Failed to retrieve roles for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve roles.",
+        ) from exc
 
 
 def get_role(db: Session, tenant_id: int, role_id: int) -> dict:
@@ -526,7 +546,6 @@ def log_activity(
         resource_id=resource_id,
     )
 
-
 def list_activities(
     db: Session,
     tenant_id: int,
@@ -535,57 +554,65 @@ def list_activities(
     page: int = 1,
     page_size: int = 200,
 ) -> dict:
-    page = max(1, page)
-    page_size = min(max(1, page_size), 500)
-    offset = (page - 1) * page_size
+    try:
+        page = max(1, page)
+        page_size = min(max(1, page_size), 500)
+        offset = (page - 1) * page_size
 
-    base = select(AccessLog).where(AccessLog.tenant_id == tenant_id)
-    rows = db.scalars(
-        base.order_by(AccessLog.logged_at.desc()).offset(offset).limit(page_size)
-    ).all()
+        base = select(AccessLog).where(AccessLog.tenant_id == tenant_id)
+        rows = db.scalars(
+            base.order_by(AccessLog.logged_at.desc()).offset(offset).limit(page_size)
+        ).all()
 
-    user_ids = {r.user_id for r in rows if r.user_id is not None}
-    names: dict[int, str] = {}
-    if user_ids:
-        for u in db.scalars(select(User).where(User.id.in_(user_ids))).all():
-            names[u.id] = u.full_name
+        user_ids = {r.user_id for r in rows if r.user_id is not None}
+        names: dict[int, str] = {}
+        if user_ids:
+            for u in db.scalars(select(User).where(User.id.in_(user_ids))).all():
+                names[u.id] = u.full_name
 
-    from app.services.audit_log_service import format_audit_row
+        from app.services.audit_log_service import format_audit_row
 
-    items = []
-    for r in rows:
-        formatted = format_audit_row(r)
-        formatted["user_name"] = names.get(r.user_id, r.full_name or "System") if r.user_id else (r.full_name or "System")
-        items.append(formatted)
+        items = []
+        for r in rows:
+            formatted = format_audit_row(r)
+            formatted["user_name"] = names.get(r.user_id, r.full_name or "System") if r.user_id else (r.full_name or "System")
+            items.append(formatted)
 
-    if search:
-        needle = search.strip().lower()
-        if needle:
-            items = [
-                item
-                for item in items
-                if needle in (item["user_name"] or "").lower()
-                or needle in (item["action"] or "").lower()
-                or needle in (item["resource"] or "").lower()
-                or needle in (item["ip_address"] or "").lower()
-            ]
+        if search:
+            needle = search.strip().lower()
+            if needle:
+                items = [
+                    item
+                    for item in items
+                    if needle in (item["user_name"] or "").lower()
+                    or needle in (item["action"] or "").lower()
+                    or needle in (item["resource"] or "").lower()
+                    or needle in (item["ip_address"] or "").lower()
+                ]
 
-    total = len(items) if search else int(
-        db.scalar(
-            select(func.count()).select_from(
-                select(AccessLog).where(AccessLog.tenant_id == tenant_id).subquery()
+        total = len(items) if search else int(
+            db.scalar(
+                select(func.count()).select_from(
+                    select(AccessLog).where(AccessLog.tenant_id == tenant_id).subquery()
+                )
             )
+            or 0
         )
-        or 0
-    )
 
-    return {
-        "items": items,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "has_more": page * page_size < total,
-    }
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+    except SQLAlchemyError as exc:
+        logger.exception("list_activities database error for tenant %s: %s", tenant_id, exc)
+        db.rollback()
+        raise
+    except Exception as exc:
+        logger.exception("list_activities unexpected error for tenant %s: %s", tenant_id, exc)
+        db.rollback()
+        raise
 
 
 def list_activities_legacy(db: Session, tenant_id: int, limit: int = 200) -> list[dict]:

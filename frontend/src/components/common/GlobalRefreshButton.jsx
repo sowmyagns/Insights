@@ -1,16 +1,61 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
 /**
  * Fixed bottom-right refresh control for the ERP shell.
  * Performs a full whole-page browser reload (window.location.reload()).
+ * Displays a 1-second popup message "Updated just now" when refreshed.
  */
 export default function GlobalRefreshButton({ offsetForChat = false }) {
   const [refreshing, setRefreshing] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    let isReload = false;
+    try {
+      const navEntries = window.performance?.getEntriesByType?.("navigation");
+      if (navEntries && navEntries.length > 0) {
+        isReload = navEntries[0].type === "reload";
+      } else if (window.performance?.navigation?.type === 1) {
+        isReload = true;
+      }
+    } catch {
+      // fallback
+    }
+
+    let sessionFlag = false;
+    try {
+      if (sessionStorage.getItem("gns_page_refreshed") === "true") {
+        sessionFlag = true;
+        sessionStorage.removeItem("gns_page_refreshed");
+      }
+    } catch {
+      // fallback
+    }
+
+    if (sessionFlag || isReload) {
+      setShowPopup(true);
+      timerRef.current = setTimeout(() => {
+        setShowPopup(false);
+      }, 1000);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
 
   const handleRefresh = useCallback(() => {
     if (refreshing) return;
     setRefreshing(true);
+    try {
+      sessionStorage.setItem("gns_page_refreshed", "true");
+    } catch {
+      // fallback
+    }
     setTimeout(() => {
       window.location.reload();
     }, 150);
@@ -22,6 +67,15 @@ export default function GlobalRefreshButton({ offsetForChat = false }) {
         offsetForChat ? "bottom-24 sm:bottom-28" : "bottom-5 sm:bottom-6"
       }`}
     >
+      {showPopup ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="pointer-events-none animate-fade-in rounded-lg border border-slate-300/90 bg-white px-3 py-1.5 text-xs font-semibold text-black shadow-md transition-opacity duration-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+        >
+          Updated just now
+        </div>
+      ) : null}
       <button
         type="button"
         onClick={handleRefresh}

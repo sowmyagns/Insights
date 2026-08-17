@@ -1,6 +1,10 @@
-"""Masters module — Products, BOM, Machines business logic."""
+import logging
 
+from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.repositories.bom_repository import BomRepository
 from app.repositories.machine_repository import MachineRepository
@@ -178,7 +182,34 @@ class MastersService:
                 payload.tenant_id = self.tenant_id
                 self.create_vendor(payload, actor=actor)
                 created += 1
-            except Exception as exc:
+            except HTTPException as exc:
+                failed += 1
+                errors.append(f"Row {idx}: {exc.detail}")
+                try:
+                    self.db.rollback()
+                except Exception:
+                    pass
+            except (ValueError, KeyError) as exc:
                 failed += 1
                 errors.append(f"Row {idx}: {exc}")
+                try:
+                    self.db.rollback()
+                except Exception:
+                    pass
+            except SQLAlchemyError as exc:
+                logger.exception("Database error during bulk_import_vendors row %s: %s", idx, exc)
+                failed += 1
+                errors.append(f"Row {idx}: Database error or duplicate vendor entry.")
+                try:
+                    self.db.rollback()
+                except Exception:
+                    pass
+            except Exception as exc:
+                logger.exception("Unexpected error during bulk_import_vendors row %s: %s", idx, exc)
+                failed += 1
+                errors.append(f"Row {idx}: Invalid vendor data or import error.")
+                try:
+                    self.db.rollback()
+                except Exception:
+                    pass
         return {"created": created, "failed": failed, "errors": errors[:20]}

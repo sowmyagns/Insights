@@ -45,12 +45,6 @@ export const Suppliers = lazy(() => import("../pages/inventory/Suppliers"));
 export const CreateItem = lazy(() => import("../pages/inventory/CreateItem"));
 export const CreateWarehouse = lazy(() => import("../pages/inventory/CreateWarehouse"));
 export const CreateSupplier = lazy(() => import("../pages/inventory/CreateSupplier"));
-export const Employees = lazy(() => import("../pages/hr/Employees"));
-export const CreateEmployee = lazy(() => import("../pages/hr/CreateEmployee"));
-export const AssetManagement = lazy(() => import("../pages/hr/AssetManagement"));
-export const CreateAsset = lazy(() => import("../pages/hr/CreateAsset"));
-export const IncidentReports = lazy(() => import("../pages/hr/IncidentReports"));
-export const CreateIncident = lazy(() => import("../pages/hr/CreateIncident"));
 export const Leads = lazy(() => import("../pages/sales/Leads"));
 export const Quotations = lazy(() => import("../pages/sales/Quotations"));
 export const QuotationForm = lazy(() => import("../pages/sales/QuotationForm"));
@@ -174,7 +168,6 @@ export const LowStockAlerts = lazy(() => import("../pages/alerts/LowStockAlerts"
 export const MachineFailureAlerts = lazy(() => import("../pages/alerts/MachineFailureAlerts"));
 export const ProductionDelayAlerts = lazy(() => import("../pages/alerts/ProductionDelayAlerts"));
 export const MaintenanceReminders = lazy(() => import("../pages/alerts/MaintenanceReminders"));
-export const HrAlerts = lazy(() => import("../pages/alerts/HrAlerts"));
 export const SafetyAlerts = lazy(() => import("../pages/alerts/SafetyAlerts"));
 export const QualityAlerts = lazy(() => import("../pages/alerts/QualityAlerts"));
 export const GeneralAlerts = lazy(() => import("../pages/alerts/GeneralAlerts"));
@@ -182,6 +175,7 @@ export const UserManagement = lazy(() => import("../pages/admin/UserManagement")
 export const RolesPermissions = lazy(() => import("../pages/admin/RolesPermissions"));
 export const AccessLogs = lazy(() => import("../pages/admin/AccessLogs"));
 export const IntegrationsDashboard = lazy(() => import("../pages/admin/IntegrationsDashboard"));
+export const PendingApprovals = lazy(() => import("../pages/admin/PendingApprovals"));
 export const DocumentsDashboard = lazy(() => import("../pages/documents/DocumentsDashboard"));
 export const MeetingsList = lazy(() => import("../pages/meetings/MeetingsList"));
 export const MeetingDetail = lazy(() => import("../pages/meetings/MeetingDetail"));

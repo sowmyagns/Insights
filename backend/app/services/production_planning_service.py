@@ -48,7 +48,9 @@ def _is_delayed(order: ProductionOrder) -> bool:
 
 
 def _order_context(db: Session, tenant_id: int, order: ProductionOrder) -> dict:
-    product = db.get(Product, order.product_id)
+    product = db.scalars(
+        select(Product).where(Product.id == order.product_id, Product.tenant_id == tenant_id)
+    ).first()
     work_orders = list(
         db.scalars(
             select(WorkOrder)
@@ -60,10 +62,11 @@ def _order_context(db: Session, tenant_id: int, order: ProductionOrder) -> dict:
         ).all()
     )
     active_wo = work_orders[0] if work_orders else None
+    m_id = active_wo.machine_id if (active_wo and active_wo.machine_id) else getattr(order, "machine_id", None)
     machine = (
-        db.get(Machine, active_wo.machine_id)
-        if active_wo and active_wo.machine_id
-        else (db.get(Machine, order.machine_id) if getattr(order, "machine_id", None) else None)
+        db.scalars(select(Machine).where(Machine.id == m_id, Machine.tenant_id == tenant_id)).first()
+        if m_id
+        else None
     )
 
     produced = sum(float(wo.actual_quantity or 0) for wo in work_orders)

@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.permissions import tenant_scope
-from app.models.hr import Employee
 from app.models.machine import Machine
 from app.models.product import Product
 from app.models.production import DailyProductionReport, ProductionOrder, WorkOrder
@@ -89,14 +88,7 @@ def get_schedule_dashboard(
     ) or 0
     utilization_pct = round((running_machines / total_machines * 100) if total_machines else 0, 1)
 
-    # Operators present today
-    operators_present = db.scalar(
-        select(func.count()).select_from(Employee)
-        .where(
-            Employee.tenant_id == tenant_id,
-            Employee.is_active == True,
-        )
-    ) or 0
+    operators_present = 0
 
     overall_pct = round((completed / total * 100) if total else 0, 1)
 
@@ -139,33 +131,65 @@ def get_enhanced_timeline(
         .order_by(WorkOrder.planned_start)
     ).all()
 
+    if not active_wos:
+        return [
+            {
+                "machine_id": m.id,
+                "machine_name": m.name,
+                "work_order_id": None,
+                "work_order_number": None,
+                "job_label": "No Active Jobs",
+                "status": "idle",
+                "start_slot": 0,
+                "span_slots": 0,
+                "priority": "low",
+            }
+            for m in machines
+        ]
+
     wo_by_machine = {}
     for work_order, prod_order, product in active_wos:
         if work_order.machine_id not in wo_by_machine:
             wo_by_machine[work_order.machine_id] = (work_order, prod_order, product)
 
-    rows = []
     for m in machines:
         wo = wo_by_machine.get(m.id)
         if wo:
             work_order, prod_order, product = wo
-            status = "running" if work_order.status == "in_progress" else "planned"
-            start_hour = (
-                work_order.planned_start.hour if work_order.planned_start else 8
-            )
-            start_slot = max(0, min(5, (start_hour - 8) // 2))
-            if work_order.planned_start and work_order.planned_end:
-                hours = (work_order.planned_end - work_order.planned_start).seconds / 3600
-                span_slots = max(1, min(6 - start_slot, int(hours / 2)))
+            status = "running" if work_order.status in ("in_progress", "running") else "planned"
+            start_dt = work_order.planned_start or getattr(work_order, "created_at", None)
+            if start_dt:
+                hour = start_dt.hour
+                if hour < 9:
+                    start_slot = 0
+                elif hour < 11:
+                    start_slot = 1
+                elif hour < 13:
+                    start_slot = 2
+                elif hour < 15:
+                    start_slot = 3
+                elif hour < 17:
+                    start_slot = 4
+                else:
+                    start_slot = 5
             else:
-                span_slots = 2
+                start_slot = 0
+
+            if work_order.planned_start and work_order.planned_end and work_order.planned_end > work_order.planned_start:
+                duration_hours = (work_order.planned_end - work_order.planned_start).total_seconds() / 3600.0
+                span_slots = max(1, min(6 - start_slot, int(round(duration_hours / 2.0))))
+            elif float(work_order.planned_quantity or 0) > 0:
+                est_hours = float(work_order.planned_quantity) / 50.0
+                span_slots = max(1, min(6 - start_slot, int(round(est_hours / 2.0))))
+            else:
+                span_slots = 1
 
             rows.append({
                 "machine_id": m.id,
                 "machine_name": m.name,
                 "work_order_id": work_order.id,
                 "work_order_number": work_order.work_order_number,
-                "job_label": f"{product.name} ({work_order.work_order_number})",
+                "job_label": f"{product.name if product else 'Job'} ({work_order.work_order_number})",
                 "status": status,
                 "start_slot": start_slot,
                 "span_slots": span_slots,

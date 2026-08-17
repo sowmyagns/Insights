@@ -15,7 +15,7 @@ class Task(Base, TimestampMixin):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
-    assigned_to: Mapped[int | None] = mapped_column(ForeignKey("employees.id"))
+    assigned_to: Mapped[int | None] = mapped_column(Integer, nullable=True)
     priority: Mapped[str] = mapped_column(String(16), default="medium", nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="open", nullable=False)
     due_date: Mapped[date | None] = mapped_column(Date)

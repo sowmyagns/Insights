@@ -2,10 +2,11 @@
 
 from datetime import date
 
+from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.inventory import Supplier
+from app.models.inventory import InventoryItem, Supplier
 from app.models.procurement import (
     GoodsReceipt,
     MaterialRequest,
@@ -36,14 +37,22 @@ def get_mr_summary(db: Session, tenant_id: int) -> MRSummaryRead:
     pending = sum(1 for m in mrs if m.approval_status == "pending" or m.status == "pending")
     approved = sum(1 for m in mrs if m.approval_status == "approved" or m.status == "approved")
     rejected = sum(1 for m in mrs if m.status == "rejected")
-    rfq_count = int(db.scalar(select(func.count(RFQ.id)).where(RFQ.tenant_id == tenant_id)) or 0)
+    rfq_mr_ids = set(
+        db.scalars(
+            select(RFQ.material_request_id).where(
+                RFQ.tenant_id == tenant_id,
+                RFQ.material_request_id.isnot(None),
+            )
+        ).all()
+    )
+    converted_count = sum(1 for m in mrs if m.status == "converted" or m.id in rfq_mr_ids)
     urgent = sum(1 for m in mrs if getattr(m, "priority", "medium") == "high")
     return MRSummaryRead(
         total_requests=len(mrs),
         pending_approval=pending,
         approved=approved,
         rejected=rejected,
-        converted_to_rfq=sum(1 for m in mrs if m.status == "converted") + rfq_count,
+        converted_to_rfq=converted_count,
         urgent_requests=urgent,
     )
 
@@ -113,10 +122,21 @@ def create_rfq(db: Session, tenant_id: int, payload) -> RFQ:
     count = int(db.scalar(select(func.count(RFQ.id)).where(RFQ.tenant_id == tenant_id)) or 0)
     d_date = None
     if payload.due_date:
-        try:
-            d_date = date.fromisoformat(payload.due_date)
-        except ValueError:
-            pass
+        if isinstance(payload.due_date, date):
+            d_date = payload.due_date
+        elif isinstance(payload.due_date, str):
+            try:
+                d_date = date.fromisoformat(payload.due_date)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid due_date '{payload.due_date}'. Expected format YYYY-MM-DD.",
+                ) from exc
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid due_date type. Expected string in YYYY-MM-DD format.",
+            )
 
     rfq_num = payload.rfq_number.strip() if payload.rfq_number and payload.rfq_number.strip() else f"RFQ-{date.today().year}-{count + 1:04d}"
 
@@ -135,6 +155,24 @@ def create_rfq(db: Session, tenant_id: int, payload) -> RFQ:
 
 
 def create_vendor_quotation(db: Session, tenant_id: int, rfq_id: int, payload) -> VendorQuotation:
+    rfq = db.scalars(
+        select(RFQ).where(RFQ.id == rfq_id, RFQ.tenant_id == tenant_id)
+    ).first()
+    if not rfq:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="RFQ not found or does not belong to the current tenant.",
+        )
+
+    supplier = db.scalars(
+        select(Supplier).where(Supplier.id == payload.supplier_id, Supplier.tenant_id == tenant_id)
+    ).first()
+    if not supplier:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Supplier not found or does not belong to the current tenant.",
+        )
+
     quote = VendorQuotation(
         tenant_id=tenant_id,
         rfq_id=rfq_id,
@@ -166,9 +204,20 @@ def award_rfq(db: Session, tenant_id: int, rfq_id: int, supplier_id: int) -> RFQ
 
     rfq = db.scalars(select(RFQ).where(RFQ.id == rfq_id, RFQ.tenant_id == tenant_id)).first()
     if not rfq:
-        return None
-    if (rfq.status or "").lower() == "awarded":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="RFQ not found.",
+        )
+
+    current_status = (rfq.status or "").lower()
+    if current_status == "awarded":
         return rfq
+
+    if current_status not in {"open", "sent", "pending", "draft", "active"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"RFQ cannot be awarded because its current status is '{rfq.status}'. Only eligible open RFQs can be awarded.",
+        )
 
     supplier = db.scalars(
         select(Supplier).where(Supplier.id == supplier_id, Supplier.tenant_id == tenant_id)
@@ -316,7 +365,7 @@ def list_po_enriched(db: Session, tenant_id: int) -> list[POListRead]:
             order_date=po.order_date.isoformat() if po.order_date else "",
             total_amount=float(po.total_amount) if po.total_amount else None,
             expected_date=po.expected_date.isoformat() if po.expected_date else None,
-            payment_terms=getattr(po, "payment_terms", None) or "Net 30",
+            payment_terms=getattr(po, "payment_terms", None) or "Not Specified",
             status=po.status,
             buyer=getattr(po, "buyer", None),
         )
@@ -417,21 +466,29 @@ def list_vendor_bills_enriched(db: Session, tenant_id: int) -> list[VendorBillLi
     return result
 
 
+def _parse_date(val: str | date | None, field_name: str) -> date | None:
+    if not val:
+        return None
+    if isinstance(val, date):
+        return val
+    if isinstance(val, str):
+        try:
+            return date.fromisoformat(val)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid {field_name} '{val}'. Expected format YYYY-MM-DD.",
+            ) from exc
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Invalid {field_name} type. Expected string in YYYY-MM-DD format.",
+    )
+
+
 def create_vendor_bill(db: Session, tenant_id: int, payload) -> VendorBill:
     count = int(db.scalar(select(func.count(VendorBill.id)).where(VendorBill.tenant_id == tenant_id)) or 0)
-    b_date = date.today()
-    if payload.bill_date:
-        try:
-            b_date = date.fromisoformat(payload.bill_date)
-        except ValueError:
-            pass
-
-    d_date = None
-    if payload.due_date:
-        try:
-            d_date = date.fromisoformat(payload.due_date)
-        except ValueError:
-            pass
+    b_date = _parse_date(payload.bill_date, "bill_date") or date.today()
+    d_date = _parse_date(payload.due_date, "due_date")
 
     b_num = payload.bill_number.strip() if payload.bill_number and payload.bill_number.strip() else f"V-BILL-{date.today().year}-{count + 1:04d}"
 
@@ -523,19 +580,84 @@ def get_procurement_hub(db: Session, tenant_id: int) -> ProcurementHubRead:
         ).all()
     )
     pending_pos = list_po_enriched(db, tenant_id)[:5]
+
+    today_val = date.today()
+    todays_grn_count = int(
+        db.scalar(
+            select(func.count(GoodsReceipt.id)).where(
+                GoodsReceipt.tenant_id == tenant_id,
+                GoodsReceipt.receipt_date == today_val,
+            )
+        ) or 0
+    )
+    todays_po_count = int(
+        db.scalar(
+            select(func.count(PurchaseOrder.id)).where(
+                PurchaseOrder.tenant_id == tenant_id,
+                PurchaseOrder.expected_date == today_val,
+            )
+        ) or 0
+    )
+    todays_deliveries = todays_grn_count + todays_po_count
+
+    alerts = []
+    low_stock_count = int(
+        db.scalar(
+            select(func.count(InventoryItem.id)).where(
+                InventoryItem.tenant_id == tenant_id,
+                InventoryItem.quantity <= InventoryItem.reorder_level,
+            )
+        ) or 0
+    )
+    if low_stock_count > 0:
+        alerts.append({
+            "type": "low_stock",
+            "message": f"Low Stock — {low_stock_count} item{'s' if low_stock_count != 1 else ''} below reorder",
+        })
+
+    overdue_pos = list(
+        db.scalars(
+            select(PurchaseOrder).where(
+                PurchaseOrder.tenant_id == tenant_id,
+                PurchaseOrder.expected_date < today_val,
+                PurchaseOrder.status.notin_(["completed", "cancelled", "received"]),
+            ).order_by(PurchaseOrder.expected_date.asc())
+        ).all()
+    )
+    if overdue_pos:
+        first_po = overdue_pos[0]
+        alerts.append({
+            "type": "delayed_po",
+            "message": f"Delayed PO — {first_po.po_number} overdue",
+        })
+
+    pending_rfqs_count = rfq_sum.open_rfqs or 0
+    if pending_rfqs_count > 0:
+        alerts.append({
+            "type": "pending_rfq",
+            "message": f"Pending RFQ — {pending_rfqs_count} RFQ{'s' if pending_rfqs_count != 1 else ''} awaiting vendor response",
+        })
+
+    outstanding_bill_amount = bill_sum.outstanding or 0.0
+    if outstanding_bill_amount > 0:
+        formatted_amount = (
+            f"₹{outstanding_bill_amount / 100000:.1f}L"
+            if outstanding_bill_amount >= 100000
+            else f"₹{outstanding_bill_amount:,.0f}"
+        )
+        alerts.append({
+            "type": "overdue_bill",
+            "message": f"Overdue Bill — {formatted_amount} outstanding",
+        })
+
     return ProcurementHubRead(
         purchase_spend=po_sum.po_value,
         pending_approvals=mr_sum.pending_approval + po_sum.pending,
         open_rfqs=rfq_sum.open_rfqs,
         active_vendors=vendors,
         outstanding_bills=bill_sum.outstanding,
-        todays_deliveries=4,
+        todays_deliveries=todays_deliveries,
         top_vendors=[{"name": v.name, "rating": float(v.rating or 0)} for v in top],
         pending_orders=[{"po_number": p.po_number, "vendor": p.vendor_name, "amount": p.total_amount} for p in pending_pos],
-        alerts=[
-            {"type": "low_stock", "message": "Low Stock — 12 items below reorder"},
-            {"type": "delayed_po", "message": "Delayed PO — PO-2026-0045 overdue"},
-            {"type": "pending_rfq", "message": "Pending RFQ — 3 RFQs awaiting vendor response"},
-            {"type": "overdue_bill", "message": "Overdue Bill — ₹2.4L outstanding"},
-        ],
+        alerts=alerts,
     )

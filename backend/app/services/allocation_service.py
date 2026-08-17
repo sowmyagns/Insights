@@ -1,7 +1,8 @@
-"""Machine allocation — assign work orders to machines, operators, shifts."""
+import logging
 
 import logging
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 

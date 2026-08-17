@@ -5,16 +5,29 @@ import re
 from pydantic import BaseModel, Field, field_validator
 
 from app.utils.password import PASSWORD_MIN_LENGTH, validate_password_strength
-from app.utils.sanitize import sanitize_email_local_part, sanitize_text
+from app.utils.sanitize import sanitize_email_local_part
+
+
+# Matches local@domain.tld — rejects leading/trailing dots, consecutive dots,
+# multiple @, missing TLD, and other malformed structures.
+_EMAIL_REGEX = re.compile(
+    r"^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+"
+    r"(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*"
+    r"@"
+    r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+"
+    r"[a-zA-Z]{2,}$"
+)
 
 
 def _normalize_email(value: str) -> str:
-    email = sanitize_email_local_part(value).lower()
-    if "@" not in email or email.startswith("@") or email.endswith("@"):
+    email = sanitize_email_local_part(value).lower().strip()
+    if not email or email.count("@") != 1:
         raise ValueError("Invalid email address")
-    local, _, domain = email.partition("@")
-    if not local or not domain or "." not in domain:
-        raise ValueError("Invalid email address")
+    if not _EMAIL_REGEX.match(email):
+        raise ValueError(
+            "Invalid email address: must be in the form local@domain.tld "
+            "with a valid domain structure"
+        )
     return email
 
 
@@ -30,6 +43,20 @@ class UserCreate(BaseModel):
     plant_code: str | None = Field(None, max_length=64)
     department: str | None = Field(None, max_length=128)
     assigned_machine_id: int | None = None
+
+    @field_validator("role_ids", mode="before")
+    @classmethod
+    def validate_role_ids(cls, value: list) -> list:
+        if value is None:
+            return []
+        for item in value:
+            try:
+                v = int(item)
+            except (TypeError, ValueError):
+                raise ValueError("Each role ID must be a positive integer")
+            if v < 1:
+                raise ValueError(f"Role ID {v} is invalid: role IDs must be >= 1")
+        return value
 
     @field_validator("email")
     @classmethod
@@ -92,6 +119,20 @@ class UserUpdate(BaseModel):
     department: str | None = Field(None, max_length=128)
     assigned_machine_id: int | None = None
 
+    @field_validator("role_ids", mode="before")
+    @classmethod
+    def validate_role_ids(cls, value: list | None) -> list | None:
+        if value is None:
+            return value
+        for item in value:
+            try:
+                v = int(item)
+            except (TypeError, ValueError):
+                raise ValueError("Each role ID must be a positive integer")
+            if v < 1:
+                raise ValueError(f"Role ID {v} is invalid: role IDs must be >= 1")
+        return value
+
     @field_validator("email")
     @classmethod
     def validate_email(cls, value: str | None) -> str | None:
@@ -151,12 +192,48 @@ class RoleCreate(BaseModel):
     description: str | None = Field(None, max_length=255)
     permissions: list[str] = Field(default_factory=list)
 
+    @field_validator("permissions", mode="before")
+    @classmethod
+    def validate_permissions(cls, value: list) -> list:
+        if value is None:
+            return []
+        for item in value:
+            if not isinstance(item, str) or not str(item).strip():
+                raise ValueError(
+                    "Permission entries must be non-empty, non-whitespace strings"
+                )
+        return value
+
 
 class RoleUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=100)
     description: str | None = Field(None, max_length=255)
     permissions: list[str] | None = None
 
+    @field_validator("permissions", mode="before")
+    @classmethod
+    def validate_permissions(cls, value: list | None) -> list | None:
+        if value is None:
+            return value
+        for item in value:
+            if not isinstance(item, str) or not str(item).strip():
+                raise ValueError(
+                    "Permission entries must be non-empty, non-whitespace strings"
+                )
+        return value
+
 
 class RolePermissionsUpdate(BaseModel):
     permissions: list[str] = Field(default_factory=list)
+
+    @field_validator("permissions", mode="before")
+    @classmethod
+    def validate_permissions(cls, value: list) -> list:
+        if value is None:
+            return []
+        for item in value:
+            if not isinstance(item, str) or not str(item).strip():
+                raise ValueError(
+                    "Permission entries must be non-empty, non-whitespace strings"
+                )
+        return value

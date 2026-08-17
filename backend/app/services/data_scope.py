@@ -1,4 +1,4 @@
-"""Row-level data filtering based on user role and assignment."""
+import logging
 
 import logging
 from sqlalchemy import Select, or_
@@ -6,6 +6,8 @@ from sqlalchemy import Select, or_
 from app.core.permissions import get_role_names, user_is_admin
 from app.models.production import DailyProductionReport, WorkOrder
 from app.models.user import User
+
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,29 @@ def scope_work_orders(stmt: Select, user: User) -> Select:
         # Return unfiltered on error - caller should handle this case
         return stmt
 
+    if "Supervisor" in roles:
+        conds = [
+            WorkOrder.assigned_user_id == user.id,
+            WorkOrder.supervisor == user.full_name,
+        ]
+        if user.plant_code:
+            conds.append(WorkOrder.plant_code == user.plant_code)
+        if user.department:
+            conds.append(WorkOrder.department == user.department)
+        return stmt.where(or_(*conds))
+
+    # Restricted users / Operators / Technicians / Store Managers / Other non-admin users
+    conds = [
+        WorkOrder.assigned_user_id == user.id,
+        WorkOrder.operator_name == user.full_name,
+    ]
+    if user.assigned_machine_id:
+        conds.append(WorkOrder.machine_id == user.assigned_machine_id)
+    if user.plant_code and ("Production Manager" in roles or "Supervisor" in roles):
+        conds.append(WorkOrder.plant_code == user.plant_code)
+
+    return stmt.where(or_(*conds))
+
 
 def scope_daily_reports(stmt: Select, user: User) -> Select:
     """
@@ -56,6 +81,23 @@ def scope_daily_reports(stmt: Select, user: User) -> Select:
         logger.error(f"Failed to apply Daily Report filtering for user {user.id}: {str(e)}")
         # Return unfiltered on error - caller should handle this case
         return stmt
+
+    conds = [
+        DailyProductionReport.created_by_user_id == user.id,
+    ]
+    if user.assigned_machine_id:
+        conds.append(DailyProductionReport.machine_id == user.assigned_machine_id)
+
+    wo_subquery = select(WorkOrder.id).where(
+        WorkOrder.tenant_id == user.tenant_id,
+        or_(
+            WorkOrder.assigned_user_id == user.id,
+            WorkOrder.operator_name == user.full_name,
+        ),
+    )
+    conds.append(DailyProductionReport.work_order_id.in_(wo_subquery))
+
+    return stmt.where(or_(*conds))
 
 
 def operator_can_access_work_order(user: User, work_order: WorkOrder) -> bool:
@@ -77,6 +119,8 @@ def operator_can_access_work_order(user: User, work_order: WorkOrder) -> bool:
         logger.error(f"Failed to validate work order access for user {user.id} on work order {work_order.id}: {str(e)}")
         # On error, deny access to prevent unauthorized access
         return False
+
+    return False
 
 
 def production_manager_plant(user: User) -> str | None:

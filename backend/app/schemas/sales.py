@@ -2,7 +2,7 @@ import re
 from datetime import date
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.utils.gst import validate_gstin
 
@@ -46,9 +46,24 @@ class CustomerBase(BaseModel):
     email: str | None = None
     phone: str | None = None
     customer_code: str | None = None
-    credit_limit: float | None = 0.0
-    outstanding: float | None = 0.0
+    credit_limit: float | None = Field(0.0, ge=0.0)
+    outstanding: float | None = Field(0.0, ge=0.0)
     status: str = "active"
+
+    @field_validator("credit_limit", "outstanding", mode="before")
+    @classmethod
+    def validate_customer_amounts(cls, value: Any, info) -> float | None:
+        field_name = info.field_name
+        if value is None:
+            return 0.0
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{field_name} must be a numeric value")
+        if v < 0:
+            raise ValueError(f"{field_name} cannot be negative")
+        return value
+
 
 
 def _validate_customer_name(value: Any, *, required: bool) -> str | None:
@@ -141,8 +156,8 @@ class CustomerUpdate(BaseModel):
     email: str | None = None
     phone: str | None = None
     customer_code: str | None = None
-    credit_limit: float | None = None
-    outstanding: float | None = None
+    credit_limit: float | None = Field(None, ge=0.0)
+    outstanding: float | None = Field(None, ge=0.0)
     status: str | None = None
 
     @field_validator("name", mode="before")
@@ -176,6 +191,21 @@ class CustomerUpdate(BaseModel):
     def validate_gst(cls, value: Any) -> str | None:
         return _validate_gstin(value)
 
+    @field_validator("credit_limit", "outstanding", mode="before")
+    @classmethod
+    def validate_customer_amounts_optional(cls, value: Any, info) -> float | None:
+        field_name = info.field_name
+        if value is None:
+            return None
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{field_name} must be a numeric value")
+        if v < 0:
+            raise ValueError(f"{field_name} cannot be negative")
+        return value
+
+
 
 class CustomerRead(CustomerBase):
     id: int
@@ -183,11 +213,21 @@ class CustomerRead(CustomerBase):
 
 
 class InvoiceItemBase(BaseModel):
-    item_description: str
-    qty: float
+    item_description: str = Field(..., min_length=1)
+    qty: float = Field(..., gt=0.0)
     unit: str = "pcs"
-    rate: float
-    amount: float
+    rate: float = Field(0.0, ge=0.0)
+    amount: float = Field(0.0, ge=0.0)
+
+    @field_validator("qty", mode="before")
+    @classmethod
+    def validate_qty_positive(cls, v: Any) -> float:
+        if v is not None and v != "":
+            val = float(v)
+            if val <= 0:
+                raise ValueError("Invoice item quantity must be greater than zero.")
+            return val
+        raise ValueError("Invoice item quantity is required.")
 
 
 class InvoiceItemCreate(InvoiceItemBase):
@@ -216,10 +256,21 @@ class SalesOrderBase(BaseModel):
 class SalesOrderLineBase(BaseModel):
     product_id: int | None = None
     item_description: str
-    quantity: float
+    quantity: float = Field(..., ge=0.0)
     unit: str = "pcs"
-    unit_price: float = 0
-    line_total: float = 0
+    unit_price: float = Field(0.0, ge=0.0)
+    line_total: float = Field(0.0, ge=0.0)
+
+    @field_validator("quantity", "unit_price", "line_total", mode="before")
+    @classmethod
+    def validate_non_negative(cls, value: Any) -> float:
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("Must be a numeric value")
+        if v < 0:
+            raise ValueError("Value cannot be negative")
+        return value
 
 
 class SalesOrderLineCreate(SalesOrderLineBase):
@@ -233,7 +284,7 @@ class SalesOrderLineRead(SalesOrderLineBase):
 
 
 class SalesOrderCreate(SalesOrderBase):
-    line_items: list[SalesOrderLineCreate] = []
+    line_items: list[SalesOrderLineCreate] = Field(default_factory=list)
 
 
 class SalesOrderRead(SalesOrderBase):
@@ -246,30 +297,58 @@ class SalesOrderListRead(SalesOrderRead):
 
 
 class InvoiceBase(BaseModel):
-    tenant_id: int
-    customer_id: int
-    sales_order_id: int | None = None
-    invoice_number: str
+    tenant_id: int = Field(..., ge=1)
+    customer_id: int = Field(..., ge=1)
+    sales_order_id: int | None = Field(None, ge=1)
+    invoice_number: str = Field(..., min_length=1)
     issue_date: date
     due_date: date | None = None
-    subtotal: float = 0
-    discount: float = 0
-    sgst_pct: float = 0
-    cgst_pct: float = 0
-    igst_pct: float = 0
-    sgst_amount: float = 0
-    cgst_amount: float = 0
-    igst_amount: float = 0
+    subtotal: float = Field(0.0, ge=0.0)
+    discount: float = Field(0.0, ge=0.0)
+    sgst_pct: float = Field(0.0, ge=0.0, le=100.0)
+    cgst_pct: float = Field(0.0, ge=0.0, le=100.0)
+    igst_pct: float = Field(0.0, ge=0.0, le=100.0)
+    sgst_amount: float = Field(0.0, ge=0.0)
+    cgst_amount: float = Field(0.0, ge=0.0)
+    igst_amount: float = Field(0.0, ge=0.0)
     round_off: float = 0
-    grand_total: float = 0
-    amount_paid: float = 0
+    grand_total: float = Field(0.0, ge=0.0)
+    amount_paid: float = Field(0.0, ge=0.0)
     status: str = "draft"
     ack_no: str | None = None
     ack_date: date | None = None
 
+    @field_validator(
+        "subtotal",
+        "discount",
+        "sgst_amount",
+        "cgst_amount",
+        "igst_amount",
+        "grand_total",
+        "amount_paid",
+        mode="before",
+    )
+    @classmethod
+    def validate_non_negative_amounts(cls, value: Any) -> float:
+        if value is None:
+            return 0.0
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("Must be a numeric value")
+        if v < 0:
+            raise ValueError("Value cannot be negative")
+        return value
+
+    @model_validator(mode="after")
+    def validate_invoice_dates(self) -> "InvoiceBase":
+        if self.issue_date and self.due_date and self.due_date < self.issue_date:
+            raise ValueError("due_date cannot be earlier than issue_date.")
+        return self
+
 
 class InvoiceCreate(InvoiceBase):
-    items: list[InvoiceItemCreate] = []
+    items: list[InvoiceItemCreate] = Field(default_factory=list)
 
 
 class InvoiceRead(InvoiceBase):
@@ -279,16 +358,27 @@ class InvoiceRead(InvoiceBase):
 
 class InvoiceListRead(InvoiceRead):
     customer_name: str | None = None
-    items: list[InvoiceItemRead] = []
+    items: list[InvoiceItemRead] = Field(default_factory=list)
 
 
 class PaymentBase(BaseModel):
     tenant_id: int
     invoice_id: int
-    amount: float
+    amount: float = Field(..., gt=0.0)
     payment_date: date
     method: str = "cash"
     notes: str | None = None
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def validate_amount_positive(cls, value: Any) -> float:
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("amount must be a numeric value")
+        if v <= 0:
+            raise ValueError("amount must be greater than zero")
+        return value
 
 
 class PaymentCreate(PaymentBase):
@@ -297,10 +387,23 @@ class PaymentCreate(PaymentBase):
 
 class PaymentUpdate(BaseModel):
     invoice_id: int | None = None
-    amount: float | None = None
+    amount: float | None = Field(None, gt=0.0)
     payment_date: date | None = None
     method: str | None = None
     notes: str | None = None
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def validate_amount_positive(cls, value: Any) -> float | None:
+        if value is None:
+            return value
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("amount must be a numeric value")
+        if v <= 0:
+            raise ValueError("amount must be greater than zero")
+        return value
 
 
 class PaymentRead(PaymentBase):
@@ -321,7 +424,21 @@ class LeadBase(BaseModel):
     region: str | None = None
     priority: str = "medium"
     next_followup: date | None = None
-    opportunity_value: float | None = None
+    opportunity_value: float | None = Field(None, ge=0.0)
+
+    @field_validator("opportunity_value", mode="before")
+    @classmethod
+    def validate_opportunity_value(cls, value: Any) -> float | None:
+        if value is None:
+            return value
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("opportunity_value must be a numeric value")
+        if v < 0:
+            raise ValueError("opportunity_value cannot be negative")
+        return value
+
 
 
 class LeadCreate(LeadBase):
@@ -345,8 +462,21 @@ class QuotationBase(BaseModel):
     quote_date: date
     valid_until: date | None = None
     status: str = "draft"
-    total_amount: float = 0
+    total_amount: float = Field(0.0, ge=0.0)
     notes: str | None = None
+
+    @field_validator("total_amount", mode="before")
+    @classmethod
+    def validate_total_amount(cls, value: Any) -> float:
+        if value is None:
+            return 0.0
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("total_amount must be a numeric value")
+        if v < 0:
+            raise ValueError("total_amount cannot be negative")
+        return value
 
 
 class QuotationCreate(BaseModel):
@@ -360,11 +490,25 @@ class QuotationCreate(BaseModel):
     quote_date: date | None = None
     valid_until: date | None = None
     status: str = "draft"
-    total_amount: float = 0
+    total_amount: float = Field(0.0, ge=0.0)
     notes: str | None = None
     sales_person: str | None = None
-    discount: float = 0
+    discount: float = Field(0.0, ge=0.0)
     meta_json: dict | str | None = None
+
+    @field_validator("total_amount", "discount", mode="before")
+    @classmethod
+    def validate_non_negative_fields(cls, value: Any, info) -> float:
+        field_name = info.field_name
+        if value is None:
+            return 0.0
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{field_name} must be a numeric value")
+        if v < 0:
+            raise ValueError(f"{field_name} cannot be negative")
+        return value
 
 
 class QuotationUpdate(BaseModel):
@@ -373,11 +517,25 @@ class QuotationUpdate(BaseModel):
     quote_date: date | None = None
     valid_until: date | None = None
     status: str | None = None
-    total_amount: float | None = None
+    total_amount: float | None = Field(None, ge=0.0)
     notes: str | None = None
     sales_person: str | None = None
-    discount: float | None = None
+    discount: float | None = Field(None, ge=0.0)
     meta_json: dict | str | None = None
+
+    @field_validator("total_amount", "discount", mode="before")
+    @classmethod
+    def validate_non_negative_optional(cls, value: Any, info) -> float | None:
+        field_name = info.field_name
+        if value is None:
+            return None
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{field_name} must be a numeric value")
+        if v < 0:
+            raise ValueError(f"{field_name} cannot be negative")
+        return value
 
 
 class QuotationRead(QuotationBase):
@@ -390,6 +548,21 @@ class QuotationConvertRequest(BaseModel):
 
     product_id: int | None = None
     item_description: str | None = None
-    quantity: float | None = None
+    quantity: float | None = Field(None, ge=0.0)
     unit: str = "pcs"
-    unit_price: float | None = None
+    unit_price: float | None = Field(None, ge=0.0)
+
+    @field_validator("quantity", "unit_price", mode="before")
+    @classmethod
+    def validate_non_negative_convert(cls, value: Any, info) -> float | None:
+        field_name = info.field_name
+        if value is None:
+            return None
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{field_name} must be a numeric value")
+        if v < 0:
+            raise ValueError(f"{field_name} cannot be negative")
+        return value
+

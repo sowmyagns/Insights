@@ -1,11 +1,13 @@
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class WarehouseBase(BaseModel):
-    tenant_id: int
-    name: str
-    code: str
-    capacity: int | None = None
+    tenant_id: int = Field(..., ge=1)
+    name: str = Field(..., min_length=1)
+    code: str = Field(..., min_length=1)
+    capacity: int | None = Field(None, ge=0)
     is_primary: bool = False
 
 
@@ -19,12 +21,12 @@ class WarehouseRead(WarehouseBase):
 
 
 class SupplierBase(BaseModel):
-    tenant_id: int
-    name: str
+    tenant_id: int = Field(..., ge=1)
+    name: str = Field(..., min_length=1)
     contact: str | None = None
     email: str | None = None
     phone: str | None = None
-    outstanding: float | None = 0.0
+    outstanding: float | None = Field(0.0, ge=0.0)
     approval_status: str = "approved"
 
 
@@ -38,21 +40,21 @@ class SupplierRead(SupplierBase):
 
 
 class InventoryItemBase(BaseModel):
-    tenant_id: int
-    supplier_id: int | None = None
-    sku: str
+    tenant_id: int = Field(..., ge=1)
+    supplier_id: int | None = Field(None, ge=1)
+    sku: str = Field(..., min_length=1)
     barcode: str | None = None
-    name: str
+    name: str = Field(..., min_length=1)
     description: str | None = None
     unit: str = "pcs"
-    unit_cost: float | None = Field(None, ge=0)
-    reorder_level: int = 0
+    unit_cost: float | None = Field(None, ge=0.0)
+    reorder_level: int = Field(0, ge=0)
     item_type: str = "raw_material"  # raw_material, finished_good
     category: str | None = None
     warehouse_name: str | None = None
     batch_number: str | None = None
-    quantity: int | None = 0
-    reserved: int | None = 0
+    quantity: int | None = Field(0, ge=0)
+    reserved: int | None = Field(0, ge=0)
     status: str | None = "in_stock"
     customer_name: str | None = None
     serial_number: str | None = None
@@ -71,26 +73,34 @@ class InventoryItemBase(BaseModel):
             return val
         return None
 
+    @model_validator(mode="after")
+    def validate_reserved_not_exceed_total(self) -> "InventoryItemBase":
+        qty = self.quantity if self.quantity is not None else 0
+        res = self.reserved if self.reserved is not None else 0
+        if res > qty:
+            raise ValueError("Reserved quantity cannot exceed total quantity.")
+        return self
+
 
 class InventoryItemCreate(InventoryItemBase):
     pass
 
 
 class InventoryItemUpdate(BaseModel):
-    supplier_id: int | None = None
-    sku: str | None = None
+    supplier_id: int | None = Field(None, ge=1)
+    sku: str | None = Field(None, min_length=1)
     barcode: str | None = None
-    name: str | None = None
+    name: str | None = Field(None, min_length=1)
     description: str | None = None
     unit: str | None = None
-    unit_cost: float | None = Field(None, ge=0)
-    reorder_level: int | None = None
+    unit_cost: float | None = Field(None, ge=0.0)
+    reorder_level: int | None = Field(None, ge=0)
     item_type: str | None = None
     category: str | None = None
     warehouse_name: str | None = None
     batch_number: str | None = None
-    quantity: int | None = None
-    reserved: int | None = None
+    quantity: int | None = Field(None, ge=0)
+    reserved: int | None = Field(None, ge=0)
     status: str | None = None
     customer_name: str | None = None
     serial_number: str | None = None
@@ -109,6 +119,13 @@ class InventoryItemUpdate(BaseModel):
             return val
         return None
 
+    @model_validator(mode="after")
+    def validate_reserved_not_exceed_total(self) -> "InventoryItemUpdate":
+        if self.quantity is not None and self.reserved is not None:
+            if self.reserved > self.quantity:
+                raise ValueError("Reserved quantity cannot exceed total quantity.")
+        return self
+
 
 class InventoryItemRead(InventoryItemBase):
     id: int
@@ -116,9 +133,9 @@ class InventoryItemRead(InventoryItemBase):
 
 
 class StockLevelBase(BaseModel):
-    warehouse_id: int
-    item_id: int
-    quantity: int = 0
+    warehouse_id: int = Field(..., ge=1)
+    item_id: int = Field(..., ge=1)
+    quantity: int = Field(0, ge=0)
 
 
 class StockLevelCreate(StockLevelBase):
@@ -130,15 +147,28 @@ class StockLevelRead(StockLevelBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+VALID_MOVEMENT_TYPES = {"in", "out", "adjustment", "return", "scrap", "transfer"}
+
+
 class StockMovementBase(BaseModel):
-    tenant_id: int
-    warehouse_id: int
-    item_id: int
-    quantity: int
+    tenant_id: int = Field(..., ge=1)
+    warehouse_id: int = Field(..., ge=1)
+    item_id: int = Field(..., ge=1)
+    quantity: int = Field(..., ge=1)
     movement_type: str  # in, out, adjustment, return, scrap, transfer
     reference: str | None = None
     batch_number: str | None = None
     created_by: str | None = None
+
+    @field_validator("movement_type", mode="before")
+    @classmethod
+    def validate_movement_type(cls, v: Any) -> str:
+        if v is not None:
+            s = str(v).strip().lower()
+            if s not in VALID_MOVEMENT_TYPES:
+                raise ValueError(f"Invalid movement type '{v}'. Must be one of {', '.join(sorted(VALID_MOVEMENT_TYPES))}.")
+            return s
+        raise ValueError("movement_type is required.")
 
 
 class StockMovementCreate(StockMovementBase):

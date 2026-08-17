@@ -1,6 +1,6 @@
-"""Schemas for Inventory V2 (product-centric items list, stock adjust, categories)."""
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class InventoryItemV2Base(BaseModel):
@@ -13,11 +13,21 @@ class InventoryItemV2Base(BaseModel):
     purchase_price: float | None = Field(None, ge=0)
     selling_price: float | None = Field(None, ge=0)
     wholesale_price: float | None = Field(None, ge=0)
-    gst_percent: float | None = Field(0, ge=0)
-    cess_percent: float | None = Field(0, ge=0)
+    gst_percent: float | None = Field(0, ge=0, le=100.0)
+    cess_percent: float | None = Field(0, ge=0, le=100.0)
     min_stock: float | None = Field(0, ge=0)
     max_stock: float | None = Field(None, ge=0)
     current_stock: float | None = Field(0, ge=0)
+
+    @field_validator("gst_percent", "cess_percent", mode="before")
+    @classmethod
+    def validate_tax_percent_range(cls, v: float | int | str | None, info: Any) -> float | None:
+        if v is not None and v != "":
+            val = float(v)
+            if val < 0 or val > 100:
+                raise ValueError(f"{info.field_name} must be between 0 and 100.")
+            return val
+        return None
 
     @field_validator("purchase_price", mode="before")
     @classmethod
@@ -38,6 +48,13 @@ class InventoryItemV2Base(BaseModel):
                 raise ValueError("Current Stock cannot be negative.")
             return val
         return None
+
+    @model_validator(mode="after")
+    def validate_stock_range(self) -> "InventoryItemV2Base":
+        if self.min_stock is not None and self.max_stock is not None:
+            if self.max_stock < self.min_stock:
+                raise ValueError("max_stock cannot be less than min_stock.")
+        return self
 
 
 class InventoryItemV2Create(InventoryItemV2Base):
@@ -54,11 +71,21 @@ class InventoryItemV2Update(BaseModel):
     purchase_price: float | None = Field(None, ge=0)
     selling_price: float | None = Field(None, ge=0)
     wholesale_price: float | None = Field(None, ge=0)
-    gst_percent: float | None = Field(None, ge=0)
-    cess_percent: float | None = Field(None, ge=0)
+    gst_percent: float | None = Field(None, ge=0, le=100.0)
+    cess_percent: float | None = Field(None, ge=0, le=100.0)
     min_stock: float | None = Field(None, ge=0)
     max_stock: float | None = Field(None, ge=0)
     current_stock: float | None = Field(None, ge=0)
+
+    @field_validator("gst_percent", "cess_percent", mode="before")
+    @classmethod
+    def validate_tax_percent_range(cls, v: float | int | str | None, info: Any) -> float | None:
+        if v is not None and v != "":
+            val = float(v)
+            if val < 0 or val > 100:
+                raise ValueError(f"{info.field_name} must be between 0 and 100.")
+            return val
+        return None
 
     @field_validator("purchase_price", mode="before")
     @classmethod
@@ -79,6 +106,13 @@ class InventoryItemV2Update(BaseModel):
                 raise ValueError("Current Stock cannot be negative.")
             return val
         return None
+
+    @model_validator(mode="after")
+    def validate_stock_range(self) -> "InventoryItemV2Update":
+        if self.min_stock is not None and self.max_stock is not None:
+            if self.max_stock < self.min_stock:
+                raise ValueError("max_stock cannot be less than min_stock.")
+        return self
 
 
 class InventoryItemV2Read(BaseModel):

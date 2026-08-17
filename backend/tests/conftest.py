@@ -14,6 +14,7 @@ import pytest
 _TEST_DB_FD, _TEST_DB_PATH = tempfile.mkstemp(suffix=".db", prefix="smrt_test_")
 os.close(_TEST_DB_FD)
 os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB_PATH}"
+os.environ["ALLOW_SQLITE_RUNTIME"] = "1"
 os.environ["JWT_SECRET_KEY"] = "test-secret-key-not-for-production"
 os.environ["ENVIRONMENT"] = "development"
 # Allow /auth/register in tests (disabled in SaaS production).

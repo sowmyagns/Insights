@@ -23,7 +23,6 @@ from app.services.email_service import (
 from app.utils.password import validate_password_strength
 
 logger = logging.getLogger("gns_insights.password_reset")
-settings = get_settings()
 
 MSG_EMAIL_NOT_FOUND = "No account found with this email address."
 MSG_ACCOUNT_INACTIVE = "Your account is inactive. Please contact your administrator."
@@ -86,6 +85,7 @@ class PasswordResetService:
                 detail=detail,
             )
 
+        settings = get_settings()
         expires_at = _utcnow() + timedelta(minutes=settings.password_reset_expire_minutes)
         raw_token = self.repo.create_password_reset_token(user.id, expires_at=expires_at)
         self.repo.commit()
@@ -172,7 +172,10 @@ class PasswordResetService:
                 detail=str(exc),
             ) from exc
 
-        row = self.repo.get_reset_token_row(raw_token)
+        try:
+            row = self.repo.get_reset_token_row(raw_token, for_update=True)
+        except Exception:
+            row = self.repo.get_reset_token_row(raw_token)
         if not row:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -212,13 +215,26 @@ class PasswordResetService:
                 detail=str(exc),
             ) from exc
 
-        if user.hashed_password:
-            record_password_history(self.db, user.id, user.hashed_password)
-        self.repo.update_user_password(user, hash_password(new_password))
-        self.repo.delete_reset_token(row)
-        self.repo.invalidate_active_reset_tokens(user.id)
-        revoke_all_refresh_tokens_for_user(self.db, user.id)
-        self.repo.commit()
+        try:
+            if user.hashed_password:
+                record_password_history(self.db, user.id, user.hashed_password)
+            self.repo.update_user_password(user, hash_password(new_password))
+            self.repo.delete_reset_token(row)
+            self.repo.invalidate_active_reset_tokens(user.id)
+            revoke_all_refresh_tokens_for_user(self.db, user.id)
+            self.repo.commit()
+        except Exception as exc:
+            logger.exception("Password reset transaction failed for user_id=%s: %s", user.id, exc)
+            try:
+                self.db.rollback()
+            except Exception:
+                pass
+            if isinstance(exc, HTTPException):
+                raise
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error during password reset.",
+            ) from exc
 
         log_audit(
             self.db,
@@ -261,14 +277,25 @@ class PasswordResetService:
                 detail=MSG_ACCOUNT_INACTIVE,
             )
 
+        settings = get_settings()
         expires_at = _utcnow() + timedelta(minutes=settings.password_reset_expire_minutes)
         raw_token = self.repo.create_password_reset_token(user.id, expires_at=expires_at)
         self.repo.commit()
 
         try:
             send_password_reset_email(user.email, raw_token)
-        except EmailDeliveryError:
-            logger.error("Password Reset Failed admin_trigger user_id=%s", user.id)
+        except EmailDeliveryError as exc:
+            logger.error("Password Reset Failed admin_trigger user_id=%s reason=smtp detail=%s", user.id, exc)
+            row = self.repo.get_reset_token_row(raw_token)
+            if row:
+                self.repo.delete_reset_token(row)
+                self.repo.commit()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(exc) or MSG_SMTP_FAILED,
+            ) from None
+        except Exception as exc:
+            logger.exception("Password Reset Failed admin_trigger user_id=%s", user.id)
             row = self.repo.get_reset_token_row(raw_token)
             if row:
                 self.repo.delete_reset_token(row)

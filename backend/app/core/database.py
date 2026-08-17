@@ -11,20 +11,11 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-_connect_args = {}
-_engine_kwargs = {
-    "connect_args": _connect_args,
-    "pool_pre_ping": not settings.database_url.startswith("sqlite"),
-}
-
-if settings.database_url.startswith("sqlite"):
-    _connect_args["check_same_thread"] = False
-else:
-    _engine_kwargs.update({
-        "pool_size": 20,
-        "max_overflow": 30,
-        "pool_recycle": 300,
-    })
-
-engine = create_engine(settings.database_url, **_engine_kwargs)
+engine = create_engine(
+    settings.database_url,
+    pool_pre_ping=True,
+    pool_size=20,
+    max_overflow=30,
+    pool_recycle=300,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

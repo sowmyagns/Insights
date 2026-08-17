@@ -1,5 +1,7 @@
 import logging
 
+import logging
+
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -13,6 +15,7 @@ from app.models.maintenance import (
     PreventiveMaintenance,
 )
 from app.schemas.maintenance import (
+    VALID_BREAKDOWN_STATUSES,
     BreakdownReportCreate,
     MaintenanceRecordCreate,
     MaintenanceScheduleCreate,

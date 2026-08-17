@@ -413,7 +413,7 @@ def register_user(
     full_name: str,
     email: str,
     password: str,
-    role_name: str = "Admin",
+    role_name: str = "Operator",
 ) -> User:
     if role_name not in REGISTERABLE_ROLES:
         raise HTTPException(

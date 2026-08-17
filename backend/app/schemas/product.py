@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ProductBase(BaseModel):
@@ -15,8 +17,18 @@ class ProductBase(BaseModel):
     current_stock: float | None = Field(None, ge=0)
     unit: str | None = Field("Pcs", max_length=32)
     hsn_code: str | None = Field(None, max_length=32)
-    gst_percent: float | None = Field(None, ge=0)
-    cess_percent: float | None = Field(None, ge=0)
+    gst_percent: float | None = Field(None, ge=0, le=100.0)
+    cess_percent: float | None = Field(None, ge=0, le=100.0)
+
+    @field_validator("gst_percent", "cess_percent", mode="before")
+    @classmethod
+    def validate_tax_percent_range(cls, v: float | int | str | None, info: Any) -> float | None:
+        if v is not None and v != "":
+            val = float(v)
+            if val < 0 or val > 100:
+                raise ValueError(f"{info.field_name} must be between 0 and 100.")
+            return val
+        return None
 
     @field_validator("name", mode="before")
     @classmethod
@@ -71,6 +83,13 @@ class ProductBase(BaseModel):
             return val
         return None
 
+    @model_validator(mode="after")
+    def validate_stock_range(self) -> "ProductBase":
+        if self.min_stock is not None and self.max_stock is not None:
+            if self.max_stock < self.min_stock:
+                raise ValueError("max_stock cannot be less than min_stock.")
+        return self
+
 
 class ProductCreate(ProductBase):
     pass
@@ -89,8 +108,18 @@ class ProductUpdate(BaseModel):
     current_stock: float | None = Field(None, ge=0)
     unit: str | None = Field(None, max_length=32)
     hsn_code: str | None = Field(None, max_length=32)
-    gst_percent: float | None = Field(None, ge=0)
-    cess_percent: float | None = Field(None, ge=0)
+    gst_percent: float | None = Field(None, ge=0, le=100.0)
+    cess_percent: float | None = Field(None, ge=0, le=100.0)
+
+    @field_validator("gst_percent", "cess_percent", mode="before")
+    @classmethod
+    def validate_tax_percent_range(cls, v: float | int | str | None, info: Any) -> float | None:
+        if v is not None and v != "":
+            val = float(v)
+            if val < 0 or val > 100:
+                raise ValueError(f"{info.field_name} must be between 0 and 100.")
+            return val
+        return None
 
     @field_validator("name", mode="before")
     @classmethod
@@ -144,6 +173,13 @@ class ProductUpdate(BaseModel):
                 raise ValueError("Min Stock cannot be negative.")
             return val
         return None
+
+    @model_validator(mode="after")
+    def validate_stock_range(self) -> "ProductUpdate":
+        if self.min_stock is not None and self.max_stock is not None:
+            if self.max_stock < self.min_stock:
+                raise ValueError("max_stock cannot be less than min_stock.")
+        return self
 
 
 class ProductDetailRead(ProductBase):

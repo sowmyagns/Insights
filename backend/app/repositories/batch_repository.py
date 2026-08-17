@@ -4,9 +4,12 @@ import logging
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.production import Batch
 from app.repositories.base_repository import BaseRepository
+
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 

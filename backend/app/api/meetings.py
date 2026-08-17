@@ -24,7 +24,9 @@ from app.services.meeting_service import (
     create_meeting,
     delete_meeting,
     get_meeting,
+    import_from_google_calendar,
     list_meetings,
+    sync_meeting_to_google,
     update_meeting,
 )
 
@@ -116,6 +118,35 @@ def delete_meeting_endpoint(
         raise HTTPException(status_code=404, detail="Meeting not found.")
 
 
+@router.post("/import-google", status_code=200)
+def import_google_calendar_endpoint(
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    current_user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    """Import all Google Calendar events as ERP meetings (skips already-imported ones)."""
+    result = import_from_google_calendar(db, tenant_id=tenant_id, user=current_user)
+    return result
+
+
+@router.post("/{meeting_id}/sync-google", response_model=MeetingRead)
+def sync_meeting_to_google_endpoint(
+    meeting_id: int,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    current_user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    """Push an existing meeting to Google Calendar (creates or updates the event)."""
+    meeting, warning = sync_meeting_to_google(
+        db, tenant_id=tenant_id, user=current_user, meeting_id=meeting_id
+    )
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found.")
+    if warning:
+        meeting["warning"] = warning  # type: ignore[index]
+    return meeting
+
+
 @router.post("/{meeting_id}/google-meet", response_model=GoogleMeetCreateResponse)
 def create_google_meet_endpoint(
     meeting_id: int,
@@ -171,10 +202,10 @@ def google_calendar_callback_endpoint(
         return RedirectResponse(f"{frontend}/meetings?google_error={quote(str(error))}")
     if not code or not state:
         return RedirectResponse(f"{frontend}/meetings?google_error={quote('missing_code')}")
-    user_id, tenant_id = gcal.decode_oauth_state(state)
     try:
+        user_id, tenant_id, code_verifier = gcal.decode_oauth_state(state)
         gcal.exchange_authorization_code(
-            db, tenant_id=tenant_id, user_id=user_id, code=code
+            db, tenant_id=tenant_id, user_id=user_id, code=code, code_verifier=code_verifier
         )
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)

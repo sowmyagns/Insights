@@ -63,7 +63,12 @@ const GradientSlide = ({ slide }) => (
   </div>
 );
 
-export default function AuthSlider({ className = "", children, interval = 5000 }) {
+export default function AuthSlider({
+  className = "",
+  contentClassName = "p-12",
+  children,
+  interval = 5000,
+}) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [failed, setFailed] = useState({});
@@ -107,7 +112,9 @@ export default function AuthSlider({ className = "", children, interval = 5000 }
 
       <div className="absolute inset-0 bg-gradient-to-br from-teal-900/70 via-teal-800/55 to-emerald-900/75" />
 
-      <div className="relative z-10 flex h-full flex-col items-center justify-center p-12 text-center text-white">
+      <div
+        className={`relative z-10 flex h-full flex-col items-center justify-center text-center text-white ${contentClassName}`}
+      >
         <div className="flex-1 flex flex-col items-center justify-center w-full">{children}</div>
 
         <div className="w-full max-w-xs">

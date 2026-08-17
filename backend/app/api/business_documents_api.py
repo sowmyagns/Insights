@@ -118,43 +118,31 @@ def create_document(
     user: User = Depends(require_any_permission("sales", "procurement")),
     db: Session = Depends(get_db),
 ):
-    """
-    Create a business document with comprehensive error handling.
-    
-    Catches constraint violations and database errors.
-    """
-    try:
-        doc_type = payload.doc_type
-        number = payload.document_number or _next_number(db, user.tenant_id, doc_type)
-        row = BusinessDocument(
-            tenant_id=user.tenant_id,
-            module=payload.module or "sales",
-            doc_type=doc_type,
-            document_number=number,
-            party_name=payload.party_name,
-            document_date=payload.document_date or date.today(),
-            due_date=payload.due_date,
-            amount=float(payload.amount or 0),
-            status=payload.status or "draft",
-            notes=payload.notes,
-            meta_json=json.dumps(payload.meta) if payload.meta else None,
+    if payload.tenant_id is not None and payload.tenant_id != user.tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot create business document for another tenant",
         )
-        db.add(row)
-        db.commit()
-        db.refresh(row)
-        return BusinessDocumentRead.model_validate(row)
-    except ValueError as e:
-        db.rollback()
-        logger.warning(f"Business document creation validation error for user {user.id}: {str(e)}")
-        raise HTTPException(400, detail=str(e))
-    except RuntimeError as e:
-        db.rollback()
-        logger.error(f"Business document creation database error for user {user.id}: {str(e)}")
-        raise HTTPException(503, detail="Database error - please try again later")
-    except Exception as e:
-        db.rollback()
-        logger.exception(f"Unexpected error creating business document for user {user.id}: {str(e)}")
-        raise HTTPException(500, detail="Failed to create business document")
+    target_tenant_id = user.tenant_id
+    doc_type = payload.doc_type
+    number = payload.document_number or _next_number(db, target_tenant_id, doc_type)
+    row = BusinessDocument(
+        tenant_id=target_tenant_id,
+        module=payload.module or "sales",
+        doc_type=doc_type,
+        document_number=number,
+        party_name=payload.party_name,
+        document_date=payload.document_date or date.today(),
+        due_date=payload.due_date,
+        amount=float(payload.amount or 0),
+        status=payload.status or "draft",
+        notes=payload.notes,
+        meta_json=json.dumps(payload.meta) if payload.meta else None,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return BusinessDocumentRead.model_validate(row)
 
 
 @router.get("/documents/{doc_id}", response_model=BusinessDocumentRead)

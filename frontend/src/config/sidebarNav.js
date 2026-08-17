@@ -105,16 +105,6 @@ export const SIDEBAR_NAV = [
     ],
   },
   {
-    key: "hr",
-    labelKey: "erpNav.hr",
-    icon: Users,
-    children: [
-      { labelKey: "erpNav.employees", to: "/hr/employees", module: "hr", end: true },
-      { labelKey: "erpNav.assetManagement", to: "/hr/assets", module: "hr" },
-      { labelKey: "erpNav.incidentReports", to: "/hr/incidents", module: "hr" },
-    ],
-  },
-  {
     key: "expense",
     label: "Expense",
     to: "/accounts/expenses",
@@ -175,7 +165,6 @@ export const SIDEBAR_NAV = [
       { labelKey: "erpNav.productionDelayAlerts", to: "/alerts/production-delay", module: "alerts" },
       { labelKey: "erpNav.maintenanceAlerts", to: "/alerts/maintenance", module: "alerts" },
       { labelKey: "erpNav.qualityAlerts", to: "/alerts/quality", module: "alerts" },
-      { labelKey: "erpNav.hrAlerts", to: "/alerts/hr", module: "alerts" },
       { labelKey: "erpNav.safetyAlerts", to: "/alerts/safety", module: "alerts" },
       { labelKey: "erpNav.generalAlerts", to: "/alerts/general", module: "alerts" },
     ],
@@ -186,7 +175,6 @@ export const SIDEBAR_NAV = [
     icon: FolderOpen,
     children: [
       { labelKey: "erpNav.allDocuments",       to: "/documents",            module: "documents",     end: true },
-      { label: "HR Documents",                 to: "/hr/documents",         module: "hr" },
       { labelKey: "erpNav.purchaseDocuments",  to: "/documents/purchase",   module: "documents_ops" },
       { labelKey: "erpNav.productionDocuments",to: "/documents/production", module: "documents_ops" },
       { labelKey: "erpNav.qualityDocuments",   to: "/documents/quality",    module: "documents_ops" },

@@ -49,10 +49,10 @@ def _is_delayed(wo: WorkOrder) -> bool:
 
 
 def _wo_context(db: Session, tenant_id: int, wo: WorkOrder) -> dict:
-    po = db.get(ProductionOrder, wo.production_order_id)
-    product = db.get(Product, po.product_id) if po else None
-    machine = db.get(Machine, wo.machine_id) if wo.machine_id else None
-    operator = db.get(User, wo.assigned_user_id) if wo.assigned_user_id else None
+    po = db.scalars(select(ProductionOrder).where(ProductionOrder.id == wo.production_order_id, ProductionOrder.tenant_id == tenant_id)).first() if wo.production_order_id else None
+    product = db.scalars(select(Product).where(Product.id == po.product_id, Product.tenant_id == tenant_id)).first() if (po and po.product_id) else None
+    machine = db.scalars(select(Machine).where(Machine.id == wo.machine_id, Machine.tenant_id == tenant_id)).first() if wo.machine_id else None
+    operator = db.scalars(select(User).where(User.id == wo.assigned_user_id, User.tenant_id == tenant_id)).first() if wo.assigned_user_id else None
 
     produced = float(wo.actual_quantity or 0)
     if produced <= 0:

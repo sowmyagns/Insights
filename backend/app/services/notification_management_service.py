@@ -45,7 +45,8 @@ class NotificationManagementService:
 
     def list_notifications(self, page: int = 1, page_size: int = 20) -> dict:
         rows, total = self.repo.list_paginated(page, page_size)
-        unread = self.repo.count_unread()
+        total = max(0, total)
+        unread = max(0, self.repo.count_unread())
         has_more = page * page_size < total
         return {
             "items": [_serialize(r) for r in rows],
@@ -59,19 +60,16 @@ class NotificationManagementService:
         }
 
     def unread_count(self) -> dict:
-        count = self.repo.count_unread()
+        count = max(0, self.repo.count_unread())
         return {"unread_count": count, "count": count}
 
     def mark_read(self, notification_id: int) -> dict:
-        row = self.repo.get_by_id(notification_id)
+        row = self.repo.mark_read(notification_id)
         if not row:
             raise HTTPException(status_code=404, detail="Notification not found")
-        if not row.is_read:
-            self.repo.mark_read(notification_id)
         return {
-            "notification": _serialize(self.repo.get_by_id(notification_id)),
+            "notification": _serialize(row),
             **self.unread_count(),
-            **self.list_notifications(page=1, page_size=20),
         }
 
     def mark_all_read(self) -> dict:

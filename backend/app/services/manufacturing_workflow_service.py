@@ -50,7 +50,7 @@ def sales_order_has_final_qc_pass(
 
 
 def link_grn_to_incoming_quality_inspection(
-    db: Session, tenant_id: int, gr
+    db: Session, tenant_id: int, gr, *, commit: bool = True
 ) -> QualityInspection | None:
     """Mirror GRN QC pass into QualityInspection (incoming) for spine consistency."""
     existing = db.scalars(
@@ -85,8 +85,11 @@ def link_grn_to_incoming_quality_inspection(
         approval="approved",
     )
     db.add(qi)
-    db.commit()
-    db.refresh(qi)
+    if commit:
+        db.commit()
+        db.refresh(qi)
+    else:
+        db.flush()
     return qi
 
 
@@ -517,7 +520,13 @@ def issue_materials_for_work_order(
 
     warehouse = None
     if warehouse_id:
-        warehouse = db.get(Warehouse, warehouse_id)
+        w = db.get(Warehouse, warehouse_id)
+        if not w or w.tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Specified warehouse does not exist or does not belong to your company.",
+            )
+        warehouse = w
     if not warehouse:
         warehouse = get_default_warehouse(db, tenant_id)
     if not warehouse:
@@ -664,7 +673,13 @@ def receive_finished_goods(
 
     warehouse = None
     if warehouse_id:
-        warehouse = db.get(Warehouse, warehouse_id)
+        w = db.get(Warehouse, warehouse_id)
+        if not w or w.tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Specified warehouse does not exist or does not belong to your company.",
+            )
+        warehouse = w
     if not warehouse:
         warehouse = get_default_warehouse(db, tenant_id)
     if not warehouse:
@@ -1143,7 +1158,13 @@ def ship_sales_order_stock_out(
 
     warehouse = None
     if warehouse_id:
-        warehouse = db.get(Warehouse, warehouse_id)
+        w = db.get(Warehouse, warehouse_id)
+        if not w or w.tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Specified warehouse does not exist or does not belong to your company.",
+            )
+        warehouse = w
     if not warehouse:
         warehouse = get_default_warehouse(db, tenant_id)
     if not warehouse:
@@ -1154,60 +1175,91 @@ def ship_sales_order_stock_out(
     if not lines:
         so.shipped = True
         so.status = "shipped"
+        invoice_info = None
+        if auto_invoice and so.customer_id:
+            try:
+                invoice_info = create_gst_invoice_from_sales_order(db, tenant_id, so.id)
+            except Exception as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Dispatch failed during automatic invoice creation: {exc}",
+                ) from exc
         db.commit()
         return {
             "sales_order_id": so.id,
             "shipped": True,
             "warning": "No line items — flags updated without stock movement",
             "movements": [],
+            "invoice": invoice_info,
         }
 
-    for line in lines:
-        if not line.product_id:
-            continue
-        product = db.get(Product, line.product_id)
-        if not product:
-            continue
-        item = find_or_create_finished_good_for_product(db, tenant_id, product)
-        qty = _qty_int(line.quantity)
-        available = get_total_stock(db, item.id)
-        if available < qty:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Insufficient finished goods for {product.sku}: "
-                    f"need {qty}, available {available}"
+    try:
+        for line in lines:
+            if not line.product_id:
+                continue
+            product = db.get(Product, line.product_id)
+            if not product:
+                continue
+            item = find_or_create_finished_good_for_product(db, tenant_id, product)
+            qty = _qty_int(line.quantity)
+            available = get_total_stock(db, item.id)
+            if available < qty:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Insufficient finished goods for {product.sku}: "
+                        f"need {qty}, available {available}"
+                    ),
+                )
+            mov = record_stock_movement(
+                db,
+                StockMovementCreate(
+                    tenant_id=tenant_id,
+                    warehouse_id=warehouse.id,
+                    item_id=item.id,
+                    quantity=qty,
+                    movement_type="out",
                 ),
+                commit=False,
             )
-        mov = record_stock_movement(
-            db,
-            StockMovementCreate(
-                tenant_id=tenant_id,
-                warehouse_id=warehouse.id,
-                item_id=item.id,
-                quantity=qty,
-                movement_type="out",
-            ),
-            commit=False,
-        )
-        movements.append(
-            {
-                "sku": product.sku,
-                "quantity": qty,
-                "movement_id": mov.id,
-            }
-        )
+            movements.append(
+                {
+                    "sku": product.sku,
+                    "quantity": qty,
+                    "movement_id": mov.id,
+                }
+            )
 
-    so.shipped = True
-    so.packed = True
-    so.status = "shipped"
-    db.commit()
-    invoice_info = None
-    if auto_invoice and so.customer_id:
-        try:
+        so.shipped = True
+        so.packed = True
+        so.status = "shipped"
+
+        invoice_info = None
+        if auto_invoice and so.customer_id:
             invoice_info = create_gst_invoice_from_sales_order(db, tenant_id, so.id)
-        except Exception as exc:
-            invoice_info = {"error": str(exc)}
+
+        db.commit()
+    except HTTPException:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise
+    except Exception as exc:
+        logger.exception("Failed dispatch/invoice for sales order id=%s: %s", sales_order_id, exc)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=400,
+            detail=f"Dispatch failed during automatic invoice creation: {exc}",
+        ) from exc
+
     try:
         from app.services.alert_event_service import emit_alert
 
@@ -1231,7 +1283,10 @@ def ship_sales_order_stock_out(
             created_by="Dispatch",
         )
     except Exception:
-        pass
+        try:
+            db.rollback()
+        except Exception:
+            pass
     return {
         "sales_order_id": so.id,
         "order_number": so.order_number,

@@ -154,7 +154,7 @@ export default function MeetingFormModal({
       description: form.description.trim() || null,
       reminder_minutes: Number.isFinite(reminder) ? reminder : null,
       create_google_meet: Boolean(form.create_google_meet),
-      sync_google_calendar: googleConnected,
+      sync_google_calendar: true,  // always attempt sync; backend skips if not connected
     });
   };
 
@@ -306,18 +306,30 @@ export default function MeetingFormModal({
           </label>
 
           {createKind !== "task" ? (
-            <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-[var(--color-border)]"
-                checked={form.create_google_meet}
-                onChange={(e) => setForm((f) => ({ ...f, create_google_meet: e.target.checked }))}
-              />
-              Create Google Meet
-              {!googleConnected ? (
-                <span className="text-xs text-[var(--color-text-muted)]">(connect Google Calendar first)</span>
-              ) : null}
-            </label>
+            <div className="rounded-lg border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] p-3 space-y-2">
+              {googleConnected ? (
+                <p className="text-xs text-emerald-600 font-medium flex items-center gap-1.5">
+                  ✅ Google Calendar connected — this meeting will automatically appear on your Google Calendar.
+                </p>
+              ) : (
+                <p className="text-xs text-amber-600 font-medium flex items-center gap-1.5">
+                  ⚠️ Connect Google Calendar to auto-sync meetings.
+                </p>
+              )}
+              <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-[var(--color-border)]"
+                  checked={form.create_google_meet}
+                  disabled={!googleConnected}
+                  onChange={(e) => setForm((f) => ({ ...f, create_google_meet: e.target.checked }))}
+                />
+                Also create a Google Meet video link
+                {!googleConnected ? (
+                  <span className="text-xs text-[var(--color-text-muted)]">(connect Google Calendar first)</span>
+                ) : null}
+              </label>
+            </div>
           ) : null}
 
           <div className="flex justify-end gap-3 border-t border-[var(--color-border-soft)] pt-4">

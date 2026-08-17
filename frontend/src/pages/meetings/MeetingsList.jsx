@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
@@ -16,6 +16,8 @@ import {
   disconnectGoogleCalendar,
   getGoogleCalendarStatus,
   getMeetings,
+  importFromGoogleCalendar,
+  syncMeetingToGoogle,
   updateMeeting,
 } from "../../api/meetingsApi";
 import { apiErrorMessage } from "../../utils/apiError";
@@ -97,15 +99,61 @@ export default function MeetingsList() {
     load();
   }, [load]);
 
+  // ─── Auto-sync from Google Calendar ──────────────────────────────────────
+  // Silently poll every 60 s when Google Calendar is connected.
+  // If new events are found they are imported automatically and the list refreshes.
+  const autoSyncRef = useRef(null);
+  useEffect(() => {
+    if (!googleStatus.connected) {
+      if (autoSyncRef.current) clearInterval(autoSyncRef.current);
+      autoSyncRef.current = null;
+      return;
+    }
+    const runAutoSync = async () => {
+      try {
+        const res = await importFromGoogleCalendar();
+        const { imported } = res?.data || {};
+        if (imported > 0) {
+          load(); // refresh the meetings list silently
+        }
+      } catch {
+        // silent — don't disturb the user on background poll failures
+      }
+    };
+    // Run once immediately on connect, then every 60 s
+    runAutoSync();
+    autoSyncRef.current = setInterval(runAutoSync, 60_000);
+    return () => {
+      if (autoSyncRef.current) clearInterval(autoSyncRef.current);
+      autoSyncRef.current = null;
+    };
+  }, [googleStatus.connected, load]);
+  // ─────────────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     const connected = searchParams.get("google_connected");
     const error = searchParams.get("google_error");
     if (connected === "1") {
-      addToast("Google Calendar connected successfully.", "success");
       setSearchParams({}, { replace: true });
       load();
+      // Open Google Calendar in a new tab — done via a link click to bypass popup blockers
+      const a = document.createElement("a");
+      a.href = "https://calendar.google.com";
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      addToast("Google Calendar connected! Your meetings will now sync automatically.", "success");
     } else if (error) {
-      addToast(`Google Calendar connection failed: ${decodeURIComponent(error)}`, "error");
+      const decoded = decodeURIComponent(error);
+      const isRefreshTokenError = decoded.toLowerCase().includes("refresh token") || decoded.toLowerCase().includes("revoke");
+      addToast(
+        isRefreshTokenError
+          ? "Google connection failed: Please go to myaccount.google.com/permissions, remove 'Insights Iva' access, then click Connect again."
+          : `Google Calendar connection failed: ${decoded}`,
+        "error"
+      );
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams, addToast, load]);
@@ -197,6 +245,40 @@ export default function MeetingsList() {
     }
   };
 
+  const handleImportGoogle = async () => {
+    try {
+      const res = await importFromGoogleCalendar();
+      const { imported, skipped, error } = res?.data || {};
+      if (error) {
+        addToast(`Import failed: ${error}`, "error");
+      } else {
+        addToast(
+          imported > 0
+            ? `Imported ${imported} meeting${imported !== 1 ? "s" : ""} from Google Calendar.${ skipped > 0 ? ` (${skipped} already existed)` : ""}`
+            : `All Google Calendar events are already in your meetings. (${skipped} skipped)`,
+          imported > 0 ? "success" : "info"
+        );
+        if (imported > 0) load();
+      }
+    } catch (err) {
+      addToast(apiErrorMessage(err, "Unable to import from Google Calendar."), "error");
+    }
+  };
+
+  const handleSyncGoogle = async (row) => {
+    try {
+      const res = await syncMeetingToGoogle(row.id);
+      const warning = res?.data?.warning;
+      addToast(
+        warning || "Meeting synced to Google Calendar.",
+        warning ? "warning" : "success"
+      );
+      load();
+    } catch (err) {
+      addToast(apiErrorMessage(err, "Unable to sync meeting to Google Calendar."), "error");
+    }
+  };
+
   const openCalendar = (row) => {
     if (row.google_calendar_event_url) {
       window.open(row.google_calendar_event_url, "_blank", "noopener,noreferrer");
@@ -276,8 +358,10 @@ export default function MeetingsList() {
               onDelete={() => setDeleteTarget(r)}
               onOpenCalendar={() => openCalendar(r)}
               onJoinMeeting={() => joinMeeting(r)}
+              onSyncGoogle={() => handleSyncGoogle(r)}
               hasCalendarLink={Boolean(r.google_calendar_event_url)}
               hasMeetLink={Boolean(r.google_meet_url)}
+              googleConnected={Boolean(googleStatus?.connected)}
             />
           </div>
         ),
@@ -314,6 +398,7 @@ export default function MeetingsList() {
         onOpenCalendar={openCalendar}
         onConnectGoogle={handleConnect}
         onDisconnectGoogle={handleDisconnect}
+        onImportGoogle={handleImportGoogle}
         onRefresh={load}
       />
 

@@ -3,7 +3,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.models.hr import Employee
 from app.models.task import Task
 from app.models.user import User
 from app.routers.operator_deps import require_tenant
@@ -75,9 +74,8 @@ def get_task_tracking(
             Task.status,
             Task.priority,
             Task.due_date,
-            Employee.full_name,
+            Task.assigned_to_name,
         )
-        .outerjoin(Employee, Task.assigned_to == Employee.id)
         .where(Task.tenant_id == tenant_id)
         .order_by(Task.due_date.is_(None), Task.due_date)
     ).all()

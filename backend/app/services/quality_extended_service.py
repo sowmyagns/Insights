@@ -40,13 +40,24 @@ def _inspection_to_incoming(i: QualityInspection) -> IncomingInspectionRead:
 
 
 def _inspection_to_process(i: QualityInspection) -> ProcessQCRead:
+    insp_time = None
+    if getattr(i, "created_at", None):
+        if isinstance(i.created_at, datetime):
+            insp_time = i.created_at.strftime("%H:%M:%S")
+        elif isinstance(i.created_at, str) and "T" in i.created_at:
+            insp_time = i.created_at.split("T")[1].split(".")[0]
+        else:
+            insp_time = str(i.created_at)
+    elif i.inspection_date:
+        insp_time = f"{i.inspection_date.isoformat()} 00:00:00"
+
     return ProcessQCRead(
         id=i.id,
         work_order_number=i.work_order_number,
         machine_name=i.machine_name,
         shift=i.shift,
         operator_name=i.operator_name,
-        inspection_time=i.inspection_date.isoformat() if i.inspection_date else None,
+        inspection_time=insp_time,
         qc_status=i.status or i.result,
         remarks=i.notes,
         product_name=i.product_name,
@@ -82,13 +93,22 @@ def get_incoming_summary(db: Session, tenant_id: int) -> InspectionSummaryRead:
             )
         ).all()
     )
+    def _norm(v: str | None) -> str:
+        return (v or "").strip().lower()
+
     today_count = sum(1 for r in rows if r.inspection_date == today)
-    pending = sum(1 for r in rows if (r.status or r.result) in ("pending", "conditional"))
-    passed = sum(1 for r in rows if r.result == "pass")
-    failed = sum(1 for r in rows if r.result in ("fail", "failed"))
-    rejected = sum(1 for r in rows if r.status == "rejected")
+    pending = sum(
+        1 for r in rows
+        if _norm(r.status) in ("pending", "conditional") or _norm(r.result) in ("pending", "conditional")
+    )
+    passed = sum(1 for r in rows if _norm(r.result) in ("pass", "passed"))
+    rejected = sum(1 for r in rows if _norm(r.status) == "rejected" or _norm(r.result) == "rejected")
+    failed = sum(
+        1 for r in rows
+        if _norm(r.result) in ("fail", "failed") and _norm(r.status) != "rejected" and _norm(r.result) != "rejected"
+    )
     times = [float(r.inspection_time_minutes) for r in rows if r.inspection_time_minutes]
-    avg_time = sum(times) / len(times) if times else 18.5
+    avg_time = (sum(times) / len(times)) if times else 0.0
     return InspectionSummaryRead(
         todays_inspections=today_count,
         pending_inspection=pending,
@@ -119,13 +139,16 @@ def get_process_summary(db: Session, tenant_id: int) -> ProcessQCSummaryRead:
             )
         ).all()
     )
+    def _norm(v: str | None) -> str:
+        return (v or "").strip().lower()
+
     return ProcessQCSummaryRead(
-        production_running=sum(1 for r in rows if (r.status or "").lower() in ("in_progress", "running")),
-        qc_pending=sum(1 for r in rows if (r.status or r.result) == "pending"),
-        passed=sum(1 for r in rows if r.result == "pass"),
-        failed=sum(1 for r in rows if r.result in ("fail", "failed")),
-        rework=sum(1 for r in rows if r.result == "rework"),
-        scrap=sum(1 for r in rows if r.status == "scrap"),
+        production_running=sum(1 for r in rows if _norm(r.status) in ("in_progress", "running")),
+        qc_pending=sum(1 for r in rows if _norm(r.status) == "pending" or _norm(r.result) == "pending"),
+        passed=sum(1 for r in rows if _norm(r.result) in ("pass", "passed")),
+        failed=sum(1 for r in rows if _norm(r.result) in ("fail", "failed")),
+        rework=sum(1 for r in rows if _norm(r.result) == "rework"),
+        scrap=sum(1 for r in rows if _norm(r.status) == "scrap"),
     )
 
 
@@ -149,12 +172,15 @@ def get_final_summary(db: Session, tenant_id: int) -> FinalQCSummaryRead:
             )
         ).all()
     )
+    def _norm(v: str | None) -> str:
+        return (v or "").strip().lower()
+
     return FinalQCSummaryRead(
-        pending_final=sum(1 for r in rows if (r.status or r.result) == "pending"),
-        passed=sum(1 for r in rows if r.result == "pass"),
-        failed=sum(1 for r in rows if r.result in ("fail", "failed")),
-        packed=sum(1 for r in rows if r.packing_status == "packed"),
-        ready_dispatch=sum(1 for r in rows if r.approval == "approved"),
+        pending_final=sum(1 for r in rows if _norm(r.status) == "pending" or _norm(r.result) == "pending"),
+        passed=sum(1 for r in rows if _norm(r.result) in ("pass", "passed")),
+        failed=sum(1 for r in rows if _norm(r.result) in ("fail", "failed")),
+        packed=sum(1 for r in rows if _norm(r.packing_status) == "packed"),
+        ready_dispatch=sum(1 for r in rows if _norm(r.approval) in ("approved", "pass")),
     )
 
 
@@ -169,18 +195,28 @@ def list_final_enriched(db: Session, tenant_id: int) -> list[FinalQCRead]:
     return [_inspection_to_final(r) for r in rows]
 
 
+def _report_production_qty(r: BatchQualityReport) -> float:
+    if r.production_qty and float(r.production_qty) > 0:
+        return float(r.production_qty)
+    fails = max(float(r.fail_count or 0), float(r.reject_qty or 0))
+    rework = float(r.rework_qty or 0)
+    passes = float(r.pass_count or 0)
+    calc = passes + fails + rework
+    return calc if calc > 0 else 0.0
+
+
 def get_batch_summary(db: Session, tenant_id: int) -> BatchReportSummaryRead:
     reports = list(
         db.scalars(select(BatchQualityReport).where(BatchQualityReport.tenant_id == tenant_id)).all()
     )
-    total_prod = sum(r.production_qty or (r.pass_count + r.fail_count) for r in reports)
+    total_prod = sum(_report_production_qty(r) for r in reports)
     total_pass = sum(r.pass_count for r in reports)
     total_fail = sum(r.fail_count for r in reports)
     total_rework = sum(r.rework_qty for r in reports)
     total_reject = sum(r.reject_qty for r in reports)
-    yield_pct = (total_pass / total_prod * 100) if total_prod else 94.2
-    scrap_pct = (total_reject / total_prod * 100) if total_prod else 2.8
-    rework_pct = (total_rework / total_prod * 100) if total_prod else 3.0
+    yield_pct = (total_pass / total_prod * 100) if total_prod else 0.0
+    scrap_pct = (total_reject / total_prod * 100) if total_prod else 0.0
+    rework_pct = (total_rework / total_prod * 100) if total_prod else 0.0
     return BatchReportSummaryRead(
         total_batches=len(reports),
         passed=total_pass,
@@ -201,7 +237,7 @@ def list_batch_enriched(db: Session, tenant_id: int) -> list[BatchReportRead]:
     )
     result = []
     for r in reports:
-        prod = r.production_qty or (r.pass_count + r.fail_count)
+        prod = _report_production_qty(r)
         yield_pct = (r.pass_count / prod * 100) if prod else 0
         result.append(
             BatchReportRead(
@@ -228,7 +264,7 @@ def get_defect_summary(db: Session, tenant_id: int) -> DefectSummaryRead:
         in_progress=sum(1 for d in defects if d.status == "in_progress"),
         resolved=sum(1 for d in defects if d.status in ("resolved", "closed")),
         critical=sum(1 for d in defects if d.severity == "critical"),
-        capa_pending=sum(1 for d in defects if d.corrective_action and d.status != "closed"),
+        capa_pending=sum(1 for d in defects if d.status not in ("closed", "resolved")),
     )
 
 
@@ -263,17 +299,146 @@ def list_defects_enriched(db: Session, tenant_id: int) -> list[DefectEnrichedRea
 
 
 def get_quality_hub(db: Session, tenant_id: int) -> QualityHubRead:
-    insp = list(db.scalars(select(QualityInspection).where(QualityInspection.tenant_id == tenant_id)).all())
+    insp = list(
+        db.scalars(
+            select(QualityInspection)
+            .where(QualityInspection.tenant_id == tenant_id)
+            .order_by(QualityInspection.inspection_date.desc(), QualityInspection.id.desc())
+        ).all()
+    )
     defects = list(db.scalars(select(Defect).where(Defect.tenant_id == tenant_id)).all())
     batch_sum = get_batch_summary(db, tenant_id)
     passed = sum(1 for i in insp if i.result == "pass")
-    failed = sum(1 for i in insp if i.result in ("fail", "failed"))
-    rejected = sum(1 for i in insp if i.status == "rejected")
+    rejected = sum(1 for i in insp if i.status == "rejected" or i.result == "rejected")
+    failed = sum(
+        1 for i in insp
+        if i.result in ("fail", "failed") and i.status != "rejected" and i.result != "rejected"
+    )
     total = len(insp)
-    defect_rate = (len(defects) / total * 100) if total else 0.0
-    pending = max(total - passed - failed, 0)
+    total_inspected_qty = sum(float(i.quantity or 0) for i in insp)
+    defect_qty = sum(float(d.quantity_affected or 1) for d in defects)
+
+    if total_inspected_qty > 0:
+        defect_rate = (defect_qty / total_inspected_qty) * 100
+    else:
+        reports = list(
+            db.scalars(select(BatchQualityReport).where(BatchQualityReport.tenant_id == tenant_id)).all()
+        )
+        total_prod = sum(_report_production_qty(r) for r in reports)
+        if total_prod > 0:
+            defect_rate = (defect_qty / total_prod) * 100
+        elif total > 0:
+            defect_rate = (failed / total) * 100
+        else:
+            defect_rate = 0.0
+    pending = max(total - passed - failed - rejected, 0)
     open_critical = sum(1 for d in defects if d.severity == "critical" and d.status not in ("closed", "resolved"))
     pending_insp = sum(1 for i in insp if (i.status or i.result) == "pending")
+
+    reports = list(
+        db.scalars(select(BatchQualityReport).where(BatchQualityReport.tenant_id == tenant_id)).all()
+    )
+
+    # 1. defect_trend
+    trend_map = {}
+    for d in defects:
+        d_date = d.reported_at.date().isoformat() if d.reported_at else (d.created_at.date().isoformat() if getattr(d, 'created_at', None) else "Unknown")
+        trend_map[d_date] = trend_map.get(d_date, 0) + 1
+    defect_trend = [{"date": k, "count": v} for k, v in sorted(trend_map.items())]
+
+    # 2. monthly_yield
+    month_map = {}
+    for r in reports:
+        m_key = r.report_date.strftime("%Y-%m") if r.report_date else "Unknown"
+        if m_key not in month_map:
+            month_map[m_key] = {"pass": 0, "total": 0}
+        prod = _report_production_qty(r)
+        month_map[m_key]["pass"] += r.pass_count
+        month_map[m_key]["total"] += prod
+    monthly_yield = [
+        {
+            "month": k,
+            "yield_pct": round((v["pass"] / v["total"] * 100), 1) if v["total"] > 0 else 0.0,
+        }
+        for k, v in sorted(month_map.items())
+    ]
+
+    # 3. supplier_quality
+    sup_map = {}
+    for i in insp:
+        if i.vendor_name:
+            v_name = i.vendor_name
+            if v_name not in sup_map:
+                sup_map[v_name] = {"passed": 0, "failed": 0, "total": 0}
+            sup_map[v_name]["total"] += 1
+            if i.result == "pass":
+                sup_map[v_name]["passed"] += 1
+            elif i.result in ("fail", "failed"):
+                sup_map[v_name]["failed"] += 1
+    supplier_quality = [
+        {
+            "supplier": k,
+            "total": v["total"],
+            "passed": v["passed"],
+            "failed": v["failed"],
+            "pass_rate": round((v["passed"] / v["total"] * 100), 1) if v["total"] > 0 else 0.0,
+        }
+        for k, v in sup_map.items()
+    ]
+
+    # 4. machine_defects
+    mach_map = {}
+    for d in defects:
+        m_name = d.machine_name or "Unassigned"
+        mach_map[m_name] = mach_map.get(m_name, 0) + (d.quantity_affected or 1)
+    for i in insp:
+        if i.machine_name and i.result in ("fail", "failed"):
+            m_name = i.machine_name
+            mach_map[m_name] = mach_map.get(m_name, 0) + 1
+    machine_defects = [{"machine": k, "count": v} for k, v in sorted(mach_map.items(), key=lambda x: x[1], reverse=True)]
+
+    # 5. pareto_defects
+    pareto_map = {}
+    for d in defects:
+        code = d.defect_code or d.description or "Other"
+        pareto_map[code] = pareto_map.get(code, 0) + (d.quantity_affected or 1)
+    pareto_defects = [{"category": k, "count": v} for k, v in sorted(pareto_map.items(), key=lambda x: x[1], reverse=True)]
+
+    # 6. root_cause_analysis
+    cause_map = {}
+    for d in defects:
+        rc = d.root_cause or "Under Investigation"
+        cause_map[rc] = cause_map.get(rc, 0) + 1
+    root_cause_analysis = [{"cause": k, "count": v} for k, v in sorted(cause_map.items(), key=lambda x: x[1], reverse=True)]
+
+    # 7. defect_by_product
+    prod_def_map = {}
+    for d in defects:
+        p_name = d.product_name or "Unassigned"
+        prod_def_map[p_name] = prod_def_map.get(p_name, 0) + (d.quantity_affected or 1)
+    defect_by_product = [{"product": k, "count": v} for k, v in sorted(prod_def_map.items(), key=lambda x: x[1], reverse=True)]
+
+    # 8. qc_performance
+    qc_map = {}
+    for i in insp:
+        insp_name = i.inspector or "Unassigned"
+        if insp_name not in qc_map:
+            qc_map[insp_name] = {"total": 0, "passed": 0, "failed": 0}
+        qc_map[insp_name]["total"] += 1
+        if i.result == "pass":
+            qc_map[insp_name]["passed"] += 1
+        elif i.result in ("fail", "failed"):
+            qc_map[insp_name]["failed"] += 1
+    qc_performance = [
+        {
+            "inspector": k,
+            "total_inspections": v["total"],
+            "passed": v["passed"],
+            "failed": v["failed"],
+        }
+        for k, v in sorted(qc_map.items(), key=lambda x: x[1]["total"], reverse=True)
+    ]
+
     return QualityHubRead(
         total_inspections=total,
         passed=passed,
@@ -286,14 +451,14 @@ def get_quality_hub(db: Session, tenant_id: int) -> QualityHubRead:
             {"name": "Fail", "count": failed},
             {"name": "Pending", "count": pending},
         ],
-        defect_trend=[],
-        monthly_yield=[],
-        supplier_quality=[],
-        machine_defects=[],
-        pareto_defects=[],
-        root_cause_analysis=[],
-        defect_by_product=[],
-        qc_performance=[],
+        defect_trend=defect_trend,
+        monthly_yield=monthly_yield,
+        supplier_quality=supplier_quality,
+        machine_defects=machine_defects,
+        pareto_defects=pareto_defects,
+        root_cause_analysis=root_cause_analysis,
+        defect_by_product=defect_by_product,
+        qc_performance=qc_performance,
         recent_inspections=[
             {
                 "number": i.inspection_number,

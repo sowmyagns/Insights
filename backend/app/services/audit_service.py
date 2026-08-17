@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from fastapi import Request
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 

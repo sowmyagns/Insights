@@ -33,5 +33,4 @@ class Alert(Base, TimestampMixin):
     link: Mapped[str | None] = mapped_column(String(512))
     target_role: Mapped[str | None] = mapped_column(String(255))
     metadata_json: Mapped[str | None] = mapped_column(Text)
-    created_by: Mapped[str | None] = mapped_column(String(255))
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

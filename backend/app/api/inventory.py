@@ -309,19 +309,19 @@ def create_stock_level_endpoint(
 @router.get("/stock-levels/warehouse/{warehouse_id}", response_model=list[StockLevelRead])
 def list_stock_by_warehouse_endpoint(
     warehouse_id: int,
-    _: User = Depends(require_permission(MODULE)),
+    user: User = Depends(require_permission(MODULE)),
     db: Session = Depends(get_db),
 ) -> list[StockLevelRead]:
-    return list_stock_levels_by_warehouse(db, warehouse_id)
+    return list_stock_levels_by_warehouse(db, warehouse_id, tenant_id=user.tenant_id)
 
 
 @router.get("/stock-levels/item/{item_id}", response_model=list[StockLevelRead])
 def list_stock_by_item_endpoint(
     item_id: int,
-    _: User = Depends(require_permission(MODULE)),
+    user: User = Depends(require_permission(MODULE)),
     db: Session = Depends(get_db),
 ) -> list[StockLevelRead]:
-    return get_stock_by_item(db, item_id)
+    return get_stock_by_item(db, item_id, tenant_id=user.tenant_id)
 
 
 @router.put("/stock-levels")
@@ -532,9 +532,12 @@ def ledger_summary(
 
 @router.get("/ledger", response_model=list[LedgerEntryRead])
 def ledger_list(
-    tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)
+    item_id: int | None = Query(None),
+    limit: int | None = Query(None),
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
 ):
-    return list_ledger_entries(db, tenant_id)
+    return list_ledger_entries(db, tenant_id, item_id=item_id, limit=limit)
 
 
 @router.get("/hub", response_model=InventoryHubRead)

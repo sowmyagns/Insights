@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
   HelpCircle,
   Link2,
   Plus,
@@ -349,17 +350,41 @@ export default function MeetingsCalendarView({
             {googleStatus.connected ? (
               <>
                 <StatusBadge tone="success">Connected</StatusBadge>
-                <p className="mt-1">{googleStatus.account_email}</p>
-                <button type="button" className="meetings-cal__btn mt-2 w-full justify-center text-xs" onClick={onDisconnectGoogle}>
+                <a
+                  href="https://calendar.google.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 text-xs text-[var(--color-primary)] hover:underline truncate block"
+                  title="Open Google Calendar"
+                >
+                  {googleStatus.account_email}
+                </a>
+                <a
+                  href="https://calendar.google.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="meetings-cal__btn mt-2 w-full justify-center text-xs inline-flex items-center gap-1.5"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Open Google Calendar
+                </a>
+                <button type="button" className="meetings-cal__btn mt-1.5 w-full justify-center text-xs text-red-600 hover:text-red-700" onClick={onDisconnectGoogle}>
                   <Unlink className="h-3.5 w-3.5" /> Disconnect
                 </button>
               </>
             ) : (
               <>
                 <StatusBadge tone="neutral">Not Connected</StatusBadge>
+                <a
+                  href="https://calendar.google.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="meetings-cal__btn mt-2 w-full justify-center text-xs inline-flex items-center gap-1.5"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Open Google Calendar
+                </a>
                 <button
                   type="button"
-                  className="meetings-cal__btn mt-2 w-full justify-center text-xs"
+                  className="meetings-cal__btn mt-1.5 w-full justify-center text-xs"
                   onClick={onConnectGoogle}
                   disabled={connecting || !googleStatus.configured}
                 >

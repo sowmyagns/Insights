@@ -68,7 +68,7 @@ def resolve_dashboard_profile(user: User | None) -> str:
         ("Sales Manager", "sales"),
         ("Production Manager", "production"),
         ("Store Manager", "store"),
-        ("HR Manager", "hr"),
+        ("HR Manager", "admin"),
         ("Accountant", "accountant"),
         ("Operator", "operator"),
     ]
@@ -89,7 +89,8 @@ def _out_of_stock_count(db: Session, tenant_id: int) -> int:
     )
     if not items:
         return 0
-    levels = list(db.scalars(select(StockLevel)).all())
+    item_ids = [i.id for i in items]
+    levels = list(db.scalars(select(StockLevel).where(StockLevel.item_id.in_(item_ids))).all())
     qty_by_item: dict[int, float] = {}
     for sl in levels:
         qty_by_item[sl.item_id] = qty_by_item.get(sl.item_id, 0.0) + float(sl.quantity or 0)
@@ -162,16 +163,16 @@ def _po_status_counts(db: Session, tenant_id: int) -> dict[str, int]:
 
 def build_admin_kpis(db: Session, tenant_id: int, user: User | None, ctx: dict[str, Any]) -> list[dict]:
     from app.services.approval_service import get_pending_approvals
-    from app.services.hr_service import get_employee_summary
+    from app.services.department_service import get_department_summary
     from app.services.rbac_service import get_user_stats
 
     stats = get_user_stats(db, tenant_id)
-    emp = get_employee_summary(db, tenant_id)
+    dept = get_department_summary(db, tenant_id)
     approvals = int(get_pending_approvals(db, tenant_id).get("total") or 0)
     today = ctx["today"]
     return [
         _kpi("total-users", "Total Users", stats["total_users"], trend_label="registered users", link="/settings"),
-        _kpi("total-employees", "Total Employees", emp.total_employees, trend_label="active employees", link="/hr/employees"),
+        _kpi("departments", "Departments", dept.total_departments, trend_label="active departments", link="/masters/departments"),
         _kpi("pending-approvals", "Pending Approvals", approvals, trend_label="awaiting action", link="/procurement/purchase-orders"),
         _kpi("total-orders", "Total Orders", ctx["total_orders"], trend_label="production orders", link="/production/planning"),
         _kpi(
@@ -344,17 +345,6 @@ def build_store_kpis(db: Session, tenant_id: int, ctx: dict[str, Any]) -> list[d
     ]
 
 
-def build_hr_kpis(db: Session, tenant_id: int) -> list[dict]:
-    from app.services.hr_service import get_employee_summary
-
-    emp = get_employee_summary(db, tenant_id)
-    return [
-        _kpi("total-employees", "Total Employees", emp.total_employees, trend_label="active employees", link="/hr/employees"),
-        _kpi("new-employees", "New Employees", emp.new_joiners, trend_label="last 30 days", link="/hr/employees"),
-        _kpi("departments", "Departments", emp.departments, trend_label="active departments", link="/masters/departments"),
-        _kpi("contract-employees", "Contract Employees", emp.contract_employees, trend_label="contract staff", link="/hr/employees"),
-    ]
-
 
 def build_accountant_kpis(db: Session, tenant_id: int, today: date) -> list[dict]:
     from app.services.finance_extended_service import get_ap_summary, get_ar_summary, get_finance_hub
@@ -510,7 +500,6 @@ VISIBLE_BY_PROFILE: dict[str, list[str]] = {
         "todays_summary",
     ],
     "store": ["kpi", "orders_overview", "inventory", "alerts", "quick_actions", "todays_summary"],
-    "hr": ["kpi", "alerts", "todays_summary"],
     "accountant": ["kpi", "alerts", "todays_summary"],
     "operator": ["kpi", "todays_summary", "recent_work_orders", "production_overview"],
 }
@@ -595,15 +584,6 @@ def apply_role_dashboard(
                 "unit": "sites",
             },
         ]
-    elif profile == "hr":
-        payload["kpi_cards"] = build_hr_kpis(db, tenant_id)
-        payload["production_overview"] = []
-        payload["shop_floor_status"] = []
-        payload["top_machines"] = []
-        payload["recent_work_orders"] = []
-        payload["shop_floor"] = {}
-        payload["inventory_blocks"] = []
-        payload["orders_overview"] = {"total": 0, "inProgress": 0, "completed": 0, "onHold": 0, "progress": 0}
     elif profile == "accountant":
         payload["kpi_cards"] = build_accountant_kpis(db, tenant_id, today)
         payload["production_overview"] = []

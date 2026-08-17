@@ -13,7 +13,7 @@ describe("shouldShowChatbot", () => {
     expect(shouldShowChatbot({ role: "Accountant" }, "/iot/live-operations")).toBe(false);
     expect(shouldShowChatbot({ role: "Production Manager" }, "/production/dashboard")).toBe(false);
     expect(shouldShowChatbot({ role: "Operator" }, "/production/dashboard")).toBe(false);
-    expect(shouldShowChatbot({ role: "Operator" }, "/hr/dashboard")).toBe(false);
+    expect(shouldShowChatbot({ role: "Operator" }, "/sales/orders")).toBe(false);
     expect(shouldShowChatbot({ role: "Operator" }, "/store-manager/dashboard")).toBe(false);
   });
 

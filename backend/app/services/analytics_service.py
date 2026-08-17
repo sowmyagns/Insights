@@ -1,11 +1,14 @@
 import logging
+import logging
 from datetime import date, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.models.hr import Employee
+logger = logging.getLogger(__name__)
+
 from app.models.inventory import InventoryItem, StockLevel, StockMovement
 from app.models.machine import Machine
 from app.models.production import DailyProductionReport
@@ -63,6 +66,18 @@ def get_machine_efficiency(db: Session, tenant_id: int) -> dict:
         running = sum(1 for m in machines if m.status == "running")
         idle = sum(1 for m in machines if m.status == "idle")
         down = sum(1 for m in machines if m.status == "down")
+    try:
+        machines = list(
+            db.scalars(
+                select(Machine).where(
+                    Machine.tenant_id == tenant_id, Machine.is_active == True
+                )
+            ).all()
+        )
+        total = len(machines)
+        running = sum(1 for m in machines if m.status == "running")
+        idle = sum(1 for m in machines if m.status == "idle")
+        down = sum(1 for m in machines if m.status == "down")
 
         # Per-machine efficiency from daily reports (produced/planned when planned > 0)
         stmt = (
@@ -89,7 +104,37 @@ def get_machine_efficiency(db: Session, tenant_id: int) -> dict:
                 # Use downtime: assume 8h/day = 480 min, efficiency = 100 - (downtime/480)*100
                 eff = max(0, 100 - round(float(downtime or 0) / 480 * 100, 1))
             machine_eff.append({"machine_id": mid, "efficiency": eff})
+        # Per-machine efficiency from daily reports (produced/planned when planned > 0)
+        stmt = (
+            select(
+                DailyProductionReport.machine_id,
+                func.coalesce(func.sum(DailyProductionReport.produced_quantity), 0),
+                func.coalesce(func.sum(DailyProductionReport.planned_quantity), 0),
+                func.coalesce(func.sum(DailyProductionReport.downtime_minutes), 0),
+            )
+            .where(DailyProductionReport.tenant_id == tenant_id)
+            .where(DailyProductionReport.machine_id.isnot(None))
+            .where(
+                DailyProductionReport.report_date
+                >= date.today() - timedelta(days=30)
+            )
+            .group_by(DailyProductionReport.machine_id)
+        )
+        machine_eff = []
+        for row in db.execute(stmt).all():
+            mid, produced, planned, downtime = row
+            if planned and float(planned) > 0:
+                eff = min(100, round(float(produced) / float(planned) * 100, 1))
+            else:
+                # Use downtime: assume 8h/day = 480 min, efficiency = 100 - (downtime/480)*100
+                eff = max(0, 100 - round(float(downtime or 0) / 480 * 100, 1))
+            machine_eff.append({"machine_id": mid, "efficiency": eff})
 
+        overall_pct = round(running / total * 100, 1) if total else 0
+        # Blend: availability from status + output efficiency
+        if machine_eff:
+            avg_eff = sum(m["efficiency"] for m in machine_eff) / len(machine_eff)
+            overall_pct = round((overall_pct + avg_eff) / 2, 1)
         overall_pct = round(running / total * 100, 1) if total else 0
         # Blend: availability from status + output efficiency
         if machine_eff:
@@ -134,6 +179,8 @@ def get_inventory_turnover_rate(db: Session, tenant_id: int) -> dict:
     """Inventory turnover: (out movements / avg stock) over last 12 months."""
     try:
         cutoff = date.today() - timedelta(days=365)
+    try:
+        cutoff = date.today() - timedelta(days=365)
 
         # Total "out" movements - join via item to filter by tenant
         out_stmt = (
@@ -157,7 +204,25 @@ def get_inventory_turnover_rate(db: Session, tenant_id: int) -> dict:
         total_stock = float(avg_row[0] or 0)
         count = avg_row[1] or 1
         avg_inv = total_stock / count if count else 0
+        # Average inventory: sum of stock_levels.quantity for tenant's items
+        avg_stmt = (
+            select(
+                func.coalesce(func.sum(StockLevel.quantity), 0),
+                func.count(StockLevel.id),
+            )
+            .join(InventoryItem, StockLevel.item_id == InventoryItem.id)
+            .where(InventoryItem.tenant_id == tenant_id)
+        )
+        avg_row = db.execute(avg_stmt).first()
+        total_stock = float(avg_row[0] or 0)
+        count = avg_row[1] or 1
+        avg_inv = total_stock / count if count else 0
 
+        # Turnover = COGS/AvgInv or simplified: out / avg_inv
+        if avg_inv > 0:
+            rate = round(total_out / avg_inv, 1)
+        else:
+            rate = 0.0  # no stock data — return 0 so frontend shows empty state
         # Turnover = COGS/AvgInv or simplified: out / avg_inv
         if avg_inv > 0:
             rate = round(total_out / avg_inv, 1)
@@ -190,18 +255,12 @@ def get_inventory_turnover_rate(db: Session, tenant_id: int) -> dict:
 
 
 def get_worker_performance_score(db: Session, tenant_id: int) -> dict:
-    """Worker performance metrics (HR performance reviews removed)."""
-    active_employees = db.scalar(
-        select(func.count(Employee.id)).where(
-            Employee.tenant_id == tenant_id,
-            Employee.is_active == True,
-        )
-    ) or 0
+    """Worker performance metrics (employee module removed)."""
     return {
         "average_score": 0.0,
         "reviews_count": 0,
         "top_performer_ids": [],
-        "active_employees": int(active_employees),
+        "active_employees": 0,
     }
 
 

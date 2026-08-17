@@ -7,7 +7,7 @@ Legacy flat JSON responses — see /api/settings/* for the standard envelope.
 """
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status as http_status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -241,10 +241,24 @@ def list_access_logs(
     admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    data = _svc(db, admin).list_audit_logs(
-        search=search, page=page, page_size=page_size
-    )
-    return data["items"]
+    try:
+        data = _svc(db, admin).list_audit_logs(
+            search=search, page=page, page_size=page_size
+        )
+        return data["items"]
+    except SQLAlchemyError:
+        logger.exception("list_access_logs: database error for tenant %s", admin.tenant_id)
+        db.rollback()
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Access logs are temporarily unavailable due to a database error.",
+        )
+    except Exception:
+        logger.exception("list_access_logs: unexpected error for tenant %s", admin.tenant_id)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while retrieving access logs.",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -256,4 +270,18 @@ def pending_approvals(
 ):
     from app.services.approval_service import get_pending_approvals
 
-    return get_pending_approvals(db, admin.tenant_id)
+    try:
+        return get_pending_approvals(db, admin.tenant_id)
+    except SQLAlchemyError:
+        logger.exception("pending_approvals: database error for tenant %s", admin.tenant_id)
+        db.rollback()
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Pending approvals are temporarily unavailable due to a database error.",
+        )
+    except Exception:
+        logger.exception("pending_approvals: unexpected error for tenant %s", admin.tenant_id)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while retrieving pending approvals.",
+        )

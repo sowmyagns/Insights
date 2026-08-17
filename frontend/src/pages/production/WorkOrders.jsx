@@ -257,6 +257,16 @@ export default function WorkOrders() {
   const [showQuickModal, setShowQuickModal] = useState(false);
   const [issueModalOrder, setIssueModalOrder] = useState(null);
 
+  // State to track which single work order is being printed
+  const [printDetailWorkOrder, setPrintDetailWorkOrder] = useState(null);
+
+  // Clean up print state after printing dialog closes
+  useEffect(() => {
+    const handleAfterPrint = () => setPrintDetailWorkOrder(null);
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
+  }, []);
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -530,8 +540,21 @@ export default function WorkOrders() {
     addToast("Complete requires a saved work order", "error");
   };
 
+  const handleGlobalPrint = () => {
+    setPrintDetailWorkOrder(null);
+    setTimeout(() => window.print(), 100);
+  };
+
+  const handleIndividualPrint = (wo) => {
+    setPrintDetailWorkOrder(wo);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => setPrintDetailWorkOrder(null), 500);
+    }, 150);
+  };
+
   const handlePrintRow = (r) => {
-    printWorkOrder(r, user);
+    handleIndividualPrint(r);
   };
 
   const exportCols = [
@@ -636,6 +659,7 @@ export default function WorkOrders() {
       key: "actions",
       label: "Actions",
       sortable: false,
+      printHidden: true,
       render: (r) => (
         <WoRowActions
           row={r}
@@ -655,9 +679,26 @@ export default function WorkOrders() {
   if (loading) return <Loader label="Loading work orders..." />;
 
   return (
-    <div className="space-y-5 pb-4">
+    <>
+      <div
+        className={`min-w-0 w-full space-y-5 pb-4 ${
+          printDetailWorkOrder ? "hidden print:hidden" : "print:m-0 print:p-0 print:space-y-4 print:block"
+        }`}
+      >
+        <div className="mb-4 hidden border-b pb-4 print:block">
+          <div className="flex justify-between items-center mb-2 text-xs text-slate-600">
+            <span className="font-bold text-blue-600 text-xs tracking-wide">Production · Work Orders</span>
+            <span className="font-bold text-blue-600 text-xs tracking-wide">Insights Iva</span>
+          </div>
+          <h1 className="text-xl font-bold text-black">Work Orders Report</h1>
+          <p className="text-xs text-slate-600 mt-1">
+            Generated on: {new Date().toLocaleDateString()} | Total Work Orders: {filtered.length}
+            {(user?.full_name || user?.name) ? ` | Printed By: ${user.full_name || user.name}` : ""}
+          </p>
+        </div>
+
         {pendingView && (
-          <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--color-warning-soft)] bg-[var(--color-warning-soft)] px-4 py-3 text-[var(--text-sm)]">
+          <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--color-warning-soft)] bg-[var(--color-warning-soft)] px-4 py-3 text-[var(--text-sm)] print:hidden">
             <div className="flex items-center gap-2">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-warning)] text-white text-xs font-bold">
                 {filtered.length}
@@ -671,7 +712,7 @@ export default function WorkOrders() {
           </div>
         )}
 
-        <div className="ui-grid-kpi">
+        <div className="ui-grid-kpi print:hidden">
           <KpiCard label="Total Work Orders" value={summary.total_work_orders} icon={ClipboardList} color="bg-[var(--color-primary)]" />
           <KpiCard label="Planned" value={summary.planned_orders} icon={FileText} color="bg-blue-500" />
           <KpiCard label="In Progress" value={summary.in_progress_orders} icon={Play} color="bg-amber-500" />
@@ -680,8 +721,8 @@ export default function WorkOrders() {
           <KpiCard label="High Priority" value={summary.high_priority_orders} icon={Star} color="bg-purple-500" />
         </div>
 
-        <div className="ui-card overflow-hidden p-4 sm:p-5">
-          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="ui-card min-w-0 p-4 sm:p-5 print:border-0 print:bg-white print:p-0 print:shadow-none">
+          <div className="mb-4 flex flex-col gap-3 print:hidden lg:flex-row lg:items-center lg:justify-between">
             <div className="relative min-w-[220px] flex-1 lg:max-w-md">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-icon)]" />
               <input
@@ -705,7 +746,7 @@ export default function WorkOrders() {
                 <FileSpreadsheet className="h-4 w-4" />
                 <span className="hidden sm:inline">Excel</span>
               </Button>
-              <Button variant="secondary" type="button" onClick={() => window.print()} title="Print">
+              <Button variant="secondary" type="button" onClick={handleGlobalPrint} title="Print">
                 <Printer className="h-4 w-4" />
                 <span className="hidden sm:inline">Print</span>
               </Button>
@@ -719,7 +760,7 @@ export default function WorkOrders() {
           </div>
 
           {showAdvanced && (
-            <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 print:hidden">
               <input placeholder="WO Number" value={filters.work_order_number} onChange={(e) => setFilters((f) => ({ ...f, work_order_number: e.target.value }))} className="ui-input" />
               <input placeholder="Production Order" value={filters.production_order} onChange={(e) => setFilters((f) => ({ ...f, production_order: e.target.value }))} className="ui-input" />
               <input placeholder="Product" value={filters.product} onChange={(e) => setFilters((f) => ({ ...f, product: e.target.value }))} className="ui-input" />
@@ -750,7 +791,7 @@ export default function WorkOrders() {
             </div>
           )}
 
-          <div className="overflow-hidden rounded-lg border border-[#ececf0]">
+          <div className="overflow-hidden rounded-lg border border-[#ececf0] print:border-none print:shadow-none">
             <DataTable
               columns={columns}
               data={paginatedWorkOrders}
@@ -773,7 +814,7 @@ export default function WorkOrders() {
           </div>
 
           {/* Pagination Bar */}
-          <div className="mt-4 ui-pagination justify-between">
+          <div className="mt-4 ui-pagination justify-between print:hidden">
             <div className="flex items-center gap-2">
               <span>Rows per page:</span>
               <select
@@ -817,6 +858,93 @@ export default function WorkOrders() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Single Item Print View */}
+      {printDetailWorkOrder && (
+        <div className="hidden print:block p-8 bg-white text-black h-screen">
+          <div className="flex justify-between items-center mb-5 text-xs text-slate-600">
+            <div>
+              <span className="font-bold text-blue-600 text-xs tracking-wide">Production</span>
+              {(user?.full_name || user?.name) && <span className="ml-2.5 text-slate-600">Welcome, {user.full_name || user.name}</span>}
+            </div>
+            <span className="font-bold text-blue-600 text-xs tracking-wide">Insights Iva</span>
+          </div>
+          <div className="border-b-2 border-slate-900 pb-4 mb-6">
+            <h1 className="print-title text-4xl font-black uppercase tracking-wide text-black">Work Order Details</h1>
+            <p className="text-sm text-slate-500 mt-1">Order # {printDetailWorkOrder.work_order_number} | Printed on {new Date().toLocaleDateString()} {(user?.full_name || user?.name) ? `| By: ${user.full_name || user.name}` : ""}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-y-6 gap-x-12 mb-8">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Product Information</p>
+              <p className="text-xl font-bold text-slate-900">{cleanProductLabel(printDetailWorkOrder.product_name) || "—"}</p>
+              {printDetailWorkOrder.production_order_number && (
+                <p className="text-sm text-slate-700 mt-1">Production Order: {printDetailWorkOrder.production_order_number}</p>
+              )}
+              {printDetailWorkOrder.department && (
+                <p className="text-sm text-slate-700 mt-0.5">Department: {printDetailWorkOrder.department}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Customer</p>
+              <p className="text-lg font-medium text-slate-800">{printDetailWorkOrder.customer_name || "Internal"}</p>
+            </div>
+
+            <div className="col-span-2 border-t border-slate-200 pt-6"></div>
+
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Priority & Status</p>
+              <div className="flex items-center gap-4 mt-1">
+                <PriorityPill priority={printDetailWorkOrder.priority} />
+                <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold capitalize border border-slate-300">
+                  {printDetailWorkOrder.is_delayed ? "Delayed" : woStatusLabel(printDetailWorkOrder.status)}
+                </span>
+                {printDetailWorkOrder.materials_issued ? (
+                  <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-300 bg-emerald-50">
+                    Materials Issued
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Production Quantities</p>
+              <div className="grid grid-cols-3 gap-4 mt-1">
+                <div>
+                  <span className="block text-xl font-bold">{printDetailWorkOrder.planned_quantity || 0}</span>
+                  <span className="text-xs text-slate-500">Planned</span>
+                </div>
+                <div>
+                  <span className="block text-xl font-bold">{printDetailWorkOrder.produced_quantity ?? printDetailWorkOrder.actual_quantity ?? 0}</span>
+                  <span className="text-xs text-slate-500">Produced</span>
+                </div>
+                <div>
+                  <span className="block text-xl font-bold">
+                    {printDetailWorkOrder.remaining_quantity ?? Math.max((printDetailWorkOrder.planned_quantity || 0) - (printDetailWorkOrder.produced_quantity ?? printDetailWorkOrder.actual_quantity ?? 0), 0)}
+                  </span>
+                  <span className="text-xs text-slate-500">Remaining</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-span-2 border-t border-slate-200 pt-6"></div>
+
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Schedule</p>
+              <p className="text-sm"><span className="font-medium">Start:</span> {formatDate(printDetailWorkOrder.planned_start || printDetailWorkOrder.start_date)}</p>
+              <p className="text-sm mt-1"><span className="font-medium">Due:</span> {formatDate(printDetailWorkOrder.planned_end || printDetailWorkOrder.due_date)}</p>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Assignment</p>
+              <p className="text-sm"><span className="font-medium">Machine:</span> {printDetailWorkOrder.machine_name || "Unassigned"}</p>
+              <p className="text-sm mt-1"><span className="font-medium">Operator:</span> {printDetailWorkOrder.operator_name || "—"}</p>
+              <p className="text-sm mt-1"><span className="font-medium">Shift:</span> {typeof printDetailWorkOrder.shift === "object" ? (printDetailWorkOrder.shift?.label || printDetailWorkOrder.shift?.id || "—") : (printDetailWorkOrder.shift || "—")}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selected && (
         <WorkOrderDetailModal
@@ -856,6 +984,96 @@ export default function WorkOrders() {
           addToast={addToast}
         />
       )}
-    </div>
+
+      {/* Global CSS for Print Optimization */}
+      <style>{`
+        @media print {
+          @page {
+            size: landscape;
+            margin: 4mm;
+          }
+          *, *::before, *::after {
+            box-shadow: none !important;
+            text-shadow: none !important;
+            scrollbar-width: none !important;
+          }
+          *::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+          html, body, #root {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            background-color: #fff !important;
+            color: #000 !important;
+          }
+          div, section, article, main, table, .overflow-x-auto {
+            overflow: visible !important;
+            overflow-x: visible !important;
+            overflow-y: visible !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+          }
+          body * {
+            background-color: #fff !important;
+            background: transparent !important;
+            color: #000 !important;
+            font-size: 10px !important;
+            font-weight: 400 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          table {
+            width: 100% !important;
+            max-width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 10px !important;
+            table-layout: auto !important;
+            margin: 0 !important;
+          }
+          th {
+            border: 1px solid #cbd5e1 !important;
+            padding: 4px 6px !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            background-color: #f8fafc !important;
+            font-size: 10px !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            text-align: left !important;
+          }
+          td {
+            border: 1px solid #cbd5e1 !important;
+            padding: 4px 6px !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            font-size: 10px !important;
+            vertical-align: middle !important;
+          }
+          tr {
+            page-break-inside: avoid !important;
+          }
+          h1, .print-title, .title {
+            font-size: 28px !important;
+            font-weight: 900 !important;
+            text-transform: uppercase !important;
+            line-height: 1.2 !important;
+            margin-bottom: 4px !important;
+          }
+          .print\\:hidden, th.print\\:hidden, td.print\\:hidden, [class*="print:hidden"] {
+            display: none !important;
+          }
+          .print\\:block {
+            display: block !important;
+          }
+        }
+      `}</style>
+    </>
   );
 }

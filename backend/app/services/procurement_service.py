@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -102,7 +102,7 @@ def get_purchase_order(
             joinedload(PurchaseOrder.line_items),
         )
         .where(PurchaseOrder.id == po_id, PurchaseOrder.tenant_id == tenant_id)
-    ).first()
+    ).unique().first()
 
 
 def update_purchase_order(
@@ -137,19 +137,30 @@ def update_purchase_order(
             item_id = getattr(line, "item_id", None)
             if item_id is None and isinstance(line, dict):
                 item_id = line.get("item_id")
+            if not item_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Line item is missing required 'item_id'.",
+                )
+            try:
+                parsed_item_id = int(item_id)
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid 'item_id' value '{item_id}'. Must be a valid integer.",
+                ) from exc
             lt = price * qty
             db.add(
                 PurchaseOrderLine(
                     purchase_order_id=po.id,
-                    item_id=int(item_id),
+                    item_id=parsed_item_id,
                     quantity=qty,
                     unit_price=price,
                     line_total=lt,
                 )
             )
             total += lt
-        if total:
-            po.total_amount = total
+        po.total_amount = total
     db.commit()
     db.refresh(po)
     return po
@@ -236,7 +247,7 @@ def get_material_request(
             MaterialRequest.id == mr_id,
             MaterialRequest.tenant_id == tenant_id,
         )
-    ).first()
+    ).unique().first()
 
 
 def convert_material_request_to_purchase_order(
@@ -389,6 +400,26 @@ def _post_grn_stock(db: Session, gr: GoodsReceipt, tenant_id: int) -> None:
             )
 
 
+def _reverse_grn_stock(db: Session, gr: GoodsReceipt, tenant_id: int) -> None:
+    """Reverse accepted quantities from warehouse stock (same txn)."""
+    for line in gr.line_items:
+        accepted = int(
+            max(0, float(line.quantity_received or 0) - float(line.quantity_rejected or 0))
+        )
+        if accepted > 0:
+            record_stock_movement(
+                db,
+                StockMovementCreate(
+                    tenant_id=tenant_id,
+                    warehouse_id=gr.warehouse_id,
+                    item_id=line.item_id,
+                    quantity=accepted,
+                    movement_type="out",
+                ),
+                commit=False,
+            )
+
+
 def create_goods_receipt(db: Session, payload: GoodsReceiptCreate) -> GoodsReceipt:
     """
     Create GRN. Stock is posted only when qc_status is pass/passed.
@@ -429,7 +460,7 @@ def create_goods_receipt(db: Session, payload: GoodsReceiptCreate) -> GoodsRecei
             select(GoodsReceipt)
             .options(joinedload(GoodsReceipt.line_items))
             .where(GoodsReceipt.id == gr.id)
-        ).first()
+        ).unique().first()
         _post_grn_stock(db, gr, payload.tenant_id)
         if payload.purchase_order_id:
             po = db.get(PurchaseOrder, payload.purchase_order_id)
@@ -458,7 +489,7 @@ def approve_goods_receipt_qc(
         select(GoodsReceipt)
         .options(joinedload(GoodsReceipt.line_items))
         .where(GoodsReceipt.id == grn_id, GoodsReceipt.tenant_id == tenant_id)
-    ).first()
+    ).unique().first()
     if not gr:
         raise HTTPException(404, "Goods receipt not found")
 
@@ -511,7 +542,7 @@ def approve_goods_receipt_qc(
                     link_grn_to_incoming_quality_inspection,
                 )
 
-                link_grn_to_incoming_quality_inspection(db, tenant_id, gr)
+                link_grn_to_incoming_quality_inspection(db, tenant_id, gr, commit=False)
             except Exception:
                 pass
         else:
@@ -583,6 +614,18 @@ def update_material_request(
             item_id = getattr(line, "item_id", None)
             if item_id is None and isinstance(line, dict):
                 item_id = line.get("item_id")
+            if not item_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Material request line is missing required 'item_id'.",
+                )
+            try:
+                parsed_item_id = int(item_id)
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid 'item_id' value '{item_id}'. Must be a valid integer.",
+                ) from exc
             qty = getattr(line, "quantity", None)
             if qty is None and isinstance(line, dict):
                 qty = line.get("quantity")
@@ -592,7 +635,7 @@ def update_material_request(
             db.add(
                 MaterialRequestLine(
                     material_request_id=mr.id,
-                    item_id=int(item_id),
+                    item_id=parsed_item_id,
                     quantity=float(qty or 0),
                     notes=notes,
                 )
@@ -607,13 +650,17 @@ def get_goods_receipt(db: Session, tenant_id: int, grn_id: int) -> GoodsReceipt 
         select(GoodsReceipt)
         .options(joinedload(GoodsReceipt.line_items))
         .where(GoodsReceipt.id == grn_id, GoodsReceipt.tenant_id == tenant_id)
-    ).first()
+    ).unique().first()
 
 
 def delete_goods_receipt(db: Session, tenant_id: int, grn_id: int) -> bool:
     gr = get_goods_receipt(db, tenant_id, grn_id)
     if not gr:
         return False
+    qc = (gr.qc_status or "").lower()
+    status_val = (gr.status or "").lower()
+    if qc in ("pass", "passed", "approved") or status_val == "received":
+        _reverse_grn_stock(db, gr, tenant_id)
     db.delete(gr)
     db.commit()
     return True

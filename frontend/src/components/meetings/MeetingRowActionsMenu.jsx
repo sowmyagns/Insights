@@ -5,6 +5,7 @@ import {
   Eye,
   MoreVertical,
   Pencil,
+  RefreshCw,
   Trash2,
   Video,
 } from "lucide-react";
@@ -19,8 +20,10 @@ export default function MeetingRowActionsMenu({
   onDelete,
   onOpenCalendar,
   onJoinMeeting,
+  onSyncGoogle,
   hasCalendarLink = false,
   hasMeetLink = false,
+  googleConnected = false,
 }) {
   const btnRef = useRef(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -29,6 +32,9 @@ export default function MeetingRowActionsMenu({
   const items = [
     { key: "view", label: "View", icon: Eye, onClick: onView },
     { key: "edit", label: "Edit", icon: Pencil, onClick: onEdit },
+    googleConnected && onSyncGoogle
+      ? { key: "sync", label: hasCalendarLink ? "Update in Google Calendar" : "Sync to Google Calendar", icon: RefreshCw, onClick: onSyncGoogle }
+      : null,
     hasCalendarLink && onOpenCalendar
       ? { key: "calendar", label: "Open Calendar", icon: Calendar, onClick: onOpenCalendar }
       : null,

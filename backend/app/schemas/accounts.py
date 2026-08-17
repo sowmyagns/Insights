@@ -4,10 +4,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 class IncomeBase(BaseModel):
-    tenant_id: int
+    tenant_id: int = 0
     category: str
     source: str | None = None
-    amount: float
+    amount: float = Field(..., gt=0.0)
     income_date: Date
     description: str | None = None
 
@@ -22,10 +22,10 @@ class IncomeRead(IncomeBase):
 
 
 class ExpenseBase(BaseModel):
-    tenant_id: int
+    tenant_id: int = 0
     category: str
     vendor: str | None = None
-    amount: float
+    amount: float = Field(..., gt=0.0)
     expense_date: Date
     description: str | None = None
 
@@ -37,7 +37,7 @@ class ExpenseCreate(ExpenseBase):
 class ExpenseUpdate(BaseModel):
     category: str | None = None
     vendor: str | None = None
-    amount: float | None = None
+    amount: float | None = Field(None, gt=0.0)
     expense_date: Date | None = None
     description: str | None = None
 
@@ -51,6 +51,15 @@ class JournalLegCreate(BaseModel):
     account: str = Field(..., min_length=1, max_length=255)
     debit: float = 0.0
     credit: float = 0.0
+
+    @field_validator("account", mode="before")
+    @classmethod
+    def validate_account(cls, v: str) -> str:
+        if v is not None:
+            if not isinstance(v, str) or not v.strip():
+                raise ValueError("Account name cannot be empty or whitespace-only")
+            return v.strip()
+        raise ValueError("Account name is required")
 
     @field_validator("debit", "credit")
     @classmethod
@@ -148,6 +157,16 @@ class JournalEntryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+VALID_GL_TYPES = {
+    "asset", "assets", "liability", "liabilities", "equity",
+    "revenue", "income", "expense", "expenses", "cogs", "cost of goods sold"
+}
+
+VALID_GL_STATUSES = {
+    "active", "inactive", "archived", "disabled", "pending", "closed"
+}
+
+
 class GLAccountCreate(BaseModel):
     code: str = Field(..., min_length=1, max_length=64)
     name: str = Field(..., min_length=1, max_length=255)
@@ -157,15 +176,56 @@ class GLAccountCreate(BaseModel):
     status: str = "Active"
     meta: str | None = None
 
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        if v and v.strip().lower() not in VALID_GL_TYPES:
+            raise ValueError(f"Invalid account type '{v}'.")
+        return v.strip()
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        if v and v.strip().lower() not in VALID_GL_STATUSES:
+            raise ValueError(f"Invalid account status '{v}'.")
+        return v.strip()
+
 
 class GLAccountUpdate(BaseModel):
-    code: str | None = None
-    name: str | None = None
+    code: str | None = Field(None, min_length=1, max_length=64)
+    name: str | None = Field(None, min_length=1, max_length=255)
     parent: str | None = None
     type: str | None = None
     balance: float | None = None
     status: str | None = None
     meta: str | None = None
+
+    @field_validator("code", "name", mode="before")
+    @classmethod
+    def validate_non_empty(cls, v: str | None) -> str | None:
+        if v is not None:
+            if not isinstance(v, str) or not v.strip():
+                raise ValueError("Field cannot be an empty string")
+            return v.strip()
+        return v
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str | None) -> str | None:
+        if v is not None:
+            if not isinstance(v, str) or v.strip().lower() not in VALID_GL_TYPES:
+                raise ValueError(f"Invalid account type '{v}'.")
+            return v.strip()
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str | None) -> str | None:
+        if v is not None:
+            if not isinstance(v, str) or v.strip().lower() not in VALID_GL_STATUSES:
+                raise ValueError(f"Invalid account status '{v}'.")
+            return v.strip()
+        return v
 
 
 class GLAccountRead(BaseModel):
@@ -185,11 +245,11 @@ class FixedAssetCreate(BaseModel):
     code: str = Field(..., min_length=1, max_length=64)
     name: str = Field(..., min_length=1, max_length=255)
     purchaseDate: Date | None = None
-    cost: float = 0.0
-    salvage: float = 0.0
-    life: int = 1
+    cost: float = Field(0.0, ge=0.0)
+    salvage: float = Field(0.0, ge=0.0)
+    life: int = Field(1, ge=1)
     method: str = "Straight Line"
-    accumDep: float = 0.0
+    accumDep: float = Field(0.0, ge=0.0)
 
 
 class FixedAssetRead(BaseModel):
@@ -197,7 +257,7 @@ class FixedAssetRead(BaseModel):
     tenant_id: int
     code: str
     name: str
-    purchase_date: Date
+    purchase_date: Date | None = None
     cost: float
     salvage: float
     life: int

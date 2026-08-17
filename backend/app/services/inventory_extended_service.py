@@ -3,7 +3,9 @@
 import logging
 from datetime import date, datetime, timezone
 
+from fastapi import HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
@@ -88,7 +90,8 @@ def get_materials_summary(db: Session, tenant_id: int) -> InventorySummaryRead:
         item_cost = float(item.unit_cost or 0)
         value += item_cost * qty
 
-        if (item.reorder_level or 0) > 0:
+        reorder_lvl = item.reorder_level or 0
+        if reorder_lvl > 0 and qty <= reorder_lvl:
             reorder_count += 1
 
         if qty <= 0 or item.status == "out_of_stock":
@@ -134,7 +137,7 @@ def list_materials_enriched(db: Session, tenant_id: int) -> list[MaterialListRea
         wh, wh_qty = _primary_warehouse(db, tenant_id, item.id)
         wh_name = item.warehouse_name or (wh.name if wh else "—")
         batch_no = item.batch_number or f"BATCH-{item.id:04d}"
-        reserved = item.reserved if (item.reserved is not None and item.reserved < qty) else 0
+        reserved = min(max(0, item.reserved), qty) if item.reserved is not None else 0
         available = max(qty - reserved, 0)
         item_status = _item_status(qty, item.reorder_level)
         supplier = db.get(Supplier, item.supplier_id) if item.supplier_id else None
@@ -174,7 +177,7 @@ def get_material_detail(db: Session, tenant_id: int, item_id: int) -> MaterialDe
             select(StockMovement)
             .where(StockMovement.item_id == item.id, StockMovement.tenant_id == tenant_id)
             .order_by(StockMovement.id.desc())
-            .limit(10)
+            .limit(20)
         ).all()
     )
     wh_map = {w.id: w.name for w in db.scalars(select(Warehouse).where(Warehouse.tenant_id == tenant_id)).all()}
@@ -188,6 +191,51 @@ def get_material_detail(db: Session, tenant_id: int, item_id: int) -> MaterialDe
         }
         for m in movements
     ]
+
+    # Query actual purchase history from PurchaseOrderLine and Stock IN movements
+    from app.models.procurement import PurchaseOrder, PurchaseOrderLine
+
+    po_lines = list(
+        db.scalars(
+            select(PurchaseOrderLine)
+            .join(PurchaseOrder, PurchaseOrderLine.purchase_order_id == PurchaseOrder.id)
+            .where(PurchaseOrderLine.item_id == item.id, PurchaseOrder.tenant_id == tenant_id)
+            .order_by(PurchaseOrder.id.desc())
+            .limit(10)
+        ).all()
+    )
+    purchase_history = [
+        {
+            "po": pol.purchase_order.po_number if pol.purchase_order else f"PO-{pol.purchase_order_id}",
+            "qty": float(pol.quantity),
+            "date": pol.purchase_order.order_date.isoformat() if pol.purchase_order and pol.purchase_order.order_date else (pol.created_at.isoformat() if pol.created_at else None),
+        }
+        for pol in po_lines
+    ]
+    if not purchase_history:
+        in_movements = [m for m in movements if m.movement_type in ("in", "grn", "purchase", "receipt")]
+        purchase_history = [
+            {
+                "po": m.reference or f"PO-MOV-{m.id}",
+                "qty": float(m.quantity),
+                "date": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in in_movements
+        ]
+
+    # Query actual consumption history from Stock OUT / consumption movements
+    out_movements = [m for m in movements if m.movement_type in ("out", "consumption", "issue", "wo_issue")]
+    consumption_history = [
+        {
+            "wo": m.reference or f"WO-MOV-{m.id}",
+            "qty": float(abs(m.quantity)),
+            "date": m.created_at.isoformat() if m.created_at else None,
+        }
+        for m in out_movements
+    ]
+
+    batches = [{"batch": item.batch_number or f"BATCH-{item.id:04d}", "qty": get_total_stock(db, item.id)}]
+
     return MaterialDetailRead(
         id=item.id,
         sku=item.sku,
@@ -202,9 +250,9 @@ def get_material_detail(db: Session, tenant_id: int, item_id: int) -> MaterialDe
         vendor_contact=supplier.contact if supplier else None,
         vendor_email=supplier.email if supplier else None,
         stock_history=stock_history,
-        purchase_history=[{"po": "PO-2026-1001", "qty": 500, "date": "2026-07-01"}],
-        consumption_history=[{"wo": "WO-1001", "qty": 120, "date": "2026-07-09"}],
-        batches=[{"batch": f"BATCH-{item.id:04d}", "qty": get_total_stock(db, item.id)}],
+        purchase_history=purchase_history,
+        consumption_history=consumption_history,
+        batches=batches,
     )
 
 
@@ -225,7 +273,7 @@ def get_finished_goods_summary(db: Session, tenant_id: int) -> dict:
         db_qty = get_total_stock(db, item.id)
         qty = item.quantity if (item.quantity is not None and item.quantity > 0) else db_qty
         value += float(item.unit_cost or 0) * qty
-        item_res = item.reserved if (item.reserved is not None and item.reserved < qty) else max(int(qty * 0.1), 0)
+        item_res = min(max(0, item.reserved), qty) if item.reserved is not None else 0
         avail = max(qty - item_res, 0)
 
         if qty <= 0 or item.status == "damaged":
@@ -264,30 +312,26 @@ def list_finished_goods_enriched(db: Session, tenant_id: int) -> list[FinishedGo
         qty = item.quantity if (item.quantity is not None and item.quantity > 0) else db_qty
         wh, _ = _primary_warehouse(db, tenant_id, item.id)
         wh_name = item.warehouse_name or (wh.name if wh else "—")
-        batch_no = item.batch_number or f"FG-BATCH-{item.id:04d}"
-        reserved = item.reserved if (item.reserved is not None and item.reserved < qty) else 0
+        reserved = min(max(0, item.reserved), qty) if item.reserved is not None else 0
         available = max(qty - reserved, 0)
-        cust_name = item.customer_name or ["Tata Motors", "Bosch", "Mahindra"][i % 3]
         item_status = _item_status(qty, item.reorder_level)
-        serial_no = item.serial_number or f"SN-{item.id:06d}"
-        exp_date = item.expiry_date or "2027-07-08"
         result.append(
             FinishedGoodListRead(
                 id=item.id,
                 sku=item.sku,
                 name=item.name,
-                batch_number=batch_no,
+                batch_number=item.batch_number,
                 quantity=qty,
                 reserved=reserved,
                 available=available,
                 warehouse_name=wh_name,
-                customer_name=cust_name,
+                customer_name=item.customer_name,
                 status=item_status,
-                production_date=item.production_date or "2026-07-08",
-                expiry_date=exp_date,
-                warranty=item.warranty or "12 months",
-                serial_number=serial_no,
-                qr_code=f"QR-{item.sku}",
+                production_date=item.production_date,
+                expiry_date=item.expiry_date,
+                warranty=item.warranty,
+                serial_number=item.serial_number,
+                qr_code=f"QR-{item.sku}" if item.sku else None,
                 unit_cost=float(item.unit_cost) if item.unit_cost else None,
                 stock_value=round((float(item.unit_cost or 0)) * qty, 2) if qty else 0,
             )
@@ -662,32 +706,37 @@ def get_ledger_summary(db: Session, tenant_id: int) -> LedgerSummaryRead:
     )
 
 
-def list_ledger_entries(db: Session, tenant_id: int) -> list[LedgerEntryRead]:
-    movements = list(
-        db.scalars(
-            select(StockMovement)
-            .where(StockMovement.tenant_id == tenant_id)
-            .order_by(StockMovement.id.desc())
-            .limit(100)
-        ).all()
+def list_ledger_entries(
+    db: Session, tenant_id: int, item_id: int | None = None, limit: int | None = None
+) -> list[LedgerEntryRead]:
+    stmt = (
+        select(StockMovement)
+        .where(StockMovement.tenant_id == tenant_id)
+        .order_by(StockMovement.id.asc())
     )
+    if item_id:
+        stmt = stmt.where(StockMovement.item_id == item_id)
+    all_movements = list(db.scalars(stmt).all())
+
     wh_map = {w.id: w.name for w in db.scalars(select(Warehouse).where(Warehouse.tenant_id == tenant_id)).all()}
     item_map = {
         i.id: i.name
         for i in db.scalars(select(InventoryItem).where(InventoryItem.tenant_id == tenant_id)).all()
     }
-    balance_tracker: dict[int, int] = {}
+    balance_tracker: dict[int, float] = {}
     entries = []
-    for m in reversed(movements):
-        balance_tracker[m.item_id] = balance_tracker.get(m.item_id, 0)
-        qty_in = m.quantity if m.movement_type == "in" else 0
-        qty_out = abs(m.quantity) if m.movement_type in ("out", "adjustment") and m.quantity < 0 else (
-            m.quantity if m.movement_type == "out" else 0
+    for m in all_movements:
+        curr_bal = balance_tracker.get(m.item_id, 0.0)
+        qty_in = float(m.quantity) if m.movement_type == "in" else 0.0
+        qty_out = float(abs(m.quantity)) if m.movement_type in ("out", "adjustment") and m.quantity < 0 else (
+            float(m.quantity) if m.movement_type == "out" else 0.0
         )
         if m.movement_type == "adjustment" and m.quantity > 0:
-            qty_in = m.quantity
-            qty_out = 0
-        balance_tracker[m.item_id] += qty_in - qty_out
+            qty_in = float(m.quantity)
+            qty_out = 0.0
+
+        new_bal = curr_bal + qty_in - qty_out
+        balance_tracker[m.item_id] = new_bal
         entries.append(
             LedgerEntryRead(
                 id=m.id,
@@ -698,12 +747,15 @@ def list_ledger_entries(db: Session, tenant_id: int) -> list[LedgerEntryRead]:
                 batch_number=m.batch_number,
                 qty_in=qty_in,
                 qty_out=qty_out,
-                balance=balance_tracker[m.item_id],
+                balance=new_bal,
                 user_name=m.created_by or "System",
                 reference=m.reference,
             )
         )
-    return list(reversed(entries))
+    entries.reverse()
+    if limit and limit > 0:
+        return entries[:limit]
+    return entries
 
 
 def get_inventory_hub(db: Session, tenant_id: int) -> InventoryHubRead:
@@ -712,7 +764,11 @@ def get_inventory_hub(db: Session, tenant_id: int) -> InventoryHubRead:
     warehouses = list(db.scalars(select(Warehouse).where(Warehouse.tenant_id == tenant_id)).all())
     wh_stock = []
     for wh in warehouses[:5]:
-        levels = list(db.scalars(select(StockLevel).where(StockLevel.warehouse_id == wh.id)).all())
+        levels = list(db.scalars(
+            select(StockLevel)
+            .join(InventoryItem, StockLevel.item_id == InventoryItem.id)
+            .where(StockLevel.warehouse_id == wh.id, InventoryItem.tenant_id == tenant_id)
+        ).all())
         qty = sum(l.quantity for l in levels)
         wh_stock.append({"name": wh.name, "quantity": qty})
     materials = list_materials_enriched(db, tenant_id)

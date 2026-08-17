@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class HubStatusBlockRead(BaseModel):
@@ -21,5 +21,5 @@ class ProductionHubRead(BaseModel):
     operators_absent: int = 0
     quality_passed: int = 0
     quality_failed: int = 0
-    recent_jobs: list[dict] = []
-    machine_status: list[dict] = []
+    recent_jobs: list[dict] = Field(default_factory=list)
+    machine_status: list[dict] = Field(default_factory=list)

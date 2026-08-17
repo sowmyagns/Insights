@@ -418,37 +418,58 @@ def logout(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    auth_header = request.headers.get("Authorization") or ""
-    access_token = (
-        auth_header.split(" ", 1)[1].strip()
-        if auth_header.lower().startswith("bearer ")
-        else None
-    )
+    try:
+        auth_header = request.headers.get("Authorization") or ""
+        access_token = (
+            auth_header.split(" ", 1)[1].strip()
+            if auth_header.lower().startswith("bearer ")
+            else None
+        )
 
-    user = validate_refresh_token(db, req.refresh_token)
-    if not user and access_token:
-        payload = decode_access_token(access_token) or {}
-        sub = payload.get("sub") or payload.get("user_id")
-        if sub:
-            try:
-                user = db.get(User, int(sub))
-            except (TypeError, ValueError):
-                pass
+        user = validate_refresh_token(db, req.refresh_token)
+        if not user and access_token:
+            payload = decode_access_token(access_token) or {}
+            sub = payload.get("sub") or payload.get("user_id")
+            if sub:
+                try:
+                    user = db.get(User, int(sub))
+                except (TypeError, ValueError):
+                    pass
 
-    if req.all_devices and user:
-        from app.services.security_service import revoke_all_refresh_tokens_for_user
+        if req.all_devices and user:
+            from app.services.security_service import revoke_all_refresh_tokens_for_user
 
-        revoke_all_refresh_tokens_for_user(db, user.id)
-    else:
-        revoke_refresh_token(db, req.refresh_token)
+            revoke_all_refresh_tokens_for_user(db, user.id)
+        else:
+            revoke_refresh_token(db, req.refresh_token)
 
-    if access_token:
-        revoke_access_token(db, access_token, user_id=user.id if user else None)
+        if access_token:
+            revoke_access_token(db, access_token, user_id=user.id if user else None)
 
-    if user:
-        user.tokens_revoked_at = datetime.now(timezone.utc)
-        db.commit()
-        mark_logout(db, user_id=user.id, email=user.email)
-        AuditLogService.log_logout(db, request=request, user=user)
+        if user:
+            user.tokens_revoked_at = datetime.now(timezone.utc)
+            db.commit()
+            mark_logout(
+                db,
+                user_id=user.id,
+                email=user.email,
+                ip_address=_client_ip(request),
+                user_agent=request.headers.get("user-agent"),
+            )
+            AuditLogService.log_logout(db, request=request, user=user)
 
-    return MessageResponse(message="Logged out successfully.")
+        return MessageResponse(message="Logged out successfully.")
+    except SQLAlchemyError:
+        logger.exception("logout endpoint database error")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Logout failed due to a database error.",
+        )
+    except Exception:
+        logger.exception("logout endpoint unexpected error")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred during logout.",
+        )

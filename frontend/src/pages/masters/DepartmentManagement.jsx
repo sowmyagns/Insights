@@ -4,7 +4,7 @@ import { Building2, Cpu, Download, FileText, Layers, Plus, Printer, Upload, User
 import DataTable from "../../components/common/DataTable";
 import Loader from "../../components/common/Loader";
 import Button from "../../components/common/Button";
-import DepartmentDetailModal, { DepartmentFormModal } from "../../components/hr/DepartmentDetailModal";
+import DepartmentDetailModal, { DepartmentFormModal } from "../../components/masters/DepartmentDetailModal";
 import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
 import usePageRefresh from "../../hooks/usePageRefresh";
@@ -15,7 +15,7 @@ import {
   getDepartmentSummary,
   getDepartments,
   updateDepartment,
-} from "../../api/hrApi";
+} from "../../api/departmentsApi";
 import {
   BRANCHES,
   DEMO_DEPARTMENTS,

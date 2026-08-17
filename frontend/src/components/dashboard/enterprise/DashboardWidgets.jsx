@@ -5,14 +5,12 @@ import {
   ArrowRight,
   Loader2,
   Truck,
-  Users,
   Zap,
 } from "lucide-react";
 
 import { getRecentLogins } from "../../../api/auditLogsApi";
 import {
   criticalAlerts,
-  employeeAttendance,
   inventorySummary,
   liveProduction,
   lowStockAlerts,
@@ -294,26 +292,6 @@ export function RecentWorkOrdersWidget() {
   );
 }
 
-export function EmployeeAttendanceWidget() {
-  const pct = Math.round((employeeAttendance.present / employeeAttendance.total) * 100);
-  return (
-    <ChartPanel title="Employees" action={<WidgetLink to="/hr/employees" label="Human Resources (HR)" />}>
-      <div className="flex items-center gap-3 mb-3">
-        <Users className="h-5 w-5 text-[#2563EB]" />
-        <div>
-          <p className="text-2xl font-bold text-slate-800">{employeeAttendance.present}/{employeeAttendance.total}</p>
-          <p className="text-xs text-slate-500">{pct}% present today</p>
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-2 text-center text-xs mb-3">
-        <div className="rounded-lg bg-emerald-50 py-2"><p className="font-bold text-emerald-700">{employeeAttendance.present}</p><p className="text-slate-500">Present</p></div>
-        <div className="rounded-lg bg-red-50 py-2"><p className="font-bold text-red-600">{employeeAttendance.absent}</p><p className="text-slate-500">Absent</p></div>
-        <div className="rounded-lg bg-amber-50 py-2"><p className="font-bold text-amber-600">{employeeAttendance.onLeave}</p><p className="text-slate-500">Leave</p></div>
-      </div>
-    </ChartPanel>
-  );
-}
-
 export function MaintenanceScheduleWidget() {
   return (
     <ChartPanel title="Maintenance Schedule" action={<WidgetLink to="/maintenance/schedule" label="Schedule" />}>
@@ -462,7 +440,6 @@ export default function DashboardWidgets() {
       <QualityInspectionWidget />
       <LowStockAlertsWidget />
       <CriticalAlertsWidget />
-      <EmployeeAttendanceWidget />
       <MaintenanceScheduleWidget />
       <LiveProductionWidget />
       <TodaysSummaryWidget />

@@ -1,13 +1,14 @@
-"""Invoice v2 — summary KPIs, filtered list, create with optional fields."""
-
-from __future__ import annotations
-
+import logging
 import json
 from datetime import date, timedelta
 
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload, selectinload
+
+logger = logging.getLogger(__name__)
 
 from app.models.sales import Customer, Invoice, InvoiceItem, SalesOrder
 from app.schemas.invoice_v2 import (
@@ -25,7 +26,10 @@ from app.services.invoice_gst_service import (
     apply_header_gst,
     resolve_tax_mode,
 )
-from app.services.journal_service import post_sales_invoice_journal
+from app.services.journal_service import (
+    post_sales_invoice_journal,
+    reverse_sales_invoice_journal,
+)
 
 
 def _money(n: float) -> float:
@@ -543,7 +547,56 @@ def create_invoice_v2(db: Session, payload: InvoiceV2Create) -> Invoice:
             db.add(item)
             taxable_sum += taxable
             gst_sum += gst_amt
+        taxable_sum = 0.0
+        gst_sum = 0.0
+        for raw in payload.items:
+            if not (raw.item_description or "").strip():
+                continue
+            taxable, gst_amt, total = _line_totals(raw)
+            if raw.taxable_value is not None:
+                taxable = _money(raw.taxable_value)
+            if raw.gst_amount is not None:
+                gst_amt = _money(raw.gst_amount)
+            if raw.amount is not None:
+                total = _money(raw.amount)
+            item = InvoiceItem(
+                invoice_id=inv.id,
+                item_description=raw.item_description.strip(),
+                hsn=raw.hsn,
+                qty=float(raw.qty or 0),
+                unit=raw.unit or "pcs",
+                rate=float(raw.rate or 0),
+                tax_type=raw.tax_type or "Exclusive",
+                discount=float(raw.discount or 0),
+                discount_type=raw.discount_type or "₹",
+                taxable_value=taxable,
+                gst_pct=float(raw.gst_pct or 0),
+                gst_amount=gst_amt,
+                amount=total,
+            )
+            db.add(item)
+            taxable_sum += taxable
+            gst_sum += gst_amt
 
+        if payload.other_charge and float(payload.other_charge) > 0:
+            oc = _money(payload.other_charge)
+            db.add(
+                InvoiceItem(
+                    invoice_id=inv.id,
+                    item_description="Other Charge",
+                    qty=1,
+                    unit="pcs",
+                    rate=oc,
+                    tax_type="Exclusive",
+                    discount=0,
+                    discount_type="₹",
+                    taxable_value=oc,
+                    gst_pct=0,
+                    gst_amount=0,
+                    amount=oc,
+                )
+            )
+            taxable_sum += oc
         if payload.other_charge and float(payload.other_charge) > 0:
             oc = _money(payload.other_charge)
             db.add(
@@ -569,7 +622,16 @@ def create_invoice_v2(db: Session, payload: InvoiceV2Create) -> Invoice:
         apply_header_gst(inv, gst_sum=gst_sum, tax_mode=tax_mode, default_gst_pct=default_gst)
         if not inv.place_of_supply and customer:
             inv.place_of_supply = customer.state
+        inv.subtotal = _money(taxable_sum)
+        default_gst = float(company.default_gst_pct or 18)
+        apply_header_gst(inv, gst_sum=gst_sum, tax_mode=tax_mode, default_gst_pct=default_gst)
+        if not inv.place_of_supply and customer:
+            inv.place_of_supply = customer.state
 
+        inv.grand_total = _money(
+            taxable_sum + gst_sum - float(inv.discount or 0) + float(inv.round_off or 0)
+        )
+        inv.payment_status = "unpaid"
         inv.grand_total = _money(
             taxable_sum + gst_sum - float(inv.discount or 0) + float(inv.round_off or 0)
         )
@@ -579,7 +641,24 @@ def create_invoice_v2(db: Session, payload: InvoiceV2Create) -> Invoice:
             so = db.get(SalesOrder, inv.sales_order_id)
             if so and so.tenant_id == inv.tenant_id:
                 so.invoiced = True
+        if inv.sales_order_id:
+            so = db.get(SalesOrder, inv.sales_order_id)
+            if so and so.tenant_id == inv.tenant_id:
+                so.invoiced = True
 
+        post_sales_invoice_journal(
+            db,
+            inv.tenant_id,
+            invoice_number=inv.invoice_number,
+            issue_date=inv.issue_date or date.today(),
+            subtotal=float(inv.subtotal or 0),
+            discount=float(inv.discount or 0),
+            cgst=float(inv.cgst_amount or 0),
+            sgst=float(inv.sgst_amount or 0),
+            igst=float(inv.igst_amount or 0),
+            round_off=float(inv.round_off or 0),
+            grand_total=float(inv.grand_total or 0),
+        )
         post_sales_invoice_journal(
             db,
             inv.tenant_id,
@@ -746,7 +825,59 @@ def update_invoice_v2(db: Session, tenant_id: int, invoice_id: int, payload: Inv
             )
             taxable_sum += taxable
             gst_sum += gst_amt
+        taxable_sum = 0.0
+        gst_sum = 0.0
+        for raw in payload.items:
+            if not (raw.item_description or "").strip():
+                continue
+            if (raw.item_description or "").strip().lower() == "other charge":
+                continue
+            taxable, gst_amt, total = _line_totals(raw)
+            if raw.taxable_value is not None:
+                taxable = _money(raw.taxable_value)
+            if raw.gst_amount is not None:
+                gst_amt = _money(raw.gst_amount)
+            if raw.amount is not None:
+                total = _money(raw.amount)
+            db.add(
+                InvoiceItem(
+                    invoice_id=inv.id,
+                    item_description=raw.item_description.strip(),
+                    hsn=raw.hsn,
+                    qty=float(raw.qty or 0),
+                    unit=raw.unit or "pcs",
+                    rate=float(raw.rate or 0),
+                    tax_type=raw.tax_type or "Exclusive",
+                    discount=float(raw.discount or 0),
+                    discount_type=raw.discount_type or "₹",
+                    taxable_value=taxable,
+                    gst_pct=float(raw.gst_pct or 0),
+                    gst_amount=gst_amt,
+                    amount=total,
+                )
+            )
+            taxable_sum += taxable
+            gst_sum += gst_amt
 
+        if payload.other_charge and float(payload.other_charge) > 0:
+            oc = _money(payload.other_charge)
+            db.add(
+                InvoiceItem(
+                    invoice_id=inv.id,
+                    item_description="Other Charge",
+                    qty=1,
+                    unit="pcs",
+                    rate=oc,
+                    tax_type="Exclusive",
+                    discount=0,
+                    discount_type="₹",
+                    taxable_value=oc,
+                    gst_pct=0,
+                    gst_amount=0,
+                    amount=oc,
+                )
+            )
+            taxable_sum += oc
         if payload.other_charge and float(payload.other_charge) > 0:
             oc = _money(payload.other_charge)
             db.add(
@@ -775,6 +906,11 @@ def update_invoice_v2(db: Session, tenant_id: int, invoice_id: int, payload: Inv
             force_igst=float(payload.igst_pct or 0) > 0 and float(payload.cgst_pct or 0) == 0,
         )
 
+        inv.subtotal = _money(taxable_sum)
+        default_gst = float(company.default_gst_pct or 18)
+        apply_header_gst(inv, gst_sum=gst_sum, tax_mode=tax_mode, default_gst_pct=default_gst)
+        if not inv.place_of_supply and customer:
+            inv.place_of_supply = customer.state
         inv.subtotal = _money(taxable_sum)
         default_gst = float(company.default_gst_pct or 18)
         apply_header_gst(inv, gst_sum=gst_sum, tax_mode=tax_mode, default_gst_pct=default_gst)

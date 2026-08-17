@@ -301,55 +301,6 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route path="/hr" element={<Navigate to="/hr/employees" replace />} />
-      <Route
-        path="/hr/employees"
-        element={
-          <ProtectedRoute>
-            <P.Employees />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/employees/create"
-        element={
-          <ProtectedRoute>
-            <P.Employees autoOpenCreate={true} />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/assets"
-        element={
-          <ProtectedRoute>
-            <P.AssetManagement />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/assets/create"
-        element={
-          <ProtectedRoute>
-            <P.AssetManagement autoOpenCreate={true} />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/incidents"
-        element={
-          <ProtectedRoute>
-            <P.IncidentReports />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/hr/incidents/create"
-        element={
-          <ProtectedRoute>
-            <P.IncidentReports autoOpenCreate={true} />
-          </ProtectedRoute>
-        }
-      />
       <Route
         path="/sales"
         element={
@@ -677,7 +628,6 @@ export default function AppRoutes() {
       <Route path="/alerts/production-delay" element={<ProtectedRoute><P.ProductionDelayAlerts /></ProtectedRoute>} />
       <Route path="/alerts/maintenance" element={<ProtectedRoute><P.MaintenanceReminders /></ProtectedRoute>} />
       <Route path="/alerts/quality" element={<ProtectedRoute><P.QualityAlerts /></ProtectedRoute>} />
-      <Route path="/alerts/hr" element={<ProtectedRoute><P.HrAlerts /></ProtectedRoute>} />
       <Route path="/alerts/safety" element={<ProtectedRoute><P.SafetyAlerts /></ProtectedRoute>} />
       <Route path="/alerts/general" element={<ProtectedRoute><P.GeneralAlerts /></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute><P.UserManagement /></ProtectedRoute>} />
@@ -686,6 +636,7 @@ export default function AppRoutes() {
       <Route path="/admin/audit-logs" element={<ProtectedRoute><P.AccessLogs /></ProtectedRoute>} />
       <Route path="/admin/access-logs" element={<Navigate to="/admin/audit-logs" replace />} />
       <Route path="/admin/integrations" element={<ProtectedRoute><P.IntegrationsDashboard /></ProtectedRoute>} />
+      <Route path="/admin/approvals" element={<ProtectedRoute><P.PendingApprovals /></ProtectedRoute>} />
       <Route path="/documents" element={<ProtectedRoute><P.DocumentsDashboard /></ProtectedRoute>} />
       <Route path="/meetings" element={<ProtectedRoute><P.MeetingsList /></ProtectedRoute>} />
       <Route path="/meetings/:id" element={<ProtectedRoute><P.MeetingDetail /></ProtectedRoute>} />

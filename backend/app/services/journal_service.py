@@ -219,12 +219,14 @@ def post_sales_invoice_journal(
                 {"account": "Round Off", "debit": abs(float(round_off)), "credit": 0}
             )
 
-    # Rebalance tiny float drift against AR debit
     debit = sum(float(l["debit"]) for l in legs)
     credit = sum(float(l["credit"]) for l in legs)
-    diff = round(debit - credit, 2)
-    if abs(diff) >= 0.01:
-        legs[0]["debit"] = round(float(legs[0]["debit"]) - diff, 2)
+    diff = round(abs(debit - credit), 2)
+    if diff >= 0.01:
+        raise ValueError(
+            f"Invalid invoice journal totals for invoice {invoice_number}: "
+            f"total debit ({debit:.2f}) does not match total credit ({credit:.2f})"
+        )
 
     try:
         return post_journal_entry(
@@ -258,10 +260,14 @@ def post_sales_payment_journal(
     method: str = "cash",
 ) -> JournalEntry | None:
     """Dr Cash/Bank / Cr AR for customer payment."""
+    val = float(amount or 0)
+    if val <= 0:
+        raise ValueError("Payment amount must be greater than zero")
+
     cash_account = "Bank" if (method or "").lower() in ("bank", "upi", "neft", "rtgs", "card") else "Cash"
     legs = [
-        {"account": cash_account, "debit": float(amount), "credit": 0},
-        {"account": "Accounts Receivable", "debit": 0, "credit": float(amount)},
+        {"account": cash_account, "debit": val, "credit": 0},
+        {"account": "Accounts Receivable", "debit": 0, "credit": val},
     ]
     try:
         return post_journal_entry(

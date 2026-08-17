@@ -12,6 +12,7 @@ export default function PasswordInput({
   placeholder = "Password",
   leftIcon,
   className = "",
+  inputClassName = "",
   id,
   name,
   autoComplete,
@@ -39,7 +40,7 @@ export default function PasswordInput({
         required={required}
         className={`box-border h-12 w-full min-w-0 rounded-lg border-none bg-gray-100 py-3 text-sm text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 ${
           leftIcon ? "pl-12" : "pl-4"
-        } pr-11`}
+        } pr-11 ${inputClassName}`}
       />
       <button
         type="button"

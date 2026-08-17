@@ -86,6 +86,28 @@ class OperatorService:
         self.machines = MachineRepository(db, tenant_id)
         self.products = ProductRepository(db, tenant_id)
         self.bom = BomRepository(db, tenant_id)
+
+    def _get_po(self, po_id: int | None):
+        if not po_id:
+            return None
+        from app.models.production import ProductionOrder
+        return self.db.scalars(
+            select(ProductionOrder).where(
+                ProductionOrder.id == po_id,
+                ProductionOrder.tenant_id == self.tenant_id,
+            )
+        ).first()
+
+    def _get_product(self, product_id: int | None):
+        if not product_id:
+            return None
+        from app.models.product import Product
+        return self.db.scalars(
+            select(Product).where(
+                Product.id == product_id,
+                Product.tenant_id == self.tenant_id,
+            )
+        ).first()
         self.batches = BatchRepository(db, tenant_id)
         self.plans = ProductionPlanRepository(db, tenant_id)
 
@@ -307,9 +329,7 @@ class OperatorService:
 
     def update_production_progress(self, user: User, payload: WorkOrderProgressRequest) -> dict:
         wo = _resolve_work_order(self.work_orders, user, payload.work_order_id, payload.work_order_number)
-        from app.models.production import ProductionOrder
-
-        po = self.db.get(ProductionOrder, wo.production_order_id)
+        po = self._get_po(wo.production_order_id)
         product_id = po.product_id if po else 1
         report = DailyProductionReport(
             tenant_id=self.tenant_id,
@@ -322,10 +342,18 @@ class OperatorService:
             notes=payload.notes,
             created_by_user_id=user.id,
         )
-        self.db.add(report)
-        wo.actual_quantity = float(wo.actual_quantity or 0) + payload.produced_quantity
-        self.db.commit()
-        self.db.refresh(report)
+        try:
+            self.db.add(report)
+            wo.actual_quantity = float(wo.actual_quantity or 0) + payload.produced_quantity
+            self.db.commit()
+            self.db.refresh(report)
+        except Exception as exc:
+            logger.exception("Database error updating production progress: %s", exc)
+            try:
+                self.db.rollback()
+            except Exception:
+                pass
+            raise
         return {
             "work_order_id": wo.id,
             "produced_quantity": float(wo.actual_quantity),
@@ -461,8 +489,8 @@ class OperatorService:
 
             product_name = None
             if wo:
-                po = self.db.get(ProductionOrder, wo.production_order_id)
-                product = self.db.get(Product, po.product_id) if po else None
+                po = self._get_po(wo.production_order_id)
+                product = self._get_product(po.product_id) if po else None
                 product_name = product.name if product else None
 
             machine_status = (m.status or "idle").strip().lower().replace(" ", "_")
@@ -502,8 +530,8 @@ class OperatorService:
                 })
                 continue
 
-            po = self.db.get(ProductionOrder, wo.production_order_id)
-            product = self.db.get(Product, po.product_id) if po else None
+            po = self._get_po(wo.production_order_id)
+            product = self._get_product(po.product_id) if po else None
             operator = self.db.get(User, wo.assigned_user_id) if wo.assigned_user_id else None
 
             planned = float(wo.planned_quantity or 0)
@@ -625,8 +653,8 @@ class OperatorService:
         now = datetime.now(timezone.utc)
 
         for wo in wos:
-            po = self.db.get(ProductionOrder, wo.production_order_id)
-            product = self.db.get(Product, po.product_id) if po else None
+            po = self._get_po(wo.production_order_id)
+            product = self._get_product(po.product_id) if po else None
             machine = self.db.get(Machine, wo.machine_id) if wo.machine_id else None
             operator = self.db.get(User, wo.assigned_user_id) if wo.assigned_user_id else None
 
@@ -723,8 +751,8 @@ class OperatorService:
         result = []
         for b in batches:
             wo = self.db.get(WorkOrder, b.work_order_id)
-            po = self.db.get(ProductionOrder, wo.production_order_id) if wo else None
-            product = self.db.get(Product, po.product_id) if po else None
+            po = self._get_po(wo.production_order_id) if wo else None
+            product = self._get_product(po.product_id) if po else None
             machine = self.db.get(Machine, wo.machine_id) if wo and wo.machine_id else None
             operator = self.db.get(User, wo.assigned_user_id) if wo and wo.assigned_user_id else None
 
@@ -741,9 +769,80 @@ class OperatorService:
                     continue
 
             qty = float(b.quantity or 0)
-            good = round(qty * 0.96, 2)
-            scrap = round(qty * 0.04, 2)
-            yield_pct = round(good / qty * 100, 1) if qty else 0
+            from app.models.production import DailyProductionReport
+            scrap_from_report = float(self.db.scalar(
+                select(func.coalesce(func.sum(DailyProductionReport.scrap_quantity), 0)).where(
+                    DailyProductionReport.tenant_id == self.tenant_id,
+                    DailyProductionReport.work_order_id == b.work_order_id,
+                )
+            ) or 0) if b.work_order_id else 0.0
+
+            raw_scrap = getattr(b, "scrap_quantity", None) or getattr(b, "scrap_qty", None) or scrap_from_report or (getattr(wo, "scrap_quantity", None) if wo else None)
+            scrap = round(float(raw_scrap or 0.0), 2)
+            raw_good = getattr(b, "good_quantity", None) or getattr(b, "good_qty", None)
+            good = round(float(raw_good), 2) if raw_good is not None else round(max(0.0, qty - scrap), 2)
+            yield_pct = round(good / qty * 100, 1) if qty else 0.0
+
+            mat_lot = (
+                getattr(b, "material_lot", None)
+                or getattr(b, "raw_material_lot", None)
+                or getattr(b, "lot_number", None)
+                or (getattr(wo, "material_lot", None) if wo else None)
+            )
+            if not mat_lot and b.batch_code:
+                from app.models.inventory import StockMovement
+                sm = self.db.scalars(
+                    select(StockMovement).where(
+                        StockMovement.tenant_id == self.tenant_id,
+                        StockMovement.batch_number == b.batch_code,
+                    )
+                ).first()
+                if sm:
+                    mat_lot = sm.reference or sm.batch_number
+
+            from app.models.quality import QualityInspection
+            qi_rec = self.db.scalars(
+                select(QualityInspection).where(
+                    QualityInspection.tenant_id == self.tenant_id,
+                    (QualityInspection.batch_id == b.id) | (QualityInspection.batch_code == b.batch_code),
+                ).order_by(QualityInspection.id.desc())
+            ).first()
+
+            if qi_rec:
+                res = (qi_rec.result or qi_rec.status or "").lower()
+                if res in ("pass", "passed", "approved"):
+                    qc_status = "passed"
+                elif res in ("fail", "failed", "rejected"):
+                    qc_status = "failed"
+                elif res:
+                    qc_status = res
+                else:
+                    qc_status = "pending"
+            else:
+                raw_qc = getattr(b, "qc_status", None)
+                qc_status = raw_qc if raw_qc else ("passed" if b.status in ("completed", "closed", "approved") else "pending")
+
+            from app.models.sales import SalesOrder
+            dispatch_sm = self.db.scalars(
+                select(StockMovement).where(
+                    StockMovement.tenant_id == self.tenant_id,
+                    StockMovement.batch_number == b.batch_code,
+                    StockMovement.movement_type.in_(("out", "sales", "dispatch", "shipment")),
+                )
+            ).first()
+
+            so = None
+            if po and getattr(po, "sales_order_id", None):
+                so = self.db.get(SalesOrder, po.sales_order_id)
+
+            if dispatch_sm or (so and getattr(so, "shipped", False)) or getattr(b, "dispatched", False):
+                dispatch_status = "dispatched"
+            elif so and getattr(so, "status", None):
+                dispatch_status = so.status
+            elif getattr(b, "dispatch_status", None):
+                dispatch_status = getattr(b, "dispatch_status")
+            else:
+                dispatch_status = "pending"
 
             result.append({
                 "batch_code": b.batch_code,
@@ -753,9 +852,9 @@ class OperatorService:
                 "scrap_quantity": scrap,
                 "yield_pct": yield_pct,
                 "produced_at": b.produced_at.isoformat() if b.produced_at else None,
-                "qc_status": "passed" if b.status == "completed" else "pending",
-                "dispatch_status": "pending",
-                "material_lot": "RM-LOT-2026-441",
+                "qc_status": qc_status,
+                "dispatch_status": dispatch_status,
+                "material_lot": mat_lot,
                 "product": {
                     "name": product.name if product else None,
                     "sku": product.sku if product else None,
@@ -1042,8 +1141,8 @@ class OperatorService:
 
         running_jobs_detail = []
         for wo in wos[:10]:
-            po = self.db.get(ProductionOrder, wo.production_order_id)
-            product = self.db.get(Product, po.product_id) if po else None
+            po = self._get_po(wo.production_order_id)
+            product = self._get_product(po.product_id) if po else None
             machine = self.db.get(Machine, wo.machine_id) if wo.machine_id else None
             operator = self.db.get(User, wo.assigned_user_id) if wo.assigned_user_id else None
             planned = float(wo.planned_quantity or 0)
@@ -1059,7 +1158,23 @@ class OperatorService:
                 "planned": planned,
             })
 
-        oee = round(len(running) / len(machines) * 100, 1) if machines else 0
+        availability = (len(running) / len(machines)) if machines else 0.0
+        total_planned_wo = sum(float(w.planned_quantity or 0) for w in wos)
+        total_actual_wo = sum(float(w.actual_quantity or 0) for w in wos)
+        performance = min(total_actual_wo / total_planned_wo, 1.0) if total_planned_wo > 0 else 1.0
+        good_output = max(todays_production - todays_scrap, 0)
+        quality = (good_output / todays_production) if todays_production > 0 else 1.0
+
+        oee = round(min(max(availability * performance * quality * 100.0, 0.0), 100.0), 1) if machines else 0.0
+
+        floor_alerts = [f"{m.code} — {m.name}: BREAKDOWN" for m in breakdown]
+        shortage_wos = [
+            w for w in wos
+            if w.status not in ("completed", "closed", "cancelled", "material_ready")
+            and not getattr(w, "materials_issued", False)
+        ]
+        if shortage_wos:
+            floor_alerts.append(f"Material shortage for {len(shortage_wos)} active work order(s)")
 
         return {
             "date": today.isoformat(),
@@ -1078,42 +1193,11 @@ class OperatorService:
                 "operators_working": operators_count,
             },
             "running_jobs_detail": running_jobs_detail,
-            "alerts": [
-                f"{m.code} — {m.name}: BREAKDOWN" for m in breakdown
-            ],
+            "alerts": floor_alerts,
         }
 
     def _resolve_hr_employee(self, user: User):
-        from sqlalchemy import func, or_, select
-        from app.models.hr import Employee
-
-        email = (user.email or "").strip().lower()
-        full_name = (user.full_name or "").strip().lower()
-        employee_code = (user.employee_id or "").strip()
-
-        filters = []
-        if email:
-            filters.append(func.lower(Employee.email) == email)
-        if full_name:
-            filters.append(func.lower(Employee.full_name) == full_name)
-        if employee_code:
-            if employee_code.isdigit():
-                filters.append(Employee.id == int(employee_code))
-            filters.append(func.lower(Employee.employee_code) == employee_code.lower())
-        if user.id is not None:
-            filters.append(Employee.id == user.id)
-        first_name = full_name.split(" ", 1)[0] if full_name else ""
-        if len(first_name) >= 3:
-            filters.append(func.lower(Employee.full_name).like(f"{first_name}%"))
-
-        if not filters:
-            return None
-
-        return self.db.scalar(
-            select(Employee)
-            .where(Employee.tenant_id == self.tenant_id, or_(*filters))
-            .limit(1)
-        )
+        return None
 
     def _resolve_attendance_employee_id(self, user: User) -> int:
         employee = self._resolve_hr_employee(user)
@@ -1257,12 +1341,16 @@ class OperatorService:
             planned  = float(o.planned_quantity or 0)
             produced = sum(float(wo.actual_quantity or 0) for wo in work_orders)
             raw_materials = []
+            bom_available = True
+            bom_error = None
             try:
                 raw_materials = get_bom_requirements(
                     self.db, self.tenant_id, o.product_id, planned
                 )
-            except Exception:
+            except Exception as exc:
                 logger.exception("Could not load BOM for production order %s", o.id)
+                bom_available = False
+                bom_error = "BOM information unavailable"
 
             work_order_details = []
             manpower = set()
@@ -1330,6 +1418,9 @@ class OperatorService:
                 "manpower": sorted(manpower),
                 "work_orders": work_order_details,
                 "raw_materials": raw_materials,
+                "bom_available": bom_available,
+                "bom_status": "available" if bom_available else "unavailable",
+                "bom_error": bom_error,
             })
 
         return {
@@ -1425,13 +1516,24 @@ class OperatorService:
             prod_name = product.name if product else "—"
             if q and q not in " ".join(filter(None, [order.order_number, prod_name, order.status, order.customer_name])).lower():
                 continue
+            bom_error = False
             try:
                 reqs = get_bom_requirements(self.db, self.tenant_id, order.product_id, float(order.planned_quantity or 0))
-            except Exception:
+            except Exception as exc:
+                logger.exception("Failed to calculate BOM requirements for order %s: %s", order.order_number, exc)
                 reqs = []
-            shortages = [r for r in reqs if not r.get("enough", True)]
+                bom_error = True
+
+            if bom_error:
+                material_status = "BOM Calculation Error"
+                all_ok = False
+            else:
+                shortages = [r for r in reqs if not r.get("enough", True)]
+                material_status = "All Available" if not shortages else f"{len(shortages)} Shortage(s)"
+                all_ok = len(shortages) == 0
+
             issued = any(getattr(wo, "materials_issued", False)
-                         for wo in self.db.scalars(select(WorkOrder).where(WorkOrder.production_order_id == order.id)).all())
+                         for wo in self.db.scalars(select(WorkOrder).where(WorkOrder.tenant_id == self.tenant_id, WorkOrder.production_order_id == order.id)).all())
             result.append({
                 "order_number": order.order_number, "product": prod_name,
                 "customer": order.customer_name or "—", "status": order.status,
@@ -1439,8 +1541,8 @@ class OperatorService:
                 "planned_quantity": float(order.planned_quantity or 0),
                 "due_date": str(order.due_date)[:10] if order.due_date else "—",
                 "materials_issued": issued,
-                "material_status": "All Available" if not shortages else f"{len(shortages)} Shortage(s)",
-                "all_ok": len(shortages) == 0,
+                "material_status": material_status,
+                "all_ok": all_ok,
                 "total_components": len(reqs),
                 "components": [{
                     "name": r["component_name"], "sku": r.get("sku", "—"),
@@ -1736,11 +1838,30 @@ class OperatorService:
                 DailyProductionReport.tenant_id == self.tenant_id,
                 DailyProductionReport.report_date == today,
             )) or 0)
-        today_target = float(self.db.scalar(
-            select(func.coalesce(func.sum(ProductionOrder.planned_quantity), 0)).where(
-                ProductionOrder.tenant_id == self.tenant_id,
-                ProductionOrder.status.in_(tuple(IN_PROG | PENDING)),
+        dpr_target = float(self.db.scalar(
+            select(func.coalesce(func.sum(DailyProductionReport.planned_quantity), 0)).where(
+                DailyProductionReport.tenant_id == self.tenant_id,
+                DailyProductionReport.report_date == today,
             )) or 0)
+
+        if dpr_target > 0:
+            today_target = dpr_target
+        else:
+            po_today_target = float(self.db.scalar(
+                select(func.coalesce(func.sum(ProductionOrder.planned_quantity), 0)).where(
+                    ProductionOrder.tenant_id == self.tenant_id,
+                    ProductionOrder.status.in_(tuple(IN_PROG | PENDING)),
+                    (func.date(ProductionOrder.start_date) == today) | (func.date(ProductionOrder.due_date) == today),
+                )) or 0)
+
+            wo_today_target = float(self.db.scalar(
+                select(func.coalesce(func.sum(WO.planned_quantity), 0)).where(
+                    WO.tenant_id == self.tenant_id,
+                    WO.status.in_(tuple(IN_PROG | PENDING)),
+                    (func.date(WO.planned_start) == today) | (func.date(WO.planned_end) == today),
+                )) or 0)
+
+            today_target = po_today_target or wo_today_target
 
         # Schedule list (compact)
         schedule_rows = []
@@ -1813,22 +1934,28 @@ class OperatorService:
         allocated_ids = set()
         maintenance_ids = set()
         offline_ids = set()
-        for m in machines:
-            if m.status in ("maintenance", "breakdown"):
-                maintenance_ids.add(m.id)
-            elif m.status in ("offline", "inactive"):
-                offline_ids.add(m.id)
-            has_active = self.db.scalar(
-                select(WO.id).where(
-                    WO.machine_id == m.id,
-                    WO.tenant_id == self.tenant_id,
-                    WO.status.in_(ALLOC_STATUS),
-                ).limit(1)
-            )
-            if has_active:
-                allocated_ids.add(m.id)
+        free_ids = set()
 
-        free_count = total - len(allocated_ids) - len(maintenance_ids) - len(offline_ids)
+        for m in machines:
+            status = (m.status or "").lower()
+            if status in ("maintenance", "breakdown", "repair"):
+                maintenance_ids.add(m.id)
+            elif status in ("offline", "inactive", "disabled"):
+                offline_ids.add(m.id)
+            else:
+                has_active = self.db.scalar(
+                    select(WO.id).where(
+                        WO.machine_id == m.id,
+                        WO.tenant_id == self.tenant_id,
+                        WO.status.in_(ALLOC_STATUS),
+                    ).limit(1)
+                )
+                if has_active:
+                    allocated_ids.add(m.id)
+                else:
+                    free_ids.add(m.id)
+
+        free_count = len(free_ids)
         util_pct = round(len(allocated_ids) / total * 100, 1) if total else 0
 
         # Per-machine allocation rows
@@ -1924,8 +2051,18 @@ class OperatorService:
             po = self.db.get(ProductionOrder, wo.production_order_id) if wo and wo.production_order_id else None
             product = self.db.get(Product, po.product_id) if po else None
             qty = float(b.quantity or 0)
-            good_qty = round(qty * 0.96, 1)
-            scrap_qty = round(qty * 0.04, 1)
+            from app.models.production import DailyProductionReport
+            scrap_from_report = float(self.db.scalar(
+                select(func.coalesce(func.sum(DailyProductionReport.scrap_quantity), 0)).where(
+                    DailyProductionReport.tenant_id == self.tenant_id,
+                    DailyProductionReport.work_order_id == b.work_order_id,
+                )
+            ) or 0) if b.work_order_id else 0.0
+
+            raw_scrap = getattr(b, "scrap_quantity", None) or getattr(b, "scrap_qty", None) or scrap_from_report or (getattr(wo, "scrap_quantity", None) if wo else None)
+            scrap_qty = round(float(raw_scrap or 0.0), 1)
+            raw_good = getattr(b, "good_quantity", None) or getattr(b, "good_qty", None)
+            good_qty = round(float(raw_good), 1) if raw_good is not None else round(max(0.0, qty - scrap_qty), 1)
             recent.append({
                 "batch_code": b.batch_code or f"BATCH-{b.id}",
                 "status": b.status or "—",

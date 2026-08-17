@@ -1,4 +1,4 @@
-"""Production hub — unified control center dashboard."""
+from datetime import date, datetime, time
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -35,11 +35,13 @@ def get_production_hub(db: Session, tenant_id: int) -> ProductionHubRead:
             )
         ) or 0
     )
+    today_start = datetime.combine(date.today(), time.min)
     completed_today = int(
         db.scalar(
             select(func.count(WorkOrder.id)).where(
                 WorkOrder.tenant_id == tenant_id,
                 WorkOrder.status.in_(("completed", "closed")),
+                WorkOrder.updated_at >= today_start,
             )
         ) or 0
     )
@@ -68,9 +70,36 @@ def get_production_hub(db: Session, tenant_id: int) -> ProductionHubRead:
         ).all()
     )
     for wo in wos:
-        po = db.get(ProductionOrder, wo.production_order_id)
-        product = db.get(Product, po.product_id) if po else None
-        machine = db.get(Machine, wo.machine_id) if wo.machine_id else None
+        po = (
+            db.scalars(
+                select(ProductionOrder).where(
+                    ProductionOrder.id == wo.production_order_id,
+                    ProductionOrder.tenant_id == tenant_id,
+                )
+            ).first()
+            if wo.production_order_id
+            else None
+        )
+        product = (
+            db.scalars(
+                select(Product).where(
+                    Product.id == po.product_id,
+                    Product.tenant_id == tenant_id,
+                )
+            ).first()
+            if po and po.product_id
+            else None
+        )
+        machine = (
+            db.scalars(
+                select(Machine).where(
+                    Machine.id == wo.machine_id,
+                    Machine.tenant_id == tenant_id,
+                )
+            ).first()
+            if wo.machine_id
+            else None
+        )
         recent.append(
             {
                 "work_order_number": wo.work_order_number,
@@ -85,14 +114,25 @@ def get_production_hub(db: Session, tenant_id: int) -> ProductionHubRead:
 
     machine_status = [{"name": m.name, "status": m.status, "code": m.code} for m in machines[:8]]
 
-    from app.models.inventory import InventoryItem, StockLevel
+    from app.models.inventory import InventoryItem, StockLevel, Warehouse
     from app.models.quality import QualityInspection
 
     items = list(db.scalars(select(InventoryItem).where(InventoryItem.tenant_id == tenant_id)).all())
-    levels = {
-        sl.item_id: float(sl.quantity or 0)
-        for sl in db.scalars(select(StockLevel)).all()
-    }
+    levels = {}
+    if items:
+        item_ids = [i.id for i in items]
+        stock_levels = db.scalars(
+            select(StockLevel)
+            .join(StockLevel.warehouse)
+            .join(StockLevel.item)
+            .where(
+                Warehouse.tenant_id == tenant_id,
+                InventoryItem.tenant_id == tenant_id,
+                StockLevel.item_id.in_(item_ids),
+            )
+        ).all()
+        for sl in stock_levels:
+            levels[sl.item_id] = levels.get(sl.item_id, 0.0) + float(sl.quantity or 0)
     shortages = 0
     available = 0
     for item in items:

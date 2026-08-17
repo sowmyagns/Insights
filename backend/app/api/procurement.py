@@ -239,10 +239,23 @@ def vendor_bank_lookup_endpoint(
     user: User = Depends(require_permission(MODULE)),
 ):
     """Validate account + IFSC and return bank name / branch."""
-    _require_vendor_access(user)
+    from fastapi import HTTPException, status
+
     from app.services.bank_lookup_service import lookup_bank_details
 
-    return lookup_bank_details(ifsc=ifsc, account_number=account_number)
+    _require_vendor_access(user)
+    try:
+        return lookup_bank_details(ifsc=ifsc, account_number=account_number)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception(
+            "Unexpected error during bank lookup for ifsc=%s: %s", ifsc, exc
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to verify bank details right now. Please try again.",
+        ) from exc
 
 
 @router.get("/vendors", response_model=list[VendorListRead])

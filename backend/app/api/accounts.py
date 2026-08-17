@@ -1,9 +1,10 @@
+import logging
 from datetime import date
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 logger = logging.getLogger(__name__)
@@ -79,12 +80,18 @@ def create_income_endpoint(
         raise
     except SQLAlchemyError as exc:
         db.rollback()
-        logger.exception("Database error creating income: %s", exc)
-        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+        logger.exception("Database error creating income in accounts API: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
     except Exception as exc:
         db.rollback()
-        logger.exception("Failed to create income: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to create income") from exc
+        logger.exception("Failed to create income in accounts API: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create income",
+        ) from exc
 
 
 @router.get("/income", response_model=list[IncomeRead])
@@ -98,11 +105,19 @@ def list_income_endpoint(
     except HTTPException:
         raise
     except SQLAlchemyError as exc:
-        logger.exception("Database error retrieving incomes: %s", exc)
-        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+        db.rollback()
+        logger.exception("Database error retrieving incomes in accounts API: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
     except Exception as exc:
-        logger.exception("Failed to retrieve incomes: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to retrieve incomes") from exc
+        db.rollback()
+        logger.exception("Failed to retrieve incomes in accounts API: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve incomes",
+        ) from exc
 
 
 @router.post("/expenses", response_model=ExpenseRead)
@@ -118,12 +133,18 @@ def create_expense_endpoint(
         raise
     except SQLAlchemyError as exc:
         db.rollback()
-        logger.exception("Database error creating expense: %s", exc)
-        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+        logger.exception("Database error creating expense in accounts API: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
     except Exception as exc:
         db.rollback()
-        logger.exception("Failed to create expense: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to create expense") from exc
+        logger.exception("Failed to create expense in accounts API: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create expense",
+        ) from exc
 
 
 @router.get("/expenses", response_model=list[ExpenseRead])
@@ -137,11 +158,19 @@ def list_expense_endpoint(
     except HTTPException:
         raise
     except SQLAlchemyError as exc:
-        logger.exception("Database error retrieving expenses: %s", exc)
-        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+        db.rollback()
+        logger.exception("Database error retrieving expenses in accounts API: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
     except Exception as exc:
-        logger.exception("Failed to retrieve expenses: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to retrieve expenses") from exc
+        db.rollback()
+        logger.exception("Failed to retrieve expenses in accounts API: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve expenses",
+        ) from exc
 
 
 @router.get("/expenses/{expense_id}", response_model=ExpenseRead)
@@ -158,11 +187,19 @@ def get_expense_endpoint(
     except HTTPException:
         raise
     except SQLAlchemyError as exc:
-        logger.exception("Database error retrieving expense_id=%s: %s", expense_id, exc)
-        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+        db.rollback()
+        logger.exception("Database error retrieving expense id=%s in accounts API: %s", expense_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
     except Exception as exc:
-        logger.exception("Failed to retrieve expense_id=%s: %s", expense_id, exc)
-        raise HTTPException(status_code=500, detail="Failed to retrieve expense") from exc
+        db.rollback()
+        logger.exception("Failed to retrieve expense id=%s in accounts API: %s", expense_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve expense",
+        ) from exc
 
 
 @router.put("/expenses/{expense_id}", response_model=ExpenseRead)
@@ -183,12 +220,18 @@ def update_expense_endpoint(
         raise
     except SQLAlchemyError as exc:
         db.rollback()
-        logger.exception("Database error updating expense_id=%s: %s", expense_id, exc)
-        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+        logger.exception("Database error updating expense id=%s in accounts API: %s", expense_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
     except Exception as exc:
         db.rollback()
-        logger.exception("Failed to update expense_id=%s: %s", expense_id, exc)
-        raise HTTPException(status_code=500, detail="Failed to update expense") from exc
+        logger.exception("Failed to update expense id=%s in accounts API: %s", expense_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update expense",
+        ) from exc
 
 
 @router.delete("/expenses/{expense_id}")
@@ -203,14 +246,31 @@ def delete_expense_endpoint(
         return {"ok": True, "id": expense_id}
     except HTTPException:
         raise
+    except IntegrityError as exc:
+        db.rollback()
+        logger.exception(
+            "Integrity constraint violation deleting expense id=%s in accounts API: %s",
+            expense_id,
+            exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete expense: it is referenced by another record.",
+        ) from exc
     except SQLAlchemyError as exc:
         db.rollback()
-        logger.exception("Database error deleting expense_id=%s: %s", expense_id, exc)
-        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+        logger.exception("Database error deleting expense id=%s in accounts API: %s", expense_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
     except Exception as exc:
         db.rollback()
-        logger.exception("Failed to delete expense_id=%s: %s", expense_id, exc)
-        raise HTTPException(status_code=500, detail="Failed to delete expense") from exc
+        logger.exception("Failed to delete expense id=%s in accounts API: %s", expense_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete expense",
+        ) from exc
 
 
 @router.get("/dashboard")
@@ -222,11 +282,19 @@ def accounts_dashboard_endpoint(
     except HTTPException:
         raise
     except SQLAlchemyError as exc:
-        logger.exception("Database error calculating dashboard metrics: %s", exc)
-        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+        db.rollback()
+        logger.exception("Database error loading accounts dashboard in API for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
     except Exception as exc:
-        logger.exception("Failed to calculate dashboard metrics: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to calculate dashboard metrics") from exc
+        db.rollback()
+        logger.exception("Failed to load accounts dashboard in API for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load accounts dashboard",
+        ) from exc
 
 
 @router.get("/profit-loss")
@@ -241,11 +309,23 @@ def profit_loss_endpoint(
     except HTTPException:
         raise
     except SQLAlchemyError as exc:
-        logger.exception("Database error calculating profit/loss: %s", exc)
-        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+        db.rollback()
+        logger.exception(
+            "Database error generating P&L report in API for tenant_id=%s year=%s: %s", tenant_id, year, exc
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
     except Exception as exc:
-        logger.exception("Failed to calculate profit/loss: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to calculate profit/loss") from exc
+        db.rollback()
+        logger.exception(
+            "Failed to generate P&L report in API for tenant_id=%s year=%s: %s", tenant_id, year, exc
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate profit & loss report",
+        ) from exc
 
 
 @router.get("/tax-report")
@@ -259,11 +339,23 @@ def tax_report_endpoint(
     except HTTPException:
         raise
     except SQLAlchemyError as exc:
-        logger.exception("Database error calculating tax report: %s", exc)
-        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+        db.rollback()
+        logger.exception(
+            "Database error generating tax report in API for tenant_id=%s year=%s: %s", tenant_id, year, exc
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
     except Exception as exc:
-        logger.exception("Failed to calculate tax report: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to calculate tax report") from exc
+        db.rollback()
+        logger.exception(
+            "Failed to generate tax report in API for tenant_id=%s year=%s: %s", tenant_id, year, exc
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate tax report",
+        ) from exc
 
 
 @router.get("/hub")
@@ -374,7 +466,28 @@ def pl_extended_endpoint(
     db: Session = Depends(get_db),
 ):
     _ = (financial_year, month, branch)
-    return get_pl_extended(db, tenant_id, year)
+    try:
+        return get_pl_extended(db, tenant_id, year)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception(
+            "Database error generating P&L extended report in API for tenant_id=%s year=%s: %s", tenant_id, year, exc
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception(
+            "Failed to generate P&L extended report in API for tenant_id=%s year=%s: %s", tenant_id, year, exc
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate profit & loss extended report",
+        ) from exc
 
 
 @router.get("/extended-reports")
@@ -619,6 +732,32 @@ def update_gl_account_endpoint(
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
     data = payload.model_dump(exclude_unset=True)
+    if "code" in data:
+        if data["code"] is None or not str(data["code"]).strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Account code cannot be empty",
+            )
+    if "name" in data:
+        if data["name"] is None or not str(data["name"]).strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Account name cannot be empty",
+            )
+    if "type" in data and data["type"] is not None:
+        from app.schemas.accounts import VALID_GL_TYPES
+        if str(data["type"]).strip().lower() not in VALID_GL_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid account type '{data['type']}'",
+            )
+    if "status" in data and data["status"] is not None:
+        from app.schemas.accounts import VALID_GL_STATUSES
+        if str(data["status"]).strip().lower() not in VALID_GL_STATUSES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid account status '{data['status']}'",
+            )
     if "code" in data and data["code"] != row.code:
         clash = db.scalar(
             select(GLAccount).where(
@@ -759,6 +898,27 @@ def create_fixed_asset_endpoint(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Asset code already exists",
+        )
+
+    if payload.cost < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Asset cost cannot be negative",
+        )
+    if payload.salvage < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Salvage value cannot be negative",
+        )
+    if payload.life <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Useful life must be a positive integer",
+        )
+    if payload.salvage > payload.cost:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Salvage value cannot exceed asset cost",
         )
 
     row = FixedAsset(

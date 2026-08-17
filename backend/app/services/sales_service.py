@@ -1,7 +1,10 @@
+import logging
 from datetime import date
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
+
+logger = logging.getLogger(__name__)
 
 from app.models.sales import (
     Customer,
@@ -295,7 +298,17 @@ def convert_quotation_to_sales_order(
     db.flush()
 
     if product_id:
-        product = db.get(Product, product_id)
+        product = db.scalars(
+            select(Product).where(
+                Product.id == product_id,
+                Product.tenant_id == tenant_id,
+            )
+        ).first()
+        if not product:
+            raise HTTPException(
+                status_code=404,
+                detail="Product not found or does not belong to the current tenant.",
+            )
         qty = float(quantity or 1)
         price = float(
             unit_price
@@ -452,43 +465,58 @@ def list_invoices(
 
 
 def create_payment(db: Session, payload: PaymentCreate) -> Payment:
+    inv = db.scalars(
+        select(Invoice).where(
+            Invoice.id == payload.invoice_id,
+            Invoice.tenant_id == payload.tenant_id,
+        )
+    ).first()
+    if not inv:
+        raise HTTPException(
+            status_code=404,
+            detail="Invoice not found or does not belong to the current tenant.",
+        )
+
     p = Payment(**payload.model_dump())
     db.add(p)
-    inv = db.get(Invoice, payload.invoice_id)
-    if inv:
-        inv.amount_paid = (inv.amount_paid or 0) + payload.amount
-        inv.status = "paid" if inv.amount_paid >= inv.grand_total else "partial"
-        try:
-            from app.services.invoice_v2_service import sync_payment_status
+    inv.amount_paid = (inv.amount_paid or 0) + payload.amount
+    inv.status = "paid" if inv.amount_paid >= inv.grand_total else "partial"
+    try:
+        from app.services.invoice_v2_service import sync_payment_status
 
-            sync_payment_status(inv)
-        except Exception:
-            inv.payment_status = inv.status if inv.status in ("paid", "partial") else "unpaid"
-        try:
-            from app.models.accounts import Income
+        sync_payment_status(inv)
+    except Exception:
+        inv.payment_status = inv.status if inv.status in ("paid", "partial") else "unpaid"
+    try:
+        from app.models.accounts import Income
 
-            income = Income(
-                tenant_id=payload.tenant_id,
-                income_date=payload.payment_date,
-                category="Sales Payment",
-                source=inv.invoice_number,
-                description=f"Payment for invoice #{inv.invoice_number}",
-                amount=float(payload.amount),
+        income = Income(
+            tenant_id=payload.tenant_id,
+            income_date=payload.payment_date,
+            category="Sales Payment",
+            source=inv.invoice_number,
+            description=f"Payment for invoice #{inv.invoice_number}",
+            amount=float(payload.amount),
+        )
+        db.add(income)
+    except Exception as exc:
+        logger.exception("Failed to create Income entry for payment on invoice %s: %s", inv.invoice_number, exc)
+    # Close sales order when invoice fully paid (after ship/delivery)
+    if inv.status == "paid" and inv.sales_order_id:
+        so = db.scalars(
+            select(SalesOrder).where(
+                SalesOrder.id == inv.sales_order_id,
+                SalesOrder.tenant_id == payload.tenant_id,
             )
-            db.add(income)
-        except Exception:
-            pass
-        # Close sales order when invoice fully paid (after ship/delivery)
-        if inv.status == "paid" and inv.sales_order_id:
-            so = db.get(SalesOrder, inv.sales_order_id)
-            if so and so.tenant_id == payload.tenant_id:
-                if (so.status or "").lower() in {
-                    "shipped",
-                    "delivered",
-                    "invoiced",
-                    "confirmed",
-                } or so.shipped or so.invoiced:
-                    so.status = "closed"
+        ).first()
+        if so:
+            if (so.status or "").lower() in {
+                "shipped",
+                "delivered",
+                "invoiced",
+                "confirmed",
+            } or so.shipped or so.invoiced:
+                so.status = "closed"
     db.commit()
     db.refresh(p)
     try:
@@ -570,7 +598,27 @@ def update_payment(
     payment = get_payment(db, tenant_id, payment_id)
     if not payment:
         return None
-    old_inv = db.get(Invoice, payment.invoice_id)
+
+    new_invoice_id = data.get("invoice_id")
+    if new_invoice_id is not None:
+        new_inv_check = db.scalars(
+            select(Invoice).where(
+                Invoice.id == new_invoice_id,
+                Invoice.tenant_id == tenant_id,
+            )
+        ).first()
+        if not new_inv_check:
+            raise HTTPException(
+                status_code=404,
+                detail="Invoice not found or does not belong to the current tenant.",
+            )
+
+    old_inv = db.scalars(
+        select(Invoice).where(
+            Invoice.id == payment.invoice_id,
+            Invoice.tenant_id == tenant_id,
+        )
+    ).first()
     old_amount = float(payment.amount or 0)
     if old_inv:
         old_inv.amount_paid = max(0.0, float(old_inv.amount_paid or 0) - old_amount)
@@ -579,12 +627,18 @@ def update_payment(
         if key in data and data[key] is not None:
             setattr(payment, key, data[key])
 
-    new_inv = db.get(Invoice, payment.invoice_id)
+    new_inv = db.scalars(
+        select(Invoice).where(
+            Invoice.id == payment.invoice_id,
+            Invoice.tenant_id == tenant_id,
+        )
+    ).first()
     if new_inv:
         new_inv.amount_paid = float(new_inv.amount_paid or 0) + float(payment.amount or 0)
     if old_inv and (not new_inv or old_inv.id != new_inv.id):
         _resync_invoice_payment(db, old_inv)
-    _resync_invoice_payment(db, new_inv)
+    if new_inv:
+        _resync_invoice_payment(db, new_inv)
     db.commit()
     db.refresh(payment)
     return payment
@@ -594,7 +648,12 @@ def delete_payment(db: Session, tenant_id: int, payment_id: int) -> bool:
     payment = get_payment(db, tenant_id, payment_id)
     if not payment:
         return False
-    inv = db.get(Invoice, payment.invoice_id)
+    inv = db.scalars(
+        select(Invoice).where(
+            Invoice.id == payment.invoice_id,
+            Invoice.tenant_id == tenant_id,
+        )
+    ).first()
     if inv:
         inv.amount_paid = max(0.0, float(inv.amount_paid or 0) - float(payment.amount or 0))
         _resync_invoice_payment(db, inv)
@@ -817,9 +876,19 @@ def create_quotation(db: Session, payload: QuotationCreate) -> Quotation:
     if valid_until is None:
         valid_until = quote_date + timedelta(days=30)
 
-    quote_number = (data.get("quote_number") or "").strip() or _next_quotation_number(
-        db, tenant_id
-    )
+    quote_number = (data.get("quote_number") or "").strip()
+    if not quote_number:
+        for _ in range(10):
+            candidate = _next_quotation_number(db, tenant_id)
+            stmt = select(Quotation).where(
+                Quotation.tenant_id == tenant_id,
+                Quotation.quote_number == candidate,
+            )
+            if not db.scalars(stmt).first():
+                quote_number = candidate
+                break
+        if not quote_number:
+            quote_number = _next_quotation_number(db, tenant_id)
 
     meta_json = data.get("meta_json")
     if meta_json is not None and not isinstance(meta_json, str):
@@ -842,7 +911,24 @@ def create_quotation(db: Session, payload: QuotationCreate) -> Quotation:
         meta_json=meta_json,
     )
     db.add(quote)
-    db.commit()
+    try:
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        candidate = _next_quotation_number(db, tenant_id)
+        counter = 1
+        while db.scalars(
+            select(Quotation).where(
+                Quotation.tenant_id == tenant_id,
+                Quotation.quote_number == candidate,
+            )
+        ).first():
+            candidate = f"{_next_quotation_number(db, tenant_id)}-{counter}"
+            counter += 1
+        quote.quote_number = candidate
+        db.add(quote)
+        db.commit()
+
     db.refresh(quote)
     return quote
 

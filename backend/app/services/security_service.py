@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import or_, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -35,17 +36,26 @@ def record_login_attempt(
     user_agent: str | None = None,
     failure_reason: str | None = None,
 ) -> None:
-    db.add(
-        LoginAttempt(
-            email=email.lower().strip(),
-            user_id=user_id,
-            success=success,
-            ip_address=ip_address,
-            user_agent=user_agent,
-            failure_reason=failure_reason,
+    try:
+        db.add(
+            LoginAttempt(
+                email=email.lower().strip(),
+                user_id=user_id,
+                success=success,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                failure_reason=failure_reason,
+            )
         )
-    )
-    db.commit()
+        db.commit()
+    except SQLAlchemyError as exc:
+        logger.exception("record_login_attempt database error for email %s: %s", email, exc)
+        db.rollback()
+        raise
+    except Exception as exc:
+        logger.exception("record_login_attempt unexpected error for email %s: %s", email, exc)
+        db.rollback()
+        raise
 
 
 def is_account_locked(user: User) -> bool:
@@ -62,11 +72,20 @@ def is_account_locked(user: User) -> bool:
 def register_failed_login(db: Session, user: User | None, email: str) -> None:
     if not user:
         return
-    user.failed_login_attempts = int(user.failed_login_attempts or 0) + 1
-    if user.failed_login_attempts >= settings.max_login_attempts:
-        user.locked_until = _utcnow() + timedelta(minutes=settings.lockout_minutes)
-        logger.warning("Account locked for user_id=%s until %s", user.id, user.locked_until)
-    db.commit()
+    try:
+        user.failed_login_attempts = int(user.failed_login_attempts or 0) + 1
+        if user.failed_login_attempts >= settings.max_login_attempts:
+            user.locked_until = _utcnow() + timedelta(minutes=settings.lockout_minutes)
+            logger.warning("Account locked for user_id=%s until %s", user.id, user.locked_until)
+        db.commit()
+    except SQLAlchemyError as exc:
+        logger.exception("register_failed_login database error for email %s: %s", email, exc)
+        db.rollback()
+        raise
+    except Exception as exc:
+        logger.exception("register_failed_login unexpected error for email %s: %s", email, exc)
+        db.rollback()
+        raise
     try:
         from app.services.alert_event_service import emit_alert
 
@@ -83,8 +102,8 @@ def register_failed_login(db: Session, user: User | None, email: str) -> None:
             created_by="Security",
             metadata={"email": email, "attempts": user.failed_login_attempts},
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.exception("Failed to emit login_failure alert for email %s: %s", email, exc)
 
 
 def clear_login_failures(db: Session, user: User) -> None:
@@ -114,8 +133,9 @@ def touch_user_activity(db: Session, user: User) -> None:
     user.last_activity_at = now
     try:
         db.commit()
-    except Exception:
+    except Exception as exc:
         db.rollback()
+        logger.exception("Failed to update last_activity_at for user_id=%s: %s", getattr(user, "id", None), exc)
 
 
 def create_refresh_token(

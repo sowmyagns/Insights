@@ -1,11 +1,14 @@
 import logging
+import logging
 from datetime import date
 from decimal import Decimal
 
+from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.core.sql_compat import column_matches_year_month
 from app.models.accounts import Expense, Income
 from app.models.sales import Invoice, Payment
 from app.schemas.accounts import ExpenseCreate, IncomeCreate
@@ -138,7 +141,13 @@ def get_profit_loss(db: Session, tenant_id: int, year: int, ytd_through_month: i
         months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
         rev_by_cat = {}
         exp_by_cat = {}
+    try:
+        from datetime import date
+        months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        rev_by_cat = {}
+        exp_by_cat = {}
 
+        from app.models.sales import Customer
         from app.models.sales import Customer
 
         # Revenue from invoices (by customer name)
@@ -202,9 +211,38 @@ def get_profit_loss(db: Session, tenant_id: int, year: int, ytd_through_month: i
             if key not in exp_by_cat:
                 exp_by_cat[key] = {i: 0 for i in range(1, 13)}
             exp_by_cat[key][m] = amt
+        # Expenses by category/vendor
+        exp_stmt = (
+            select(Expense.category, Expense.vendor, func.extract("month", Expense.expense_date).label("m"), func.sum(Expense.amount))
+            .where(Expense.tenant_id == tenant_id)
+        )
+        if start_date and end_date:
+            exp_stmt = exp_stmt.where(Expense.expense_date >= start_date, Expense.expense_date <= end_date)
+        else:
+            exp_stmt = exp_stmt.where(func.extract("year", Expense.expense_date) == year)
+        exp_stmt = exp_stmt.group_by(Expense.category, Expense.vendor, func.extract("month", Expense.expense_date))
+        for row in db.execute(exp_stmt).all():
+            cat = row[0] or "Other"
+            vend = row[1]
+            m = int(row[2]) if row[2] else 0
+            amt = float(row[3] or 0)
+            key = f"{cat} - {vend}" if vend else cat
+            if key not in exp_by_cat:
+                exp_by_cat[key] = {i: 0 for i in range(1, 13)}
+            exp_by_cat[key][m] = amt
 
         month_keys = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+        month_keys = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 
+        def build_row(cat, months_data):
+            row = {"category": cat, "fy": 0, "ytd": 0}
+            for i, m in enumerate(range(1, 13)):
+                val = months_data.get(m, 0)
+                row[month_keys[i]] = val
+                row["fy"] += val
+                if m <= ytd_through_month:
+                    row["ytd"] += val
+            return row
         def build_row(cat, months_data):
             row = {"category": cat, "fy": 0, "ytd": 0}
             for i, m in enumerate(range(1, 13)):
@@ -217,7 +255,12 @@ def get_profit_loss(db: Session, tenant_id: int, year: int, ytd_through_month: i
 
         revenue_rows = [build_row(cat, data) for cat, data in rev_by_cat.items()]
         expense_rows = [build_row(cat, data) for cat, data in exp_by_cat.items()]
+        revenue_rows = [build_row(cat, data) for cat, data in rev_by_cat.items()]
+        expense_rows = [build_row(cat, data) for cat, data in exp_by_cat.items()]
 
+        total_rev = sum(r["fy"] for r in revenue_rows)
+        total_exp = sum(r["fy"] for r in expense_rows)
+        profit = total_rev - total_exp
         total_rev = sum(r["fy"] for r in revenue_rows)
         total_exp = sum(r["fy"] for r in expense_rows)
         profit = total_rev - total_exp
@@ -264,7 +307,15 @@ def get_accounts_dashboard(db: Session, tenant_id: int) -> dict:
         inv_row = db.execute(inv_stmt).first()
         total_invoices = inv_row[0] or 0
         total_amount = float(inv_row[1] or 0)
+    try:
+        inv_stmt = select(func.count(Invoice.id), func.coalesce(func.sum(Invoice.grand_total), 0)).where(Invoice.tenant_id == tenant_id).where(Invoice.status != "draft")
+        inv_row = db.execute(inv_stmt).first()
+        total_invoices = inv_row[0] or 0
+        total_amount = float(inv_row[1] or 0)
 
+        paid_stmt = select(func.coalesce(func.sum(Invoice.amount_paid), 0)).where(Invoice.tenant_id == tenant_id)
+        paid_row = db.execute(paid_stmt).first()
+        total_settlement = float(paid_row[0] or 0)
         paid_stmt = select(func.coalesce(func.sum(Invoice.amount_paid), 0)).where(Invoice.tenant_id == tenant_id)
         paid_row = db.execute(paid_stmt).first()
         total_settlement = float(paid_row[0] or 0)
@@ -281,7 +332,35 @@ def get_accounts_dashboard(db: Session, tenant_id: int) -> dict:
         overdue_row = db.execute(overdue_stmt).first()
         overdue_count = overdue_row[0] or 0
         overdue_amount = float(overdue_row[1] or 0)
+        # Overdue (simplified: due_date < today and not fully paid)
+        from datetime import date as d
+        today = d.today()
+        overdue_stmt = (
+            select(func.count(Invoice.id), func.coalesce(func.sum(Invoice.grand_total - Invoice.amount_paid), 0))
+            .where(Invoice.tenant_id == tenant_id)
+            .where(Invoice.due_date < today)
+            .where(Invoice.amount_paid < Invoice.grand_total)
+        )
+        overdue_row = db.execute(overdue_stmt).first()
+        overdue_count = overdue_row[0] or 0
+        overdue_amount = float(overdue_row[1] or 0)
 
+        # Overdue aging buckets from actual overdue invoices
+        overdue_invoices = db.execute(
+            select(Invoice.due_date, Invoice.grand_total, Invoice.amount_paid)
+            .where(Invoice.tenant_id == tenant_id)
+            .where(Invoice.due_date < today)
+            .where(Invoice.amount_paid < Invoice.grand_total)
+        ).all()
+        buckets = {i: {"days": i, "count": 0, "amount": 0.0} for i in range(1, 46)}
+        for due_date, grand_total, amount_paid in overdue_invoices:
+            if not due_date:
+                continue
+            days_over = max(1, (today - due_date).days)
+            bucket = min(45, days_over)
+            buckets[bucket]["count"] += 1
+            buckets[bucket]["amount"] += float((grand_total or 0) - (amount_paid or 0))
+        overdue_by_days = [buckets[i] for i in range(1, 46)]
         # Overdue aging buckets from actual overdue invoices
         overdue_invoices = db.execute(
             select(Invoice.due_date, Invoice.grand_total, Invoice.amount_paid)
@@ -322,6 +401,18 @@ def get_accounts_dashboard(db: Session, tenant_id: int) -> dict:
                 "count": int(month_count or 0),
             })
 
+        paid_invoices = db.execute(
+            select(Invoice.issue_date, Invoice.updated_at)
+            .where(Invoice.tenant_id == tenant_id)
+            .where(Invoice.amount_paid >= Invoice.grand_total)
+            .where(Invoice.issue_date.isnot(None))
+        ).all()
+        settle_days = []
+        for issue_date, updated_at in paid_invoices:
+            if issue_date and updated_at:
+                end = updated_at.date() if hasattr(updated_at, "date") else updated_at
+                settle_days.append(max(0, (end - issue_date).days))
+        avg_days_to_settle = round(sum(settle_days) / len(settle_days)) if settle_days else 0
         paid_invoices = db.execute(
             select(Invoice.issue_date, Invoice.updated_at)
             .where(Invoice.tenant_id == tenant_id)

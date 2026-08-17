@@ -376,11 +376,11 @@ export default function PendingApprovals() {
 
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 space-y-2 text-xs">
               <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Requested By User:</span>
+                <span className="text-[var(--color-text-muted)]">Name:</span>
                 <span className="font-bold text-[var(--color-text)]">{selectedDetail.user_name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Request For:</span>
+                <span className="text-[var(--color-text-muted)]">Type:</span>
                 <span className="font-bold text-[var(--color-primary)]">
                   {CATEGORY_TAGS[selectedDetail.category]?.label || "Approval Queue"}
                 </span>
@@ -399,12 +399,7 @@ export default function PendingApprovals() {
                 </span>
                 <span className="font-bold text-[var(--color-primary)]">{selectedDetail.amount}</span>
               </div>
-              {selectedDetail.reason ? (
-                <div className="flex justify-between gap-4">
-                  <span className="text-[var(--color-text-muted)] shrink-0">Reason / Remarks:</span>
-                  <span className="font-semibold text-[var(--color-text)] text-right">{selectedDetail.reason}</span>
-                </div>
-              ) : null}
+
               <div className="flex justify-between">
                 <span className="text-[var(--color-text-muted)]">Current Status:</span>
                 <span className="font-bold uppercase text-[var(--color-text)]">{selectedDetail.status}</span>

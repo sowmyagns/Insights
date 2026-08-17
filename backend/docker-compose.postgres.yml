@@ -1,0 +1,29 @@
+# Local PostgreSQL for Insights Iva development / migration testing.
+# Usage:
+#   docker compose -f docker-compose.postgres.yml up -d
+#   set DATABASE_URL=postgresql+psycopg://insights_user:insights_dev@localhost:5432/insights_iva
+#   alembic upgrade head
+#
+# Credentials are for local development only — override via .env on your machine.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: insights_iva_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-insights_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-insights_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-insights_iva}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - insights_iva_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-insights_user} -d ${POSTGRES_DB:-insights_iva}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  insights_iva_pgdata:

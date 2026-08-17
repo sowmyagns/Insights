@@ -7,7 +7,7 @@ from app.models.bom import BillOfMaterial
 from app.models.inventory import VendorProduct
 from app.models.product import Product, ProductStockEvent
 from app.models.production import Batch, DailyProductionReport, ProductionOrder, WorkOrder
-from app.models.sales import SalesOrderLine
+from app.models.sales import SalesOrder, SalesOrderLine
 from app.schemas.product import BomItemCreate, ProductCreate, ProductUpdate
 
 
@@ -118,7 +118,7 @@ def update_product(
 
 
 def _delete_related_for_product(db: Session, tenant_id: int, product_id: int) -> None:
-    """Remove FK dependents so a product row can be deleted (SQLite has no ON DELETE CASCADE)."""
+    """Remove FK dependents so a product row can be deleted when ON DELETE CASCADE is absent."""
     for event in db.scalars(
         select(ProductStockEvent).where(
             ProductStockEvent.product_id == product_id,
@@ -147,7 +147,12 @@ def _delete_related_for_product(db: Session, tenant_id: int, product_id: int) ->
         db.delete(vp)
 
     for line in db.scalars(
-        select(SalesOrderLine).where(SalesOrderLine.product_id == product_id)
+        select(SalesOrderLine)
+        .join(SalesOrderLine.sales_order)
+        .where(
+            SalesOrderLine.product_id == product_id,
+            SalesOrder.tenant_id == tenant_id,
+        )
     ).all():
         line.product_id = None
 
@@ -170,17 +175,24 @@ def _delete_related_for_product(db: Session, tenant_id: int, product_id: int) ->
     for po in production_orders:
         work_orders = list(
             db.scalars(
-                select(WorkOrder).where(WorkOrder.production_order_id == po.id)
+                select(WorkOrder).where(
+                    WorkOrder.production_order_id == po.id,
+                    WorkOrder.tenant_id == tenant_id,
+                )
             ).all()
         )
         for wo in work_orders:
             for batch in db.scalars(
-                select(Batch).where(Batch.work_order_id == wo.id)
+                select(Batch).where(
+                    Batch.work_order_id == wo.id,
+                    Batch.tenant_id == tenant_id,
+                )
             ).all():
                 db.delete(batch)
             for report in db.scalars(
                 select(DailyProductionReport).where(
-                    DailyProductionReport.work_order_id == wo.id
+                    DailyProductionReport.work_order_id == wo.id,
+                    DailyProductionReport.tenant_id == tenant_id,
                 )
             ).all():
                 db.delete(report)

@@ -8,13 +8,13 @@ export const ROLES = [
   { id: "sales_manager", name: "Sales Manager", description: "Leads, quotations, sales orders, customers" },
   { id: "production_manager", name: "Production Manager", description: "Production modules for assigned plant" },
   { id: "store_manager", name: "Store Manager", description: "Inventory and store operations" },
-  { id: "hr_manager", name: "HR Manager", description: "HR and payroll" },
+  { id: "hr_manager", name: "HR Manager", description: "Departments and organizational data" },
   { id: "accountant", name: "Accountant", description: "Finance and accounts" },
   { id: "operator", name: "Operator", description: "Assigned work orders and machine only" },
 ];
 
 export const MODULES = [
-  "dashboard", "masters", "production", "inventory", "procurement", "hr",
+  "dashboard", "masters", "production", "inventory", "procurement",
   "sales", "accounts", "quality", "maintenance", "analytics", "alerts", "admin",
   "documents", "documents_ops", "factoryMonitor", "iot", "settings", "meetings",
 ];
@@ -51,8 +51,8 @@ export const ROLE_PERMISSIONS = {
   procurement_manager: [
     "dashboard", "procurement", "inventory", "masters", "accounts", "alerts", "documents", "analytics",
   ],
-  "HR Manager": ["dashboard", "hr", "analytics", "alerts", "documents", "masters", "meetings"],
-  hr_manager: ["dashboard", "hr", "analytics", "alerts", "documents", "masters", "meetings"],
+  "HR Manager": ["dashboard", "analytics", "alerts", "documents", "masters", "meetings"],
+  hr_manager: ["dashboard", "analytics", "alerts", "documents", "masters", "meetings"],
   Accountant: ["dashboard", "accounts", "sales", "documents", "analytics", "alerts", "masters", "meetings"],
   accountant: ["dashboard", "accounts", "sales", "documents", "analytics", "alerts", "masters", "meetings"],
   Operator: [
@@ -112,7 +112,6 @@ export const ROUTE_MODULES = {
   "/inventory": "inventory",
   "/procurement": "procurement",
   "/purchases": "procurement",
-  "/hr": "hr",
   "/sales": "sales",
   "/ewaybill": "sales",
   "/digital-signature": "sales",

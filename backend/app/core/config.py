@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from functools import lru_cache
@@ -11,6 +12,14 @@ _DEFAULT_JWT_SECRET = "change-me-in-production-use-openssl-rand-hex-32"
 _env_path = Path(__file__).resolve().parent.parent.parent / ".env"
 
 
+def _sqlite_runtime_allowed() -> bool:
+    return os.environ.get("ALLOW_SQLITE_RUNTIME", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=_env_path,
@@ -18,8 +27,8 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
-    # Database (SQLite only)
-    database_url: str = "sqlite:///./smrt.db"
+    # Database — PostgreSQL is required at runtime (see ALLOW_SQLITE_RUNTIME for tests).
+    database_url: str = ""
 
     # Auth / JWT
     jwt_secret_key: str = _DEFAULT_JWT_SECRET
@@ -90,12 +99,36 @@ class Settings(BaseSettings):
 
     @field_validator("database_url")
     @classmethod
-    def require_sqlite(cls, value: str) -> str:
-        if not value.strip().lower().startswith("sqlite:"):
+    def validate_database_url(cls, value: str) -> str:
+        url = value.strip()
+        if not url:
             raise ValueError(
-                "Only SQLite DATABASE_URL is supported (e.g. sqlite:///./smrt.db)"
+                "DATABASE_URL is required. Example: "
+                "postgresql+psycopg://USER:PASSWORD@localhost:5432/insights_iva"
             )
-        return value
+        lowered = url.lower()
+        if lowered.startswith("sqlite:"):
+            if not _sqlite_runtime_allowed():
+                raise ValueError(
+                    "SQLite is not supported as the runtime database. "
+                    "Set DATABASE_URL to postgresql+psycopg://USER:PASSWORD@HOST:5432/DATABASE. "
+                    "Use ALLOW_SQLITE_RUNTIME=1 only for automated tests."
+                )
+            return url
+        if lowered.startswith("postgresql"):
+            return url
+        raise ValueError(
+            "DATABASE_URL must use postgresql: "
+            "(e.g. postgresql+psycopg://USER:PASSWORD@HOST:5432/insights_iva)"
+        )
+
+    @property
+    def is_sqlite(self) -> bool:
+        return self.database_url.strip().lower().startswith("sqlite:")
+
+    @property
+    def is_postgresql(self) -> bool:
+        return self.database_url.strip().lower().startswith("postgresql")
 
     @model_validator(mode="after")
     def enforce_production_secrets(self):
@@ -105,6 +138,10 @@ class Settings(BaseSettings):
         if not secret or secret == _DEFAULT_JWT_SECRET or len(secret) < 32:
             raise ValueError(
                 "JWT_SECRET_KEY must be a strong secret (min 32 chars) when ENVIRONMENT=production"
+            )
+        if self.is_sqlite:
+            raise ValueError(
+                "SQLite cannot be used as the runtime database when ENVIRONMENT=production"
             )
         return self
 

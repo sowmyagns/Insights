@@ -1,15 +1,15 @@
-"""Daily SQLite backup with optional Fernet encryption.
+"""Backup legacy SQLite source database (migration / archival only).
+
+Does NOT use runtime DATABASE_URL. Reads SOURCE_DATABASE_URL (default smrt.db).
 
 Usage (from backend/):
   python scripts/backup_sqlite.py
 
 Env:
-  DATABASE_URL          — default sqlite:///./smrt.db
+  SOURCE_DATABASE_URL   — default sqlite:///./smrt.db
   BACKUP_DIR            — default ./backups
   BACKUP_ENCRYPTION_KEY — optional Fernet key
   KEEP_BACKUPS          — number of backups to retain (default 14)
-
-Schedule via Windows Task Scheduler or cron for daily runs.
 """
 
 from __future__ import annotations
@@ -44,12 +44,14 @@ def _sha256(path: Path) -> str:
 def main() -> int:
     import shutil
 
-    from app.core.config import get_settings
+    source_url = os.environ.get("SOURCE_DATABASE_URL", "sqlite:///./smrt.db").strip()
+    if not source_url.lower().startswith("sqlite:"):
+        print("ERROR: SOURCE_DATABASE_URL must be a sqlite: URL")
+        return 1
 
-    settings = get_settings()
-    db_path = _sqlite_path_from_url(settings.database_url)
+    db_path = _sqlite_path_from_url(source_url)
     if not db_path.exists():
-        print(f"ERROR: database not found at {db_path}")
+        print(f"ERROR: SQLite source not found at {db_path}")
         return 1
 
     backup_dir = Path(os.getenv("BACKUP_DIR", str(_BACKEND_ROOT / "backups")))

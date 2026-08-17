@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.permissions import tenant_scope
-from app.models.hr import Employee
+from app.models.user import User
 from app.models.machine import Machine
 from app.models.maintenance import PreventiveMaintenance
 from app.models.production import WorkOrder
@@ -33,15 +33,13 @@ def iot_dashboard(tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = 
     machines = _machines(db, tenant_id)
     running = sum(1 for m in machines if m.status == "running")
     active_machines = sum(1 for m in machines if m.is_active)
-    employees = db.scalar(
-        select(func.count(Employee.id)).where(
-            Employee.tenant_id == tenant_id, Employee.is_active.is_(True)
-        )
+    users_active = db.scalar(
+        select(func.count(User.id)).where(User.tenant_id == tenant_id, User.is_active.is_(True))
     ) or 0
     sensor_count = len(machines) * 3
     return {
         "simulated": True,
-        "wearables": {"count": int(employees), "active": int(employees), "function": "Collect data from multiple sources"},
+        "wearables": {"count": int(users_active), "active": int(users_active), "function": "Collect data from multiple sources"},
         "sensors": {"count": sensor_count, "active": sensor_count, "function": "Supply chain & machine monitoring"},
         "cobots": {"count": active_machines, "active": running, "function": "Collaborative material handling"},
         "agvs": {"count": max(1, len(machines) // 3), "active": max(1, running // 3), "function": "Easy navigation & transport"},
@@ -60,23 +58,21 @@ def iot_dashboard(tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = 
 
 @router.get("/wearables")
 def wearables_status(tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)):
-    """Simulated wearables – one device per active employee."""
-    employees = list(
+    """Simulated wearables – one device per active user."""
+    users = list(
         db.scalars(
-            select(Employee).where(
-                Employee.tenant_id == tenant_id, Employee.is_active.is_(True)
-            )
+            select(User).where(User.tenant_id == tenant_id, User.is_active.is_(True))
         ).all()
     )
     devices = [
         {
-            "id": e.id,
+            "id": u.id,
             "type": "smart_band",
-            "user": e.full_name,
-            "department": e.department,
+            "user": u.full_name or u.email,
+            "department": "Operations",
             "status": "online",
         }
-        for e in employees
+        for u in users
     ]
     return {"simulated": True, "devices": devices, "total": len(devices), "active": len(devices)}
 

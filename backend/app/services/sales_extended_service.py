@@ -52,7 +52,7 @@ def list_leads_enriched(db: Session, tenant_id: int) -> list[LeadListRead]:
             company=l.company,
             contact=l.phone or l.email,
             source=l.source,
-            sales_executive=getattr(l, "sales_executive", None) or "Ramesh Kumar",
+            sales_executive=getattr(l, "sales_executive", None) or "Unassigned",
             priority=getattr(l, "priority", "medium") or "medium",
             next_followup=l.next_followup.isoformat() if getattr(l, "next_followup", None) else None,
             status=l.status,
@@ -148,7 +148,7 @@ def list_so_enriched(db: Session, tenant_id: int) -> list[SOListRead]:
                 delivery_date=o.delivery_date.isoformat() if getattr(o, "delivery_date", None) else None,
                 amount=total,
                 total_amount=total,
-                payment_terms=getattr(o, "payment_terms", None) or "Net 30",
+                payment_terms=getattr(o, "payment_terms", None) or "Not Specified",
                 status=o.status,
                 sales_person=getattr(o, "sales_person", None),
                 warehouse_name=wh_name,
@@ -310,6 +310,20 @@ def get_sales_hub(db: Session, tenant_id: int) -> SalesHubRead:
     disp_sum = get_dispatch_summary(db, tenant_id)
     customers = list(db.scalars(select(Customer).where(Customer.tenant_id == tenant_id)).all())
     customer_count = len(customers)
+
+    today = date.today()
+    new_customers_count = sum(
+        1 for c in customers
+        if getattr(c, "created_at", None) and c.created_at.year == today.year and c.created_at.month == today.month
+    )
+
+    all_orders = list(db.scalars(select(SalesOrder).where(SalesOrder.tenant_id == tenant_id)).all())
+    monthly_orders = [
+        o for o in all_orders
+        if o.order_date and o.order_date.year == today.year and o.order_date.month == today.month and (o.status or "").lower() != "cancelled"
+    ]
+    monthly_rev = sum(float(o.total_amount or 0) for o in monthly_orders)
+
     outstanding = sum(
         float(i.grand_total or 0) - float(i.amount_paid or 0)
         for i in db.scalars(select(Invoice).where(Invoice.tenant_id == tenant_id)).all()
@@ -368,12 +382,12 @@ def get_sales_hub(db: Session, tenant_id: int) -> SalesHubRead:
         alerts.append({"type": "pending_invoice", "message": f"Pending invoices — {inv_sum.pending}"})
 
     return SalesHubRead(
-        monthly_revenue=so_sum.revenue,
+        monthly_revenue=monthly_rev,
         total_orders=so_sum.total_orders,
         pending_orders=so_sum.pending,
         dispatch_pending=disp_sum.ready_to_dispatch + disp_sum.packed,
         outstanding_payments=outstanding,
-        new_customers=customer_count,
+        new_customers=new_customers_count,
         top_customers=top_customers,
         sales_executive_performance=sales_executive_performance,
         alerts=alerts,

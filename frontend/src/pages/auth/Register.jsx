@@ -2,6 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { getRegisterRoles, register as registerApi, getApiErrorMessage } from "../../api/authApi";
 import AuthSlider from "../../components/auth/AuthSlider";
+import LoginBackdrop from "../../components/auth/LoginBackdrop";
 import PasswordInput from "../../components/auth/PasswordInput";
 import BrandLogo from "../../components/common/BrandLogo";
 import { ROLES } from "../../config/permissions";
@@ -121,8 +122,9 @@ export default function Register() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-5xl">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+      <LoginBackdrop />
+      <div className="relative z-10 w-full max-w-5xl">
         <div
           className="relative overflow-hidden rounded-3xl bg-white shadow-2xl"
           style={{ minHeight: "640px" }}

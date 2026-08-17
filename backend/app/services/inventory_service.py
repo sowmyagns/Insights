@@ -1,5 +1,10 @@
+import logging
 from sqlalchemy import select, func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
+
+logger = logging.getLogger(__name__)
 
 from app.models.inventory import (
     InventoryItem,
@@ -60,6 +65,20 @@ def update_supplier_approval(
     return supplier
 
 
+COLUMN_TYPES = {
+    "warehouse_name": "VARCHAR(128)",
+    "batch_number": "VARCHAR(128)",
+    "quantity": "INTEGER DEFAULT 0",
+    "reserved": "INTEGER DEFAULT 0",
+    "status": "VARCHAR(64) DEFAULT 'in_stock'",
+    "customer_name": "VARCHAR(255)",
+    "serial_number": "VARCHAR(128)",
+    "expiry_date": "VARCHAR(64)",
+    "production_date": "VARCHAR(64)",
+    "warranty": "VARCHAR(128)",
+}
+
+
 def create_inventory_item(
     db: Session, payload: InventoryItemCreate
 ) -> InventoryItem:
@@ -68,24 +87,7 @@ def create_inventory_item(
     item_data = {k: v for k, v in data.items() if k in valid_keys}
     item = InventoryItem(**item_data)
     db.add(item)
-    try:
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        err_msg = str(e).lower()
-        if "has no column named" in err_msg or "no such column" in err_msg or "column" in err_msg:
-            from sqlalchemy import text
-            for col in ["production_date", "warranty", "warehouse_name", "batch_number", "quantity", "reserved", "status", "customer_name", "serial_number", "expiry_date"]:
-                try:
-                    db.execute(text(f"ALTER TABLE inventory_items ADD COLUMN {col} VARCHAR(255)"))
-                    db.commit()
-                except Exception:
-                    db.rollback()
-            item = InventoryItem(**item_data)
-            db.add(item)
-            db.commit()
-        else:
-            raise e
+    db.commit()
     db.refresh(item)
     return item
 
@@ -163,17 +165,26 @@ def get_item_by_barcode(db: Session, tenant_id: int, barcode: str) -> InventoryI
     return db.scalars(stmt).first()
 
 
-def get_stock_by_item(db: Session, item_id: int) -> list[StockLevel]:
-    stmt = select(StockLevel).where(StockLevel.item_id == item_id)
+def get_stock_by_item(db: Session, item_id: int, tenant_id: int | None = None) -> list[StockLevel]:
+    stmt = (
+        select(StockLevel)
+        .join(InventoryItem, StockLevel.item_id == InventoryItem.id)
+        .where(StockLevel.item_id == item_id)
+    )
+    if tenant_id is not None:
+        stmt = stmt.where(InventoryItem.tenant_id == tenant_id)
     return list(db.scalars(stmt).all())
 
 
-def get_total_stock(db: Session, item_id: int) -> int:
-    r = db.scalars(
-        select(func.coalesce(func.sum(StockLevel.quantity), 0)).where(
-            StockLevel.item_id == item_id
-        )
-    ).first()
+def get_total_stock(db: Session, item_id: int, tenant_id: int | None = None) -> int:
+    stmt = (
+        select(func.coalesce(func.sum(StockLevel.quantity), 0))
+        .join(InventoryItem, StockLevel.item_id == InventoryItem.id)
+        .where(StockLevel.item_id == item_id)
+    )
+    if tenant_id is not None:
+        stmt = stmt.where(InventoryItem.tenant_id == tenant_id)
+    r = db.scalars(stmt).first()
     return int(r) if r is not None else 0
 
 
@@ -264,12 +275,39 @@ def record_stock_movement(
                 f"in warehouse #{payload.warehouse_id}"
             ),
         )
-    if commit:
-        db.commit()
-        db.refresh(mov)
-    else:
-        db.flush()
-    return mov
+    try:
+        if commit:
+            db.commit()
+            db.refresh(mov)
+        else:
+            db.flush()
+        return mov
+    except HTTPException:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error recording stock movement for item_id=%s warehouse_id=%s: %s", payload.item_id, payload.warehouse_id, exc)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error while recording stock movement.",
+        ) from exc
+    except Exception as exc:
+        logger.exception("Unexpected error recording stock movement for item_id=%s warehouse_id=%s: %s", payload.item_id, payload.warehouse_id, exc)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to record stock movement.",
+        ) from exc
 
 
 def get_inventory_dashboard(
@@ -316,8 +354,16 @@ def get_inventory_dashboard(
     return result
 
 
-def list_stock_levels_by_warehouse(db: Session, warehouse_id: int) -> list[StockLevel]:
-    stmt = select(StockLevel).where(StockLevel.warehouse_id == warehouse_id)
+def list_stock_levels_by_warehouse(
+    db: Session, warehouse_id: int, tenant_id: int | None = None
+) -> list[StockLevel]:
+    stmt = (
+        select(StockLevel)
+        .join(Warehouse, StockLevel.warehouse_id == Warehouse.id)
+        .where(StockLevel.warehouse_id == warehouse_id)
+    )
+    if tenant_id is not None:
+        stmt = stmt.where(Warehouse.tenant_id == tenant_id)
     return list(db.scalars(stmt).all())
 
 

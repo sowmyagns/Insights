@@ -12,6 +12,8 @@ from app.repositories.base_repository import BaseRepository
 
 logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
+
 
 class ProductionPlanRepository(BaseRepository):
     def list_all(self) -> list[ProductionOrder]:

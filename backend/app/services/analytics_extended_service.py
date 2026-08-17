@@ -6,14 +6,17 @@ chart, an empty list is returned so the frontend can display an appropriate empt
 """
 
 import logging
+import logging
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import case, func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.user import User
 from app.schemas.analytics_extended import (
+    AiInsight,
     AlertItem,
     BenchmarkItem,
     ChartPoint,
@@ -32,6 +35,8 @@ from app.services.analytics_service import (
     get_profit_analysis,
     get_worker_performance_score,
 )
+
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
@@ -83,12 +88,33 @@ def get_production_analytics(
         oee        = float(machine.get("overall_percent") or 0)
         total_m    = max(1, int(machine.get("total_machines") or 1))
         util       = round((int(machine.get("running") or 0) / total_m) * 100, 1) if machine.get("total_machines") else 0.0
+        total_out   = sum(m["value"] for m in trend)
+        planned_qty = float(db.scalar(select(func.sum(WorkOrder.planned_quantity)).where(WorkOrder.tenant_id == tenant_id)) or 0)
+        actual_qty  = float(db.scalar(select(func.sum(WorkOrder.actual_quantity)).where(WorkOrder.tenant_id == tenant_id)) or 0)
+        planned    = int(planned_qty) if planned_qty else int(total_out)
+        actual     = int(actual_qty)  if actual_qty  else int(total_out)
+        efficiency = round(actual / planned * 100, 1) if planned else 0.0
+        oee        = float(machine.get("overall_percent") or 0)
+        total_m    = max(1, int(machine.get("total_machines") or 1))
+        util       = round((int(machine.get("running") or 0) / total_m) * 100, 1) if machine.get("total_machines") else 0.0
 
         insp       = list(db.scalars(select(QualityInspection).where(QualityInspection.tenant_id == tenant_id)).all())
         insp_total = len(insp)
         failed     = sum(1 for i in insp if i.result in ("fail", "failed"))
         rejection  = round(failed / insp_total * 100, 1) if insp_total else 0.0
+        insp       = list(db.scalars(select(QualityInspection).where(QualityInspection.tenant_id == tenant_id)).all())
+        insp_total = len(insp)
+        failed     = sum(1 for i in insp if i.result in ("fail", "failed"))
+        rejection  = round(failed / insp_total * 100, 1) if insp_total else 0.0
 
+        completed = int(db.scalar(select(func.count(WorkOrder.id)).where(
+            WorkOrder.tenant_id == tenant_id,
+            WorkOrder.status.in_(("completed", "closed", "done")),
+        )) or 0)
+        wip = int(db.scalar(select(func.count(WorkOrder.id)).where(
+            WorkOrder.tenant_id == tenant_id,
+            WorkOrder.status.in_(("in_progress", "running", "material_ready")),
+        )) or 0)
         completed = int(db.scalar(select(func.count(WorkOrder.id)).where(
             WorkOrder.tenant_id == tenant_id,
             WorkOrder.status.in_(("completed", "closed", "done")),
@@ -120,7 +146,33 @@ def get_production_analytics(
             _kpi("worker",     "Worker Performance",    worker.get("average_score", 0), None, "%", "percent", "operator"),
             _kpi("avg_month",  "Avg / Month",           round(actual / 12) if actual else 0, None, "units", "number", "monthly"),
         ]
+        kpis = [
+            _kpi("planned",    "Planned Production",    planned,        None, "units", "number",   "monthly"),
+            _kpi("actual",     "Actual Production",     actual,         None, "units", "number",   "monthly"),
+            _kpi("efficiency", "Production Efficiency", efficiency,     None, "%",     "percent",  "machine"),
+            _kpi("oee",        "OEE",                   oee,            None, "%",     "percent",  "machine"),
+            _kpi("utilization","Machine Utilization",   util,           None, "%",     "percent",  "machine"),
+            _kpi("rejection",  "Rejection %",           rejection,      None, "%",     "percent",  "quality"),
+            _kpi("downtime",   "Downtime Hours",        downtime_hours, None, "h",     "number",   "downtime"),
+            _kpi("cost",       "Production Cost",       0,              None, None,    "currency", "cost"),
+            _kpi("wip",        "WIP",                   wip,            None, "units", "number",   "wip"),
+            _kpi("completed",  "Completed Orders",      completed,      None, None,    "number",   "orders"),
+            _kpi("worker",     "Worker Performance",    worker.get("average_score", 0), None, "%", "percent", "operator"),
+            _kpi("avg_month",  "Avg / Month",           round(actual / 12) if actual else 0, None, "units", "number", "monthly"),
+        ]
 
+        has_monthly = any(m.get("value", 0) > 0 for m in trend)
+        monthly = (
+            [ChartPoint(label=m["month"], value=m["value"], value2=None) for m in trend]
+            if has_monthly
+            else []
+        )
+        machines = []
+        if machine.get("by_machine"):
+            machines = [
+                ChartPoint(label=f"Machine {m['machine_id']}", value=m["efficiency"])
+                for m in machine["by_machine"][:6]
+            ]
         has_monthly = any(m.get("value", 0) > 0 for m in trend)
         monthly = (
             [ChartPoint(label=m["month"], value=m["value"], value2=None) for m in trend]
@@ -141,7 +193,31 @@ def get_production_analytics(
         if int(machine.get("down") or 0) > 0:
             alerts.append(AlertItem(type="downtime", severity="danger",
                 message=f"{machine.get('down')} machine(s) down / in maintenance"))
+        alerts = []
+        if planned and efficiency < 90:
+            alerts.append(AlertItem(type="target", severity="warning",
+                message=f"Production efficiency at {efficiency}% of plan", benchmark="Target 100%"))
+        if int(machine.get("down") or 0) > 0:
+            alerts.append(AlertItem(type="downtime", severity="danger",
+                message=f"{machine.get('down')} machine(s) down / in maintenance"))
 
+        # Daily output — last 14 report days from DailyProductionReport
+        daily_start = date.today() - timedelta(days=13)
+        daily_rows = db.execute(
+            select(
+                DailyProductionReport.report_date,
+                func.coalesce(func.sum(DailyProductionReport.produced_quantity), 0),
+            )
+            .where(DailyProductionReport.tenant_id == tenant_id)
+            .where(DailyProductionReport.report_date >= daily_start)
+            .group_by(DailyProductionReport.report_date)
+            .order_by(DailyProductionReport.report_date)
+        ).all()
+        daily_output = [
+            ChartPoint(label=r[0].isoformat() if hasattr(r[0], "isoformat") else str(r[0]), value=float(r[1] or 0))
+            for r in daily_rows
+            if float(r[1] or 0) > 0
+        ]
         # Daily output — last 14 report days from DailyProductionReport
         daily_start = date.today() - timedelta(days=13)
         daily_rows = db.execute(
@@ -175,10 +251,74 @@ def get_production_analytics(
             for r in shift_rows
             if float(r[1] or 0) > 0
         ][:8]
+        # Shift-wise output from work orders
+        shift_rows = db.execute(
+            select(
+                func.coalesce(WorkOrder.shift, "Unassigned"),
+                func.coalesce(func.sum(WorkOrder.actual_quantity), 0),
+            )
+            .where(WorkOrder.tenant_id == tenant_id)
+            .group_by(WorkOrder.shift)
+            .order_by(func.coalesce(func.sum(WorkOrder.actual_quantity), 0).desc())
+        ).all()
+        shift_wise = [
+            ChartPoint(label=str(r[0] or "Unassigned"), value=float(r[1] or 0))
+            for r in shift_rows
+            if float(r[1] or 0) > 0
+        ][:8]
 
         # Product-wise output from daily reports (fallback: work orders via production order)
         from app.models.product import Product
+        # Product-wise output from daily reports (fallback: work orders via production order)
+        from app.models.product import Product
 
+        product_rows = db.execute(
+            select(
+                DailyProductionReport.product_id,
+                Product.name,
+                Product.sku,
+                func.coalesce(func.sum(DailyProductionReport.produced_quantity), 0),
+            )
+            .select_from(DailyProductionReport)
+            .outerjoin(Product, Product.id == DailyProductionReport.product_id)
+            .where(DailyProductionReport.tenant_id == tenant_id)
+            .where(func.extract("year", DailyProductionReport.report_date) == y)
+            .group_by(DailyProductionReport.product_id, Product.name, Product.sku)
+            .order_by(func.coalesce(func.sum(DailyProductionReport.produced_quantity), 0).desc())
+            .limit(8)
+        ).all()
+        product_wise = [
+            ChartPoint(
+                label=(r[1] or r[2] or f"Product #{r[0]}"),
+                value=float(r[3] or 0),
+            )
+            for r in product_rows
+            if float(r[3] or 0) > 0
+        ]
+        if not product_wise:
+            wo_product_rows = db.execute(
+                select(
+                    ProductionOrder.product_id,
+                    Product.name,
+                    Product.sku,
+                    func.coalesce(func.sum(WorkOrder.actual_quantity), 0),
+                )
+                .select_from(WorkOrder)
+                .join(ProductionOrder, ProductionOrder.id == WorkOrder.production_order_id)
+                .outerjoin(Product, Product.id == ProductionOrder.product_id)
+                .where(WorkOrder.tenant_id == tenant_id)
+                .group_by(ProductionOrder.product_id, Product.name, Product.sku)
+                .order_by(func.coalesce(func.sum(WorkOrder.actual_quantity), 0).desc())
+                .limit(8)
+            ).all()
+            product_wise = [
+                ChartPoint(
+                    label=(r[1] or r[2] or f"Product #{r[0]}"),
+                    value=float(r[3] or 0),
+                )
+                for r in wo_product_rows
+                if float(r[3] or 0) > 0
+            ]
         product_rows = db.execute(
             select(
                 DailyProductionReport.product_id,
@@ -245,10 +385,48 @@ def get_production_analytics(
             for r in op_rows
             if float(r[1] or 0) > 0
         ]
+        # Operator performance from work-order actuals
+        op_rows = db.execute(
+            select(
+                func.coalesce(WorkOrder.operator_name, "Unassigned"),
+                func.coalesce(func.sum(WorkOrder.actual_quantity), 0),
+            )
+            .where(WorkOrder.tenant_id == tenant_id)
+            .where(WorkOrder.operator_name.isnot(None))
+            .where(WorkOrder.operator_name != "")
+            .group_by(WorkOrder.operator_name)
+            .order_by(func.coalesce(func.sum(WorkOrder.actual_quantity), 0).desc())
+            .limit(8)
+        ).all()
+        operator_performance = [
+            ChartPoint(label=str(r[0]), value=float(r[1] or 0))
+            for r in op_rows
+            if float(r[1] or 0) > 0
+        ]
 
         # Downtime analysis — minutes by machine (or unassigned) for selected year
         from app.models.machine import Machine
+        # Downtime analysis — minutes by machine (or unassigned) for selected year
+        from app.models.machine import Machine
 
+        dt_rows = db.execute(
+            select(
+                func.coalesce(Machine.code, Machine.name, "Unassigned"),
+                func.coalesce(func.sum(DailyProductionReport.downtime_minutes), 0),
+            )
+            .select_from(DailyProductionReport)
+            .outerjoin(Machine, Machine.id == DailyProductionReport.machine_id)
+            .where(DailyProductionReport.tenant_id == tenant_id)
+            .where(func.extract("year", DailyProductionReport.report_date) == y)
+            .group_by(Machine.code, Machine.name)
+            .order_by(func.coalesce(func.sum(DailyProductionReport.downtime_minutes), 0).desc())
+            .limit(8)
+        ).all()
+        downtime_analysis = [
+            ChartPoint(label=str(r[0] or "Unassigned"), value=round(float(r[1] or 0) / 60, 1))
+            for r in dt_rows
+            if float(r[1] or 0) > 0
+        ]
         dt_rows = db.execute(
             select(
                 func.coalesce(Machine.code, Machine.name, "Unassigned"),
@@ -319,10 +497,21 @@ def get_inventory_analytics(db: Session, tenant_id: int) -> InventoryAnalyticsRe
         mat = get_materials_summary(db, tenant_id)
         fg  = get_finished_goods_summary(db, tenant_id)
         inv_value = float(mat.stock_value or 0) + float(fg.get("stock_value") or 0)
+        mat = get_materials_summary(db, tenant_id)
+        fg  = get_finished_goods_summary(db, tenant_id)
+        inv_value = float(mat.stock_value or 0) + float(fg.get("stock_value") or 0)
 
         items  = list(db.scalars(select(InventoryItem).where(InventoryItem.tenant_id == tenant_id)).all())
         levels = {sl.item_id: float(sl.quantity or 0) for sl in db.scalars(select(StockLevel)).all()}
 
+        reorder_alerts, dead = [], []
+        for item in items:
+            qty     = levels.get(item.id, 0)
+            reorder = int(getattr(item, "reorder_level", 0) or 0)
+            if reorder and qty <= reorder:
+                reorder_alerts.append({"item": item.name, "current": qty, "reorder": reorder, "warehouse": "\u2014"})
+            if qty == 0:
+                dead.append({"item": item.name, "qty": 0, "value": 0})
         reorder_alerts, dead = [], []
         for item in items:
             qty     = levels.get(item.id, 0)
@@ -338,7 +527,15 @@ def get_inventory_analytics(db: Session, tenant_id: int) -> InventoryAnalyticsRe
             wh_qty = sum(float(sl.quantity or 0)
                          for sl in db.scalars(select(StockLevel).where(StockLevel.warehouse_id == wh.id)).all())
             occupancy.append(ChartPoint(label=wh.name, value=wh_qty))
+        warehouses = list(db.scalars(select(Warehouse).where(Warehouse.tenant_id == tenant_id)).all())
+        occupancy  = []
+        for wh in warehouses[:6]:
+            wh_qty = sum(float(sl.quantity or 0)
+                         for sl in db.scalars(select(StockLevel).where(StockLevel.warehouse_id == wh.id)).all())
+            occupancy.append(ChartPoint(label=wh.name, value=wh_qty))
 
+        y  = date.today().year
+        ms = _months_short()
         y  = date.today().year
         ms = _months_short()
 
@@ -402,7 +599,25 @@ def get_inventory_analytics(db: Session, tenant_id: int) -> InventoryAnalyticsRe
             _kpi("accuracy", "Stock Accuracy",   100 if items else 0, None, "%", "percent", "accuracy"),
             _kpi("warehouse","Warehouses",       len(warehouses),     None, None, "number", "warehouse"),
         ]
+        kpis = [
+            _kpi("turnover", "Turnover Rate",    rate,      None, "x",    "number",  "turnover"),
+            _kpi("outflow",  "Outflow",          outflow,   None, "units","number",  "outflow"),
+            _kpi("avg_inv",  "Average Inventory",avg_inv,   None, "units","number",  "avg"),
+            _kpi("value",    "Inventory Value",  inv_value, None, None,   "currency","value"),
+            _kpi("fast",     "Stocked Items",    sum(1 for i in items if levels.get(i.id, 0) > 0), None, None, "number", "fast"),
+            _kpi("slow",     "Slow Moving Items",0,         None, None,   "number",  "slow"),
+            _kpi("dead",     "Dead Stock",       len(dead), None, None,   "number",  "dead"),
+            _kpi("reorder",  "Reorder Alerts",   len(reorder_alerts), None, None, "number", "reorder"),
+            _kpi("accuracy", "Stock Accuracy",   100 if items else 0, None, "%", "percent", "accuracy"),
+            _kpi("warehouse","Warehouses",       len(warehouses),     None, None, "number", "warehouse"),
+        ]
 
+        alerts = []
+        if reorder_alerts:
+            alerts.append(AlertItem(type="reorder", severity="danger",
+                message=f"{len(reorder_alerts)} items at or below reorder level"))
+        if dead:
+            alerts.append(AlertItem(type="dead", severity="warning", message=f"{len(dead)} items with zero stock"))
         alerts = []
         if reorder_alerts:
             alerts.append(AlertItem(type="reorder", severity="danger",
@@ -668,6 +883,13 @@ def get_finance_analytics(db: Session, tenant_id: int, year=None) -> FinanceAnal
         cash_flow_data: list = []
         profit_trend_data: list = []
         aging = {"0-30": 0.0, "31-60": 0.0, "61-90": 0.0, "90+": 0.0}
+    try:
+        y = year or date.today().year
+        profit = get_profit_analysis(db, tenant_id, y) or {}
+        receivables = payables = 0.0
+        cash_flow_data: list = []
+        profit_trend_data: list = []
+        aging = {"0-30": 0.0, "31-60": 0.0, "61-90": 0.0, "90+": 0.0}
 
         try:
             from app.services.finance_extended_service import get_ap_summary, get_ar_summary, get_finance_hub
@@ -694,6 +916,12 @@ def get_finance_analytics(db: Session, tenant_id: int, year=None) -> FinanceAnal
         margin  = float(profit.get("overall_margin_percent") or 0)
         if not margin and revenue:
             margin = round(net / revenue * 100, 1)
+        revenue = float(profit.get("total_revenue") or 0)
+        expense = float(profit.get("total_expense") or 0)
+        net     = float(profit["total_profit"]) if profit.get("total_profit") is not None else (revenue - expense)
+        margin  = float(profit.get("overall_margin_percent") or 0)
+        if not margin and revenue:
+            margin = round(net / revenue * 100, 1)
 
         gst = 0.0
         try:
@@ -706,6 +934,11 @@ def get_finance_analytics(db: Session, tenant_id: int, year=None) -> FinanceAnal
             logger.warning(f"Error fetching GST data for tenant {tenant_id}: {str(e)}")
             pass
 
+        cash_net = 0.0
+        if cash_flow_data:
+            last     = cash_flow_data[-1]
+            cash_net = float(last.get("inflow", 0) or 0) - float(last.get("outflow", 0) or 0)
+        working_capital = receivables - payables
         cash_net = 0.0
         if cash_flow_data:
             last     = cash_flow_data[-1]
@@ -726,7 +959,40 @@ def get_finance_analytics(db: Session, tenant_id: int, year=None) -> FinanceAnal
             _kpi("ebitda",          "EBITDA",                  net,                         None, None, "currency", "profit"),
             _kpi("working_capital", "Working Capital",         working_capital,             None, None, "currency", "capital"),
         ]
+        kpis = [
+            _kpi("revenue",         "Revenue",                 revenue,                     None, None, "currency", "month"),
+            _kpi("expenses",        "Expenses",                expense,                     None, None, "currency", "expense"),
+            _kpi("profit",          "Net Profit",              net,                         None, None, "currency", "profit"),
+            _kpi("margin",          "Margin",                  margin,                      None, "%",  "percent",  "margin"),
+            _kpi("cashflow",        "Cash Flow",               cash_net,                    None, None, "currency", "cashflow"),
+            _kpi("receivables",     "Outstanding Receivables", receivables,                 None, None, "currency", "receivables"),
+            _kpi("payables",        "Outstanding Payables",    payables,                    None, None, "currency", "payables"),
+            _kpi("gst",             "GST Collected",           gst,                         None, None, "currency", "gst"),
+            _kpi("operating",       "Operating Cost",          expense,                     None, None, "currency", "expense"),
+            _kpi("monthly_profit",  "Monthly Profit",          round(net / 12, 2) if net else 0, None, None, "currency", "profit"),
+            _kpi("ebitda",          "EBITDA",                  net,                         None, None, "currency", "profit"),
+            _kpi("working_capital", "Working Capital",         working_capital,             None, None, "currency", "capital"),
+        ]
 
+        monthly      = profit.get("monthly") or []
+        rev_exp      = [ChartPoint(label=m["month"], value=m.get("revenue", 0), value2=m.get("expense", 0)) for m in monthly]
+        cash_flow    = [ChartPoint(label=c["month"], value=c.get("inflow", 0),  value2=c.get("outflow", 0)) for c in cash_flow_data]
+        profit_trend = (
+            [ChartPoint(label=p["month"], value=p.get("profit", p.get("amount", 0))) for p in profit_trend_data]
+            if profit_trend_data
+            else [ChartPoint(label=m["month"], value=m.get("profit", 0)) for m in monthly]
+        )
+        recv_aging = [
+            ChartPoint(label="0-30 Days",  value=aging["0-30"]),
+            ChartPoint(label="31-60 Days", value=aging["31-60"]),
+            ChartPoint(label="61-90 Days", value=aging["61-90"]),
+            ChartPoint(label="90+ Days",   value=aging["90+"]),
+        ]
+        monthly_margin = [ChartPoint(label=m["month"], value=m.get("margin_percent", 0)) for m in monthly]
+        drill: list = [{"level": "year", "label": str(y), "value": revenue}]
+        if monthly:
+            best = max(monthly, key=lambda m: float(m.get("revenue") or 0))
+            drill.append({"level": "month", "label": best.get("month", ""), "value": best.get("revenue", 0)})
         monthly      = profit.get("monthly") or []
         rev_exp      = [ChartPoint(label=m["month"], value=m.get("revenue", 0), value2=m.get("expense", 0)) for m in monthly]
         cash_flow    = [ChartPoint(label=c["month"], value=c.get("inflow", 0),  value2=c.get("outflow", 0)) for c in cash_flow_data]
@@ -861,7 +1127,28 @@ def get_live_dashboard(db: Session, tenant_id: int) -> LiveDashboardRead:
         actual_kpi = next((k for k in prod.kpis if k.key == "actual"), None)
         if actual_kpi and actual_kpi.value:
             current_production = int(actual_kpi.value)
+        todays_orders = int(db.scalar(select(func.count(SalesOrder.id)).where(
+            SalesOrder.tenant_id == tenant_id, SalesOrder.order_date == today)) or 0)
+        dispatches_today = int(db.scalar(select(func.count(SalesOrder.id)).where(
+            SalesOrder.tenant_id == tenant_id,
+            SalesOrder.shipped.is_(True),
+            SalesOrder.order_date == today,
+        )) or 0)
+        current_production = int(db.scalar(select(func.sum(WorkOrder.actual_quantity)).where(
+            WorkOrder.tenant_id == tenant_id,
+            WorkOrder.status.in_(("in_progress", "running", "completed")),
+        )) or 0)
+        actual_kpi = next((k for k in prod.kpis if k.key == "actual"), None)
+        if actual_kpi and actual_kpi.value:
+            current_production = int(actual_kpi.value)
 
+        alerts, down = [], int(machine.get("down") or 0)
+        if down:
+            alerts.append(AlertItem(type="breakdown", severity="danger",
+                message=f"{down} machine(s) down or in maintenance"))
+        if dispatches_today:
+            alerts.append(AlertItem(type="dispatch", severity="info",
+                message=f"{dispatches_today} shipments linked to today's orders"))
         alerts, down = [], int(machine.get("down") or 0)
         if down:
             alerts.append(AlertItem(type="breakdown", severity="danger",

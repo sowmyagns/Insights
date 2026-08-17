@@ -1,13 +1,15 @@
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+VALID_QC_RESULTS = frozenset({"pass", "passed", "fail", "failed", "reject", "rejected"})
 
 
 class PurchaseOrderLineBase(BaseModel):
-    item_id: int
-    quantity: float
-    unit_price: float | None = None
-    line_total: float | None = None
+    item_id: int = Field(..., ge=1)
+    quantity: float = Field(..., ge=0.0)
+    unit_price: float | None = Field(None, ge=0.0)
+    line_total: float | None = Field(None, ge=0.0)
 
 
 class PurchaseOrderLineCreate(PurchaseOrderLineBase):
@@ -21,15 +23,15 @@ class PurchaseOrderLineRead(PurchaseOrderLineBase):
 
 
 class PurchaseOrderBase(BaseModel):
-    tenant_id: int
-    supplier_id: int
+    tenant_id: int = Field(..., ge=1)
+    supplier_id: int = Field(..., ge=1)
     po_number: str
     order_date: date
     expected_date: date | None = None
     status: str = "draft"
-    total_amount: float | None = None
+    total_amount: float | None = Field(None, ge=0.0)
     notes: str | None = None
-    material_request_id: int | None = None
+    material_request_id: int | None = Field(None, ge=1)
 
 
 class PurchaseOrderCreate(PurchaseOrderBase):
@@ -37,12 +39,12 @@ class PurchaseOrderCreate(PurchaseOrderBase):
 
 
 class PurchaseOrderUpdate(BaseModel):
-    supplier_id: int | None = None
+    supplier_id: int | None = Field(None, ge=1)
     po_number: str | None = None
     order_date: date | None = None
     expected_date: date | None = None
     status: str | None = None
-    total_amount: float | None = None
+    total_amount: float | None = Field(None, ge=0.0)
     notes: str | None = None
     line_items: list[PurchaseOrderLineCreate] | None = None
 
@@ -56,10 +58,10 @@ class PurchaseOrderRead(PurchaseOrderBase):
 class MaterialRequestConvertToPORequest(BaseModel):
     """Convert an MRP-driven material request into a purchase order."""
 
-    supplier_id: int
+    supplier_id: int = Field(..., ge=1)
     expected_date: date | None = None
     notes: str | None = None
-    unit_price: float | None = 0
+    unit_price: float | None = Field(0.0, ge=0.0)
     po_number: str | None = None
     status: str = "draft"
 
@@ -69,8 +71,8 @@ class PurchaseOrderListRead(PurchaseOrderRead):
 
 
 class MaterialRequestLineBase(BaseModel):
-    item_id: int
-    quantity: float
+    item_id: int = Field(..., ge=1)
+    quantity: float = Field(..., ge=0.0)
     notes: str | None = None
 
 
@@ -115,9 +117,9 @@ class MaterialRequestRead(MaterialRequestBase):
 
 
 class GoodsReceiptLineBase(BaseModel):
-    item_id: int
-    quantity_received: float
-    quantity_rejected: float = 0
+    item_id: int = Field(..., ge=1)
+    quantity_received: float = Field(..., ge=0.0)
+    quantity_rejected: float = Field(0.0, ge=0.0)
 
 
 class GoodsReceiptLineCreate(GoodsReceiptLineBase):
@@ -157,12 +159,24 @@ class GoodsReceiptQCRequest(BaseModel):
     result: str  # pass | fail
     notes: str | None = None
 
+    @field_validator("result")
+    @classmethod
+    def validate_qc_result(cls, value: str) -> str:
+        res = (value or "").strip().lower()
+        if res not in VALID_QC_RESULTS:
+            raise ValueError("QC result must be pass or fail")
+        if res in ("passed", "pass"):
+            return "pass"
+        if res in ("failed", "fail", "reject", "rejected"):
+            return "fail"
+        return res
+
 
 class SupplierPaymentBase(BaseModel):
-    tenant_id: int
-    supplier_id: int
+    tenant_id: int = Field(..., ge=1)
+    supplier_id: int = Field(..., ge=1)
     payment_date: date
-    amount: float
+    amount: float = Field(..., ge=0.0)
     payment_method: str = "bank"
     reference: str | None = None
     notes: str | None = None
@@ -173,9 +187,9 @@ class SupplierPaymentCreate(SupplierPaymentBase):
 
 
 class SupplierPaymentUpdate(BaseModel):
-    supplier_id: int | None = None
+    supplier_id: int | None = Field(None, ge=1)
     payment_date: date | None = None
-    amount: float | None = None
+    amount: float | None = Field(None, ge=0.0)
     payment_method: str | None = None
     reference: str | None = None
     notes: str | None = None

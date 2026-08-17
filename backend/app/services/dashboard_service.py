@@ -2,7 +2,7 @@
 
 from datetime import date, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.machine import Machine
@@ -256,9 +256,14 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
         db.scalar(
             select(func.count(ProductionOrder.id)).where(
                 ProductionOrder.tenant_id == tenant_id,
-                ProductionOrder.start_date.isnot(None),
-                func.date(ProductionOrder.start_date) == today,
                 ProductionOrder.status != "cancelled",
+                or_(
+                    func.date(ProductionOrder.start_date) == today,
+                    and_(
+                        ProductionOrder.start_date.is_(None),
+                        func.date(ProductionOrder.created_at) == today,
+                    ),
+                ),
             )
         ) or 0
     )
@@ -266,9 +271,14 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
         db.scalar(
             select(func.count(ProductionOrder.id)).where(
                 ProductionOrder.tenant_id == tenant_id,
-                ProductionOrder.start_date.isnot(None),
-                func.date(ProductionOrder.start_date) == yesterday,
                 ProductionOrder.status != "cancelled",
+                or_(
+                    func.date(ProductionOrder.start_date) == yesterday,
+                    and_(
+                        ProductionOrder.start_date.is_(None),
+                        func.date(ProductionOrder.created_at) == yesterday,
+                    ),
+                ),
             )
         ) or 0
     )
@@ -331,7 +341,8 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
 
     # Inventory blocks for dashboard (real stock only)
     items = list(db.scalars(select(InventoryItem).where(InventoryItem.tenant_id == tenant_id)).all())
-    levels = list(db.scalars(select(StockLevel)).all())
+    item_ids = [i.id for i in items]
+    levels = list(db.scalars(select(StockLevel).where(StockLevel.item_id.in_(item_ids))).all()) if item_ids else []
     level_by_item: dict[int, float] = {}
     for sl in levels:
         level_by_item[sl.item_id] = level_by_item.get(sl.item_id, 0) + float(sl.quantity or 0)

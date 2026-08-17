@@ -15,6 +15,8 @@ from app.services.data_scope import scope_work_orders
 
 logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
+
 
 class WorkOrderRepository(BaseRepository):
     def _base_stmt(self, user: User | None = None):

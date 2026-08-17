@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -73,18 +74,20 @@ def _require_configured() -> None:
         )
 
 
-def create_oauth_state(*, user_id: int, tenant_id: int) -> str:
+def create_oauth_state(*, user_id: int, tenant_id: int, code_verifier: str | None = None) -> str:
     settings = _settings()
-    payload = {
+    payload: dict[str, Any] = {
         "sub": str(user_id),
         "tenant_id": tenant_id,
         "purpose": "google_calendar_oauth",
         "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
     }
+    if code_verifier:
+        payload["code_verifier"] = code_verifier
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
-def decode_oauth_state(state: str) -> tuple[int, int]:
+def decode_oauth_state(state: str) -> tuple[int, int, str | None]:
     settings = _settings()
     try:
         payload = jwt.decode(
@@ -102,9 +105,10 @@ def decode_oauth_state(state: str) -> tuple[int, int]:
     try:
         user_id = int(payload["sub"])
         tenant_id = int(payload["tenant_id"])
+        code_verifier = payload.get("code_verifier")
     except (KeyError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid OAuth state.") from exc
-    return user_id, tenant_id
+    return user_id, tenant_id, code_verifier
 
 
 def build_authorization_url(*, user_id: int, tenant_id: int) -> str:
@@ -123,7 +127,9 @@ def build_authorization_url(*, user_id: int, tenant_id: int) -> str:
         scopes=SCOPES,
         redirect_uri=settings.google_oauth_redirect,
     )
-    state = create_oauth_state(user_id=user_id, tenant_id=tenant_id)
+    code_verifier = secrets.token_urlsafe(64)
+    flow.code_verifier = code_verifier
+    state = create_oauth_state(user_id=user_id, tenant_id=tenant_id, code_verifier=code_verifier)
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
@@ -189,6 +195,7 @@ def exchange_authorization_code(
     tenant_id: int,
     user_id: int,
     code: str,
+    code_verifier: str | None = None,
 ) -> GoogleCalendarCredential:
     _ensure_oauth_transport()
     _require_configured()
@@ -205,8 +212,13 @@ def exchange_authorization_code(
         scopes=SCOPES,
         redirect_uri=settings.google_oauth_redirect,
     )
+    if code_verifier:
+        flow.code_verifier = code_verifier
     try:
-        flow.fetch_token(code=code)
+        if code_verifier:
+            flow.fetch_token(code=code, code_verifier=code_verifier)
+        else:
+            flow.fetch_token(code=code)
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -255,7 +267,8 @@ def _fetch_account_email(creds: Credentials) -> str | None:
 def _build_credentials(row: GoogleCalendarCredential) -> Credentials:
     settings = _settings()
     expiry = row.token_expiry
-    if expiry and expiry.tzinfo is None:
+    # SQLite stores datetimes without timezone info — always attach UTC when reading back
+    if expiry is not None and expiry.tzinfo is None:
         expiry = expiry.replace(tzinfo=timezone.utc)
     scopes = json.loads(row.scopes) if row.scopes else SCOPES
     return Credentials(
@@ -286,7 +299,14 @@ def get_valid_credentials(
         raise GoogleCalendarNotConnectedError("Google Calendar is not connected for this user.")
     _require_configured()
     creds = _build_credentials(row)
-    if creds.expired and creds.refresh_token:
+    # Check expiry — SQLite may return naive datetimes which cause a TypeError
+    # when compared with timezone-aware datetimes inside google-auth library.
+    # We catch TypeError and force a refresh in that case.
+    try:
+        needs_refresh = creds.expired and creds.refresh_token
+    except TypeError:
+        needs_refresh = bool(creds.refresh_token)  # assume expired, just refresh
+    if needs_refresh:
         creds.refresh(GoogleAuthRequest())
         _persist_refreshed_token(db, row, creds)
     return row, creds
@@ -593,3 +613,78 @@ def add_meet_to_existing_event(
             detail=f"Google Meet generation failed: {getattr(exc, 'reason', str(exc))}",
         ) from exc
     return meeting
+
+
+def fetch_google_calendar_events(
+    db: Session,
+    *,
+    tenant_id: int,
+    user_id: int,
+    days_back: int = 30,
+    days_ahead: int = 60,
+) -> list[dict[str, Any]]:
+    """Fetch events from the user's primary Google Calendar for a date window.
+
+    Returns a list of simplified event dicts ready for the frontend to display
+    or the import service to consume.
+    """
+    _, creds = get_valid_credentials(db, tenant_id=tenant_id, user_id=user_id)
+    service = _calendar_service(creds)
+
+    now = datetime.now(timezone.utc)
+    time_min = (now - timedelta(days=days_back)).isoformat()
+    time_max = (now + timedelta(days=days_ahead)).isoformat()
+
+    try:
+        result = (
+            service.events()
+            .list(
+                calendarId="primary",
+                timeMin=time_min,
+                timeMax=time_max,
+                maxResults=250,
+                singleEvents=True,
+                orderBy="startTime",
+            )
+            .execute()
+        )
+    except HttpError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Google Calendar API error: {getattr(exc, 'reason', str(exc))}",
+        ) from exc
+
+    items = result.get("items", [])
+    events: list[dict[str, Any]] = []
+    for ev in items:
+        if ev.get("status") == "cancelled":
+            continue
+        start = ev.get("start", {})
+        end = ev.get("end", {})
+        # All-day events use 'date', timed events use 'dateTime'
+        start_dt = start.get("dateTime") or start.get("date") or ""
+        end_dt = end.get("dateTime") or end.get("date") or ""
+        meet_url = ev.get("hangoutLink")
+        if not meet_url:
+            for ep in (ev.get("conferenceData") or {}).get("entryPoints", []):
+                if ep.get("entryPointType") == "video":
+                    meet_url = ep.get("uri")
+                    break
+        attendees = [a.get("email") for a in ev.get("attendees") or [] if a.get("email")]
+        events.append(
+            {
+                "google_event_id": ev.get("id"),
+                "title": ev.get("summary") or "(No title)",
+                "description": ev.get("description"),
+                "location": ev.get("location"),
+                "start": start_dt,
+                "end": end_dt,
+                "timezone": start.get("timeZone") or end.get("timeZone") or "UTC",
+                "organizer_email": (ev.get("organizer") or {}).get("email"),
+                "attendees": attendees,
+                "google_meet_url": meet_url,
+                "google_calendar_event_url": ev.get("htmlLink"),
+                "all_day": "date" in start and "dateTime" not in start,
+            }
+        )
+    return events

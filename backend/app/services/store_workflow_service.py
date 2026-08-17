@@ -6,6 +6,7 @@ from datetime import date, datetime
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.inventory import (
@@ -32,30 +33,37 @@ from app.schemas.store_workflow import (
 from app.services.inventory_service import get_total_stock, record_stock_movement
 
 
-def _next_number(db: Session, tenant_id: int, prefix: str, model, field) -> str:
-    """Year-scoped sequential label. Prefer max(request_number) when available."""
+def _next_number(db: Session, tenant_id: int, prefix: str, model, field=None) -> str:
+    """Year-scoped sequential number based on max existing sequence number for tenant."""
     year = date.today().year
     pattern = f"{prefix}-{year}-%"
-    if hasattr(model, "request_number"):
-        col = model.request_number
+
+    col = field if field is not None and field != model.id else getattr(model, "request_number", getattr(model, "reference", None))
+    max_n = 0
+    if col is not None:
         values = list(
             db.scalars(
                 select(col).where(model.tenant_id == tenant_id, col.like(pattern))
             ).all()
         )
-        next_n = 1
         for val in values:
-            try:
-                next_n = max(next_n, int(str(val).rsplit("-", 1)[-1]) + 1)
-            except ValueError:
+            if not val:
                 continue
-        return f"{prefix}-{year}-{next_n:04d}"
-    # StockMovement and similar: count-based within tenant (legacy; still flush-safe in one txn)
-    count = int(
-        db.scalar(select(func.count()).select_from(model).where(model.tenant_id == tenant_id))
-        or 0
-    )
-    return f"{prefix}-{year}-{count + 1:04d}"
+            s_val = str(val)
+            if f"{prefix}-{year}-" in s_val:
+                try:
+                    num_part = s_val.split(f"{prefix}-{year}-")[-1].split(" ")[0].split("|")[0]
+                    max_n = max(max_n, int(num_part))
+                except ValueError:
+                    pass
+
+    if max_n == 0:
+        max_id = int(
+            db.scalar(select(func.coalesce(func.max(model.id), 0)).where(model.tenant_id == tenant_id)) or 0
+        )
+        max_n = max_id
+
+    return f"{prefix}-{year}-{max_n + 1:04d}"
 
 
 def _item_stock(db: Session, warehouse_id: int, item_id: int) -> int:
@@ -109,40 +117,56 @@ def create_stock_in(
         raise HTTPException(404, "Warehouse not found")
 
     previous = _item_stock(db, payload.warehouse_id, payload.item_id)
-    txn = _next_number(db, tenant_id, "SIN", StockMovement, StockMovement.id)
-    ref_parts = [txn]
-    if payload.supplier_name:
-        ref_parts.append(f"SUP:{payload.supplier_name}")
-    if payload.notes:
-        ref_parts.append(payload.notes[:60])
+    for attempt in range(5):
+        txn = _next_number(db, tenant_id, "SIN", StockMovement, StockMovement.reference)
+        ref_parts = [txn]
+        if payload.supplier_name:
+            ref_parts.append(f"SUP:{payload.supplier_name}")
+        if payload.notes:
+            ref_parts.append(payload.notes[:60])
+        ref_str = " | ".join(ref_parts)
 
-    mov = record_stock_movement(
-        db,
-        StockMovementCreate(
-            tenant_id=tenant_id,
-            warehouse_id=payload.warehouse_id,
-            item_id=payload.item_id,
-            quantity=payload.quantity,
-            movement_type="in",
-            reference=" | ".join(ref_parts),
-            batch_number=payload.batch_number,
-            created_by=received_by or "Store",
-        ),
-    )
-    current = _item_stock(db, payload.warehouse_id, payload.item_id)
-    return StoreStockInRead(
-        transaction_number=txn,
-        movement_id=mov.id,
-        warehouse_id=wh.id,
-        warehouse_name=wh.name,
-        item_id=item.id,
-        item_name=item.name,
-        quantity=payload.quantity,
-        previous_stock=previous,
-        current_stock=current,
-        received_by=received_by,
-        created_at=mov.created_at,
-    )
+        exists = db.scalar(
+            select(StockMovement).where(
+                StockMovement.tenant_id == tenant_id,
+                StockMovement.reference.like(f"{txn}%"),
+            )
+        )
+        if exists and attempt < 4:
+            continue
+
+        try:
+            mov = record_stock_movement(
+                db,
+                StockMovementCreate(
+                    tenant_id=tenant_id,
+                    warehouse_id=payload.warehouse_id,
+                    item_id=payload.item_id,
+                    quantity=payload.quantity,
+                    movement_type="in",
+                    reference=ref_str,
+                    batch_number=payload.batch_number,
+                    created_by=received_by or "Store",
+                ),
+            )
+            current = _item_stock(db, payload.warehouse_id, payload.item_id)
+            return StoreStockInRead(
+                transaction_number=txn,
+                movement_id=mov.id,
+                warehouse_id=wh.id,
+                warehouse_name=wh.name,
+                item_id=item.id,
+                item_name=item.name,
+                quantity=payload.quantity,
+                previous_stock=previous,
+                current_stock=current,
+                received_by=received_by,
+                created_at=mov.created_at,
+            )
+        except SQLAlchemyError:
+            db.rollback()
+            if attempt == 4:
+                raise
 
 
 def create_issue_request(
@@ -155,24 +179,39 @@ def create_issue_request(
     if not wh or wh.tenant_id != tenant_id:
         raise HTTPException(404, "Warehouse not found")
 
-    req_no = _next_number(db, tenant_id, "SMR", StoreIssueRequest, StoreIssueRequest.id)
-    row = StoreIssueRequest(
-        tenant_id=tenant_id,
-        request_number=req_no,
-        warehouse_id=payload.warehouse_id,
-        item_id=payload.item_id,
-        quantity=payload.quantity,
-        operator_name=payload.operator_name.strip(),
-        employee_id=payload.employee_id,
-        machine=payload.machine,
-        shift=payload.shift,
-        reason=payload.reason,
-        status="pending",
-    )
-    db.add(row)
-    db.commit()
-    db.refresh(row)
-    return _to_request_read(db, row)
+    for attempt in range(5):
+        req_no = _next_number(db, tenant_id, "SMR", StoreIssueRequest, StoreIssueRequest.request_number)
+        exists = db.scalar(
+            select(StoreIssueRequest).where(
+                StoreIssueRequest.tenant_id == tenant_id,
+                StoreIssueRequest.request_number == req_no,
+            )
+        )
+        if exists and attempt < 4:
+            continue
+
+        row = StoreIssueRequest(
+            tenant_id=tenant_id,
+            request_number=req_no,
+            warehouse_id=payload.warehouse_id,
+            item_id=payload.item_id,
+            quantity=payload.quantity,
+            operator_name=payload.operator_name.strip(),
+            employee_id=payload.employee_id,
+            machine=payload.machine,
+            shift=payload.shift,
+            reason=payload.reason,
+            status="pending",
+        )
+        try:
+            db.add(row)
+            db.commit()
+            db.refresh(row)
+            return _to_request_read(db, row)
+        except SQLAlchemyError:
+            db.rollback()
+            if attempt == 4:
+                raise
 
 
 def list_issue_requests(
@@ -254,6 +293,13 @@ def issue_material(
     if qty > row.quantity:
         raise HTTPException(400, "Issue quantity cannot exceed requested quantity")
 
+    available_stock = _item_stock(db, row.warehouse_id, row.item_id)
+    if qty > available_stock:
+        raise HTTPException(
+            400,
+            f"Insufficient stock available ({available_stock}) for requested issue quantity ({qty}).",
+        )
+
     if row.status == "pending":
         row.status = "approved"
         row.approved_by = issued_by
@@ -314,15 +360,23 @@ def record_consumption(
     ).first()
     if not row:
         raise HTTPException(404, "Material request not found")
-    if row.status not in ("issued", "received"):
+    if row.status not in ("issued", "received", "closed"):
         raise HTTPException(400, "Consumption allowed only after material is issued")
 
     issued = int(row.issued_qty or row.quantity)
-    total = payload.used_qty + payload.waste_qty + payload.returned_qty
+    existing_used = int(row.used_qty or 0)
+    existing_waste = int(row.waste_qty or 0)
+    existing_returned = int(row.returned_qty or 0)
+
+    new_used = existing_used + payload.used_qty
+    new_waste = existing_waste + payload.waste_qty
+    new_returned = existing_returned + payload.returned_qty
+
+    total = new_used + new_waste + new_returned
     if total > issued:
         raise HTTPException(
             400,
-            f"Used + waste + returned ({total}) cannot exceed issued quantity ({issued})",
+            f"Total cumulative consumption (used: {new_used}, waste: {new_waste}, returned: {new_returned} = {total}) cannot exceed issued quantity ({issued})",
         )
 
     if payload.returned_qty > 0:
@@ -352,9 +406,9 @@ def record_consumption(
         )
         db.add(mov)
 
-    row.used_qty = payload.used_qty
-    row.waste_qty = payload.waste_qty
-    row.returned_qty = payload.returned_qty
+    row.used_qty = new_used
+    row.waste_qty = new_waste
+    row.returned_qty = new_returned
     row.status = "closed"
     if payload.notes:
         row.notes = payload.notes
@@ -373,39 +427,114 @@ def create_stock_return(
     if not wh or wh.tenant_id != tenant_id:
         raise HTTPException(404, "Warehouse not found")
 
-    previous = _item_stock(db, payload.warehouse_id, payload.item_id)
-    txn = _next_number(db, tenant_id, "SRT", StockMovement, StockMovement.id)
-    ref = txn
-    if payload.operator_name:
-        ref += f" | OP:{payload.operator_name}"
-    if payload.machine:
-        ref += f" | MACHINE:{payload.machine}"
-    if payload.request_id:
-        ref += f" | REQ:{payload.request_id}"
+    if payload.quantity <= 0:
+        raise HTTPException(400, "Return quantity must be greater than zero")
 
-    mov = record_stock_movement(
-        db,
-        StockMovementCreate(
-            tenant_id=tenant_id,
-            warehouse_id=payload.warehouse_id,
-            item_id=payload.item_id,
-            quantity=payload.quantity,
-            movement_type="return",
-            reference=ref,
-            created_by=created_by or "Store",
-        ),
-    )
-    current = _item_stock(db, payload.warehouse_id, payload.item_id)
-    return StoreReturnRead(
-        transaction_number=txn,
-        movement_id=mov.id,
-        warehouse_name=wh.name,
-        item_name=item.name,
-        quantity=payload.quantity,
-        previous_stock=previous,
-        current_stock=current,
-        created_by=created_by,
-    )
+    if payload.request_id:
+        req = db.scalars(
+            select(StoreIssueRequest).where(
+                StoreIssueRequest.id == payload.request_id,
+                StoreIssueRequest.tenant_id == tenant_id,
+            )
+        ).first()
+        if not req:
+            raise HTTPException(404, "Material request not found")
+        issued_qty = int(req.issued_qty or req.quantity or 0)
+        already_returned = int(
+            db.scalar(
+                select(func.coalesce(func.sum(StockMovement.quantity), 0)).where(
+                    StockMovement.tenant_id == tenant_id,
+                    StockMovement.movement_type == "return",
+                    StockMovement.reference.like(f"%REQ:{req.id}%"),
+                )
+            )
+            or 0
+        )
+        eligible_return = max(0, issued_qty - already_returned)
+        if payload.quantity > eligible_return:
+            raise HTTPException(
+                400,
+                f"Return quantity ({payload.quantity}) exceeds issued/eligible return quantity ({eligible_return}).",
+            )
+    else:
+        total_issued = int(
+            db.scalar(
+                select(func.coalesce(func.sum(StoreIssueRequest.issued_qty), 0)).where(
+                    StoreIssueRequest.tenant_id == tenant_id,
+                    StoreIssueRequest.warehouse_id == payload.warehouse_id,
+                    StoreIssueRequest.item_id == payload.item_id,
+                    StoreIssueRequest.status.in_(("issued", "received", "closed")),
+                )
+            )
+            or 0
+        )
+        if total_issued > 0:
+            total_returned = int(
+                db.scalar(
+                    select(func.coalesce(func.sum(StockMovement.quantity), 0)).where(
+                        StockMovement.tenant_id == tenant_id,
+                        StockMovement.warehouse_id == payload.warehouse_id,
+                        StockMovement.item_id == payload.item_id,
+                        StockMovement.movement_type == "return",
+                    )
+                )
+                or 0
+            )
+            eligible_return = max(0, total_issued - total_returned)
+            if payload.quantity > eligible_return:
+                raise HTTPException(
+                    400,
+                    f"Return quantity ({payload.quantity}) exceeds issued/eligible return quantity ({eligible_return}).",
+                )
+
+    previous = _item_stock(db, payload.warehouse_id, payload.item_id)
+    for attempt in range(5):
+        txn = _next_number(db, tenant_id, "SRT", StockMovement, StockMovement.reference)
+        ref = txn
+        if payload.operator_name:
+            ref += f" | OP:{payload.operator_name}"
+        if payload.machine:
+            ref += f" | MACHINE:{payload.machine}"
+        if payload.request_id:
+            ref += f" | REQ:{payload.request_id}"
+
+        exists = db.scalar(
+            select(StockMovement).where(
+                StockMovement.tenant_id == tenant_id,
+                StockMovement.reference.like(f"{txn}%"),
+            )
+        )
+        if exists and attempt < 4:
+            continue
+
+        try:
+            mov = record_stock_movement(
+                db,
+                StockMovementCreate(
+                    tenant_id=tenant_id,
+                    warehouse_id=payload.warehouse_id,
+                    item_id=payload.item_id,
+                    quantity=payload.quantity,
+                    movement_type="return",
+                    reference=ref,
+                    created_by=created_by or "Store",
+                ),
+            )
+            current = _item_stock(db, payload.warehouse_id, payload.item_id)
+            return StoreReturnRead(
+                transaction_number=txn,
+                movement_id=mov.id,
+                warehouse_name=wh.name,
+                item_name=item.name,
+                quantity=payload.quantity,
+                previous_stock=previous,
+                current_stock=current,
+                created_by=created_by,
+            )
+        except SQLAlchemyError:
+            db.rollback()
+            if attempt == 4:
+                raise
 
 
 def get_store_dashboard(db: Session, tenant_id: int) -> StoreDashboardRead:

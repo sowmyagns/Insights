@@ -33,12 +33,12 @@ def get_preventive_summary(db: Session, tenant_id: int) -> PreventiveSummaryRead
     tasks = list(db.scalars(select(PreventiveMaintenance).where(PreventiveMaintenance.tenant_id == tenant_id)).all())
     machines = list(db.scalars(select(Machine).where(Machine.tenant_id == tenant_id, Machine.is_active)).all())
     scheduled_today = sum(1 for t in tasks if t.schedule_date == today)
-    overdue = sum(1 for t in tasks if t.schedule_date < today and t.status != "completed")
+    overdue = sum(1 for t in tasks if t.schedule_date and t.schedule_date < today and t.status != "completed")
     completed_month = sum(
         1 for t in tasks
-        if t.status == "completed" and t.schedule_date.month == today.month and t.schedule_date.year == today.year
+        if t.status == "completed" and t.schedule_date and t.schedule_date.month == today.month and t.schedule_date.year == today.year
     )
-    upcoming = sum(1 for t in tasks if t.schedule_date > today and t.status == "scheduled")
+    upcoming = sum(1 for t in tasks if t.schedule_date and t.schedule_date > today and t.status == "scheduled")
     running = sum(1 for m in machines if m.status == "running")
     avail = (running / len(machines) * 100) if machines else 92.5
     return PreventiveSummaryRead(
@@ -63,7 +63,7 @@ def list_preventive_enriched(db: Session, tenant_id: int) -> list[PreventiveTask
     result = []
     for t in tasks:
         machine = db.get(Machine, t.machine_id)
-        is_overdue = t.schedule_date < today and t.status != "completed"
+        is_overdue = bool(t.schedule_date and t.schedule_date < today and t.status != "completed")
         result.append(
             PreventiveTaskRead(
                 id=t.id,
@@ -89,7 +89,7 @@ def get_breakdown_summary(db: Session, tenant_id: int) -> BreakdownSummaryRead:
     pending = sum(1 for b in breakdowns if b.status in ("reported", "assigned"))
     emergency = sum(1 for b in breakdowns if getattr(b, "priority", "") == "critical" or getattr(b, "severity", "") == "critical")
     downtime = sum(b.downtime_minutes or 0 for b in breakdowns) / 60
-    mttr = (sum(b.downtime_minutes for b in breakdowns if b.status == "resolved") / max(1, sum(1 for b in breakdowns if b.status == "resolved"))) / 60
+    mttr = (sum(b.downtime_minutes or 0 for b in breakdowns if b.status == "resolved") / max(1, sum(1 for b in breakdowns if b.status == "resolved"))) / 60
     machines = list(db.scalars(select(Machine).where(Machine.tenant_id == tenant_id)).all())
     breakdown_count = sum(1 for m in machines if m.status == "breakdown")
     avail = ((len(machines) - breakdown_count) / len(machines) * 100) if machines else 88.0
@@ -99,7 +99,7 @@ def get_breakdown_summary(db: Session, tenant_id: int) -> BreakdownSummaryRead:
         avg_repair_time_mttr=round(mttr, 1),
         machine_availability_pct=round(avail, 1),
         pending_repairs=pending,
-        emergency_breakdowns=emergency or 1,
+        emergency_breakdowns=emergency,
     )
 
 
@@ -198,10 +198,10 @@ def get_maintenance_hub(db: Session, tenant_id: int) -> MaintenanceHubRead:
     breakdowns = list(db.scalars(select(BreakdownReport).where(BreakdownReport.tenant_id == tenant_id)).all())
     records = list(db.scalars(select(MaintenanceRecord).where(MaintenanceRecord.tenant_id == tenant_id)).all())
 
-    running = sum(1 for m in machines if m.status == "running")
-    maintenance_count = sum(1 for m in machines if m.status in ("maintenance", "under_maintenance"))
-    breakdown_machines = sum(1 for m in machines if m.status == "breakdown")
-    idle = sum(1 for m in machines if m.status == "idle")
+    running = sum(1 for m in machines if (m.status or "").lower() == "running")
+    maintenance_count = sum(1 for m in machines if (m.status or "").lower() in ("maintenance", "under_maintenance"))
+    breakdown_machines = sum(1 for m in machines if (m.status or "").lower() in ("breakdown", "down", "fault"))
+    idle = sum(1 for m in machines if (m.status or "").lower() in ("idle", "standby") or (m.status or "").lower() not in ("running", "maintenance", "under_maintenance", "breakdown", "down", "fault"))
     health_scores = [float(m.health_score) for m in machines if m.health_score is not None]
     health_pct = sum(health_scores) / len(health_scores) if health_scores else 0.0
 
@@ -237,13 +237,20 @@ def get_maintenance_hub(db: Session, tenant_id: int) -> MaintenanceHubRead:
     overdue_requests = sum(
         1
         for t in preventive_tasks
-        if t.schedule_date < today and (t.status or "").lower() not in done_status
+        if t.schedule_date and t.schedule_date < today and (t.status or "").lower() not in done_status
     )
 
-    labour_cost = float(sum(float(r.cost or 0) for r in records))
-    spare_cost = 0.0
-    external_cost = 0.0
+    labour_cost = float(sum(float(r.cost or 0) for r in records if not r.spare_parts))
+    spare_cost = float(sum(float(r.cost or 0) for r in records if r.spare_parts))
+    external_cost = float(sum(float(b.downtime_minutes or 0) * 1.5 for b in breakdowns if (b.status or "").lower() in done_status))
+    if labour_cost == 0.0 and spare_cost == 0.0 and records:
+        labour_cost = float(sum(float(r.cost or 0) for r in records))
     total_cost = labour_cost + spare_cost + external_cost
+
+    total_downtime_hrs = sum(float(b.downtime_minutes or 0) for b in breakdowns) / 60.0
+    total_op_hours = max(0.0, (len(machines) * 720.0) - total_downtime_hrs) if machines else 0.0
+    total_failures = sum(1 for b in breakdowns if (b.status or "").lower() in done_status or (b.status or "").lower() in progress_status or (b.status or "").lower() in open_status)
+    mtbf_hours = round(total_op_hours / max(1, total_failures), 1) if machines and total_failures > 0 else (round(total_op_hours, 1) if machines else 0.0)
 
     month_labels: list[str] = []
     cost_by_month: dict[str, float] = {}
@@ -266,13 +273,26 @@ def get_maintenance_hub(db: Session, tenant_id: int) -> MaintenanceHubRead:
         if b.reported_at:
             key = b.reported_at.strftime("%b")
             if key in downtime_by_month:
-                downtime_by_month[key] += float(b.downtime_minutes or 0) / 60
+                downtime_by_month[key] += float(b.downtime_minutes or 0) / 60.0
             if key in breakdown_by_month:
                 breakdown_by_month[key] += 1
 
+    availability_trend = []
+    mtbf_trend = []
+    for m in month_labels:
+        m_dt = downtime_by_month.get(m, 0.0)
+        m_failures = breakdown_by_month.get(m, 0)
+        m_total_hrs = len(machines) * 720.0 if machines else 0.0
+        m_avail = round(((m_total_hrs - m_dt) / max(1.0, m_total_hrs)) * 100.0, 1) if machines else 100.0
+        availability_trend.append({"month": m, "pct": max(0.0, min(100.0, m_avail))})
+
+        m_op_hrs = max(0.0, m_total_hrs - m_dt)
+        m_mtbf = round(m_op_hrs / max(1, m_failures), 1) if machines and m_failures > 0 else (round(m_op_hrs, 1) if machines else 0.0)
+        mtbf_trend.append({"month": m, "hours": m_mtbf})
+
     calendar_events = []
     for t in preventive_tasks:
-        if t.schedule_date and t.schedule_date.month == today.month and t.schedule_date.year == today.year:
+        if t.schedule_date:
             machine = db.get(Machine, t.machine_id)
             calendar_events.append(
                 {
@@ -314,6 +334,13 @@ def get_maintenance_hub(db: Session, tenant_id: int) -> MaintenanceHubRead:
             )
         ).all()
     )
+    if not spare_items:
+        spare_items = list(
+            db.scalars(
+                select(InventoryItem).where(InventoryItem.tenant_id == tenant_id).limit(50)
+            ).all()
+        )
+
     spare_parts = [
         {
             "id": item.id,
@@ -330,6 +357,26 @@ def get_maintenance_hub(db: Session, tenant_id: int) -> MaintenanceHubRead:
             ),
         }
         for item in spare_items[:50]
+    ]
+
+    work_orders_db = list(
+        db.scalars(
+            select(WorkOrder)
+            .where(WorkOrder.tenant_id == tenant_id)
+            .order_by(WorkOrder.id.desc())
+            .limit(20)
+        ).all()
+    )
+    work_orders = [
+        {
+            "id": w.id,
+            "work_order_number": w.work_order_number,
+            "status": w.status,
+            "machine_id": w.machine_id,
+            "planned_quantity": float(w.planned_quantity or 0),
+            "actual_quantity": float(w.actual_quantity or 0) if w.actual_quantity is not None else None,
+        }
+        for w in work_orders_db
     ]
 
     recent_requests: list[dict] = []
@@ -368,16 +415,16 @@ def get_maintenance_hub(db: Session, tenant_id: int) -> MaintenanceHubRead:
 
     alerts: list[dict] = []
     for t in preventive_tasks:
-        if t.schedule_date == today + timedelta(days=1) and (t.status or "").lower() not in done_status:
+        if t.schedule_date and t.schedule_date <= today + timedelta(days=2) and (t.status or "").lower() not in done_status:
             machine = db.get(Machine, t.machine_id)
             alerts.append(
                 {
                     "type": "due",
-                    "message": f"Preventive maintenance due tomorrow — {machine.name if machine else t.machine_id}",
+                    "message": f"Preventive maintenance due soon — {machine.name if machine else t.machine_id}",
                 }
             )
     for b in breakdowns:
-        if (b.status or "").lower() in progress_status:
+        if (b.status or "").lower() in (progress_status | open_status):
             machine = db.get(Machine, b.machine_id)
             hrs = round((b.downtime_minutes or 0) / 60, 1)
             alerts.append(
@@ -392,8 +439,6 @@ def get_maintenance_hub(db: Session, tenant_id: int) -> MaintenanceHubRead:
                 {"type": "spare", "message": f"Low stock: {sp['spare_name']} ({sp['stock']}/{sp['minimum_stock']})"}
             )
 
-    avail_pct = prev_sum.machine_availability_pct if machines else 0.0
-
     return MaintenanceHubRead(
         total_machines=len(machines),
         running=running,
@@ -402,11 +447,11 @@ def get_maintenance_hub(db: Session, tenant_id: int) -> MaintenanceHubRead:
         idle=idle,
         machine_health_pct=round(health_pct, 1),
         mttr_hours=bd_sum.avg_repair_time_mttr,
-        mtbf_hours=0.0,
-        labour_cost=labour_cost,
-        spare_cost=spare_cost,
-        external_cost=external_cost,
-        total_cost=total_cost,
+        mtbf_hours=mtbf_hours,
+        labour_cost=round(labour_cost, 2),
+        spare_cost=round(spare_cost, 2),
+        external_cost=round(external_cost, 2),
+        total_cost=round(total_cost, 2),
         total_requests=total_requests,
         open_requests=open_requests,
         in_progress_requests=in_progress_requests,
@@ -415,11 +460,11 @@ def get_maintenance_hub(db: Session, tenant_id: int) -> MaintenanceHubRead:
         calendar_events=calendar_events[:14],
         machine_health=machine_health,
         downtime_trend=[{"month": m, "hours": round(downtime_by_month.get(m, 0), 1)} for m in month_labels],
-        availability_trend=[{"month": m, "pct": round(avail_pct, 1)} for m in month_labels],
+        availability_trend=availability_trend,
         cost_trend=[{"month": m, "cost": round(cost_by_month.get(m, 0), 2)} for m in month_labels],
         breakdown_frequency=[{"month": m, "count": breakdown_by_month.get(m, 0)} for m in month_labels],
         mttr_trend=[{"month": m, "hours": bd_sum.avg_repair_time_mttr} for m in month_labels],
-        mtbf_trend=[{"month": m, "hours": 0} for m in month_labels],
+        mtbf_trend=mtbf_trend,
         preventive_vs_breakdown=[
             {"name": "Preventive", "count": preventive_done},
             {"name": "Breakdown", "count": len(breakdowns)},
@@ -427,7 +472,7 @@ def get_maintenance_hub(db: Session, tenant_id: int) -> MaintenanceHubRead:
         maintenance_overview=maintenance_overview,
         equipment_status=equipment_status,
         spare_parts=spare_parts,
-        work_orders=[],
+        work_orders=work_orders,
         recent_requests=recent_requests,
         alerts=alerts[:8],
     )

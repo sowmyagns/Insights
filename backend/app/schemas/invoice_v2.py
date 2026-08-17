@@ -5,7 +5,9 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class InvoiceV2SummaryBucket(BaseModel):
@@ -47,18 +49,28 @@ class InvoiceV2ListResponse(BaseModel):
 
 
 class InvoiceV2ItemCreate(BaseModel):
-    item_description: str
+    item_description: str = Field(..., min_length=1)
     hsn: str | None = None
-    qty: float = 0
+    qty: float = Field(..., gt=0.0)
     unit: str = "pcs"
-    rate: float = 0
+    rate: float = Field(0.0, ge=0.0)
     tax_type: str = "Exclusive"
-    discount: float = 0
+    discount: float = Field(0.0, ge=0.0)
     discount_type: str = "₹"
-    gst_pct: float = 0
-    taxable_value: float | None = None
-    gst_amount: float | None = None
-    amount: float | None = None
+    gst_pct: float = Field(0.0, ge=0.0, le=100.0)
+    taxable_value: float | None = Field(None, ge=0.0)
+    gst_amount: float | None = Field(None, ge=0.0)
+    amount: float | None = Field(None, ge=0.0)
+
+    @field_validator("qty", mode="before")
+    @classmethod
+    def validate_qty_positive(cls, v: Any) -> float:
+        if v is not None and v != "":
+            val = float(v)
+            if val <= 0:
+                raise ValueError("Invoice item quantity must be greater than zero.")
+            return val
+        raise ValueError("Invoice item quantity is required.")
 
 
 class InvoiceV2Create(BaseModel):
@@ -70,12 +82,12 @@ class InvoiceV2Create(BaseModel):
     invoice_number: str
     issue_date: date
     due_date: date | None = None
-    discount: float = 0
-    other_charge: float = 0
+    discount: float = Field(0.0, ge=0.0)
+    other_charge: float = Field(0.0, ge=0.0)
     round_off: float = 0
-    cgst_pct: float = 0
-    sgst_pct: float = 0
-    igst_pct: float = 0
+    cgst_pct: float = Field(0.0, ge=0.0, le=100.0)
+    sgst_pct: float = Field(0.0, ge=0.0, le=100.0)
+    igst_pct: float = Field(0.0, ge=0.0, le=100.0)
     status: str = "issued"
     # logistics / optional
     transport_mode: str | None = None

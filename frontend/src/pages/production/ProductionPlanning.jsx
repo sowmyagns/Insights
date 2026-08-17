@@ -449,8 +449,10 @@ export default function ProductionPlanning() {
 
       if (filters.status && o.status !== filters.status) return false;
       const startDate = o.start_date ? String(o.start_date).slice(0, 10) : "";
-      if (filters.date_from && (!startDate || startDate < filters.date_from)) return false;
-      if (filters.date_to && (!startDate || startDate > filters.date_to)) return false;
+      const createdDate = o.created_at ? String(o.created_at).slice(0, 10) : "";
+      const effectiveDate = startDate || createdDate;
+      if (filters.date_from && (!effectiveDate || effectiveDate < filters.date_from)) return false;
+      if (filters.date_to && (!effectiveDate || effectiveDate > filters.date_to)) return false;
       return true;
     });
   }, [orders, filters]);

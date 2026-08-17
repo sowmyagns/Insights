@@ -1,8 +1,8 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +50,12 @@ def get_account_overview_endpoint(
         raise
     except SQLAlchemyError as exc:
         db.rollback()
-        logger.exception("Database error retrieving account overview: %s", exc)
+        logger.exception("Database error loading account overview for user_id=%s: %s", user.id, exc)
         raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
     except Exception as exc:
         db.rollback()
-        logger.exception("Failed to retrieve account overview: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to retrieve account overview") from exc
+        logger.exception("Failed to load account overview for user_id=%s: %s", user.id, exc)
+        raise HTTPException(status_code=500, detail="Failed to load account overview") from exc
 
 
 @router.get("/subscription")
@@ -64,8 +64,19 @@ def get_subscription_endpoint(
     db: Session = Depends(get_db),
 ) -> dict:
     """Current subscription, trial status, and plan catalog for the tenant."""
-    data = subscription_service.get_current_subscription(db, user)
-    return success_response("Subscription retrieved", data)
+    try:
+        data = subscription_service.get_current_subscription(db, user)
+        return success_response("Subscription retrieved", data)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving subscription for user_id=%s: %s", user.id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve subscription for user_id=%s: %s", user.id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve subscription") from exc
 
 
 @router.get("/subscription/plans")
@@ -114,9 +125,20 @@ def contact_sales_endpoint(
 def get_company_settings(
     user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> CompanySettingsRead:
-    tenant_id = user.tenant_id
-    row = company_settings_service.get_or_create_settings(db, tenant_id)
-    return company_settings_service.to_settings_read(row)
+    try:
+        tenant_id = user.tenant_id
+        row = company_settings_service.get_or_create_settings(db, tenant_id)
+        return company_settings_service.to_settings_read(row)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving company settings for tenant_id=%s: %s", user.tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve company settings for tenant_id=%s: %s", user.tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve company settings") from exc
 
 
 @router.put("/company", response_model=CompanySettingsRead)
@@ -125,5 +147,16 @@ def update_company_settings(
     user: User = Depends(require_permission(MODULE)),
     db: Session = Depends(get_db),
 ) -> CompanySettingsRead:
-    row = company_settings_service.update_settings(db, user.tenant_id, payload)
-    return company_settings_service.to_settings_read(row)
+    try:
+        row = company_settings_service.update_settings(db, user.tenant_id, payload)
+        return company_settings_service.to_settings_read(row)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error updating company settings for tenant_id=%s: %s", user.tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error updating company settings") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to update company settings for tenant_id=%s: %s", user.tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to update company settings") from exc

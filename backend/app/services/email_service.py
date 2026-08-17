@@ -282,7 +282,7 @@ def send_company_welcome_email(
     to: str,
     company_name: str,
     login_email: str,
-    temporary_password: str,
+    temporary_password: str | None = None,
     company_id: str,
     subscription_plan: str | None = None,
     trial_expires_at: str | None = None,
@@ -290,6 +290,7 @@ def send_company_welcome_email(
 ) -> None:
     s = _settings()
     login_url = f"{s.frontend_base_url.rstrip('/')}/login"
+    setup_url = f"{s.frontend_base_url.rstrip('/')}/reset-password"
     subject = f"Welcome to Insights Iva — {company_name}"
     plan_line = f"Subscription Plan: {(subscription_plan or 'trial').title()}\n"
     billing_line = f"Billing Cycle: {(billing_cycle or '—').title()}\n" if billing_cycle else ""
@@ -303,9 +304,10 @@ def send_company_welcome_email(
         f"{billing_line}"
         f"{trial_line}"
         f"Login Email: {login_email}\n"
-        f"Temporary Password: {temporary_password}\n"
+        f"Password Setup Link: {setup_url}\n"
         f"Login URL: {login_url}\n\n"
-        f"Please sign in and change your password after first login.\n\n"
+        f"For security reasons, your temporary password is not sent via email. "
+        f"Please use the secure password setup process at {setup_url} to configure your password.\n\n"
         f"— Insights Iva Platform Team\n"
     )
     send_email(to, subject, body)

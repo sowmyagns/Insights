@@ -128,6 +128,18 @@ class SuperAdminService:
         ip_address: str | None = None,
         user_agent: str | None = None,
     ) -> dict:
+        from app.models.platform import OtpChallenge
+
+        challenge = self.db.scalars(
+            select(OtpChallenge).where(OtpChallenge.challenge_token == challenge_token)
+        ).first()
+
+        if not challenge or challenge.verified or challenge.invalidated:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="OTP session not found or already consumed. Please sign in again.",
+            )
+
         result = verify_otp(
             self.db,
             challenge_token,
@@ -140,6 +152,12 @@ class SuperAdminService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=result.error or "Invalid OTP. Please try again.",
             )
+
+        challenge.verified = True
+        challenge.invalidated = True
+        if hasattr(challenge, "consumed_at"):
+            setattr(challenge, "consumed_at", datetime.now(timezone.utc))
+
         admin = result.admin
         if not admin.is_active:
             raise HTTPException(

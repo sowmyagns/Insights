@@ -1,4 +1,8 @@
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.utils.gst import validate_gstin, validate_ifsc, validate_pan
 
 
 class CompanySettingsBase(BaseModel):
@@ -20,11 +24,11 @@ class CompanySettingsBase(BaseModel):
     logo_url: str | None = None
     custom_fields: list[dict] | None = None
 
-    default_gst_pct: float | None = None
+    default_gst_pct: float | None = Field(None, ge=0.0, le=100.0)
     prices_include_tax: bool = False
 
     invoice_prefix: str | None = None
-    invoice_next_number: int = 1
+    invoice_next_number: int = Field(1, ge=1)
     po_prefix: str | None = None
     so_prefix: str | None = None
 
@@ -33,13 +37,47 @@ class CompanySettingsBase(BaseModel):
     bank_ifsc: str | None = None
     bank_branch: str | None = None
 
-    default_payment_terms_days: int | None = None
+    default_payment_terms_days: int | None = Field(None, ge=0)
     payment_terms_note: str | None = None
 
     mfa_enabled: bool = False
     mfa_email_otp: bool = True
     mfa_sms_otp: bool = False
     mfa_authenticator: bool = False
+
+    @field_validator("gstin", mode="before")
+    @classmethod
+    def validate_company_gstin(cls, v: Any) -> str | None:
+        if v is not None and str(v).strip():
+            return validate_gstin(v, required=False)
+        return None
+
+    @field_validator("pan", mode="before")
+    @classmethod
+    def validate_company_pan(cls, v: Any) -> str | None:
+        if v is not None and str(v).strip():
+            return validate_pan(v, required=False)
+        return None
+
+    @field_validator("bank_ifsc", mode="before")
+    @classmethod
+    def validate_company_ifsc(cls, v: Any) -> str | None:
+        if v is not None and str(v).strip():
+            return validate_ifsc(v, required=False)
+        return None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def validate_company_email(cls, v: Any) -> str | None:
+        if v is not None and str(v).strip():
+            email = str(v).strip().lower()
+            if "@" not in email or email.startswith("@") or email.endswith("@"):
+                raise ValueError("Invalid company email format")
+            local, _, domain = email.partition("@")
+            if not local or not domain or "." not in domain:
+                raise ValueError("Invalid company email format")
+            return email
+        return None
 
 
 class CompanySettingsUpdate(BaseModel):
@@ -50,6 +88,40 @@ class CompanySettingsUpdate(BaseModel):
     gstin: str | None = None
     pan: str | None = None
     email: str | None = None
+
+    @field_validator("gstin", mode="before")
+    @classmethod
+    def validate_company_gstin(cls, v: Any) -> str | None:
+        if v is not None and str(v).strip():
+            return validate_gstin(v, required=False)
+        return None
+
+    @field_validator("pan", mode="before")
+    @classmethod
+    def validate_company_pan(cls, v: Any) -> str | None:
+        if v is not None and str(v).strip():
+            return validate_pan(v, required=False)
+        return None
+
+    @field_validator("bank_ifsc", mode="before")
+    @classmethod
+    def validate_company_ifsc(cls, v: Any) -> str | None:
+        if v is not None and str(v).strip():
+            return validate_ifsc(v, required=False)
+        return None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def validate_company_email(cls, v: Any) -> str | None:
+        if v is not None and str(v).strip():
+            email = str(v).strip().lower()
+            if "@" not in email or email.startswith("@") or email.endswith("@"):
+                raise ValueError("Invalid company email format")
+            local, _, domain = email.partition("@")
+            if not local or not domain or "." not in domain:
+                raise ValueError("Invalid company email format")
+            return email
+        return None
     phone: str | None = None
     website: str | None = None
     address_line1: str | None = None
@@ -63,7 +135,7 @@ class CompanySettingsUpdate(BaseModel):
     logo_url: str | None = None
     custom_fields: list[dict] | None = None
 
-    default_gst_pct: float | None = None
+    default_gst_pct: float | None = Field(None, ge=0.0, le=100.0)
     prices_include_tax: bool | None = None
 
     invoice_prefix: str | None = None

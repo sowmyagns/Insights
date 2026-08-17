@@ -1,6 +1,8 @@
-"""Analytics extended schemas — production, inventory, sales, finance, executive."""
+from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
+
+VALID_KPI_FORMATS = {"number", "currency", "percent"}
 
 
 class KpiItem(BaseModel):
@@ -12,12 +14,35 @@ class KpiItem(BaseModel):
     format: str = "number"  # number | currency | percent
     drill_target: str | None = None
 
+    @field_validator("format", mode="before")
+    @classmethod
+    def validate_format(cls, v: Any) -> str:
+        if v is not None:
+            s = str(v).strip().lower()
+            if s not in VALID_KPI_FORMATS:
+                raise ValueError(f"Invalid KPI format '{v}'.")
+            return s
+        return "number"
+
 
 class ChartPoint(BaseModel):
     label: str
-    value: float = 0
-    value2: float | None = None
-    value3: float | None = None
+    value: float = Field(0.0, ge=0.0)
+    value2: float | None = Field(None, ge=0.0)
+    value3: float | None = Field(None, ge=0.0)
+
+    @field_validator("value", "value2", "value3", mode="before")
+    @classmethod
+    def non_negative(cls, v: Any) -> float | None:
+        if v is not None:
+            val = float(v)
+            if val < 0:
+                raise ValueError("Chart values cannot be negative.")
+            return val
+        return None
+
+
+VALID_ALERT_ITEM_SEVERITIES = {"info", "warning", "success", "danger"}
 
 
 class AlertItem(BaseModel):
@@ -25,6 +50,16 @@ class AlertItem(BaseModel):
     severity: str = "info"  # info | warning | success | danger
     message: str
     benchmark: str | None = None
+
+    @field_validator("severity", mode="before")
+    @classmethod
+    def validate_severity(cls, v: Any) -> str:
+        if v is not None:
+            s = str(v).strip().lower()
+            if s not in VALID_ALERT_ITEM_SEVERITIES:
+                raise ValueError(f"Invalid alert severity '{v}'.")
+            return s
+        return "info"
 
 
 class BenchmarkItem(BaseModel):
@@ -37,7 +72,7 @@ class BenchmarkItem(BaseModel):
 class AiInsight(BaseModel):
     type: str
     message: str
-    confidence: float | None = None
+    confidence: float | None = Field(None, ge=0.0, le=100.0)
 
 
 class ProductionAnalyticsRead(BaseModel):
@@ -52,7 +87,7 @@ class ProductionAnalyticsRead(BaseModel):
     product_wise: list[ChartPoint]
     operator_performance: list[ChartPoint]
     downtime_analysis: list[ChartPoint]
-    worker_score: float = 75.0
+    worker_score: float = Field(75.0, ge=0.0, le=100.0)
     last_updated: str
 
 
@@ -107,19 +142,19 @@ class ExecutiveHubRead(BaseModel):
     production_trend: list[ChartPoint]
     inventory_value_trend: list[ChartPoint]
     machine_health: list[ChartPoint]
-    quality_pass_rate: float = 0
+    quality_pass_rate: float = Field(0.0, ge=0.0, le=100.0)
     ai_insights: list[AiInsight]
     last_updated: str
 
 
 class LiveDashboardRead(BaseModel):
-    current_production: float
-    active_machines: int
-    total_machines: int
-    todays_orders: int
-    dispatches_today: int
-    breakdown_alerts: int
-    live_oee: float
+    current_production: float = Field(0.0, ge=0.0)
+    active_machines: int = Field(0, ge=0)
+    total_machines: int = Field(0, ge=0)
+    todays_orders: int = Field(0, ge=0)
+    dispatches_today: int = Field(0, ge=0)
+    breakdown_alerts: int = Field(0, ge=0)
+    live_oee: float = Field(0.0, ge=0.0, le=100.0)
     alerts: list[AlertItem]
     ai_insights: list[AiInsight]
     production_pulse: list[ChartPoint]

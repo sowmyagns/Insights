@@ -1,11 +1,14 @@
 """Data access for authentication and password-reset tokens."""
 
 import logging
+import logging
 from datetime import datetime, timezone
 
+from fastapi import HTTPException, status
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm.exc import UnmappedInstanceError
 
 from app.models.security import PasswordResetToken
 from app.models.user import User

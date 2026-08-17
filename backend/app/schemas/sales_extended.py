@@ -1,6 +1,6 @@
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 
 class LeadSummaryRead(BaseModel):
@@ -23,9 +23,22 @@ class LeadListRead(BaseModel):
     priority: str = "medium"
     next_followup: str | None = None
     status: str = "new"
-    opportunity_value: float | None = None
+    opportunity_value: float | None = Field(None, ge=0.0)
     industry: str | None = None
     region: str | None = None
+
+    @field_validator("opportunity_value", mode="before")
+    @classmethod
+    def validate_opportunity_value(cls, value: float | None) -> float | None:
+        if value is None:
+            return value
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("opportunity_value must be a numeric value")
+        if v < 0:
+            raise ValueError("opportunity_value cannot be negative")
+        return value
 
 
 class QuotationSummaryRead(BaseModel):
@@ -42,11 +55,22 @@ class QuotationListRead(BaseModel):
     quote_number: str
     customer_name: str | None = None
     sales_person: str | None = None
-    amount: float = 0
+    amount: float = Field(0.0, ge=0.0)
     quote_date: str | None = None
     valid_until: str | None = None
     status: str = "draft"
     converted_to_invoice: bool = False
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def validate_non_negative(cls, value: float) -> float:
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("Must be a numeric value")
+        if v < 0:
+            raise ValueError("amount cannot be negative")
+        return value
 
 
 class SOSummaryRead(BaseModel):
@@ -62,10 +86,21 @@ class SOSummaryRead(BaseModel):
 
 class SOLineItemRead(BaseModel):
     item_description: str | None = None
-    quantity: float = 0
+    quantity: float = Field(0.0, ge=0.0)
     unit: str | None = None
-    unit_price: float = 0
-    line_total: float = 0
+    unit_price: float = Field(0.0, ge=0.0)
+    line_total: float = Field(0.0, ge=0.0)
+
+    @field_validator("quantity", "unit_price", "line_total", mode="before")
+    @classmethod
+    def validate_non_negative(cls, value: float) -> float:
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("Must be a numeric value")
+        if v < 0:
+            raise ValueError("Value cannot be negative")
+        return value
 
 
 class SOListRead(BaseModel):
@@ -74,8 +109,8 @@ class SOListRead(BaseModel):
     customer_name: str | None = None
     order_date: str
     delivery_date: str | None = None
-    amount: float = 0
-    total_amount: float = 0
+    amount: float = Field(0.0, ge=0.0)
+    total_amount: float = Field(0.0, ge=0.0)
     payment_terms: str | None = None
     status: str = "draft"
     sales_person: str | None = None
@@ -83,7 +118,18 @@ class SOListRead(BaseModel):
     packed: bool = False
     shipped: bool = False
     invoiced: bool = False
-    line_items: list[SOLineItemRead] = []
+    line_items: list[SOLineItemRead] = Field(default_factory=list)
+
+    @field_validator("amount", "total_amount", mode="before")
+    @classmethod
+    def validate_non_negative(cls, value: float) -> float:
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("Must be a numeric value")
+        if v < 0:
+            raise ValueError("Value cannot be negative")
+        return value
 
 
 class DispatchSummaryRead(BaseModel):
@@ -138,8 +184,19 @@ class DeliveryChallanRead(BaseModel):
     driver_name: str | None = None
     lr_number: str | None = None
     status: str = "packed"
-    lines: list[dict] = []
-    total_amount: float = 0
+    lines: list[dict] = Field(default_factory=list)
+    total_amount: float = Field(0.0, ge=0.0)
+
+    @field_validator("total_amount", mode="before")
+    @classmethod
+    def validate_non_negative(cls, value: float) -> float:
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("Must be a numeric value")
+        if v < 0:
+            raise ValueError("total_amount cannot be negative")
+        return value
 
 
 class InvoiceSummaryRead(BaseModel):
@@ -156,20 +213,42 @@ class InvoiceListEnrichedRead(BaseModel):
     invoice_number: str
     customer_name: str | None = None
     sales_order_number: str | None = None
-    amount: float = 0
-    gst_amount: float = 0
+    amount: float = Field(0.0, ge=0.0)
+    gst_amount: float = Field(0.0, ge=0.0)
     due_date: str | None = None
     status: str = "draft"
-    amount_paid: float = 0
+    amount_paid: float = Field(0.0, ge=0.0)
+
+    @field_validator("amount", "gst_amount", "amount_paid", mode="before")
+    @classmethod
+    def validate_non_negative(cls, value: float) -> float:
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("Must be a numeric value")
+        if v < 0:
+            raise ValueError("Value cannot be negative")
+        return value
 
 
 class SalesHubRead(BaseModel):
-    monthly_revenue: float = 0
+    monthly_revenue: float = Field(0.0, ge=0.0)
     total_orders: int = 0
     pending_orders: int = 0
     dispatch_pending: int = 0
-    outstanding_payments: float = 0
+    outstanding_payments: float = Field(0.0, ge=0.0)
     new_customers: int = 0
-    top_customers: list[dict] = []
-    sales_executive_performance: list[dict] = []
-    alerts: list[dict] = []
+    top_customers: list[dict] = Field(default_factory=list)
+    sales_executive_performance: list[dict] = Field(default_factory=list)
+    alerts: list[dict] = Field(default_factory=list)
+
+    @field_validator("monthly_revenue", "outstanding_payments", mode="before")
+    @classmethod
+    def validate_non_negative(cls, value: float) -> float:
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("Must be a numeric value")
+        if v < 0:
+            raise ValueError("Value cannot be negative")
+        return value

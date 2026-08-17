@@ -1,8 +1,8 @@
-"""Schemas for manufacturing store workflow (stock in, issue requests, returns)."""
-
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 
 
 class StoreStockInCreate(BaseModel):
@@ -113,9 +113,23 @@ class StoreDashboardRead(BaseModel):
 
 
 class PurchaseRequisitionFromLowStock(BaseModel):
-    item_id: int
-    recommended_qty: int | None = None
+    item_id: int = Field(..., ge=1)
+    recommended_qty: int | None = Field(default=None, gt=0)
     notes: str | None = None
+
+    @field_validator("recommended_qty", mode="before")
+    @classmethod
+    def validate_recommended_qty(cls, value: Any) -> int | None:
+        if value is None:
+            return None
+        try:
+            v = int(value)
+        except (TypeError, ValueError):
+            raise ValueError("recommended_qty must be an integer value")
+        if v <= 0:
+            raise ValueError("recommended_qty must be greater than zero")
+        return v
+
 
 
 class PurchaseRequisitionCreated(BaseModel):

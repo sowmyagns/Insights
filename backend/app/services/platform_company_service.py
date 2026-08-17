@@ -19,7 +19,11 @@ from app.models.tenant import Tenant
 from app.models.user import User, user_roles
 from app.schemas.platform import CreateCompanyRequest, UpdateCompanyRequest, UpdateLicenseRequest
 from app.services.auth_service import hash_password
-from app.services.email_service import send_company_welcome_email
+from app.services.email_service import (
+    send_company_welcome_email,
+    smtp_config_error_message,
+    smtp_is_configured,
+)
 
 
 def _slugify(name: str) -> str:
@@ -43,9 +47,9 @@ def _get_tenant_admin(db: Session, tenant_id: int) -> User | None:
         .options(selectinload(User.roles))
     ).all()
     for u in users:
-        if any(r.name == ADMIN_ROLE for r in u.roles):
+        if any(r.name in (ADMIN_ROLE, "Admin", "Company Admin", "Super Admin") for r in u.roles):
             return u
-    return users[0] if users else None
+    return None
 
 
 def serialize_company(db: Session, tenant: Tenant) -> dict:
@@ -86,8 +90,68 @@ class PlatformCompanyService:
         self.db = db
 
     def list_companies(self) -> list[dict]:
-        tenants = self.db.scalars(select(Tenant).order_by(Tenant.id)).all()
-        return [serialize_company(self.db, t) for t in tenants]
+        tenants = list(self.db.scalars(select(Tenant).order_by(Tenant.id)).all())
+        if not tenants:
+            return []
+
+        tenant_ids = [t.id for t in tenants]
+
+        user_counts = dict(
+            self.db.execute(
+                select(User.tenant_id, func.count(User.id))
+                .where(User.tenant_id.in_(tenant_ids))
+                .group_by(User.tenant_id)
+            ).all()
+        )
+
+        licenses = {
+            l.tenant_id: l
+            for l in self.db.scalars(
+                select(CompanyLicense).where(CompanyLicense.tenant_id.in_(tenant_ids))
+            ).all()
+        }
+
+        all_users = self.db.scalars(
+            select(User)
+            .where(User.tenant_id.in_(tenant_ids))
+            .options(selectinload(User.roles))
+        ).all()
+
+        admins = {}
+        for u in all_users:
+            if u.tenant_id not in admins and any(
+                r.name in (ADMIN_ROLE, "Admin", "Company Admin", "Super Admin") for r in u.roles
+            ):
+                admins[u.tenant_id] = u
+
+        res = []
+        for t in tenants:
+            admin = admins.get(t.id)
+            user_count = user_counts.get(t.id, 0)
+            license_row = licenses.get(t.id)
+            res.append({
+                "id": t.id,
+                "company_code": t.company_code or _company_code(t.id),
+                "company_name": t.name,
+                "company_email": t.email,
+                "mobile_number": t.phone,
+                "gst_number": t.gst_number,
+                "address": t.address,
+                "city": t.city,
+                "state": t.state,
+                "country": t.country,
+                "pin_code": t.pin_code,
+                "status": t.status or "active",
+                "subscription_plan": license_row.plan if license_row else t.subscription,
+                "trial_days": t.trial_days,
+                "trial_expires_at": t.trial_expires_at,
+                "license_status": t.license_status or (license_row.status if license_row else "active"),
+                "admin_name": admin.full_name if admin else None,
+                "admin_email": admin.email if admin else None,
+                "user_count": user_count,
+                "created_at": t.created_at,
+            })
+        return res
 
     def get_company(self, tenant_id: int) -> dict:
         tenant = self._get_tenant_or_404(tenant_id)
@@ -272,33 +336,48 @@ class PlatformCompanyService:
             self.db.refresh(tenant)
 
             company_id = tenant.company_code
-            try:
-                send_company_welcome_email(
-                    to=admin_email,
-                    company_name=display_name,
-                    login_email=admin_email,
-                    temporary_password=temp_password,
-                    company_id=company_id,
-                    subscription_plan=plan,
-                    trial_expires_at=trial_expires.isoformat() if trial_expires else None,
-                    billing_cycle=billing_cycle,
-                )
-            except Exception:
-                # Company already committed — surface password in API response for Super Admin
-                pass
+            email_sent = False
+            email_error = None
+
+            if not smtp_is_configured():
+                email_sent = False
+                email_error = smtp_config_error_message() or "Email server is not configured."
+                logger.warning("Welcome email skipped for company %s: %s", company_id, email_error)
+            else:
+                try:
+                    send_company_welcome_email(
+                        to=admin_email,
+                        company_name=display_name,
+                        login_email=admin_email,
+                        temporary_password=temp_password,
+                        company_id=company_id,
+                        subscription_plan=plan,
+                        trial_expires_at=trial_expires.isoformat() if trial_expires else None,
+                        billing_cycle=billing_cycle,
+                    )
+                    email_sent = True
+                except Exception as exc:
+                    email_sent = False
+                    email_error = f"SMTP delivery failed: {exc}"
+                    logger.warning("Could not send welcome email for company %s: %s", company_id, exc)
+
+            message = (
+                "Company created successfully. Login details were emailed to the company admin."
+                if email_sent
+                else f"Company created successfully, but welcome email delivery failed ({email_error}). Temporary password surfaced for admin handover."
+            )
 
             return {
                 "company": serialize_company(self.db, tenant),
                 "company_id": company_id,
                 "admin_email": admin_email,
-                "temporary_password": temp_password,
+                "temporary_password": temp_password if not email_sent else None,
                 "subscription_plan": plan,
                 "billing_cycle": billing_cycle,
                 "trial_expires_at": trial_expires,
-                "message": (
-                    "Company created successfully. Login details were emailed to the company admin "
-                    "(temporary password also shown below for Super Admin handover)."
-                ),
+                "message": message,
+                "email_sent": email_sent,
+                "email_error": email_error if not email_sent else None,
             }
         except HTTPException:
             self.db.rollback()
@@ -325,22 +404,80 @@ class PlatformCompanyService:
                 detail=detail_msg,
             )
         except Exception as exc:
+            logger.exception("Company provisioning failed: %s", exc)
             self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Company provisioning failed and was rolled back: {exc}",
+                detail="Company provisioning failed due to an internal error.",
             ) from exc
 
     def update_company(self, tenant_id: int, payload: UpdateCompanyRequest) -> dict:
         tenant = self._get_tenant_or_404(tenant_id)
+
         if payload.company_name is not None:
-            tenant.name = payload.company_name.strip()
+            new_name = payload.company_name.strip()
+            if new_name and new_name.lower() != (tenant.name or "").lower():
+                existing = self.db.scalars(
+                    select(Tenant).where(
+                        func.lower(Tenant.name) == new_name.lower(),
+                        Tenant.id != tenant_id,
+                    )
+                ).first()
+                if existing:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Company name is already registered to another company.",
+                    )
+            tenant.name = new_name
+
         if payload.company_email is not None:
-            tenant.email = payload.company_email.strip().lower()
+            new_email = payload.company_email.strip().lower()
+            if new_email and new_email != (tenant.email or "").lower():
+                existing = self.db.scalars(
+                    select(Tenant).where(
+                        func.lower(Tenant.email) == new_email,
+                        Tenant.id != tenant_id,
+                    )
+                ).first()
+                if existing:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Company email is already registered to another company.",
+                    )
+            tenant.email = new_email
+
         if payload.mobile_number is not None:
-            tenant.phone = payload.mobile_number.strip()
+            new_phone = payload.mobile_number.strip()
+            if new_phone and new_phone != (tenant.phone or ""):
+                existing = self.db.scalars(
+                    select(Tenant).where(
+                        Tenant.phone == new_phone,
+                        Tenant.id != tenant_id,
+                    )
+                ).first()
+                if existing:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Mobile number is already registered to another company.",
+                    )
+            tenant.phone = new_phone
+
         if payload.gst_number is not None:
-            tenant.gst_number = payload.gst_number.strip() or None
+            new_gst = payload.gst_number.strip() or None
+            if new_gst and new_gst.upper() != (tenant.gst_number or "").upper():
+                existing = self.db.scalars(
+                    select(Tenant).where(
+                        func.upper(Tenant.gst_number) == new_gst.upper(),
+                        Tenant.id != tenant_id,
+                    )
+                ).first()
+                if existing:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="GST Number is already registered to another company.",
+                    )
+            tenant.gst_number = new_gst
+
         if payload.address is not None:
             tenant.address = payload.address.strip()
         if payload.city is not None:
@@ -375,13 +512,75 @@ class PlatformCompanyService:
             if license_row:
                 license_row.status = new_status
             if new_status in {"suspended", "expired", "cancelled", "deleted"}:
-                users = self.db.scalars(select(User).where(User.tenant_id == tenant_id)).all()
-                for u in users:
-                    if new_status == "deleted":
-                        u.is_active = False
-        self.db.commit()
-        self.db.refresh(tenant)
+                if new_status == "deleted":
+                    self._store_active_users_for_deletion(tenant_id)
+
+        try:
+            self.db.commit()
+            self.db.refresh(tenant)
+        except IntegrityError as exc:
+            self.db.rollback()
+            err_msg = str(exc.orig).lower()
+            if "tenants.email" in err_msg or "tenant_email" in err_msg:
+                detail_msg = "Company email is already registered to another company."
+            elif "tenants.phone" in err_msg or "tenant_phone" in err_msg:
+                detail_msg = "Mobile number is already registered to another company."
+            elif "tenants.gst_number" in err_msg or "tenant_gst_number" in err_msg:
+                detail_msg = "GST Number is already registered to another company."
+            elif "tenants.name" in err_msg:
+                detail_msg = "Company name is already registered to another company."
+            else:
+                detail_msg = "Could not update company due to a database conflict."
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=detail_msg,
+            ) from exc
         return serialize_company(self.db, tenant)
+
+    def _store_active_users_for_deletion(self, tenant_id: int) -> None:
+        import json
+        active_uids = [
+            u.id for u in self.db.scalars(
+                select(User).where(User.tenant_id == tenant_id, User.is_active == True)
+            ).all()
+        ]
+        cs = self.db.scalars(select(CompanySettings).where(CompanySettings.tenant_id == tenant_id)).first()
+        if not cs:
+            cs = CompanySettings(tenant_id=tenant_id)
+            self.db.add(cs)
+
+        try:
+            data = json.loads(cs.custom_fields_json or "{}") if isinstance(cs.custom_fields_json, str) else {}
+        except Exception:
+            data = {}
+        data["deleted_user_ids"] = active_uids
+        cs.custom_fields_json = json.dumps(data)
+
+        for u in self.db.scalars(select(User).where(User.tenant_id == tenant_id)).all():
+            u.is_active = False
+
+    def _restore_deleted_active_users(self, tenant_id: int) -> None:
+        import json
+        cs = self.db.scalars(select(CompanySettings).where(CompanySettings.tenant_id == tenant_id)).first()
+        deleted_uids = None
+        if cs and cs.custom_fields_json:
+            try:
+                data = json.loads(cs.custom_fields_json) if isinstance(cs.custom_fields_json, str) else {}
+                deleted_uids = data.get("deleted_user_ids")
+            except Exception:
+                deleted_uids = None
+
+        if deleted_uids is not None and isinstance(deleted_uids, list):
+            for uid in deleted_uids:
+                u = self.db.get(User, uid)
+                if u and u.tenant_id == tenant_id:
+                    u.is_active = True
+            try:
+                data = json.loads(cs.custom_fields_json or "{}") if isinstance(cs.custom_fields_json, str) else {}
+                data.pop("deleted_user_ids", None)
+                cs.custom_fields_json = json.dumps(data)
+            except Exception:
+                pass
 
     def activate_company(self, tenant_id: int) -> dict:
         tenant = self._get_tenant_or_404(tenant_id)
@@ -395,10 +594,9 @@ class PlatformCompanyService:
         ).first()
         if license_row:
             license_row.status = tenant.license_status
-        # Only restore users when recovering from soft-delete
+        # Only restore users who were active prior to soft-delete
         if was_deleted:
-            for u in self.db.scalars(select(User).where(User.tenant_id == tenant_id)).all():
-                u.is_active = True
+            self._restore_deleted_active_users(tenant_id)
         self.db.commit()
         return serialize_company(self.db, tenant)
 
@@ -431,8 +629,7 @@ class PlatformCompanyService:
         ).first()
         if license_row:
             license_row.status = "deleted"
-        for u in self.db.scalars(select(User).where(User.tenant_id == tenant_id)).all():
-            u.is_active = False
+        self._store_active_users_for_deletion(tenant_id)
         self.db.commit()
 
     def reset_company_admin_password(self, tenant_id: int, new_password: str) -> dict:
@@ -526,16 +723,25 @@ class PlatformCompanyService:
         license_row = self.db.scalars(
             select(CompanyLicense).where(CompanyLicense.tenant_id == tenant_id)
         ).first()
+
         if not license_row:
+            plan = payload.plan or tenant.subscription or "trial"
+            status_val = payload.status or tenant.status or "active"
             license_row = CompanyLicense(
                 tenant_id=tenant_id,
-                plan=payload.plan or tenant.subscription or "trial",
-                status=payload.status or "active",
+                plan=plan,
+                status=status_val,
                 max_users=payload.max_users or 50,
                 issued_at=datetime.now(timezone.utc),
                 expires_at=payload.expires_at,
             )
             self.db.add(license_row)
+            tenant.subscription = plan.lower()
+            tenant.license_status = status_val
+            tenant.status = status_val
+            tenant.trial_status = (status_val == "trial")
+            if payload.expires_at is not None:
+                tenant.trial_expires_at = payload.expires_at
         else:
             if payload.plan is not None:
                 license_row.plan = payload.plan
@@ -543,12 +749,27 @@ class PlatformCompanyService:
             if payload.status is not None:
                 license_row.status = payload.status
                 tenant.license_status = payload.status
+                tenant.status = payload.status
+                tenant.trial_status = (payload.status == "trial")
             if payload.max_users is not None:
                 license_row.max_users = payload.max_users
             if payload.expires_at is not None:
                 license_row.expires_at = payload.expires_at
                 tenant.trial_expires_at = payload.expires_at
-        self.db.commit()
+
+        try:
+            self.db.commit()
+        except Exception as exc:
+            logger.exception("Failed to commit license update for tenant_id=%s: %s", tenant_id, exc)
+            try:
+                self.db.rollback()
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error during license update.",
+            ) from exc
+
         return self.get_subscription(tenant_id)
 
     def _get_tenant_or_404(self, tenant_id: int) -> Tenant:

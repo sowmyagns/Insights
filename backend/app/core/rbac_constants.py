@@ -6,7 +6,6 @@ MODULE_CATALOG = [
     {"code": "production", "label": "Production"},
     {"code": "inventory", "label": "Inventory & Raw Materials"},
     {"code": "procurement", "label": "Procurement"},
-    {"code": "hr", "label": "HR & Employees"},
     {"code": "sales", "label": "Sales & Billing"},
     {"code": "accounts", "label": "Accounts & Reports"},
     {"code": "quality", "label": "Quality Control"},
@@ -135,8 +134,8 @@ PERMISSION_MATRIX = {
         "description": "Full Vendor Master and procurement operations access.",
     },
     "HR Manager": {
-        "modules": ["dashboard", "hr", "analytics", "alerts", "documents", "masters", "meetings"],
-        "description": "Dashboard, Employees, assets, and incident reports.",
+        "modules": ["dashboard", "analytics", "alerts", "documents", "masters", "meetings"],
+        "description": "Dashboard, departments master, documents, and alerts.",
     },
     "Accountant": {
         "modules": [
@@ -302,17 +301,6 @@ SIDEBAR_MENU_CATALOG = [
         ],
     },
     {
-        "key": "hr",
-        "label": "HR",
-        "path": None,
-        "module": "hr",
-        "children": [
-            {"label": "Employees", "path": "/hr/employees", "module": "hr"},
-            {"label": "Asset Management", "path": "/hr/assets", "module": "hr"},
-            {"label": "Incident Reports", "path": "/hr/incidents", "module": "hr"},
-        ],
-    },
-    {
         "key": "expense",
         "label": "Expense",
         "path": "/accounts/expenses",
@@ -376,7 +364,6 @@ SIDEBAR_MENU_CATALOG = [
             {"label": "Production Delay", "path": "/alerts/production-delay", "module": "alerts"},
             {"label": "Maintenance", "path": "/alerts/maintenance", "module": "alerts"},
             {"label": "Quality", "path": "/alerts/quality", "module": "alerts"},
-            {"label": "HR & Personnel", "path": "/alerts/hr", "module": "alerts"},
             {"label": "Safety & Incident", "path": "/alerts/safety", "module": "alerts"},
             {"label": "General", "path": "/alerts/general", "module": "alerts"},
         ],
@@ -388,7 +375,6 @@ SIDEBAR_MENU_CATALOG = [
         "module": "documents",
         "children": [
             {"label": "All Documents", "path": "/documents", "module": "documents"},
-            {"label": "HR Documents", "path": "/hr/documents", "module": "hr"},
             {"label": "Purchase", "path": "/documents/purchase", "module": "documents"},
             {"label": "Production", "path": "/documents/production", "module": "documents"},
             {"label": "Quality", "path": "/documents/quality", "module": "documents"},

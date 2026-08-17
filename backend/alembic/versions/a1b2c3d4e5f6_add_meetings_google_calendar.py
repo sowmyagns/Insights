@@ -3,18 +3,47 @@
 Revision ID: a1b2c3d4e5f6
 Revises: 3f2f0a911b11
 Create Date: 2026-08-15 00:00:00.000000
+
+These tables are included in the baseline revision (de8b5e165733) because it
+runs ``Base.metadata.create_all`` against the full ORM metadata (including
+``app.models.meeting``). This revision remains for databases that were created
+before meetings models were registered on ``Base.metadata``.
+
+On fresh PostgreSQL installs the baseline already creates:
+  - meetings
+  - meeting_participants
+  - google_calendar_credentials
+
+This upgrade is a no-op when all three tables already exist.
 """
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 revision = "a1b2c3d4e5f6"
 down_revision = "3f2f0a911b11"
 branch_labels = None
 depends_on = None
 
+_MEETING_TABLES = (
+    "meetings",
+    "meeting_participants",
+    "google_calendar_credentials",
+)
 
-def upgrade() -> None:
+
+def _all_meeting_tables_present(bind) -> bool:
+    existing = set(inspect(bind).get_table_names())
+    return all(name in existing for name in _MEETING_TABLES)
+
+
+def _any_meeting_table_present(bind) -> bool:
+    existing = set(inspect(bind).get_table_names())
+    return any(name in existing for name in _MEETING_TABLES)
+
+
+def _create_meeting_tables() -> None:
     op.create_table(
         "meetings",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -78,10 +107,19 @@ def upgrade() -> None:
     op.create_index("ix_google_calendar_credentials_user_id", "google_calendar_credentials", ["user_id"])
 
 
+def upgrade() -> None:
+    bind = op.get_bind()
+    if _all_meeting_tables_present(bind):
+        return
+    if _any_meeting_table_present(bind):
+        raise RuntimeError(
+            "Partial meetings / Google Calendar schema detected "
+            f"({', '.join(_MEETING_TABLES)}). Manual reconciliation required."
+        )
+    _create_meeting_tables()
+
+
 def downgrade() -> None:
-    op.drop_index("ix_google_calendar_credentials_user_id", table_name="google_calendar_credentials")
-    op.drop_index("ix_google_calendar_credentials_tenant_id", table_name="google_calendar_credentials")
-    op.drop_table("google_calendar_credentials")
-    op.drop_table("meeting_participants")
-    op.drop_index("ix_meetings_tenant_id", table_name="meetings")
-    op.drop_table("meetings")
+    # No-op: on fresh installs these tables are created by de8b5e165733
+    # (Base.metadata.create_all). Dropping here would remove baseline-owned schema.
+    pass

@@ -1,9 +1,12 @@
 """Batch tracking — summary, enriched list, traceability detail."""
 
 import logging
+import logging
 from datetime import datetime, timezone
 
+from fastapi import HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -19,6 +22,8 @@ from app.schemas.batch_tracking import (
     BatchSummaryRead,
     BatchTraceStepRead,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def get_batch_summary(db: Session, tenant_id: int) -> BatchSummaryRead:

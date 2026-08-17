@@ -10,6 +10,9 @@ import {
 } from "lucide-react";
 
 import useAuth from "../../hooks/useAuth";
+import useLiveClock from "../../hooks/useLiveClock";
+import { useCompanySettings } from "../../hooks/useCompanySettings";
+import { DEFAULT_TIMEZONE } from "../../utils/headerDateTime";
 import GlobalSearch from "../common/GlobalSearch";
 import AppPageTitle from "../common/AppPageTitle";
 import Breadcrumbs, { getPageTitle } from "../common/Breadcrumbs";
@@ -22,7 +25,9 @@ export default function Navbar({ onMenuClick }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [now, setNow] = useState(() => new Date());
+  const { settings } = useCompanySettings();
+  const timeZone = settings?.timezone || DEFAULT_TIMEZONE;
+  const { weekdayLabel, dateLabel, timeLabel } = useLiveClock(timeZone);
   const [showProfile, setShowProfile] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -33,11 +38,6 @@ export default function Navbar({ onMenuClick }) {
   const displayName = user?.full_name || user?.name || "User";
   const firstName = String(displayName).trim().split(/\s+/)[0] || "User";
   const displayRole = user?.role_name || user?.role || "";
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -86,17 +86,6 @@ export default function Navbar({ onMenuClick }) {
       setLogoutOpen(false);
     }
   };
-
-  const dateLabel = now.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-  const timeLabel = now.toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const weekdayLabel = now.toLocaleDateString(undefined, { weekday: "short" });
 
   const iconBtn =
     "flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] dark:text-slate-300 dark:hover:bg-slate-800";

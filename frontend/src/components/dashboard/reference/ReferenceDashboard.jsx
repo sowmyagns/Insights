@@ -38,7 +38,6 @@ import EmptyChart from "../../common/EmptyChart";
 import SkeletonCard, { SkeletonChart } from "../../common/SkeletonCard";
 import { quickActionsRef } from "../../../data/referenceDashboardData";
 import { getErpDashboard } from "../../../api/dashboardApi";
-import { getEmployeesEnriched } from "../../../api/hrApi";
 import { getMaterialRequests, getPurchaseOrders, getVendors } from "../../../api/procurementApi";
 import { getProductionOrders, getWorkOrders } from "../../../api/productionApi";
 import { getUsers } from "../../../api/adminApi";
@@ -202,7 +201,7 @@ function DashboardSkeleton() {
 const DEFAULT_CARD_LINKS = {
   "total-users": "/admin/users",
   "active-users": "/admin/users",
-  "total-employees": "/hr/employees",
+  "total-employees": "/masters/departments",
   "pending-approvals": "/admin/approvals",
   "total-orders": "/production/planning",
   "today-production": "/production/planning",
@@ -236,13 +235,13 @@ const DEFAULT_CARD_LINKS = {
   "out-of-stock": "/inventory",
   "pending-material-issues": "/procurement/material-requests",
   "pending-goods-receipts": "/procurement/goods-receipt",
-  "present-today": "/hr/employees",
-  "absent-today": "/hr/employees",
-  "on-leave": "/hr/employees",
-  "pending-leave-requests": "/hr/employees",
-  "new-employees": "/hr/employees",
-  "attendance-rate": "/hr/employees",
-  "pending-hr-requests": "/hr/employees",
+  "present-today": "/masters/departments",
+  "absent-today": "/masters/departments",
+  "on-leave": "/masters/departments",
+  "pending-leave-requests": "/masters/departments",
+  "new-employees": "/masters/departments",
+  "attendance-rate": "/masters/departments",
+  "pending-hr-requests": "/masters/departments",
   "total-receivables": "/finance/accounts-receivable",
   "total-payables": "/finance/accounts-payable",
   "todays-revenue": "/sales/invoices",
@@ -928,7 +927,6 @@ export default function ReferenceDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [liveCounts, setLiveCounts] = useState({
-    empCount: null,
     userCount: null,
     ordersCount: null,
     pendingOrdersCount: null,
@@ -942,14 +940,13 @@ export default function ReferenceDashboard() {
 
     Promise.allSettled([
       getErpDashboard(),
-      getEmployeesEnriched(),
       getProductionOrders(),
       getUsers(),
       getWorkOrders(),
       getMaterialRequests(),
       getPurchaseOrders(),
       getVendors(),
-    ]).then(([dashRes, empRes, prodRes, userRes, woRes, mrRes, poRes, vndRes]) => {
+    ]).then(([dashRes, prodRes, userRes, woRes, mrRes, poRes, vndRes]) => {
       if (dashRes.status === "fulfilled") {
         setApiData(dashRes.value?.data || null);
       } else {
@@ -957,10 +954,6 @@ export default function ReferenceDashboard() {
         setError("Failed to load dashboard data.");
       }
 
-      let empC = null;
-      if (empRes.status === "fulfilled" && Array.isArray(empRes.value?.data)) {
-        empC = empRes.value.data.length;
-      }
 
       let usrC = null;
       if (userRes.status === "fulfilled" && Array.isArray(userRes.value?.data)) {
@@ -1052,12 +1045,11 @@ export default function ReferenceDashboard() {
       const todayProdCount = allOrders.filter((o) => {
         const sDate = o.start_date ? String(o.start_date).slice(0, 10) : "";
         const cDate = o.created_at ? String(o.created_at).slice(0, 10) : "";
-        const dDate = o.due_date ? String(o.due_date).slice(0, 10) : "";
-        return sDate === todayIso || cDate === todayIso || dDate === todayIso || sDate === "2026-08-13" || cDate === "2026-08-13";
+        const st = (o.status || "").toLowerCase();
+        return (sDate === todayIso || (!sDate && cDate === todayIso)) && st !== "cancelled";
       }).length;
 
       setLiveCounts({
-        empCount: empC,
         userCount: usrC,
         ordersCount: totOrders,
         pendingOrdersCount: pendOrdersCount,
@@ -1087,8 +1079,6 @@ export default function ReferenceDashboard() {
       let rawVal = Number(k.value) || 0;
       if (k.id === "pending-approvals") {
         if (liveCounts.pendingApprovalsCount !== null) rawVal = liveCounts.pendingApprovalsCount;
-      } else if (k.id === "total-employees") {
-        if (liveCounts.empCount !== null) rawVal = liveCounts.empCount;
       } else if (k.id === "total-users") {
         if (liveCounts.userCount !== null) rawVal = liveCounts.userCount;
       } else if (k.id === "total-orders" || k.id === "total-production-orders") {

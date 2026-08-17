@@ -1,12 +1,12 @@
-"""Inventory V2 service — product items, categories, add/remove stock + timeline."""
-
-from __future__ import annotations
-
+import logging
 from datetime import date
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.models.product import InventoryCategory, Product, ProductStockEvent
 from app.schemas.inventory_v2 import (
@@ -209,15 +209,20 @@ def list_timeline(db: Session, tenant_id: int, product_id: int) -> list[dict]:
         ).all()
     )
     if not rows:
+        product = db.scalars(
+            select(Product).where(Product.id == product_id, Product.tenant_id == tenant_id)
+        ).first()
+        stock = _f(product.current_stock) if product else 0.0
+        unit = (product.unit if product else None) or "PCS"
         return [
             {
                 "id": "opening",
                 "activity": "First Stock",
                 "subtitle": "Opening Stock",
                 "date": _today_label(),
-                "change": 0.0,
-                "final": 0.0,
-                "unit": None,
+                "change": stock,
+                "final": stock,
+                "unit": unit,
             }
         ]
     return [
@@ -321,15 +326,6 @@ def list_categories(db: Session, tenant_id: int) -> list[dict]:
             .order_by(InventoryCategory.name)
         ).all()
     )
-    # Ensure defaults exist
-    names = {c.name for c in cats}
-    if "No Category" not in names:
-        row = InventoryCategory(tenant_id=tenant_id, name="No Category")
-        db.add(row)
-        db.commit()
-        db.refresh(row)
-        cats.insert(0, row)
-
     counts = dict(
         db.execute(
             select(Product.category, func.count(Product.id))
@@ -337,7 +333,7 @@ def list_categories(db: Session, tenant_id: int) -> list[dict]:
             .group_by(Product.category)
         ).all()
     )
-    return [
+    result = [
         {
             "id": c.id,
             "name": c.name,
@@ -345,6 +341,11 @@ def list_categories(db: Session, tenant_id: int) -> list[dict]:
         }
         for c in cats
     ]
+    names = {c.name for c in cats}
+    if "No Category" not in names:
+        no_cat_count = int(counts.get("No Category") or 0)
+        result.insert(0, {"id": 0, "name": "No Category", "stock": no_cat_count})
+    return result
 
 
 def category_wise(db: Session, tenant_id: int) -> list[dict]:

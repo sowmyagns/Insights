@@ -1,17 +1,34 @@
+import re
+from typing import Any
+
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.rbac_constants import REGISTERABLE_ROLES
 from app.utils.password import validate_password_strength
 from app.utils.sanitize import sanitize_email_local_part, sanitize_text
 
+TOKEN_REGEX = re.compile(r"^[A-Za-z0-9_-]{16,512}$")
+
+# Matches local@domain.tld — rejects leading/trailing dots, consecutive dots,
+# multiple @, missing TLD, and other malformed structures.
+_EMAIL_REGEX = re.compile(
+    r"^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+"
+    r"(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*"
+    r"@"
+    r"(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+"
+    r"[a-zA-Z]{2,}$"
+)
+
 
 def _normalize_email(value: str) -> str:
-    email = sanitize_email_local_part(value).lower()
-    if "@" not in email or email.startswith("@") or email.endswith("@"):
+    email = sanitize_email_local_part(value).lower().strip()
+    if not email or email.count("@") != 1:
         raise ValueError("Invalid email address")
-    local, _, domain = email.partition("@")
-    if not local or not domain or "." not in domain:
-        raise ValueError("Invalid email address")
+    if not _EMAIL_REGEX.match(email):
+        raise ValueError(
+            "Invalid email address: must be in the form local@domain.tld "
+            "with a valid domain structure"
+        )
     return email
 
 
@@ -30,10 +47,7 @@ class LoginRequest(BaseModel):
     def validate_role(cls, value: str | None) -> str | None:
         if not value:
             return None
-        cleaned = sanitize_text(value, max_length=100)
-        if cleaned not in REGISTERABLE_ROLES:
-            raise ValueError(f"Invalid role. Choose one of: {', '.join(REGISTERABLE_ROLES)}")
-        return cleaned
+        return sanitize_text(value, max_length=100)
 
 
 class RegisterRequest(BaseModel):
@@ -41,7 +55,7 @@ class RegisterRequest(BaseModel):
     full_name: str = Field(..., min_length=1, max_length=255)
     email: str = Field(..., min_length=3, max_length=255)
     password: str = Field(..., min_length=12, max_length=128)
-    role: str = Field(default="Admin", min_length=1, max_length=100)
+    role: str = Field(default="Operator", min_length=1, max_length=100)
 
     @field_validator("company_name", "full_name")
     @classmethod
@@ -84,6 +98,14 @@ class ResetPasswordRequest(BaseModel):
     token: str = Field(..., min_length=16, max_length=512)
     password: str = Field(..., min_length=12, max_length=128)
 
+    @field_validator("token")
+    @classmethod
+    def validate_token_format(cls, value: str) -> str:
+        s = value.strip()
+        if not s or not TOKEN_REGEX.match(s):
+            raise ValueError("Invalid reset token format")
+        return s
+
     @field_validator("password")
     @classmethod
     def validate_password_policy(cls, value: str) -> str:
@@ -111,9 +133,25 @@ class RefreshRequest(BaseModel):
     refresh_token: str = Field(..., min_length=16, max_length=512)
     all_devices: bool = False
 
+    @field_validator("refresh_token")
+    @classmethod
+    def validate_refresh_token_format(cls, value: str) -> str:
+        s = value.strip()
+        if not s or not TOKEN_REGEX.match(s):
+            raise ValueError("Invalid refresh token format")
+        return s
+
 
 class VerifyEmailRequest(BaseModel):
     token: str = Field(..., min_length=16, max_length=512)
+
+    @field_validator("token")
+    @classmethod
+    def validate_verify_token_format(cls, value: str) -> str:
+        s = value.strip()
+        if not s or not TOKEN_REGEX.match(s):
+            raise ValueError("Invalid verification token format")
+        return s
 
 
 class UserResponse(BaseModel):
@@ -144,6 +182,14 @@ class UserResponse(BaseModel):
     last_login_at: str | None = None
     current_login_at: str | None = None
 
+    @field_validator("email")
+    @classmethod
+    def validate_user_email(cls, value: str) -> str:
+        return _normalize_email(value)
+
+
+VALID_TOKEN_TYPES = {"bearer"}
+
 
 class AuthResponse(BaseModel):
     access_token: str
@@ -151,13 +197,22 @@ class AuthResponse(BaseModel):
     token_type: str = "bearer"
     user: UserResponse
 
+    @field_validator("token_type", mode="before")
+    @classmethod
+    def validate_token_type(cls, v: Any) -> str:
+        if v is not None:
+            s = str(v).strip().lower()
+            if s not in VALID_TOKEN_TYPES:
+                raise ValueError(f"Invalid token_type '{v}'. Must be 'bearer'.")
+            return s
+        return "bearer"
+
 
 class RegisterPendingResponse(BaseModel):
-    """Registration success — never includes JWT. User must log in next."""
+    """Registration success — never includes JWT or tokens. User must verify email / log in next."""
 
     message: str
     email_verification_required: bool = False
-    verification_token: str | None = None  # development only
 
 
 class MessageResponse(BaseModel):

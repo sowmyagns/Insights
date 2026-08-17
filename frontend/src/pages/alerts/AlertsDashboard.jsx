@@ -21,7 +21,7 @@ import {
   markAllAlertsRead,
   resolveAlert,
 } from "../../api/alertsApi";
-import { getEmployees } from "../../api/hrApi";
+import { getUsers } from "../../api/adminApi";
 import { isAdmin, userCanAction } from "../../config/permissions";
 import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
 import Button from "../../components/common/Button";
@@ -125,7 +125,7 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [rows, setRows] = useState([]);
-  const [employees, setEmployees] = useState([]);
+  const [assignees, setAssignees] = useState([]);
 
   // Search & Filter state
   const [search, setSearch] = useState("");
@@ -163,9 +163,9 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
       const params = {};
       if (initialAlertType) params.alert_type = initialAlertType;
 
-      const [alertsRes, empRes] = await Promise.allSettled([
+      const [alertsRes, usersRes] = await Promise.allSettled([
         getAlerts(params),
-        getEmployees(),
+        getUsers(),
       ]);
 
 
@@ -189,8 +189,8 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
 
       setRows(filteredAlerts);
 
-      if (empRes.status === "fulfilled") {
-        setEmployees(empRes.value?.data || []);
+      if (usersRes.status === "fulfilled") {
+        setAssignees(usersRes.value?.data || []);
       }
     } catch (e) {
       setError(e.response?.data?.detail || e.message || "Failed to load alerts");
@@ -901,19 +901,19 @@ export default function AlertsDashboard({ initialAlertType = null, title, subtit
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Assigned Employee</label>
-                  {employees.length > 0 ? (
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Assigned To</label>
+                  {assignees.length > 0 ? (
                     <select
                       value={form.assigned_to}
                       onChange={(e) => setForm({ ...form, assigned_to: e.target.value })}
                       className={inputClass}
                     >
                       <option value="">-- Select Assigned --</option>
-                      {employees.map((emp) => {
-                        const name = emp.full_name || `${emp.first_name || ""} ${emp.last_name || ""}`.trim() || emp.name || `Emp #${emp.id}`;
+                      {assignees.map((user) => {
+                        const name = user.full_name || user.name || user.username || `User #${user.id}`;
                         return (
-                          <option key={emp.id} value={name}>
-                            {name} ({emp.department || "Human Resources (HR)"})
+                          <option key={user.id} value={name}>
+                            {name} ({user.role || user.role_name || "User"})
                           </option>
                         );
                       })}

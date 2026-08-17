@@ -1,9 +1,13 @@
+import logging
 from datetime import datetime, timezone
 import logging
 
+from fastapi import HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.exc import SQLAlchemyError
+
+logger = logging.getLogger(__name__)
 
 from app.core.permissions import get_role_names, user_is_admin
 from app.models.alert import Alert
@@ -15,8 +19,12 @@ from app.services.inventory_service import get_inventory_dashboard
 logger = logging.getLogger(__name__)
 
 
-def create_alert(db: Session, payload: AlertCreate, fanout: bool = True) -> Alert | None:
-    """Create a new alert and optionally fanout notifications. Returns None on failure."""
+def create_alert(db: Session, payload: AlertCreate, fanout: bool = True) -> Alert:
+    if not payload.title or not str(payload.title).strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Alert title cannot be empty or whitespace-only",
+        )
     try:
         data = payload.model_dump()
         if not data.get("triggered_at"):
@@ -26,19 +34,26 @@ def create_alert(db: Session, payload: AlertCreate, fanout: bool = True) -> Aler
         a = Alert(**data)
         db.add(a)
         db.flush()
-        if fanout:
-            fanout_alert_notifications(db, a)
+        fanout_alert_notifications(db, a)
         db.commit()
         db.refresh(a)
         return a
-    except SQLAlchemyError as e:
-        logger.error(f"Database error creating alert: {str(e)}")
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
         db.rollback()
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error creating alert: {str(e)}")
+        logger.exception("Database error during create_alert: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
         db.rollback()
-        return None
+        logger.exception("Failed to create alert: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create alert",
+        ) from exc
 
 
 
@@ -46,7 +61,7 @@ def list_alerts(
     db: Session,
     tenant_id: int,
     alert_type: str | None = None,
-    status: str | None = None,
+    status_val: str | None = None,
     *,
     module: str | None = None,
     severity: str | None = None,
@@ -58,16 +73,13 @@ def list_alerts(
     page: int = 1,
     page_size: int = 50,
 ) -> tuple[list[Alert], int, int]:
-    """Return (items, total, unread_count) with optional role-based filtering.
-    
-    Returns empty list with total=0 and unread=0 on database error.
-    """
+    """Return (items, total, unread_count) with optional role-based filtering."""
     try:
         stmt = select(Alert).where(Alert.tenant_id == tenant_id)
         if alert_type:
             stmt = stmt.where(Alert.alert_type == alert_type)
-        if status:
-            stmt = stmt.where(Alert.status == status)
+        if status_val:
+            stmt = stmt.where(Alert.status == status_val)
         if module:
             stmt = stmt.where(Alert.module == module)
         if severity:
@@ -106,31 +118,49 @@ def list_alerts(
         page_size = max(1, min(page_size, 200))
         start = (page - 1) * page_size
         return rows[start : start + page_size], total, unread
-    except SQLAlchemyError as e:
-        logger.error(f"Database error listing alerts for tenant {tenant_id}: {str(e)}")
-        return [], 0, 0
-    except Exception as e:
-        logger.error(f"Unexpected error listing alerts for tenant {tenant_id}: {str(e)}")
-        return [], 0, 0
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error during list_alerts for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to list alerts for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list alerts",
+        ) from exc
 
 
 def get_alert(db: Session, alert_id: int, tenant_id: int) -> Alert | None:
-    """Retrieve a single alert by ID. Returns None on failure."""
     try:
         alert = db.get(Alert, alert_id)
         if not alert or alert.tenant_id != tenant_id:
             return None
         return alert
-    except SQLAlchemyError as e:
-        logger.error(f"Database error retrieving alert {alert_id}: {str(e)}")
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error retrieving alert {alert_id}: {str(e)}")
-        return None
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error during get_alert id=%s: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to get alert id=%s: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve alert",
+        ) from exc
 
 
 def acknowledge_alert(db: Session, alert_id: int, tenant_id: int | None = None, acknowledged_by: str | None = None) -> Alert | None:
-    """Mark an alert as acknowledged. Returns None on failure."""
     try:
         alert = db.get(Alert, alert_id)
         if not alert:
@@ -144,18 +174,25 @@ def acknowledge_alert(db: Session, alert_id: int, tenant_id: int | None = None, 
         db.commit()
         db.refresh(alert)
         return alert
-    except SQLAlchemyError as e:
-        logger.error(f"Database error acknowledging alert {alert_id}: {str(e)}")
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
         db.rollback()
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error acknowledging alert {alert_id}: {str(e)}")
+        logger.exception("Database error during acknowledge_alert id=%s: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
         db.rollback()
-        return None
+        logger.exception("Failed to acknowledge alert id=%s: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to acknowledge alert",
+        ) from exc
 
 
 def resolve_alert(db: Session, alert_id: int, tenant_id: int | None = None, resolved_by: str | None = None) -> Alert | None:
-    """Mark an alert as resolved. Returns None on failure."""
     try:
         alert = db.get(Alert, alert_id)
         if not alert:
@@ -171,19 +208,25 @@ def resolve_alert(db: Session, alert_id: int, tenant_id: int | None = None, reso
         db.commit()
         db.refresh(alert)
         return alert
-    except SQLAlchemyError as e:
-        logger.error(f"Database error resolving alert {alert_id}: {str(e)}")
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
         db.rollback()
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error resolving alert {alert_id}: {str(e)}")
+        logger.exception("Database error during resolve_alert id=%s: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
         db.rollback()
-        return None
-
+        logger.exception("Failed to resolve alert id=%s: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to resolve alert",
+        ) from exc
 
 
 def mark_alert_read(db: Session, alert_id: int, tenant_id: int) -> Alert | None:
-    """Mark an alert as read. Returns None on failure."""
     try:
         alert = get_alert(db, alert_id, tenant_id)
         if not alert:
@@ -192,18 +235,25 @@ def mark_alert_read(db: Session, alert_id: int, tenant_id: int) -> Alert | None:
         db.commit()
         db.refresh(alert)
         return alert
-    except SQLAlchemyError as e:
-        logger.error(f"Database error marking alert {alert_id} as read: {str(e)}")
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
         db.rollback()
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error marking alert {alert_id} as read: {str(e)}")
+        logger.exception("Database error during mark_alert_read id=%s: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
         db.rollback()
-        return None
+        logger.exception("Failed to mark alert as read id=%s: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to mark alert as read",
+        ) from exc
 
 
 def mark_all_alerts_read(db: Session, tenant_id: int, user: User | None = None) -> int:
-    """Mark all unread alerts as read for the tenant. Returns count of updated alerts."""
     try:
         stmt = select(Alert).where(Alert.tenant_id == tenant_id, Alert.is_read.is_(False))
         alerts = list(db.scalars(stmt).all())
@@ -218,18 +268,25 @@ def mark_all_alerts_read(db: Session, tenant_id: int, user: User | None = None) 
             updated_count += 1
         db.commit()
         return updated_count
-    except SQLAlchemyError as e:
-        logger.error(f"Database error marking all alerts as read for tenant {tenant_id}: {str(e)}")
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
         db.rollback()
-        return 0
-    except Exception as e:
-        logger.error(f"Unexpected error marking all alerts as read for tenant {tenant_id}: {str(e)}")
+        logger.exception("Database error during mark_all_alerts_read for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
         db.rollback()
-        return 0
+        logger.exception("Failed to mark all alerts as read for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to mark all alerts as read",
+        ) from exc
 
 
 def delete_alert(db: Session, alert_id: int, tenant_id: int) -> bool:
-    """Delete an alert. Returns True on success, False on failure."""
     try:
         alert = get_alert(db, alert_id, tenant_id)
         if not alert:
@@ -237,24 +294,37 @@ def delete_alert(db: Session, alert_id: int, tenant_id: int) -> bool:
         db.delete(alert)
         db.commit()
         return True
-    except SQLAlchemyError as e:
-        logger.error(f"Database error deleting alert {alert_id}: {str(e)}")
+    except HTTPException:
+        raise
+    except IntegrityError as exc:
         db.rollback()
-        return False
-    except Exception as e:
-        logger.error(f"Unexpected error deleting alert {alert_id}: {str(e)}")
+        logger.exception(
+            "Integrity constraint violation deleting alert id=%s (referenced by another record): %s",
+            alert_id,
+            exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete alert: it is referenced by another record.",
+        ) from exc
+    except SQLAlchemyError as exc:
         db.rollback()
-        return False
-
-
+        logger.exception("Database error during delete_alert id=%s: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to delete alert id=%s: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete alert",
+        ) from exc
 
 
 def sync_low_stock_alerts(db: Session, tenant_id: int) -> list[Alert]:
-    """Create, update, or resolve low-stock alerts from current inventory levels.
-    
-    Wraps all database operations with exception handling to ensure consistency.
-    Returns list of low-stock alerts on success, empty list on failure.
-    """
+    """Create, update, or resolve low-stock alerts from current inventory levels."""
     try:
         dashboard = get_inventory_dashboard(db, tenant_id)
         low_items = [i for i in dashboard if i.get("needs_reorder")]
@@ -308,11 +378,19 @@ def sync_low_stock_alerts(db: Session, tenant_id: int) -> list[Alert]:
 
         db.commit()
         return list_alerts(db, tenant_id, alert_type="low_stock")
-    except SQLAlchemyError as e:
-        logger.error(f"Database error syncing low stock alerts for tenant {tenant_id}: {str(e)}")
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
         db.rollback()
-        return []
-    except Exception as e:
-        logger.error(f"Unexpected error syncing low stock alerts for tenant {tenant_id}: {str(e)}")
+        logger.exception("Database error during sync_low_stock_alerts for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
         db.rollback()
-        return []
+        logger.exception("Failed to sync low stock alerts for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to sync low stock alerts",
+        ) from exc

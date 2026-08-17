@@ -79,19 +79,45 @@ def mask_mobile(mobile: str | None) -> str:
 
 
 def send_otp_sms(mobile: str, code: str) -> None:
-    """Deliver OTP via SMS. Logs to console in development when SMS is not configured."""
+    """Deliver OTP via SMS. Dispatches via SMS provider API when sms_api_key is configured."""
+    import json
+    import urllib.request
+    from fastapi import HTTPException
     from app.core.config import get_settings
 
     settings = get_settings()
     masked = mask_mobile(mobile)
     if settings.sms_api_key:
-        logger.info("SMS OTP queued for %s (expires in %s min)", masked, OTP_EXPIRE_MINUTES)
-        # Production: integrate SMS provider using settings.sms_api_key
+        api_url = getattr(settings, "sms_api_url", None) or "https://api.sms-provider.com/v1/send"
+        message_text = f"Your verification OTP code is {code}. Valid for {OTP_EXPIRE_MINUTES} minutes."
+
+        payload_data = {
+            "mobile": mobile,
+            "message": message_text,
+            "code": code,
+            "sender": "GNSERP",
+        }
+
+        try:
+            req_data = json.dumps(payload_data).encode("utf-8")
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": settings.sms_api_key,
+                "x-api-key": settings.sms_api_key,
+            }
+            req = urllib.request.Request(api_url, data=req_data, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                logger.info("SMS OTP sent to %s via SMS provider (status=%s)", masked, resp.status)
+        except Exception as exc:
+            logger.exception("Failed to send SMS OTP to %s via SMS provider: %s", masked, exc)
+            raise HTTPException(
+                status_code=502,
+                detail=f"SMS delivery failed via SMS provider: {exc}",
+            ) from exc
     else:
         logger.info(
-            "[DEV OTP] Mobile: %s | OTP: %s | expires_in=%sm",
-            mobile,
-            code,
+            "SMS not configured: OTP generated for %s (expires in %s min)",
+            masked,
             OTP_EXPIRE_MINUTES,
         )
 
@@ -197,6 +223,15 @@ def create_login_challenge(
     Create a new OTP challenge.
     Invalidates prior OTPs, rate-limits sends, stores hashed OTP only.
     """
+    try:
+        db.scalars(
+            select(PlatformSuperAdmin)
+            .where(PlatformSuperAdmin.id == admin.id)
+            .with_for_update()
+        ).first()
+    except Exception:
+        pass
+
     purge_expired_otps(db)
 
     from app.core.config import get_settings
@@ -223,6 +258,7 @@ def create_login_challenge(
             select(OtpChallenge)
             .where(OtpChallenge.super_admin_id == admin.id)
             .order_by(OtpChallenge.id.desc())
+            .with_for_update()
         ).first()
         sent_at = None
         if latest is not None:
@@ -277,9 +313,21 @@ def create_login_challenge(
         ip_address=ip_address,
         user_agent=user_agent,
     )
-    db.commit()
-
-    send_otp_sms(admin.mobile, code)
+    try:
+        send_otp_sms(admin.mobile, code)
+        db.commit()
+    except Exception as exc:
+        logger.exception("Failed to send OTP SMS for admin id=%s: %s", admin.id, exc)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        if isinstance(exc, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to send OTP SMS. Transaction has been rolled back.",
+        ) from exc
 
     from app.core.config import get_settings
 
@@ -291,13 +339,6 @@ def create_login_challenge(
         "resend_after_seconds": RESEND_COOLDOWN_SECONDS,
         "message": "OTP sent to your registered mobile number.",
     }
-    # Development only: surface OTP when SMS gateway is not configured
-    if not settings.is_production and not settings.sms_api_key:
-        payload["dev_otp"] = code
-        payload["message"] = (
-            "OTP generated (development mode — SMS not configured). "
-            "Use the code shown on the verification screen."
-        )
     return payload
 
 

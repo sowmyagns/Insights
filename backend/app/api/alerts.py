@@ -1,9 +1,12 @@
+import logging
 from datetime import datetime
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status as http_status
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
+
+logger = logging.getLogger(__name__)
 
 from app.api.auth_deps import get_current_user
 from app.api.deps import get_db
@@ -42,18 +45,23 @@ def create_alert_endpoint(
         payload.tenant_id = user.tenant_id
         if not payload.created_by:
             payload.created_by = getattr(user, "full_name", None) or getattr(user, "name", None) or user.email or "HR Manager"
-        alert = create_alert(db, payload)
-        if alert is None:
-            raise HTTPException(500, "Failed to create alert")
-        return alert
+        return create_alert(db, payload)
     except HTTPException:
         raise
-    except SQLAlchemyError as e:
-        logger.error(f"Database error creating alert: {str(e)}")
-        raise HTTPException(503, "Database service unavailable")
-    except Exception as e:
-        logger.error(f"Unexpected error creating alert: {str(e)}")
-        raise HTTPException(500, "Failed to create alert")
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error creating alert in API: %s", exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to create alert in API: %s", exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create alert",
+        ) from exc
 
 
 @router.get("", response_model=AlertListResponse)
@@ -99,12 +107,20 @@ def list_alerts_endpoint(
         )
     except HTTPException:
         raise
-    except SQLAlchemyError as e:
-        logger.error(f"Database error listing alerts for tenant {user.tenant_id}: {str(e)}")
-        raise HTTPException(503, "Database service unavailable")
-    except Exception as e:
-        logger.error(f"Unexpected error listing alerts for tenant {user.tenant_id}: {str(e)}")
-        raise HTTPException(500, "Failed to retrieve alerts")
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error listing alerts in API: %s", exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to list alerts in API: %s", exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list alerts",
+        ) from exc
 
 
 @router.get("/notifications")
@@ -174,12 +190,20 @@ def sync_low_stock_endpoint(
         return sync_low_stock_alerts(db, tenant_id)
     except HTTPException:
         raise
-    except SQLAlchemyError as e:
-        logger.error(f"Database error syncing low stock alerts for tenant {tenant_id}: {str(e)}")
-        raise HTTPException(503, "Database service unavailable")
-    except Exception as e:
-        logger.error(f"Unexpected error syncing low stock alerts for tenant {tenant_id}: {str(e)}")
-        raise HTTPException(500, "Failed to sync low stock alerts")
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error syncing low stock alerts in API: %s", exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to sync low stock alerts in API: %s", exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to sync low stock alerts",
+        ) from exc
 
 
 @router.post("/mark-all-read")
@@ -192,12 +216,20 @@ def mark_all_read_endpoint(
         return {"updated": updated}
     except HTTPException:
         raise
-    except SQLAlchemyError as e:
-        logger.error(f"Database error marking all alerts as read for tenant {user.tenant_id}: {str(e)}")
-        raise HTTPException(503, "Database service unavailable")
-    except Exception as e:
-        logger.error(f"Unexpected error marking all alerts as read for tenant {user.tenant_id}: {str(e)}")
-        raise HTTPException(500, "Failed to mark alerts as read")
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error marking all alerts read in API: %s", exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to mark all alerts read in API: %s", exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to mark all alerts as read",
+        ) from exc
 
 
 @router.put("/{alert_id}/read", response_model=AlertRead)
@@ -213,12 +245,20 @@ def mark_read_endpoint(
         return alert
     except HTTPException:
         raise
-    except SQLAlchemyError as e:
-        logger.error(f"Database error marking alert {alert_id} as read: {str(e)}")
-        raise HTTPException(503, "Database service unavailable")
-    except Exception as e:
-        logger.error(f"Unexpected error marking alert {alert_id} as read: {str(e)}")
-        raise HTTPException(500, "Failed to mark alert as read")
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error marking alert read id=%s in API: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to mark alert read id=%s in API: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to mark alert as read",
+        ) from exc
 
 
 @router.get("/{alert_id}", response_model=AlertRead)
@@ -234,12 +274,20 @@ def get_alert_endpoint(
         return alert
     except HTTPException:
         raise
-    except SQLAlchemyError as e:
-        logger.error(f"Database error retrieving alert {alert_id}: {str(e)}")
-        raise HTTPException(503, "Database service unavailable")
-    except Exception as e:
-        logger.error(f"Unexpected error retrieving alert {alert_id}: {str(e)}")
-        raise HTTPException(500, "Failed to retrieve alert")
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error getting alert id=%s in API: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to get alert id=%s in API: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve alert",
+        ) from exc
 
 
 @router.post("/{alert_id}/acknowledge")
@@ -257,12 +305,20 @@ def acknowledge_alert_endpoint(
         return {"acknowledged": True, "id": alert.id}
     except HTTPException:
         raise
-    except SQLAlchemyError as e:
-        logger.error(f"Database error acknowledging alert {alert_id}: {str(e)}")
-        raise HTTPException(503, "Database service unavailable")
-    except Exception as e:
-        logger.error(f"Unexpected error acknowledging alert {alert_id}: {str(e)}")
-        raise HTTPException(500, "Failed to acknowledge alert")
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error acknowledging alert id=%s in API: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to acknowledge alert id=%s in API: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to acknowledge alert",
+        ) from exc
 
 
 @router.put("/{alert_id}/acknowledge", response_model=AlertRead)
@@ -280,12 +336,20 @@ def acknowledge_alert_put_endpoint(
         return alert
     except HTTPException:
         raise
-    except SQLAlchemyError as e:
-        logger.error(f"Database error acknowledging alert {alert_id}: {str(e)}")
-        raise HTTPException(503, "Database service unavailable")
-    except Exception as e:
-        logger.error(f"Unexpected error acknowledging alert {alert_id}: {str(e)}")
-        raise HTTPException(500, "Failed to acknowledge alert")
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error acknowledging alert id=%s in API: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to acknowledge alert id=%s in API: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to acknowledge alert",
+        ) from exc
 
 
 @router.put("/{alert_id}/resolve", response_model=AlertRead)
@@ -303,12 +367,20 @@ def resolve_alert_endpoint(
         return alert
     except HTTPException:
         raise
-    except SQLAlchemyError as e:
-        logger.error(f"Database error resolving alert {alert_id}: {str(e)}")
-        raise HTTPException(503, "Database service unavailable")
-    except Exception as e:
-        logger.error(f"Unexpected error resolving alert {alert_id}: {str(e)}")
-        raise HTTPException(500, "Failed to resolve alert")
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error resolving alert id=%s in API: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to resolve alert id=%s in API: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to resolve alert",
+        ) from exc
 
 
 @router.delete("/{alert_id}")
@@ -325,9 +397,24 @@ def delete_alert_endpoint(
         return {"deleted": True, "id": alert_id}
     except HTTPException:
         raise
-    except SQLAlchemyError as e:
-        logger.error(f"Database error deleting alert {alert_id}: {str(e)}")
-        raise HTTPException(503, "Database service unavailable")
-    except Exception as e:
-        logger.error(f"Unexpected error deleting alert {alert_id}: {str(e)}")
-        raise HTTPException(500, "Failed to delete alert")
+    except IntegrityError as exc:
+        db.rollback()
+        logger.exception("Integrity constraint violation deleting alert id=%s in API: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail="Cannot delete alert: it is referenced by another record.",
+        ) from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error deleting alert id=%s in API: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection unavailable",
+        ) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to delete alert id=%s in API: %s", alert_id, exc)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete alert",
+        ) from exc

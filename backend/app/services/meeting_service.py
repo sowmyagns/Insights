@@ -255,6 +255,51 @@ def delete_meeting(
     return True
 
 
+def sync_meeting_to_google(
+    db: Session,
+    *,
+    tenant_id: int,
+    user: User,
+    meeting_id: int,
+) -> tuple[dict | None, str | None]:
+    """Push an existing (unsynced) meeting to Google Calendar, or update if already there."""
+    meeting = get_meeting(db, tenant_id=tenant_id, meeting_id=meeting_id)
+    if not meeting:
+        return None, None
+    google_status = gcal.get_connection_status(db, tenant_id=tenant_id, user_id=user.id)
+    if not google_status["connected"]:
+        return meeting_to_read(meeting, google_status=google_status), (
+            "Connect Google Calendar first."
+        )
+    warning: str | None = None
+    try:
+        if meeting.google_calendar_event_id:
+            # Already on Google Calendar — update it
+            gcal.update_calendar_event(
+                db,
+                tenant_id=tenant_id,
+                user_id=user.id,
+                meeting=meeting,
+                include_meet=bool(meeting.create_google_meet_requested),
+            )
+        else:
+            # Not yet on Google Calendar — create it
+            gcal.create_calendar_event(
+                db,
+                tenant_id=tenant_id,
+                user_id=user.id,
+                meeting=meeting,
+                include_meet=bool(meeting.create_google_meet_requested),
+            )
+        db.commit()
+        db.refresh(meeting)
+    except Exception as exc:
+        warning = str(getattr(exc, "detail", exc)) if hasattr(exc, "detail") else str(exc)
+    google_status = gcal.get_connection_status(db, tenant_id=tenant_id, user_id=user.id)
+    return meeting_to_read(meeting, google_status=google_status), warning
+
+
+
 def create_meet_for_meeting(
     db: Session,
     *,
@@ -284,3 +329,105 @@ def create_meet_for_meeting(
 
     google_status = gcal.get_connection_status(db, tenant_id=tenant_id, user_id=user.id)
     return meeting_to_read(meeting, google_status=google_status), None
+
+
+def import_from_google_calendar(
+    db: Session,
+    *,
+    tenant_id: int,
+    user: User,
+) -> dict:
+    """Pull events from Google Calendar and create/update them as ERP meetings.
+
+    - Skips events that already exist in the DB (matched by google_calendar_event_id).
+    - Returns counts of imported and skipped events.
+    """
+    from datetime import date, time
+    import re
+
+    google_status = gcal.get_connection_status(db, tenant_id=tenant_id, user_id=user.id)
+    if not google_status["connected"]:
+        return {"imported": 0, "skipped": 0, "error": "Google Calendar is not connected."}
+
+    try:
+        events = gcal.fetch_google_calendar_events(db, tenant_id=tenant_id, user_id=user.id)
+    except Exception as exc:
+        return {"imported": 0, "skipped": 0, "error": str(getattr(exc, "detail", exc))}
+
+    imported = 0
+    skipped = 0
+
+    for ev in events:
+        gid = ev.get("google_event_id")
+        if not gid:
+            skipped += 1
+            continue
+
+        # Check if already imported
+        existing = db.scalars(
+            select(Meeting).where(
+                Meeting.tenant_id == tenant_id,
+                Meeting.google_calendar_event_id == gid,
+            )
+        ).first()
+        if existing:
+            skipped += 1
+            continue
+
+        # Parse start datetime (ISO format: "2026-08-17T14:30:00+05:30" or "2026-08-17")
+        start_raw = ev.get("start", "")
+        end_raw = ev.get("end", "")
+        try:
+            if "T" in start_raw:
+                # Timed event — strip timezone offset for naive parsing
+                start_clean = re.sub(r"[+-]\d{2}:\d{2}$", "", start_raw.replace("Z", ""))
+                end_clean = re.sub(r"[+-]\d{2}:\d{2}$", "", end_raw.replace("Z", ""))
+                from datetime import datetime as dt
+                start_dt = dt.fromisoformat(start_clean)
+                end_dt = dt.fromisoformat(end_clean)
+                meeting_date = start_dt.date()
+                start_time = start_dt.time()
+                end_time = end_dt.time()
+            else:
+                # All-day event
+                meeting_date = date.fromisoformat(start_raw)
+                start_time = time(9, 0)
+                end_time = time(10, 0)
+        except Exception:
+            skipped += 1
+            continue
+
+        # Ensure end > start (Google Calendar sometimes has same time)
+        if end_time <= start_time:
+            from datetime import timedelta
+            end_time = (
+                __import__("datetime").datetime.combine(meeting_date, start_time)
+                + __import__("datetime").timedelta(hours=1)
+            ).time()
+
+        attendees = [e for e in (ev.get("attendees") or []) if e]
+        meeting = Meeting(
+            tenant_id=tenant_id,
+            created_by_user_id=user.id,
+            title=ev.get("title") or "(No title)",
+            meeting_type="other",
+            meeting_date=meeting_date,
+            start_time=start_time,
+            end_time=end_time,
+            timezone=ev.get("timezone") or get_settings().google_calendar_default_timezone,
+            organizer=ev.get("organizer_email") or user.full_name or user.email,
+            location=ev.get("location"),
+            description=ev.get("description"),
+            status="scheduled",
+            google_calendar_event_id=gid,
+            google_calendar_event_url=ev.get("google_calendar_event_url"),
+            google_meet_url=ev.get("google_meet_url"),
+            google_meet_status="available" if ev.get("google_meet_url") else None,
+            create_google_meet_requested=bool(ev.get("google_meet_url")),
+            participants=_participant_rows(attendees),
+        )
+        db.add(meeting)
+        imported += 1
+
+    db.commit()
+    return {"imported": imported, "skipped": skipped, "error": None}

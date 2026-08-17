@@ -1,4 +1,8 @@
-from sqlalchemy import or_, select
+import logging
+
+from fastapi import HTTPException, status
+from sqlalchemy import func, or_, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 import logging
@@ -45,21 +49,63 @@ def list_documents(
     tenant_id: int,
     doc_type: str | None = None,
 ) -> list[Document]:
-    stmt = select(Document).where(Document.tenant_id == tenant_id)
-    if doc_type:
-        dt = doc_type.lower()
-        stmt = stmt.where(or_(Document.doc_type == doc_type, Document.doc_type == dt))
-    stmt = stmt.order_by(Document.created_at.desc())
-    return list(db.scalars(stmt).all())
+    try:
+        stmt = select(Document).where(Document.tenant_id == tenant_id)
+        if doc_type and doc_type.strip():
+            target_dt = doc_type.strip().lower()
+            stmt = stmt.where(func.lower(Document.doc_type) == target_dt)
+        stmt = stmt.order_by(Document.created_at.desc())
+        return list(db.scalars(stmt).all())
+    except SQLAlchemyError as exc:
+        logger.exception("Database error in list_documents for tenant_id=%s: %s", tenant_id, exc)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database error retrieving document list.",
+        ) from exc
+    except Exception as exc:
+        logger.exception("Unexpected error in list_documents for tenant_id=%s: %s", tenant_id, exc)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve document list.",
+        ) from exc
 
 
 def get_document(db: Session, document_id: int, tenant_id: int | None = None) -> Document | None:
-    doc = db.get(Document, document_id)
-    if not doc:
-        return None
-    if tenant_id is not None and doc.tenant_id != tenant_id:
-        return None
-    return doc
+    try:
+        doc = db.get(Document, document_id)
+        if not doc:
+            return None
+        if tenant_id is not None and doc.tenant_id != tenant_id:
+            return None
+        return doc
+    except SQLAlchemyError as exc:
+        logger.exception("Database error in get_document document_id=%s: %s", document_id, exc)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database error retrieving document.",
+        ) from exc
+    except Exception as exc:
+        logger.exception("Unexpected error in get_document document_id=%s: %s", document_id, exc)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve document.",
+        ) from exc
 
 
 def update_document(

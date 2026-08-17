@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { login as loginApi, getApiErrorMessage } from "../../api/authApi";
 import useAuth from "../../hooks/useAuth";
 import AuthSlider from "../../components/auth/AuthSlider";
+import LoginBackdrop from "../../components/auth/LoginBackdrop";
 import PasswordInput from "../../components/auth/PasswordInput";
 import BrandLogo from "../../components/common/BrandLogo";
 import { ROLES } from "../../config/permissions";
@@ -65,29 +66,36 @@ export default function Login() {
     }
   };
 
+  const fieldClass =
+    "box-border h-11 w-full min-w-0 rounded-lg border-none bg-gray-100 py-2.5 pl-11 pr-4 text-sm text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500";
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-      <div className="w-full max-w-4xl">
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden relative" style={{ minHeight: "480px" }}>
-          <div className="flex">
-            <div className="w-1/2 flex flex-col justify-center items-center p-12 bg-white">
-              <div className="text-center mb-8 w-full">
-                <div className="mb-4 flex justify-center">
-                  <BrandLogo size="xl" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-3 sm:p-4">
+      <LoginBackdrop />
+      <div className="relative z-10 w-full max-w-3xl">
+        <div
+          className="relative overflow-hidden rounded-3xl bg-white shadow-2xl"
+          style={{ minHeight: "420px" }}
+        >
+          <div className="flex min-h-[420px] flex-col md:flex-row">
+            <div className="flex w-full flex-col items-center justify-center bg-white px-6 py-8 sm:px-8 md:w-1/2 md:py-9 lg:px-10">
+              <div className="mb-5 w-full text-center">
+                <div className="mb-3 flex justify-center">
+                  <BrandLogo size="xl" imageClassName="h-[4.5rem]" />
                 </div>
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">Insights Iva</h1>
-                <p className="text-gray-600 text-sm">Business Intelligence • Analytics • AI</p>
+                <h1 className="mb-1.5 text-3xl font-bold text-gray-900">Insights Iva</h1>
+                <p className="text-sm text-gray-600">Business Intelligence • Analytics • AI</p>
               </div>
 
               {error && (
-                <div className="w-full mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+                <div className="mb-3 w-full rounded-lg border border-red-400 bg-red-100 p-2.5 text-sm text-red-700">
                   {error}
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="w-full space-y-4">
+              <form onSubmit={handleSubmit} className="w-full space-y-3">
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 z-10 -translate-y-1/2 text-gray-400 pointer-events-none">
+                  <div className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-gray-400">
                     <RoleIcon />
                   </div>
                   <select
@@ -95,7 +103,7 @@ export default function Login() {
                     onChange={(e) => setRole(e.target.value)}
                     required
                     aria-label="Role"
-                    className="box-border h-12 w-full min-w-0 rounded-lg border-none bg-gray-100 py-3 pl-12 pr-10 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none cursor-pointer"
+                    className={`${fieldClass} appearance-none cursor-pointer pr-10`}
                   >
                     <option value="" disabled>
                       Select Role *
@@ -114,7 +122,7 @@ export default function Login() {
                 </div>
 
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 z-10 -translate-y-1/2 text-gray-400 pointer-events-none">
+                  <div className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-gray-400">
                     <EnvelopeIcon />
                   </div>
                   <input
@@ -123,7 +131,7 @@ export default function Login() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     autoComplete="username"
-                    className="box-border h-12 w-full min-w-0 rounded-lg border-none bg-gray-100 py-3 pl-12 pr-4 text-sm text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className={fieldClass}
                     required
                   />
                 </div>
@@ -134,10 +142,11 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   leftIcon={<LockIcon />}
                   autoComplete="current-password"
+                  inputClassName="!h-11 !py-2.5 !pl-11"
                   required
                 />
 
-                <div className="flex justify-between items-center text-xs">
+                <div className="flex items-center justify-between text-xs">
                   <Link to="/forgot-password" className="text-gray-600 hover:text-teal-600">
                     Forgot Your Password?
                   </Link>
@@ -146,13 +155,13 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 bg-teal-600 hover:bg-[var(--color-success)] text-white font-bold uppercase tracking-wider rounded-lg transition disabled:opacity-50"
+                  className="w-full rounded-lg bg-teal-600 py-2.5 text-sm font-bold uppercase tracking-wider text-white transition hover:bg-[var(--color-success)] disabled:opacity-50"
                 >
                   {loading ? "Signing in..." : "SIGN IN"}
                 </button>
               </form>
 
-              <p className="mt-6 text-center text-xs text-gray-500">
+              <p className="mt-4 text-center text-xs text-gray-500">
                 GNS Super Admin?{" "}
                 <Link to="/gns-admin/login" className="font-medium text-teal-600 hover:underline">
                   Admin Portal
@@ -160,9 +169,9 @@ export default function Login() {
               </p>
             </div>
 
-            <AuthSlider className="w-1/2">
-              <h2 className="text-4xl font-bold mb-4">Welcome</h2>
-              <p className="text-center text-sm mb-8 max-w-xs text-teal-50/90">
+            <AuthSlider className="min-h-[220px] w-full md:min-h-0 md:w-1/2" contentClassName="p-8 lg:p-10">
+              <h2 className="mb-3 text-3xl font-bold">Welcome</h2>
+              <p className="mb-5 max-w-xs text-center text-sm text-teal-50/90">
                 Sign in with your company email, password, and role to open your dashboard.
               </p>
             </AuthSlider>

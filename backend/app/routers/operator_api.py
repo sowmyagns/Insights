@@ -1,7 +1,7 @@
 """Operator REST API — all /api/* endpoints."""
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -128,8 +128,9 @@ def api_login(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    from fastapi import HTTPException
+    from fastapi import HTTPException, status
     from fastapi.responses import JSONResponse
+    from sqlalchemy.exc import SQLAlchemyError
 
     from app.services.audit_log_service import AuditLogService
     from app.services.auth_service import (

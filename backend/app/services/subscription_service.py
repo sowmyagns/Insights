@@ -6,11 +6,14 @@ Uses existing ``tenants`` + ``company_licenses`` fields.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.models.platform import CompanyLicense
 from app.models.tenant import Tenant
@@ -118,9 +121,13 @@ def _resolve_tenant(db: Session, user: User) -> Tenant:
 
 
 def _license_row(db: Session, tenant_id: int) -> CompanyLicense | None:
-    return db.scalars(
-        select(CompanyLicense).where(CompanyLicense.tenant_id == tenant_id)
-    ).first()
+    try:
+        return db.scalars(
+            select(CompanyLicense).where(CompanyLicense.tenant_id == tenant_id)
+        ).first()
+    except Exception as exc:
+        logger.warning("Error querying CompanyLicense for tenant_id=%s: %s", tenant_id, exc)
+        return None
 
 
 def _trial_active(tenant: Tenant) -> bool:
@@ -136,9 +143,33 @@ def get_current_subscription(db: Session, user: User) -> dict:
     tenant = _resolve_tenant(db, user)
     license_row = _license_row(db, tenant.id)
 
+    trial_active = _trial_active(tenant)
+    exp = _as_aware(tenant.trial_expires_at)
+    if exp is not None and exp <= datetime.now(timezone.utc) and (tenant.trial_status or tenant.subscription == "trial" or tenant.license_status == "trial"):
+        tenant.trial_status = False
+        tenant.license_status = "expired"
+        if tenant.subscription == "trial":
+            tenant.subscription = "expired"
+        if license_row:
+            license_row.status = "expired"
+            if license_row.plan == "trial":
+                license_row.plan = "expired"
+        try:
+            db.commit()
+            db.refresh(tenant)
+            if license_row:
+                db.refresh(license_row)
+        except Exception as exc:
+            db.rollback()
+            logger.warning("Failed to persist expired trial status for tenant %s: %s", tenant.id, exc)
+
     plan_raw = (license_row.plan if license_row else None) or tenant.subscription or "free"
     plan_key = str(plan_raw).strip().lower()
-    if plan_key == "trial":
+
+    found_catalog = _plan_by_id(plan_key)
+    if found_catalog and not (plan_key == "trial" and not trial_active):
+        catalog = found_catalog
+    elif plan_key == "trial" and trial_active:
         catalog = {
             "id": "trial",
             "name": "TRIAL",
@@ -149,29 +180,46 @@ def get_current_subscription(db: Session, user: User) -> dict:
                 "Upgrade anytime to Growth, Scale, or Dominate",
             ],
         }
+    elif plan_key in ("trial", "expired") or (exp is not None and exp <= datetime.now(timezone.utc) and tenant.trial_expires_at is not None):
+        catalog = {
+            "id": "expired",
+            "name": "EXPIRED",
+            "price": "₹0",
+            "billing_label": "Trial Expired",
+            "features": [
+                "Trial has expired",
+                "Upgrade to Growth, Scale, or Dominate to restore full access",
+            ],
+        }
     else:
-        catalog = _plan_by_id(plan_key) or _plan_by_id("free")
+        logger.warning("Unsupported or corrupted subscription plan '%s' for tenant %s", plan_raw, tenant.id)
+        catalog = {
+            "id": plan_key,
+            "name": f"INVALID ({str(plan_raw).upper()})",
+            "price": None,
+            "billing_label": f"Invalid Plan: {plan_raw}",
+            "features": ["Unsupported subscription plan stored on account. Please contact support."],
+        }
 
-    trial_active = _trial_active(tenant)
-    can_activate_trial = not trial_active and plan_key in {"free", "trial", ""}
-
-    # If still free with no expiry, allow activate
-    if plan_key == "free" and not trial_active:
+    can_activate_trial = False
+    if plan_key == "free" and not tenant.trial_expires_at and not tenant.trial_status:
         can_activate_trial = True
-    if trial_active:
-        can_activate_trial = False
-    if plan_key in {"growth", "scale", "dominate", "enterprise"}:
-        can_activate_trial = False
+
+    license_status_val = tenant.license_status or (license_row.status if license_row else "active")
+    if not trial_active and exp is not None and exp <= datetime.now(timezone.utc):
+        license_status_val = "expired"
+    elif catalog.get("id") == plan_key and "INVALID" in catalog.get("name", ""):
+        license_status_val = "invalid"
 
     return {
-        "subscription_plan": _normalize_plan(plan_raw) or catalog.get("name"),
+        "subscription_plan": catalog.get("name") if catalog else _normalize_plan(plan_raw),
         "plan_id": catalog.get("id") if catalog else plan_key,
         "plan_name": catalog.get("name") if catalog else plan_raw,
         "price": catalog.get("price") if catalog else None,
         "billing_label": catalog.get("billing_label") or catalog.get("billing"),
         "features": (catalog or {}).get("features") or [],
-        "license_status": tenant.license_status or (license_row.status if license_row else "active"),
-        "trial_status": bool(tenant.trial_status),
+        "license_status": license_status_val,
+        "trial_status": bool(tenant.trial_status and trial_active),
         "trial_active": trial_active,
         "trial_days": tenant.trial_days or DEFAULT_TRIAL_DAYS,
         "trial_expires_at": _iso(tenant.trial_expires_at),

@@ -1,6 +1,10 @@
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
+
+VALID_VENDOR_BILL_STATUSES = frozenset(
+    {"pending", "approved", "paid", "rejected", "overdue", "cancelled"}
+)
 
 
 class MRSummaryRead(BaseModel):
@@ -40,10 +44,10 @@ class RFQCreate(BaseModel):
 
 
 class VendorQuotationCreate(BaseModel):
-    supplier_id: int
-    price: float
-    delivery_days: int | None = 7
-    gst_pct: float | None = 18.0
+    supplier_id: int = Field(..., ge=1)
+    price: float = Field(..., ge=0.0)
+    delivery_days: int | None = Field(7, ge=0)
+    gst_pct: float | None = Field(18.0, ge=0.0, le=100.0)
     warranty: str | None = "1 Year"
 
 
@@ -118,11 +122,11 @@ class GRNListRead(BaseModel):
 
 class VendorBillCreate(BaseModel):
     bill_number: str | None = None
-    supplier_id: int
-    purchase_order_id: int | None = None
-    goods_receipt_id: int | None = None
-    amount: float
-    gst_amount: float | None = None
+    supplier_id: int = Field(..., ge=1)
+    purchase_order_id: int | None = Field(None, ge=1)
+    goods_receipt_id: int | None = Field(None, ge=1)
+    amount: float = Field(..., ge=0.0)
+    gst_amount: float | None = Field(None, ge=0.0)
     bill_date: str | None = None
     due_date: str | None = None
 
@@ -137,6 +141,14 @@ class VendorBillUpdate(BaseModel):
 
 class VendorBillStatusUpdate(BaseModel):
     status: str
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, value: str) -> str:
+        s = (value or "").strip().lower()
+        if s not in VALID_VENDOR_BILL_STATUSES:
+            raise ValueError(f"Invalid vendor bill status. Allowed: {', '.join(sorted(VALID_VENDOR_BILL_STATUSES))}")
+        return s
 
 
 class VendorBillSummaryRead(BaseModel):
@@ -166,6 +178,6 @@ class ProcurementHubRead(BaseModel):
     active_vendors: int = 0
     outstanding_bills: float = 0
     todays_deliveries: int = 0
-    top_vendors: list[dict] = []
-    pending_orders: list[dict] = []
-    alerts: list[dict] = []
+    top_vendors: list[dict] = Field(default_factory=list)
+    pending_orders: list[dict] = Field(default_factory=list)
+    alerts: list[dict] = Field(default_factory=list)

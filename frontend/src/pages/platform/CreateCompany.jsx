@@ -264,7 +264,9 @@ function CreateCompanyForm() {
                   value={new Date(result.trial_expires_at).toLocaleString()}
                 />
               ) : null}
-              <Row label="Temporary Password" value={result.temporary_password} mono />
+              {result.temporary_password ? (
+                <Row label="Temporary Password" value={result.temporary_password} mono />
+              ) : null}
             </div>
 
             <p className="mt-4 text-xs text-slate-500">

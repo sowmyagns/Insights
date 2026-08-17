@@ -121,3 +121,46 @@ def test_customer_gstin_validation():
         gstin="27aaaaa0000a1z2",
     )
     assert customer.gstin == "27AAAAA0000A1Z2"
+
+
+def test_customer_credit_limit_and_outstanding_validation():
+    from app.schemas.sales import CustomerBase
+
+    # Negative credit_limit rejected on CustomerBase & CustomerCreate
+    with pytest.raises(ValidationError, match="cannot be negative"):
+        CustomerBase(tenant_id=1, name="Valid Company", credit_limit=-10000)
+
+    with pytest.raises(ValidationError, match="cannot be negative"):
+        CustomerCreate(tenant_id=1, name="Valid Company", credit_limit=-10000)
+
+    # Negative outstanding rejected on CustomerBase & CustomerCreate
+    with pytest.raises(ValidationError, match="cannot be negative"):
+        CustomerBase(tenant_id=1, name="Valid Company", outstanding=-5000)
+
+    with pytest.raises(ValidationError, match="cannot be negative"):
+        CustomerCreate(tenant_id=1, name="Valid Company", outstanding=-5000)
+
+    # Negative credit_limit and outstanding rejected on CustomerUpdate
+    with pytest.raises(ValidationError, match="cannot be negative"):
+        CustomerUpdate(credit_limit=-10000)
+
+    with pytest.raises(ValidationError, match="cannot be negative"):
+        CustomerUpdate(outstanding=-5000)
+
+    # Zero, None, and positive values accepted
+    c1 = CustomerCreate(tenant_id=1, name="Valid Company", credit_limit=0.0, outstanding=0.0)
+    assert c1.credit_limit == 0.0
+    assert c1.outstanding == 0.0
+
+    c2 = CustomerCreate(tenant_id=1, name="Valid Company", credit_limit=50000.0, outstanding=12500.0)
+    assert c2.credit_limit == 50000.0
+    assert c2.outstanding == 12500.0
+
+    u1 = CustomerUpdate(credit_limit=100000.0, outstanding=0.0)
+    assert u1.credit_limit == 100000.0
+    assert u1.outstanding == 0.0
+
+    u2 = CustomerUpdate(credit_limit=None, outstanding=None)
+    assert u2.credit_limit is None
+    assert u2.outstanding is None
+
