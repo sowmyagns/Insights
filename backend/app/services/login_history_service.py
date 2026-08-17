@@ -65,52 +65,60 @@ def record_login_history(
     role: str | None = None,
 ) -> LoginHistory:
     """Insert a login_history row for success or failure."""
-    parsed = parse_user_agent(user_agent)
-    company_id = None
-    company_name = None
-    full_name = None
-    user_id = None
-    resolved_role = role
+    try:
+        parsed = parse_user_agent(user_agent)
+        company_id = None
+        company_name = None
+        full_name = None
+        user_id = None
+        resolved_role = role
 
-    if user is not None:
-        user_id = user.id
-        full_name = user.full_name
-        company_id = user.tenant_id
-        if getattr(user, "tenant", None) is not None:
-            company_name = user.tenant.name
-        else:
-            db.refresh(user, ["tenant"])
-            company_name = user.tenant.name if user.tenant else None
-        if not resolved_role:
-            resolved_role = user.roles[0].name if user.roles else None
+        if user is not None:
+            user_id = user.id
+            full_name = user.full_name
+            company_id = user.tenant_id
+            if getattr(user, "tenant", None) is not None:
+                company_name = user.tenant.name
+            else:
+                db.refresh(user, ["tenant"])
+                company_name = user.tenant.name if user.tenant else None
+            if not resolved_role:
+                resolved_role = user.roles[0].name if user.roles else None
 
-    row = LoginHistory(
-        user_id=user_id,
-        company_id=company_id,
-        full_name=full_name,
-        company_name=company_name,
-        email=(email or "").lower().strip(),
-        role=resolved_role,
-        ip_address=ip_address,
-        browser=parsed["browser"],
-        operating_system=parsed["operating_system"],
-        device_type=parsed["device_type"],
-        login_status=STATUS_SUCCESS if success else STATUS_FAILED,
-        login_at=_utcnow(),
-        logout_at=None,
-        user_agent=(user_agent or "")[:512] or None,
-    )
-    db.add(row)
-    db.commit()
-    db.refresh(row)
-    logger.info(
-        "login_history_recorded status=%s email=%s user_id=%s company_id=%s",
-        row.login_status,
-        row.email,
-        row.user_id,
-        row.company_id,
-    )
-    return row
+        row = LoginHistory(
+            user_id=user_id,
+            company_id=company_id,
+            full_name=full_name,
+            company_name=company_name,
+            email=(email or "").lower().strip(),
+            role=resolved_role,
+            ip_address=ip_address,
+            browser=parsed["browser"],
+            operating_system=parsed["operating_system"],
+            device_type=parsed["device_type"],
+            login_status=STATUS_SUCCESS if success else STATUS_FAILED,
+            login_at=_utcnow(),
+            logout_at=None,
+            user_agent=(user_agent or "")[:512] or None,
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        logger.info(
+            "login_history_recorded status=%s email=%s user_id=%s company_id=%s",
+            row.login_status,
+            row.email,
+            row.user_id,
+            row.company_id,
+        )
+        return row
+    except ValueError:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        logger.exception("Failed to record login history for email=%s", email)
+        raise RuntimeError("Login history could not be recorded")
 
 
 def mark_logout(
@@ -120,29 +128,34 @@ def mark_logout(
     email: str | None = None,
 ) -> LoginHistory | None:
     """Set logout_at on the latest open successful session for the user."""
-    stmt = (
-        select(LoginHistory)
-        .where(
-            LoginHistory.login_status == STATUS_SUCCESS,
-            LoginHistory.logout_at.is_(None),
+    try:
+        stmt = (
+            select(LoginHistory)
+            .where(
+                LoginHistory.login_status == STATUS_SUCCESS,
+                LoginHistory.logout_at.is_(None),
+            )
+            .order_by(LoginHistory.login_at.desc())
         )
-        .order_by(LoginHistory.login_at.desc())
-    )
-    if user_id is not None:
-        stmt = stmt.where(LoginHistory.user_id == user_id)
-    elif email:
-        stmt = stmt.where(LoginHistory.email == email.lower().strip())
-    else:
-        return None
+        if user_id is not None:
+            stmt = stmt.where(LoginHistory.user_id == user_id)
+        elif email:
+            stmt = stmt.where(LoginHistory.email == email.lower().strip())
+        else:
+            return None
 
-    row = db.scalars(stmt).first()
-    if not row:
-        return None
-    row.logout_at = _utcnow()
-    db.commit()
-    db.refresh(row)
-    logger.info("login_history_logout id=%s user_id=%s", row.id, row.user_id)
-    return row
+        row = db.scalars(stmt).first()
+        if not row:
+            return None
+        row.logout_at = _utcnow()
+        db.commit()
+        db.refresh(row)
+        logger.info("login_history_logout id=%s user_id=%s", row.id, row.user_id)
+        return row
+    except Exception:
+        db.rollback()
+        logger.exception("Failed to update logout time for user_id=%s email=%s", user_id, email)
+        raise RuntimeError("Logout history could not be updated")
 
 
 def list_for_user(db: Session, user_id: int, *, limit: int = 200) -> list[dict]:

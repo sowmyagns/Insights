@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger("gns_insights.journal_service")
 
 from app.models.accounts import JournalEntry, JournalLeg
 
@@ -26,49 +30,60 @@ def post_journal_entry(
     Create a balanced journal entry.
     Each leg: {"account": str, "debit": float, "credit": float}
     """
-    total_debit = sum(float(l.get("debit") or 0) for l in legs)
-    total_credit = sum(float(l.get("credit") or 0) for l in legs)
-    if round(total_debit, 2) != round(total_credit, 2):
-        raise ValueError(
-            f"Unbalanced journal: debit={total_debit} credit={total_credit}"
-        )
-    if total_debit <= 0:
-        raise ValueError("Journal must have positive amounts")
-
-    count = (
-        db.scalar(
-            select(func.count(JournalEntry.id)).where(
-                JournalEntry.tenant_id == tenant_id
+    try:
+        total_debit = sum(float(l.get("debit") or 0) for l in legs)
+        total_credit = sum(float(l.get("credit") or 0) for l in legs)
+        if round(total_debit, 2) != round(total_credit, 2):
+            raise ValueError(
+                f"Unbalanced journal: debit={total_debit} credit={total_credit}"
             )
-        )
-        or 0
-    )
-    entry_number = f"JV-{entry_date.year}-{count + 1:04d}"
+        if total_debit <= 0:
+            raise ValueError("Journal must have positive amounts")
 
-    entry = JournalEntry(
-        tenant_id=tenant_id,
-        entry_number=entry_number,
-        entry_date=entry_date,
-        reference=reference,
-        description=description,
-        status=status,
-        branch=branch,
-    )
-    db.add(entry)
-    db.flush()
-    for leg in legs:
-        db.add(
-            JournalLeg(
-                entry_id=entry.id,
-                account=str(leg.get("account") or "General"),
-                debit=float(leg.get("debit") or 0),
-                credit=float(leg.get("credit") or 0),
+        count = (
+            db.scalar(
+                select(func.count(JournalEntry.id)).where(
+                    JournalEntry.tenant_id == tenant_id
+                )
             )
+            or 0
         )
-    if commit:
-        db.commit()
-        db.refresh(entry)
-    return entry
+        entry_number = f"JV-{entry_date.year}-{count + 1:04d}"
+
+        entry = JournalEntry(
+            tenant_id=tenant_id,
+            entry_number=entry_number,
+            entry_date=entry_date,
+            reference=reference,
+            description=description,
+            status=status,
+            branch=branch,
+        )
+        db.add(entry)
+        db.flush()
+        for leg in legs:
+            db.add(
+                JournalLeg(
+                    entry_id=entry.id,
+                    account=str(leg.get("account") or "General"),
+                    debit=float(leg.get("debit") or 0),
+                    credit=float(leg.get("credit") or 0),
+                )
+            )
+        if commit:
+            db.commit()
+            db.refresh(entry)
+        return entry
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error while posting journal for tenant=%s", tenant_id)
+        raise RuntimeError("Journal posting failed: Database error") from exc
+    except Exception:
+        db.rollback()
+        raise
 
 
 def get_journal_entry(
@@ -95,60 +110,79 @@ def update_journal_entry(
     branch: str | None = None,
     legs: list[dict] | None = None,
 ) -> JournalEntry | None:
-    entry = db.scalar(
-        select(JournalEntry).where(
-            JournalEntry.id == entry_id, JournalEntry.tenant_id == tenant_id
+    try:
+        entry = db.scalar(
+            select(JournalEntry).where(
+                JournalEntry.id == entry_id, JournalEntry.tenant_id == tenant_id
+            )
         )
-    )
-    if not entry:
-        return None
-    if entry_date is not None:
-        entry.entry_date = entry_date
-    if reference is not None:
-        entry.reference = reference
-    if description is not None:
-        entry.description = description
-    if status is not None:
-        entry.status = status
-    if branch is not None:
-        entry.branch = branch
-    if legs is not None:
-        total_debit = sum(float(l.get("debit") or 0) for l in legs)
-        total_credit = sum(float(l.get("credit") or 0) for l in legs)
-        if round(total_debit, 2) != round(total_credit, 2):
-            raise ValueError(
-                f"Unbalanced journal: debit={total_debit} credit={total_credit}"
-            )
-        if total_debit <= 0:
-            raise ValueError("Journal must have positive amounts")
-        for existing in list(entry.legs or []):
-            db.delete(existing)
-        db.flush()
-        for leg in legs:
-            db.add(
-                JournalLeg(
-                    entry_id=entry.id,
-                    account=str(leg.get("account") or "General"),
-                    debit=float(leg.get("debit") or 0),
-                    credit=float(leg.get("credit") or 0),
+        if not entry:
+            return None
+        if entry_date is not None:
+            entry.entry_date = entry_date
+        if reference is not None:
+            entry.reference = reference
+        if description is not None:
+            entry.description = description
+        if status is not None:
+            entry.status = status
+        if branch is not None:
+            entry.branch = branch
+        if legs is not None:
+            total_debit = sum(float(l.get("debit") or 0) for l in legs)
+            total_credit = sum(float(l.get("credit") or 0) for l in legs)
+            if round(total_debit, 2) != round(total_credit, 2):
+                raise ValueError(
+                    f"Unbalanced journal: debit={total_debit} credit={total_credit}"
                 )
-            )
-    db.commit()
-    db.refresh(entry)
-    return entry
+            if total_debit <= 0:
+                raise ValueError("Journal must have positive amounts")
+            for existing in list(entry.legs or []):
+                db.delete(existing)
+            db.flush()
+            for leg in legs:
+                db.add(
+                    JournalLeg(
+                        entry_id=entry.id,
+                        account=str(leg.get("account") or "General"),
+                        debit=float(leg.get("debit") or 0),
+                        credit=float(leg.get("credit") or 0),
+                    )
+                )
+        db.commit()
+        db.refresh(entry)
+        return entry
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error while updating journal entry=%s", entry_id)
+        raise RuntimeError("Journal update failed: Database error") from exc
+    except Exception:
+        db.rollback()
+        raise
 
 
 def delete_journal_entry(db: Session, tenant_id: int, entry_id: int) -> bool:
-    entry = db.scalar(
-        select(JournalEntry).where(
-            JournalEntry.id == entry_id, JournalEntry.tenant_id == tenant_id
+    try:
+        entry = db.scalar(
+            select(JournalEntry).where(
+                JournalEntry.id == entry_id, JournalEntry.tenant_id == tenant_id
+            )
         )
-    )
-    if not entry:
-        return False
-    db.delete(entry)
-    db.commit()
-    return True
+        if not entry:
+            return False
+        db.delete(entry)
+        db.commit()
+        return True
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error while deleting journal entry=%s", entry_id)
+        raise RuntimeError("Journal deletion failed: Database error") from exc
+    except Exception:
+        db.rollback()
+        raise
 
 
 def post_sales_invoice_journal(
@@ -203,7 +237,15 @@ def post_sales_invoice_journal(
             commit=False,
         )
     except ValueError:
-        return None
+        db.rollback()
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error posting sales invoice journal invoice=%s", invoice_number)
+        raise RuntimeError("Sales invoice journal posting failed: Database error") from exc
+    except Exception:
+        db.rollback()
+        raise
 
 
 def post_sales_payment_journal(
@@ -232,4 +274,12 @@ def post_sales_payment_journal(
             commit=False,
         )
     except ValueError:
-        return None
+        db.rollback()
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error posting payment journal invoice=%s", invoice_number)
+        raise RuntimeError("Payment journal posting failed: Database error") from exc
+    except Exception:
+        db.rollback()
+        raise

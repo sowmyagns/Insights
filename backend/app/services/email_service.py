@@ -93,16 +93,39 @@ def _send_via_smtplib(
 
     try:
         with smtplib.SMTP(s.smtp_host, s.smtp_port, timeout=30) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(s.smtp_user, s.smtp_password)
-            server.send_message(msg)
+            try:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+            except smtplib.SMTPNotSupportedError as exc:
+                logger.error("SMTP server does not support STARTTLS to=%s: %s", to, str(exc))
+                raise EmailDeliveryError("SMTP server does not support required security.") from exc
+            except (smtplib.SMTPException, OSError) as exc:
+                logger.error("SMTP connection/TLS error to=%s: %s", to, str(exc))
+                raise EmailDeliveryError("SMTP connection or TLS negotiation failed.") from exc
+            
+            try:
+                server.login(s.smtp_user, s.smtp_password)
+            except smtplib.SMTPAuthenticationError as exc:
+                logger.error("SMTP authentication failed for user %s: %s", s.smtp_user, str(exc))
+                raise EmailDeliveryError("SMTP authentication failed - check credentials.") from exc
+            except smtplib.SMTPException as exc:
+                logger.error("SMTP login error to=%s: %s", to, str(exc))
+                raise EmailDeliveryError("SMTP login failed.") from exc
+            
+            try:
+                server.send_message(msg)
+            except smtplib.SMTPException as exc:
+                logger.error("SMTP send failed to=%s subject=%s: %s", to, subject, str(exc))
+                raise EmailDeliveryError("Failed to send email message via SMTP.") from exc
     except EmailDeliveryError:
         raise
+    except (OSError, TimeoutError) as exc:
+        logger.exception("Network/timeout error sending email to=%s subject=%s", to, subject)
+        raise EmailDeliveryError("Network error or SMTP server timeout.") from exc
     except Exception as exc:
-        logger.exception("email_send_failed to=%s subject=%s", to, subject)
-        raise EmailDeliveryError("Failed to send password reset email.") from exc
+        logger.exception("Unexpected error sending email to=%s subject=%s", to, subject)
+        raise EmailDeliveryError("Failed to send email due to an unexpected error.") from exc
 
 
 async def _send_via_fastapi_mail(
@@ -135,8 +158,8 @@ async def _send_via_fastapi_mail(
     try:
         await FastMail(conf).send_message(message)
     except Exception as exc:
-        logger.exception("email_send_failed to=%s subject=%s", to, subject)
-        raise EmailDeliveryError("Failed to send password reset email.") from exc
+        logger.error("FastAPI-Mail send failed to=%s subject=%s: %s", to, subject, str(exc))
+        raise EmailDeliveryError(f"FastAPI-Mail delivery failed: {str(exc)}") from exc
 
 
 async def send_email_async(
@@ -147,7 +170,12 @@ async def send_email_async(
     html: str | None = None,
     attachments: list[tuple[str, bytes, str]] | None = None,
 ) -> None:
-    """Send email asynchronously. Prefers FastAPI-Mail; otherwise smtplib."""
+    """
+    Send email asynchronously with fallback mechanism.
+    
+    Prefers FastAPI-Mail when available and no attachments;
+    automatically falls back to smtplib on failure.
+    """
     _require_smtp()
     if _HAS_FASTAPI_MAIL and not attachments:
         try:
@@ -155,9 +183,14 @@ async def send_email_async(
             return
         except EmailDeliveryError:
             raise
-        except Exception:
-            logger.warning("fastapi_mail_failed_falling_back_to_smtplib to=%s", to)
-    await asyncio.to_thread(_send_via_smtplib, to, subject, body, html=html, attachments=attachments)
+        except Exception as exc:
+            logger.warning("FastAPI-Mail sending failed, falling back to SMTP for to=%s: %s", to, str(exc))
+    
+    try:
+        await asyncio.to_thread(_send_via_smtplib, to, subject, body, html=html, attachments=attachments)
+    except Exception as exc:
+        logger.error("Email delivery failed for to=%s subject=%s: %s", to, subject, str(exc))
+        raise
 
 
 def send_email(

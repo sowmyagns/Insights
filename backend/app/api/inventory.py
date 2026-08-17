@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -186,14 +187,21 @@ def list_suppliers_endpoint(
     return list_suppliers(db, tenant_id)
 
 
-@router.post("/items", response_model=InventoryItemRead)
+@router.post("/items", response_model=InventoryItemRead, status_code=status.HTTP_201_CREATED)
 def create_item_endpoint(
     payload: InventoryItemCreate,
     user: User = Depends(require_permission(MODULE)),
     db: Session = Depends(get_db),
 ) -> InventoryItemRead:
-    payload.tenant_id = user.tenant_id
-    return create_inventory_item(db, payload)
+    try:
+        payload.tenant_id = user.tenant_id
+        return create_inventory_item(db, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=503, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to create inventory item") from exc
 
 
 @router.get("/items", response_model=list[InventoryItemRead])
@@ -243,12 +251,21 @@ def update_item_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     db: Session = Depends(get_db),
 ) -> InventoryItemRead:
-    item = update_inventory_item(
-        db, tenant_id, item_id, payload.model_dump(exclude_unset=True)
-    )
-    if not item:
-        raise HTTPException(404, "Item not found")
-    return item
+    try:
+        item = update_inventory_item(
+            db, tenant_id, item_id, payload.model_dump(exclude_unset=True)
+        )
+        if not item:
+            raise HTTPException(404, "Item not found")
+        return item
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=503, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to update inventory item") from exc
 
 
 @router.delete("/items/{item_id}")
@@ -257,9 +274,18 @@ def delete_item_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     db: Session = Depends(get_db),
 ):
-    if not delete_inventory_item(db, tenant_id, item_id):
-        raise HTTPException(404, "Item not found")
-    return {"ok": True, "id": item_id}
+    try:
+        if not delete_inventory_item(db, tenant_id, item_id):
+            raise HTTPException(404, "Item not found")
+        return {"ok": True, "id": item_id}
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=503, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to delete inventory item") from exc
 
 
 @router.get("/dashboard")
@@ -396,12 +422,21 @@ def create_transfer_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     db: Session = Depends(get_db),
 ):
-    t = create_transfer(db, tenant_id, payload)
-    rows = list_transfers(db, tenant_id)
-    match = next((r for r in rows if r.id == t.id), None)
-    if not match:
-        raise HTTPException(500, "Transfer created but could not be loaded")
-    return match
+    try:
+        t = create_transfer(db, tenant_id, payload)
+        rows = list_transfers(db, tenant_id)
+        match = next((r for r in rows if r.id == t.id), None)
+        if not match:
+            raise HTTPException(500, "Transfer created but could not be loaded")
+        return match
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e)) from e
+    except SQLAlchemyError as e:
+        raise HTTPException(503, detail="Database service unavailable") from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, detail="Failed to create transfer") from e
 
 
 @router.patch("/transfers/{transfer_id}/status", response_model=StockTransferRead)
@@ -411,14 +446,23 @@ def update_transfer_status_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     db: Session = Depends(get_db),
 ):
-    t = update_transfer_status(db, tenant_id, transfer_id, payload.status, payload.approved_by)
-    if not t:
-        raise HTTPException(404, "Stock transfer not found")
-    rows = list_transfers(db, tenant_id)
-    match = next((r for r in rows if r.id == t.id), None)
-    if not match:
-        raise HTTPException(500, "Transfer updated but could not be loaded")
-    return match
+    try:
+        t = update_transfer_status(db, tenant_id, transfer_id, payload.status, payload.approved_by)
+        if not t:
+            raise HTTPException(404, "Stock transfer not found")
+        rows = list_transfers(db, tenant_id)
+        match = next((r for r in rows if r.id == t.id), None)
+        if not match:
+            raise HTTPException(500, "Transfer updated but could not be loaded")
+        return match
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e)) from e
+    except SQLAlchemyError as e:
+        raise HTTPException(503, detail="Database service unavailable") from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, detail="Failed to update transfer status") from e
 
 
 
@@ -435,12 +479,21 @@ def create_adjustment_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     db: Session = Depends(get_db),
 ):
-    a = create_adjustment(db, tenant_id, payload)
-    rows = list_adjustments(db, tenant_id)
-    match = next((r for r in rows if r.id == a.id), None)
-    if not match:
-        raise HTTPException(500, "Adjustment created but could not be loaded")
-    return match
+    try:
+        a = create_adjustment(db, tenant_id, payload)
+        rows = list_adjustments(db, tenant_id)
+        match = next((r for r in rows if r.id == a.id), None)
+        if not match:
+            raise HTTPException(500, "Adjustment created but could not be loaded")
+        return match
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e)) from e
+    except SQLAlchemyError as e:
+        raise HTTPException(503, detail="Database service unavailable") from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, detail="Failed to create adjustment") from e
 
 
 @router.patch("/adjustments/{adjustment_id}/status", response_model=StockAdjustmentRead)
@@ -450,14 +503,23 @@ def update_adjustment_status_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     db: Session = Depends(get_db),
 ):
-    a = update_adjustment_status(db, tenant_id, adjustment_id, payload.status, payload.approved_by)
-    if not a:
-        raise HTTPException(404, "Stock adjustment not found")
-    rows = list_adjustments(db, tenant_id)
-    match = next((r for r in rows if r.id == a.id), None)
-    if not match:
-        raise HTTPException(500, "Adjustment updated but could not be loaded")
-    return match
+    try:
+        a = update_adjustment_status(db, tenant_id, adjustment_id, payload.status, payload.approved_by)
+        if not a:
+            raise HTTPException(404, "Stock adjustment not found")
+        rows = list_adjustments(db, tenant_id)
+        match = next((r for r in rows if r.id == a.id), None)
+        if not match:
+            raise HTTPException(500, "Adjustment updated but could not be loaded")
+        return match
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e)) from e
+    except SQLAlchemyError as e:
+        raise HTTPException(503, detail="Database service unavailable") from e
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, detail="Failed to update adjustment status") from e
 
 
 

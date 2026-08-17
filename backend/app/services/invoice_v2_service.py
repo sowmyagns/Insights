@@ -6,6 +6,7 @@ import json
 from datetime import date, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models.sales import Customer, Invoice, InvoiceItem, SalesOrder
@@ -422,287 +423,109 @@ def list_invoices_v2(
 
 
 def create_invoice_v2(db: Session, payload: InvoiceV2Create) -> Invoice:
-    doc = (payload.document_type or "bill_of_supply").lower()
-    if doc in ("tax", "sale", "sale_invoice"):
-        doc = "tax_invoice"
-    elif doc in ("bos", "bill_of_supply"):
-        doc = "bill_of_supply"
-    elif doc in ("export", "export_invoice"):
-        doc = "export_invoice"
-    elif doc in ("proforma", "proforma_invoice"):
-        doc = "proforma"
-    elif doc in ("export_proforma", "export_proforma_invoice"):
-        doc = "export_proforma"
-    elif doc in ("delivery_challan", "challan", "dc"):
-        doc = "delivery_challan"
-    elif doc in ("credit_note", "creditnote", "cn"):
-        doc = "credit_note"
-    elif doc in ("sales_return", "salesreturn", "return"):
-        doc = "sales_return"
-    elif doc in ("debit_note", "debitnote", "dn", "sales_debit_note"):
-        doc = "debit_note"
-
-    full_number = f"{payload.invoice_prefix or ''}{payload.invoice_number}".strip()
-    if not full_number or full_number.upper() in ("AUTO", "AUTO-GENERATE"):
-        prefix, full_number = allocate_next_invoice_number(db, payload.tenant_id)
-        if not payload.invoice_prefix:
-            payload.invoice_prefix = prefix
-
-    company = get_or_create_settings(db, payload.tenant_id)
-    customer = db.get(Customer, payload.customer_id) if payload.customer_id else None
-    tax_mode = resolve_tax_mode(
-        document_type=doc,
-        seller_state_code=company.state_code,
-        buyer_state_code=customer.state_code if customer else None,
-        force_igst=float(payload.igst_pct or 0) > 0 and float(payload.cgst_pct or 0) == 0,
-    )
-
-    inv = Invoice(
-        tenant_id=payload.tenant_id,
-        customer_id=payload.customer_id,
-        sales_order_id=payload.sales_order_id,
-        invoice_number=full_number,
-        invoice_prefix=payload.invoice_prefix,
-        issue_date=payload.issue_date,
-        due_date=payload.due_date,
-        document_type=doc,
-        invoice_status="active",
-        e_invoice_status="all",
-        e_waybill_status="active" if payload.ewaybill_number else "all",
-        export_invoice_status="active" if doc == "export_invoice" else None,
-        payment_status="unpaid",
-        discount=_money(payload.discount),
-        other_charge=_money(payload.other_charge),
-        round_off=_money(payload.round_off),
-        cgst_pct=float(payload.cgst_pct or 0),
-        sgst_pct=float(payload.sgst_pct or 0),
-        igst_pct=float(payload.igst_pct or 0),
-        status=payload.status or "issued",
-        transport_mode=payload.transport_mode,
-        lr_number=payload.lr_number,
-        lr_date=payload.lr_date,
-        vehicle_no=payload.vehicle_no,
-        distance_km=payload.distance_km,
-        transporter_name=payload.transporter_name,
-        place_of_supply=payload.place_of_supply,
-        date_of_supply=payload.date_of_supply,
-        supply_type=payload.supply_type,
-        po_number=payload.po_number,
-        po_date=payload.po_date,
-        challan_number=payload.challan_number,
-        ewaybill_number=payload.ewaybill_number,
-        sales_person=payload.sales_person,
-        reverse_charge=bool(payload.reverse_charge),
-        terms_and_conditions=payload.terms_and_conditions,
-        show_signature=bool(payload.show_signature),
-        bank_details_json=json.dumps(payload.bank_details) if payload.bank_details else None,
-        custom_fields_json=json.dumps(payload.custom_fields) if payload.custom_fields else None,
-        notes=payload.notes,
-        ack_no=payload.ack_no,
-        ack_date=payload.ack_date,
-    )
-    db.add(inv)
-    db.flush()
-
-    taxable_sum = 0.0
-    gst_sum = 0.0
-    for raw in payload.items:
-        if not (raw.item_description or "").strip():
-            continue
-        taxable, gst_amt, total = _line_totals(raw)
-        if raw.taxable_value is not None:
-            taxable = _money(raw.taxable_value)
-        if raw.gst_amount is not None:
-            gst_amt = _money(raw.gst_amount)
-        if raw.amount is not None:
-            total = _money(raw.amount)
-        item = InvoiceItem(
-            invoice_id=inv.id,
-            item_description=raw.item_description.strip(),
-            hsn=raw.hsn,
-            qty=float(raw.qty or 0),
-            unit=raw.unit or "pcs",
-            rate=float(raw.rate or 0),
-            tax_type=raw.tax_type or "Exclusive",
-            discount=float(raw.discount or 0),
-            discount_type=raw.discount_type or "₹",
-            taxable_value=taxable,
-            gst_pct=float(raw.gst_pct or 0),
-            gst_amount=gst_amt,
-            amount=total,
-        )
-        db.add(item)
-        taxable_sum += taxable
-        gst_sum += gst_amt
-
-    if payload.other_charge and float(payload.other_charge) > 0:
-        oc = _money(payload.other_charge)
-        db.add(
-            InvoiceItem(
-                invoice_id=inv.id,
-                item_description="Other Charge",
-                qty=1,
-                unit="pcs",
-                rate=oc,
-                tax_type="Exclusive",
-                discount=0,
-                discount_type="₹",
-                taxable_value=oc,
-                gst_pct=0,
-                gst_amount=0,
-                amount=oc,
-            )
-        )
-        taxable_sum += oc
-
-    inv.subtotal = _money(taxable_sum)
-    default_gst = float(company.default_gst_pct or 18)
-    apply_header_gst(inv, gst_sum=gst_sum, tax_mode=tax_mode, default_gst_pct=default_gst)
-    if not inv.place_of_supply and customer:
-        inv.place_of_supply = customer.state
-
-    inv.grand_total = _money(
-        taxable_sum + gst_sum - float(inv.discount or 0) + float(inv.round_off or 0)
-    )
-    inv.payment_status = "unpaid"
-
-    if inv.sales_order_id:
-        so = db.get(SalesOrder, inv.sales_order_id)
-        if so and so.tenant_id == inv.tenant_id:
-            so.invoiced = True
-
-    post_sales_invoice_journal(
-        db,
-        inv.tenant_id,
-        invoice_number=inv.invoice_number,
-        issue_date=inv.issue_date or date.today(),
-        subtotal=float(inv.subtotal or 0),
-        discount=float(inv.discount or 0),
-        cgst=float(inv.cgst_amount or 0),
-        sgst=float(inv.sgst_amount or 0),
-        igst=float(inv.igst_amount or 0),
-        round_off=float(inv.round_off or 0),
-        grand_total=float(inv.grand_total or 0),
-    )
-
-    db.commit()
-    db.refresh(inv)
-
     try:
-        from app.services.alert_event_service import emit_alert
+        if payload.customer_id is None:
+            raise ValueError("Customer is required")
+        customer = db.get(Customer, payload.customer_id)
+        if not customer or customer.tenant_id != payload.tenant_id:
+            raise ValueError("Customer not found")
+        if not payload.items:
+            raise ValueError("At least one invoice item is required")
 
-        emit_alert(
-            db,
-            tenant_id=inv.tenant_id,
-            alert_type="invoice_generated",
-            title=f"Invoice generated: {inv.invoice_number}",
-            message=f"Invoice {inv.invoice_number} — ₹{float(inv.grand_total or 0):,.2f}",
-            severity="medium",
-            link="/sales/invoices",
-            reference_type="invoice",
-            reference_id=inv.id,
-            created_by="Sales",
+        doc = (payload.document_type or "bill_of_supply").lower()
+        if doc in ("tax", "sale", "sale_invoice"):
+            doc = "tax_invoice"
+        elif doc in ("bos", "bill_of_supply"):
+            doc = "bill_of_supply"
+        elif doc in ("export", "export_invoice"):
+            doc = "export_invoice"
+        elif doc in ("proforma", "proforma_invoice"):
+            doc = "proforma"
+        elif doc in ("export_proforma", "export_proforma_invoice"):
+            doc = "export_proforma"
+        elif doc in ("delivery_challan", "challan", "dc"):
+            doc = "delivery_challan"
+        elif doc in ("credit_note", "creditnote", "cn"):
+            doc = "credit_note"
+        elif doc in ("sales_return", "salesreturn", "return"):
+            doc = "sales_return"
+        elif doc in ("debit_note", "debitnote", "dn", "sales_debit_note"):
+            doc = "debit_note"
+
+        full_number = f"{payload.invoice_prefix or ''}{payload.invoice_number}".strip()
+        if not full_number or full_number.upper() in ("AUTO", "AUTO-GENERATE"):
+            prefix, full_number = allocate_next_invoice_number(db, payload.tenant_id)
+            if not payload.invoice_prefix:
+                payload.invoice_prefix = prefix
+
+        company = get_or_create_settings(db, payload.tenant_id)
+        tax_mode = resolve_tax_mode(
+            document_type=doc,
+            seller_state_code=company.state_code,
+            buyer_state_code=customer.state_code if customer else None,
+            force_igst=float(payload.igst_pct or 0) > 0 and float(payload.cgst_pct or 0) == 0,
         )
-    except Exception:
-        pass
 
-    return inv
+        inv = Invoice(
+            tenant_id=payload.tenant_id,
+            customer_id=payload.customer_id,
+            sales_order_id=payload.sales_order_id,
+            invoice_number=full_number,
+            invoice_prefix=payload.invoice_prefix,
+            issue_date=payload.issue_date,
+            due_date=payload.due_date,
+            document_type=doc,
+            invoice_status="active",
+            e_invoice_status="all",
+            e_waybill_status="active" if payload.ewaybill_number else "all",
+            export_invoice_status="active" if doc == "export_invoice" else None,
+            payment_status="unpaid",
+            discount=_money(payload.discount),
+            other_charge=_money(payload.other_charge),
+            round_off=_money(payload.round_off),
+            cgst_pct=float(payload.cgst_pct or 0),
+            sgst_pct=float(payload.sgst_pct or 0),
+            igst_pct=float(payload.igst_pct or 0),
+            status=payload.status or "issued",
+            transport_mode=payload.transport_mode,
+            lr_number=payload.lr_number,
+            lr_date=payload.lr_date,
+            vehicle_no=payload.vehicle_no,
+            distance_km=payload.distance_km,
+            transporter_name=payload.transporter_name,
+            place_of_supply=payload.place_of_supply,
+            date_of_supply=payload.date_of_supply,
+            supply_type=payload.supply_type,
+            po_number=payload.po_number,
+            po_date=payload.po_date,
+            challan_number=payload.challan_number,
+            ewaybill_number=payload.ewaybill_number,
+            sales_person=payload.sales_person,
+            reverse_charge=bool(payload.reverse_charge),
+            terms_and_conditions=payload.terms_and_conditions,
+            show_signature=bool(payload.show_signature),
+            bank_details_json=json.dumps(payload.bank_details) if payload.bank_details else None,
+            custom_fields_json=json.dumps(payload.custom_fields) if payload.custom_fields else None,
+            notes=payload.notes,
+            ack_no=payload.ack_no,
+            ack_date=payload.ack_date,
+        )
+        db.add(inv)
+        db.flush()
 
-
-def update_invoice_v2(db: Session, tenant_id: int, invoice_id: int, payload: InvoiceV2Create) -> Invoice | None:
-    stmt = (
-        select(Invoice)
-        .options(selectinload(Invoice.items))
-        .where(Invoice.id == invoice_id, Invoice.tenant_id == tenant_id)
-    )
-    inv = db.scalars(stmt).first()
-    if not inv:
-        return None
-    if (getattr(inv, "invoice_status", None) or "active") == "cancelled":
-        raise ValueError("Cannot update a cancelled invoice")
-
-    doc = (payload.document_type or inv.document_type or "bill_of_supply").lower()
-    if doc in ("tax", "sale", "sale_invoice"):
-        doc = "tax_invoice"
-    elif doc in ("bos", "bill_of_supply"):
-        doc = "bill_of_supply"
-    elif doc in ("export", "export_invoice"):
-        doc = "export_invoice"
-    elif doc in ("proforma", "proforma_invoice"):
-        doc = "proforma"
-    elif doc in ("export_proforma", "export_proforma_invoice"):
-        doc = "export_proforma"
-    elif doc in ("delivery_challan", "challan", "dc"):
-        doc = "delivery_challan"
-    elif doc in ("credit_note", "creditnote", "cn"):
-        doc = "credit_note"
-    elif doc in ("sales_return", "salesreturn", "return"):
-        doc = "sales_return"
-    elif doc in ("debit_note", "debitnote", "dn", "sales_debit_note"):
-        doc = "debit_note"
-
-    full_number = f"{payload.invoice_prefix or ''}{payload.invoice_number}".strip()
-    if not full_number:
-        full_number = payload.invoice_number or inv.invoice_number
-
-    inv.customer_id = payload.customer_id
-    inv.sales_order_id = payload.sales_order_id
-    inv.invoice_number = full_number
-    inv.invoice_prefix = payload.invoice_prefix
-    inv.issue_date = payload.issue_date
-    inv.due_date = payload.due_date
-    inv.document_type = doc
-    inv.discount = _money(payload.discount)
-    inv.other_charge = _money(payload.other_charge)
-    inv.round_off = _money(payload.round_off)
-    inv.cgst_pct = float(payload.cgst_pct or 0)
-    inv.sgst_pct = float(payload.sgst_pct or 0)
-    inv.igst_pct = float(payload.igst_pct or 0)
-    inv.status = payload.status or inv.status or "issued"
-    inv.transport_mode = payload.transport_mode
-    inv.lr_number = payload.lr_number
-    inv.lr_date = payload.lr_date
-    inv.vehicle_no = payload.vehicle_no
-    inv.distance_km = payload.distance_km
-    inv.transporter_name = payload.transporter_name
-    inv.place_of_supply = payload.place_of_supply
-    inv.date_of_supply = payload.date_of_supply
-    inv.supply_type = payload.supply_type
-    inv.po_number = payload.po_number
-    inv.po_date = payload.po_date
-    inv.challan_number = payload.challan_number
-    inv.ewaybill_number = payload.ewaybill_number
-    inv.sales_person = payload.sales_person
-    inv.reverse_charge = bool(payload.reverse_charge)
-    inv.terms_and_conditions = payload.terms_and_conditions
-    inv.show_signature = bool(payload.show_signature)
-    inv.bank_details_json = json.dumps(payload.bank_details) if payload.bank_details else inv.bank_details_json
-    inv.custom_fields_json = json.dumps(payload.custom_fields) if payload.custom_fields else inv.custom_fields_json
-    inv.notes = payload.notes
-    inv.ack_no = payload.ack_no
-    inv.ack_date = payload.ack_date
-    inv.e_waybill_status = "active" if payload.ewaybill_number else getattr(inv, "e_waybill_status", None) or "all"
-
-    for old in list(inv.items):
-        db.delete(old)
-    db.flush()
-
-    taxable_sum = 0.0
-    gst_sum = 0.0
-    for raw in payload.items:
-        if not (raw.item_description or "").strip():
-            continue
-        if (raw.item_description or "").strip().lower() == "other charge":
-            continue
-        taxable, gst_amt, total = _line_totals(raw)
-        if raw.taxable_value is not None:
-            taxable = _money(raw.taxable_value)
-        if raw.gst_amount is not None:
-            gst_amt = _money(raw.gst_amount)
-        if raw.amount is not None:
-            total = _money(raw.amount)
-        db.add(
-            InvoiceItem(
+        taxable_sum = 0.0
+        gst_sum = 0.0
+        for raw in payload.items:
+            if not (raw.item_description or "").strip():
+                continue
+            taxable, gst_amt, total = _line_totals(raw)
+            if raw.taxable_value is not None:
+                taxable = _money(raw.taxable_value)
+            if raw.gst_amount is not None:
+                gst_amt = _money(raw.gst_amount)
+            if raw.amount is not None:
+                total = _money(raw.amount)
+            item = InvoiceItem(
                 invoice_id=inv.id,
                 item_description=raw.item_description.strip(),
                 hsn=raw.hsn,
@@ -717,63 +540,284 @@ def update_invoice_v2(db: Session, tenant_id: int, invoice_id: int, payload: Inv
                 gst_amount=gst_amt,
                 amount=total,
             )
-        )
-        taxable_sum += taxable
-        gst_sum += gst_amt
+            db.add(item)
+            taxable_sum += taxable
+            gst_sum += gst_amt
 
-    if payload.other_charge and float(payload.other_charge) > 0:
-        oc = _money(payload.other_charge)
-        db.add(
-            InvoiceItem(
-                invoice_id=inv.id,
-                item_description="Other Charge",
-                qty=1,
-                unit="pcs",
-                rate=oc,
-                tax_type="Exclusive",
-                discount=0,
-                discount_type="₹",
-                taxable_value=oc,
-                gst_pct=0,
-                gst_amount=0,
-                amount=oc,
+        if payload.other_charge and float(payload.other_charge) > 0:
+            oc = _money(payload.other_charge)
+            db.add(
+                InvoiceItem(
+                    invoice_id=inv.id,
+                    item_description="Other Charge",
+                    qty=1,
+                    unit="pcs",
+                    rate=oc,
+                    tax_type="Exclusive",
+                    discount=0,
+                    discount_type="₹",
+                    taxable_value=oc,
+                    gst_pct=0,
+                    gst_amount=0,
+                    amount=oc,
+                )
             )
+            taxable_sum += oc
+
+        inv.subtotal = _money(taxable_sum)
+        default_gst = float(company.default_gst_pct or 18)
+        apply_header_gst(inv, gst_sum=gst_sum, tax_mode=tax_mode, default_gst_pct=default_gst)
+        if not inv.place_of_supply and customer:
+            inv.place_of_supply = customer.state
+
+        inv.grand_total = _money(
+            taxable_sum + gst_sum - float(inv.discount or 0) + float(inv.round_off or 0)
         )
-        taxable_sum += oc
+        inv.payment_status = "unpaid"
 
-    company = get_or_create_settings(db, tenant_id)
-    customer = db.get(Customer, payload.customer_id) if payload.customer_id else None
-    tax_mode = resolve_tax_mode(
-        document_type=doc,
-        seller_state_code=company.state_code,
-        buyer_state_code=customer.state_code if customer else None,
-        force_igst=float(payload.igst_pct or 0) > 0 and float(payload.cgst_pct or 0) == 0,
-    )
+        if inv.sales_order_id:
+            so = db.get(SalesOrder, inv.sales_order_id)
+            if so and so.tenant_id == inv.tenant_id:
+                so.invoiced = True
 
-    inv.subtotal = _money(taxable_sum)
-    default_gst = float(company.default_gst_pct or 18)
-    apply_header_gst(inv, gst_sum=gst_sum, tax_mode=tax_mode, default_gst_pct=default_gst)
-    if not inv.place_of_supply and customer:
-        inv.place_of_supply = customer.state
+        post_sales_invoice_journal(
+            db,
+            inv.tenant_id,
+            invoice_number=inv.invoice_number,
+            issue_date=inv.issue_date or date.today(),
+            subtotal=float(inv.subtotal or 0),
+            discount=float(inv.discount or 0),
+            cgst=float(inv.cgst_amount or 0),
+            sgst=float(inv.sgst_amount or 0),
+            igst=float(inv.igst_amount or 0),
+            round_off=float(inv.round_off or 0),
+            grand_total=float(inv.grand_total or 0),
+        )
 
-    inv.grand_total = _money(
-        taxable_sum + gst_sum - float(inv.discount or 0) + float(inv.round_off or 0)
-    )
-    sync_payment_status(inv)
-    db.commit()
-    db.refresh(inv)
-    return inv
+        db.commit()
+        db.refresh(inv)
+
+        try:
+            from app.services.alert_event_service import emit_alert
+
+            emit_alert(
+                db,
+                tenant_id=inv.tenant_id,
+                alert_type="invoice_generated",
+                title=f"Invoice generated: {inv.invoice_number}",
+                message=f"Invoice {inv.invoice_number} — ₹{float(inv.grand_total or 0):,.2f}",
+                severity="medium",
+                link="/sales/invoices",
+                reference_type="invoice",
+                reference_id=inv.id,
+                created_by="Sales",
+            )
+        except Exception:
+            pass
+
+        return inv
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
+
+
+def update_invoice_v2(db: Session, tenant_id: int, invoice_id: int, payload: InvoiceV2Create) -> Invoice | None:
+    try:
+        stmt = (
+            select(Invoice)
+            .options(selectinload(Invoice.items))
+            .where(Invoice.id == invoice_id, Invoice.tenant_id == tenant_id)
+        )
+        inv = db.scalars(stmt).first()
+        if not inv:
+            return None
+        if (getattr(inv, "invoice_status", None) or "active") == "cancelled":
+            raise ValueError("Cannot update a cancelled invoice")
+        if payload.customer_id is None:
+            raise ValueError("Customer is required")
+        customer = db.get(Customer, payload.customer_id)
+        if not customer or customer.tenant_id != tenant_id:
+            raise ValueError("Customer not found")
+        if not payload.items:
+            raise ValueError("At least one invoice item is required")
+
+        doc = (payload.document_type or inv.document_type or "bill_of_supply").lower()
+        if doc in ("tax", "sale", "sale_invoice"):
+            doc = "tax_invoice"
+        elif doc in ("bos", "bill_of_supply"):
+            doc = "bill_of_supply"
+        elif doc in ("export", "export_invoice"):
+            doc = "export_invoice"
+        elif doc in ("proforma", "proforma_invoice"):
+            doc = "proforma"
+        elif doc in ("export_proforma", "export_proforma_invoice"):
+            doc = "export_proforma"
+        elif doc in ("delivery_challan", "challan", "dc"):
+            doc = "delivery_challan"
+        elif doc in ("credit_note", "creditnote", "cn"):
+            doc = "credit_note"
+        elif doc in ("sales_return", "salesreturn", "return"):
+            doc = "sales_return"
+        elif doc in ("debit_note", "debitnote", "dn", "sales_debit_note"):
+            doc = "debit_note"
+
+        full_number = f"{payload.invoice_prefix or ''}{payload.invoice_number}".strip()
+        if not full_number:
+            full_number = payload.invoice_number or inv.invoice_number
+
+        inv.customer_id = payload.customer_id
+        inv.sales_order_id = payload.sales_order_id
+        inv.invoice_number = full_number
+        inv.invoice_prefix = payload.invoice_prefix
+        inv.issue_date = payload.issue_date
+        inv.due_date = payload.due_date
+        inv.document_type = doc
+        inv.discount = _money(payload.discount)
+        inv.other_charge = _money(payload.other_charge)
+        inv.round_off = _money(payload.round_off)
+        inv.cgst_pct = float(payload.cgst_pct or 0)
+        inv.sgst_pct = float(payload.sgst_pct or 0)
+        inv.igst_pct = float(payload.igst_pct or 0)
+        inv.status = payload.status or inv.status or "issued"
+        inv.transport_mode = payload.transport_mode
+        inv.lr_number = payload.lr_number
+        inv.lr_date = payload.lr_date
+        inv.vehicle_no = payload.vehicle_no
+        inv.distance_km = payload.distance_km
+        inv.transporter_name = payload.transporter_name
+        inv.place_of_supply = payload.place_of_supply
+        inv.date_of_supply = payload.date_of_supply
+        inv.supply_type = payload.supply_type
+        inv.po_number = payload.po_number
+        inv.po_date = payload.po_date
+        inv.challan_number = payload.challan_number
+        inv.ewaybill_number = payload.ewaybill_number
+        inv.sales_person = payload.sales_person
+        inv.reverse_charge = bool(payload.reverse_charge)
+        inv.terms_and_conditions = payload.terms_and_conditions
+        inv.show_signature = bool(payload.show_signature)
+        inv.bank_details_json = json.dumps(payload.bank_details) if payload.bank_details else inv.bank_details_json
+        inv.custom_fields_json = json.dumps(payload.custom_fields) if payload.custom_fields else inv.custom_fields_json
+        inv.notes = payload.notes
+        inv.ack_no = payload.ack_no
+        inv.ack_date = payload.ack_date
+        inv.e_waybill_status = "active" if payload.ewaybill_number else getattr(inv, "e_waybill_status", None) or "all"
+
+        for old in list(inv.items):
+            db.delete(old)
+        db.flush()
+
+        taxable_sum = 0.0
+        gst_sum = 0.0
+        for raw in payload.items:
+            if not (raw.item_description or "").strip():
+                continue
+            if (raw.item_description or "").strip().lower() == "other charge":
+                continue
+            taxable, gst_amt, total = _line_totals(raw)
+            if raw.taxable_value is not None:
+                taxable = _money(raw.taxable_value)
+            if raw.gst_amount is not None:
+                gst_amt = _money(raw.gst_amount)
+            if raw.amount is not None:
+                total = _money(raw.amount)
+            db.add(
+                InvoiceItem(
+                    invoice_id=inv.id,
+                    item_description=raw.item_description.strip(),
+                    hsn=raw.hsn,
+                    qty=float(raw.qty or 0),
+                    unit=raw.unit or "pcs",
+                    rate=float(raw.rate or 0),
+                    tax_type=raw.tax_type or "Exclusive",
+                    discount=float(raw.discount or 0),
+                    discount_type=raw.discount_type or "₹",
+                    taxable_value=taxable,
+                    gst_pct=float(raw.gst_pct or 0),
+                    gst_amount=gst_amt,
+                    amount=total,
+                )
+            )
+            taxable_sum += taxable
+            gst_sum += gst_amt
+
+        if payload.other_charge and float(payload.other_charge) > 0:
+            oc = _money(payload.other_charge)
+            db.add(
+                InvoiceItem(
+                    invoice_id=inv.id,
+                    item_description="Other Charge",
+                    qty=1,
+                    unit="pcs",
+                    rate=oc,
+                    tax_type="Exclusive",
+                    discount=0,
+                    discount_type="₹",
+                    taxable_value=oc,
+                    gst_pct=0,
+                    gst_amount=0,
+                    amount=oc,
+                )
+            )
+            taxable_sum += oc
+
+        company = get_or_create_settings(db, tenant_id)
+        tax_mode = resolve_tax_mode(
+            document_type=doc,
+            seller_state_code=company.state_code,
+            buyer_state_code=customer.state_code if customer else None,
+            force_igst=float(payload.igst_pct or 0) > 0 and float(payload.cgst_pct or 0) == 0,
+        )
+
+        inv.subtotal = _money(taxable_sum)
+        default_gst = float(company.default_gst_pct or 18)
+        apply_header_gst(inv, gst_sum=gst_sum, tax_mode=tax_mode, default_gst_pct=default_gst)
+        if not inv.place_of_supply and customer:
+            inv.place_of_supply = customer.state
+
+        inv.grand_total = _money(
+            taxable_sum + gst_sum - float(inv.discount or 0) + float(inv.round_off or 0)
+        )
+        sync_payment_status(inv)
+        db.commit()
+        db.refresh(inv)
+        return inv
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
 
 
 def cancel_invoice_v2(db: Session, tenant_id: int, invoice_id: int) -> Invoice | None:
-    inv = db.get(Invoice, invoice_id)
-    if not inv or inv.tenant_id != tenant_id:
-        return None
-    inv.invoice_status = "cancelled"
-    inv.status = "cancelled"
-    db.commit()
-    db.refresh(inv)
-    return inv
+    try:
+        inv = db.get(Invoice, invoice_id)
+        if not inv or inv.tenant_id != tenant_id:
+            return None
+        inv.invoice_status = "cancelled"
+        inv.status = "cancelled"
+        db.commit()
+        db.refresh(inv)
+        return inv
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
 
 
 def get_invoice_v2(db: Session, tenant_id: int, invoice_id: int) -> InvoiceV2Read | None:

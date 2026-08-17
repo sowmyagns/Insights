@@ -8,10 +8,19 @@ function unwrap(res) {
   return res;
 }
 
+async function apiGet(url, config) {
+  try {
+    return unwrap(await api.get(url, config));
+  } catch (error) {
+    console.error("[dashboardApi.apiGet] Error in GET request:", error.message, { url });
+    throw error;
+  }
+}
+
 export async function getErpDashboard() {
-  return unwrap(await api.get("/api/erp/dashboard"));
+  return apiGet("/api/erp/dashboard");
 }
 
 export async function getDashboardSummary() {
-  return unwrap(await api.get("/api/dashboard/summary"));
+  return apiGet("/api/dashboard/summary");
 }

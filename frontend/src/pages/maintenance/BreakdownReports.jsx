@@ -9,6 +9,7 @@ import MaintenanceErrorState from "../../components/maintenance/MaintenanceError
 import MaintenanceFilters from "../../components/maintenance/MaintenanceFilters";
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
+import { apiErrorMessage } from "../../utils/apiError";
 import { getBreakdownsEnriched, getBreakdownSummary, updateBreakdownStatus } from "../../api/maintenanceApi";
 import { DEMO_BREAKDOWN_LIST, DEMO_BREAKDOWN_SUMMARY, WORK_ORDER_FLOW, mntStatusColor, priorityColor } from "../../data/maintenanceMasterData";
 
@@ -35,7 +36,7 @@ export default function BreakdownReports() {
       if (listRes.status === "fulfilled" && listRes.value?.data?.length) setRows(listRes.value.data);
       else setRows([]);
     } catch (e) {
-      setError(e.message || "Failed to load data");
+      setError(apiErrorMessage(e, "Failed to load breakdown maintenance data"));
       setSummary(DEMO_BREAKDOWN_SUMMARY);
       setRows([]);
     } finally {
@@ -54,8 +55,8 @@ export default function BreakdownReports() {
       await updateBreakdownStatus(row.id, next);
       addToast(`Breakdown moved to ${next.replace("_", " ")}`);
       load();
-    } catch {
-      addToast("Update failed", "error");
+    } catch (err) {
+      addToast(apiErrorMessage(err, "Failed to update breakdown status"), "error");
     }
   };
 

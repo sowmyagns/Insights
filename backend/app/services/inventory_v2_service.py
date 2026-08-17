@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.product import InventoryCategory, Product, ProductStockEvent
@@ -99,73 +99,96 @@ def get_item(db: Session, tenant_id: int, product_id: int) -> dict | None:
 
 
 def create_item(db: Session, tenant_id: int, payload: InventoryItemV2Create) -> dict:
-    sku = (payload.sku or "").strip() or f"PRD-{payload.name[:12].upper().replace(' ', '-')}"
-    existing = db.scalars(
-        select(Product).where(Product.tenant_id == tenant_id, Product.sku == sku)
-    ).first()
-    if existing:
-        raise HTTPException(400, detail="SKU already exists")
+    try:
+        item_name = (payload.name or "").strip()
+        if not item_name:
+            raise ValueError("Item name is required")
+        sku = (payload.sku or "").strip() or f"PRD-{item_name[:12].upper().replace(' ', '-')}"
+        existing = db.scalars(
+            select(Product).where(Product.tenant_id == tenant_id, Product.sku == sku)
+        ).first()
+        if existing:
+            raise ValueError("SKU already exists")
 
-    stock = _f(payload.current_stock)
-    product = Product(
-        tenant_id=tenant_id,
-        sku=sku,
-        name=payload.name.strip(),
-        description=payload.description,
-        unit=payload.unit or "Pcs",
-        unit_cost=payload.purchase_price,
-        unit_price=payload.selling_price,
-        wholesale_price=payload.wholesale_price,
-        hsn_code=payload.hsn_code,
-        category=payload.category or "No Category",
-        gst_percent=payload.gst_percent or 0,
-        cess_percent=payload.cess_percent or 0,
-        min_stock=int(payload.min_stock or 0),
-        max_stock=int(payload.max_stock) if payload.max_stock is not None else 100,
-        current_stock=stock,
-    )
-    db.add(product)
-    db.flush()
-    db.add(
-        ProductStockEvent(
+        stock = _f(payload.current_stock)
+        product = Product(
             tenant_id=tenant_id,
-            product_id=product.id,
-            activity="First Stock",
-            subtitle="Opening Stock",
-            change_qty=stock,
-            final_qty=stock,
-            unit=product.unit,
-            event_date=_today_label(),
+            sku=sku,
+            name=item_name,
+            description=payload.description,
+            unit=payload.unit or "Pcs",
+            unit_cost=payload.purchase_price,
+            unit_price=payload.selling_price,
+            wholesale_price=payload.wholesale_price,
+            hsn_code=payload.hsn_code,
+            category=payload.category or "No Category",
+            gst_percent=payload.gst_percent or 0,
+            cess_percent=payload.cess_percent or 0,
+            min_stock=int(payload.min_stock or 0),
+            max_stock=int(payload.max_stock) if payload.max_stock is not None else 100,
+            current_stock=stock,
         )
-    )
-    db.commit()
-    db.refresh(product)
-    return serialize_item(product)
+        db.add(product)
+        db.flush()
+        db.add(
+            ProductStockEvent(
+                tenant_id=tenant_id,
+                product_id=product.id,
+                activity="First Stock",
+                subtitle="Opening Stock",
+                change_qty=stock,
+                final_qty=stock,
+                unit=product.unit,
+                event_date=_today_label(),
+            )
+        )
+        db.commit()
+        db.refresh(product)
+        return serialize_item(product)
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
 
 
 def update_item(
     db: Session, tenant_id: int, product_id: int, payload: InventoryItemV2Update
 ) -> dict | None:
-    product = db.scalars(
-        select(Product).where(Product.id == product_id, Product.tenant_id == tenant_id)
-    ).first()
-    if not product:
-        return None
-    data = payload.model_dump(exclude_unset=True)
-    mapping = {
-        "purchase_price": "unit_cost",
-        "selling_price": "unit_price",
-    }
-    for key, value in data.items():
-        attr = mapping.get(key, key)
-        if key == "min_stock" and value is not None:
-            value = int(value)
-        if key == "max_stock" and value is not None:
-            value = int(value)
-        setattr(product, attr, value)
-    db.commit()
-    db.refresh(product)
-    return serialize_item(product)
+    try:
+        product = db.scalars(
+            select(Product).where(Product.id == product_id, Product.tenant_id == tenant_id)
+        ).first()
+        if not product:
+            return None
+        data = payload.model_dump(exclude_unset=True)
+        mapping = {
+            "purchase_price": "unit_cost",
+            "selling_price": "unit_price",
+        }
+        for key, value in data.items():
+            attr = mapping.get(key, key)
+            if key == "min_stock" and value is not None:
+                value = int(value)
+            if key == "max_stock" and value is not None:
+                value = int(value)
+            setattr(product, attr, value)
+        db.commit()
+        db.refresh(product)
+        return serialize_item(product)
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
 
 
 def delete_item(db: Session, tenant_id: int, product_id: int) -> bool:
@@ -219,51 +242,63 @@ def _adjust_stock(
     *,
     adding: bool,
 ) -> dict:
-    product = db.scalars(
-        select(Product).where(Product.id == product_id, Product.tenant_id == tenant_id)
-    ).first()
-    if not product:
-        raise HTTPException(404, detail="Item not found")
+    try:
+        product = db.scalars(
+            select(Product).where(Product.id == product_id, Product.tenant_id == tenant_id)
+        ).first()
+        if not product:
+            raise ValueError("Item not found")
 
-    previous = _f(product.current_stock)
-    qty = float(payload.quantity)
-    if not adding and qty > previous:
-        raise HTTPException(400, detail="Cannot remove more than available stock")
+        previous = _f(product.current_stock)
+        qty = float(payload.quantity)
+        if qty <= 0:
+            raise ValueError("Quantity must be greater than zero")
+        if not adding and qty > previous:
+            raise ValueError("Cannot remove more than available stock")
 
-    next_stock = previous + qty if adding else max(0.0, previous - qty)
-    product.current_stock = next_stock
-    entry = ProductStockEvent(
-        tenant_id=tenant_id,
-        product_id=product.id,
-        activity="Stock Added" if adding else "Stock Removed",
-        subtitle=payload.remark or ("Manual Add" if adding else "Manual Reduce"),
-        change_qty=qty if adding else -qty,
-        final_qty=next_stock,
-        unit=payload.unit or product.unit or "PCS",
-        remark=payload.remark,
-        event_date=_today_label(),
-    )
-    db.add(entry)
-    db.commit()
-    db.refresh(product)
-    db.refresh(entry)
-    timeline_entry = {
-        "id": entry.id,
-        "activity": entry.activity,
-        "subtitle": entry.subtitle,
-        "date": entry.event_date,
-        "change": _f(entry.change_qty),
-        "final": _f(entry.final_qty),
-        "unit": entry.unit,
-    }
-    return {
-        "product_id": product.id,
-        "previous_stock": previous,
-        "current_stock": next_stock,
-        "change": qty if adding else -qty,
-        "item": serialize_item(product),
-        "timeline_entry": timeline_entry,
-    }
+        next_stock = previous + qty if adding else max(0.0, previous - qty)
+        product.current_stock = next_stock
+        entry = ProductStockEvent(
+            tenant_id=tenant_id,
+            product_id=product.id,
+            activity="Stock Added" if adding else "Stock Removed",
+            subtitle=payload.remark or ("Manual Add" if adding else "Manual Reduce"),
+            change_qty=qty if adding else -qty,
+            final_qty=next_stock,
+            unit=payload.unit or product.unit or "PCS",
+            remark=payload.remark,
+            event_date=_today_label(),
+        )
+        db.add(entry)
+        db.commit()
+        db.refresh(product)
+        db.refresh(entry)
+        timeline_entry = {
+            "id": entry.id,
+            "activity": entry.activity,
+            "subtitle": entry.subtitle,
+            "date": entry.event_date,
+            "change": _f(entry.change_qty),
+            "final": _f(entry.final_qty),
+            "unit": entry.unit,
+        }
+        return {
+            "product_id": product.id,
+            "previous_stock": previous,
+            "current_stock": next_stock,
+            "change": qty if adding else -qty,
+            "item": serialize_item(product),
+            "timeline_entry": timeline_entry,
+        }
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
 
 
 def add_stock(
@@ -318,35 +353,55 @@ def category_wise(db: Session, tenant_id: int) -> list[dict]:
 
 
 def create_category(db: Session, tenant_id: int, name: str) -> dict:
-    clean = name.strip()
-    if not clean:
-        raise HTTPException(400, detail="Category name is required")
-    exists = db.scalars(
-        select(InventoryCategory).where(
-            InventoryCategory.tenant_id == tenant_id,
-            func.lower(InventoryCategory.name) == clean.lower(),
-        )
-    ).first()
-    if exists:
-        raise HTTPException(400, detail="Category already exists")
-    row = InventoryCategory(tenant_id=tenant_id, name=clean)
-    db.add(row)
-    db.commit()
-    db.refresh(row)
-    return {"id": row.id, "name": row.name, "stock": 0}
+    try:
+        clean = (name or "").strip()
+        if not clean:
+            raise ValueError("Category name is required")
+        exists = db.scalars(
+            select(InventoryCategory).where(
+                InventoryCategory.tenant_id == tenant_id,
+                func.lower(InventoryCategory.name) == clean.lower(),
+            )
+        ).first()
+        if exists:
+            raise ValueError("Category already exists")
+        row = InventoryCategory(tenant_id=tenant_id, name=clean)
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return {"id": row.id, "name": row.name, "stock": 0}
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
 
 
 def delete_category(db: Session, tenant_id: int, category_id: int) -> bool:
-    row = db.scalars(
-        select(InventoryCategory).where(
-            InventoryCategory.id == category_id,
-            InventoryCategory.tenant_id == tenant_id,
-        )
-    ).first()
-    if not row:
-        return False
-    if row.name.lower() == "no category":
-        raise HTTPException(400, detail="Cannot delete default category")
-    db.delete(row)
-    db.commit()
-    return True
+    try:
+        row = db.scalars(
+            select(InventoryCategory).where(
+                InventoryCategory.id == category_id,
+                InventoryCategory.tenant_id == tenant_id,
+            )
+        ).first()
+        if not row:
+            return False
+        if row.name.lower() == "no category":
+            raise ValueError("Cannot delete default category")
+        db.delete(row)
+        db.commit()
+        return True
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise

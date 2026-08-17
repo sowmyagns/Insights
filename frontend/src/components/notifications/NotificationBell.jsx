@@ -56,18 +56,30 @@ export default function NotificationBell() {
   };
 
   const handleMarkAllRead = async () => {
-    await markAllRead();
-    addToast("All notifications marked as read");
+    try {
+      await markAllRead();
+      addToast("All notifications marked as read");
+    } catch {
+      addToast("Failed to mark notifications as read", "error");
+    }
   };
 
   const handleDelete = async (notification) => {
-    await deleteNotification(notification.id);
-    addToast("Notification deleted");
+    try {
+      await deleteNotification(notification.id);
+      addToast("Notification deleted");
+    } catch {
+      addToast("Failed to delete notification", "error");
+    }
   };
 
   const handleClearAll = async () => {
-    await clearAll();
-    addToast("All notifications have been cleared successfully.");
+    try {
+      await clearAll();
+      addToast("All notifications have been cleared successfully.");
+    } catch {
+      addToast("Failed to clear notifications", "error");
+    }
   };
 
   return (

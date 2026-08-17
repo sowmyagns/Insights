@@ -10,15 +10,20 @@ function unwrap(res) {
  * Uses the same backend Address Lookup Service.
  */
 export async function lookupIndianPincode(pincode, { platform = false } = {}) {
-  const pin = String(pincode || "").replace(/\D/g, "");
-  const headers = {};
-  if (platform) {
-    const token = getPlatformToken();
-    if (token) headers.Authorization = `Bearer ${token}`;
+  try {
+    const pin = String(pincode || "").replace(/\D/g, "");
+    const headers = {};
+    if (platform) {
+      const token = getPlatformToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+    }
+    const path = platform
+      ? `/platform/address/pincode/${pin}`
+      : `/settings/address/pincode/${pin}`;
+    const res = await api.get(path, { headers, skipGlobalError: true });
+    return unwrap(res);
+  } catch (error) {
+    console.error("[addressLookupApi.lookupIndianPincode] Error fetching address details:", error.message, { pincode });
+    throw error;
   }
-  const path = platform
-    ? `/platform/address/pincode/${pin}`
-    : `/settings/address/pincode/${pin}`;
-  const res = await api.get(path, { headers, skipGlobalError: true });
-  return unwrap(res);
 }

@@ -37,7 +37,7 @@ import {
   updateStockAdjustmentStatus,
 } from "../../api/inventoryApi";
 import { ADJUSTMENT_REASONS } from "../../data/inventoryMasterData";
-import { asArray } from "../../utils/apiError";
+import { apiErrorMessage, asArray } from "../../utils/apiError";
 
 const STEPS = [
   { id: 1, label: "Adjustment Details" },
@@ -296,8 +296,8 @@ export default function StockAdjustment() {
       addToast("Adjustment cancelled successfully");
       setDeleteTarget(null);
       await load(true);
-    } catch {
-      addToast("Could not cancel adjustment", "error");
+    } catch (err) {
+      addToast(apiErrorMessage(err, "Could not cancel adjustment"), "error");
     } finally {
       setDeleting(false);
     }
@@ -360,8 +360,8 @@ export default function StockAdjustment() {
       resetForm();
       setShowForm(false);
       load();
-    } catch {
-      addToast("Adjustment failed", "error");
+    } catch (err) {
+      addToast(apiErrorMessage(err, "Adjustment failed"), "error");
     } finally {
       setSubmitting(false);
     }
@@ -377,8 +377,8 @@ export default function StockAdjustment() {
       });
       addToast(`Adjustment ${newStatus}`);
       await load();
-    } catch {
-      addToast("Failed to update status", "error");
+    } catch (err) {
+      addToast(apiErrorMessage(err, "Failed to update status"), "error");
     } finally {
       setUpdatingId(null);
     }

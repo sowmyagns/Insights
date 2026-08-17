@@ -1,5 +1,6 @@
 """Finance extended — AP, AR, payments, GL, GST, P&L, hub."""
 
+import logging
 from datetime import date, timedelta
 
 from sqlalchemy import func, select
@@ -24,6 +25,8 @@ from app.schemas.finance_extended import (
     PLExtendedRead,
 )
 from app.services.accounts_service import get_profit_loss, get_tax_report
+
+logger = logging.getLogger(__name__)
 
 
 def _aging_bucket(days: int) -> str:
@@ -541,11 +544,16 @@ def get_gl_summary(db: Session, tenant_id: int) -> GLSummaryRead:
 
 
 def list_gl_enriched(db: Session, tenant_id: int) -> list[GLListRead]:
-    """List GL entries from real journal entries, not dummy data."""
+    """
+    List GL entries from real journal entries with error handling.
+    
+    Database operation can fail due to connection or query errors.
+    Errors are logged and an empty list is returned.
+    """
     entries = []
     
-    # Try to get real journal entries first
     try:
+        # Get real journal entries from database
         journal_entries = list(
             db.scalars(
                 select(JournalEntry)
@@ -579,15 +587,27 @@ def list_gl_enriched(db: Session, tenant_id: int) -> list[GLListRead]:
         
         if entries:
             return entries
-    except Exception:
-        pass  # Fall back to empty if journal entries don't exist
+    except Exception as e:
+        logger.error(f"Failed to retrieve GL entries for tenant {tenant_id}: {str(e)}")
+        # Return empty list if retrieval fails - do not use dummy data
     
-    # Return empty list if no real GL data exists (do not use dummy data)
+    # Return empty list if no real GL data exists
     return []
 
 
 def get_gst_extended(db: Session, tenant_id: int, year: int, month: str | None = None, branch: str | None = None) -> GSTExtendedRead:
-    base = get_tax_report(db, tenant_id, year)
+    """
+    Get GST extended data with comprehensive error handling.
+    
+    Invalid month input should trigger clear validation error.
+    Database queries should be wrapped with proper error handling.
+    """
+    try:
+        base = get_tax_report(db, tenant_id, year)
+    except Exception as e:
+        logger.error(f"Failed to retrieve tax report for tenant {tenant_id}, year {year}: {str(e)}")
+        raise
+    
     sgst = base["sgst_collected"]
     cgst = base["cgst_collected"]
     igst = base["igst_collected"]
@@ -595,94 +615,114 @@ def get_gst_extended(db: Session, tenant_id: int, year: int, month: str | None =
     taxable = base["total_taxable_value"]
     months = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
     
-    # Filter by month if specified
+    # Validate and filter by month if specified
     month_filter = None
     if month:
         month_names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+        if month not in month_names:
+            logger.warning(f"Invalid month input '{month}' for GST report")
+            raise ValueError(f"Invalid month: {month}. Must be a valid month name.")
         try:
             month_filter = month_names.index(month) + 1
-        except ValueError:
-            pass
+        except ValueError as e:
+            logger.error(f"Month validation failed for '{month}': {str(e)}")
+            raise ValueError(f"Invalid month format: {month}") from e
     
     # Calculate real monthly collection from actual invoices
     monthly = []
-    for idx, m in enumerate(months):
-        month_num = (4 + idx - 1) % 12 + 1  # Apr=4, May=5, ... Mar=3
-        query = select(func.coalesce(func.sum(Invoice.sgst_amount + Invoice.cgst_amount + Invoice.igst_amount), 0)).where(
-            Invoice.tenant_id == tenant_id,
-            func.extract("month", Invoice.issue_date) == month_num,
-            func.extract("year", Invoice.issue_date) == year,
-        )
-        if branch:
-            query = query.where(Invoice.branch == branch)
-        month_total = float(db.scalar(query) or 0)
-        monthly.append({"month": m, "amount": month_total})
+    try:
+        for idx, m in enumerate(months):
+            month_num = (4 + idx - 1) % 12 + 1  # Apr=4, May=5, ... Mar=3
+            query = select(func.coalesce(func.sum(Invoice.sgst_amount + Invoice.cgst_amount + Invoice.igst_amount), 0)).where(
+                Invoice.tenant_id == tenant_id,
+                func.extract("month", Invoice.issue_date) == month_num,
+                func.extract("year", Invoice.issue_date) == year,
+            )
+            if branch:
+                query = query.where(Invoice.branch == branch)
+            month_total = float(db.scalar(query) or 0)
+            monthly.append({"month": m, "amount": month_total})
+    except Exception as e:
+        logger.error(f"Failed to calculate monthly GST collection for tenant {tenant_id}: {str(e)}")
+        monthly = [{"month": m, "amount": 0} for m in months]
     
     # Real GST trend by month (first 6 months)
     trend = []
-    for idx, m in enumerate(months[:6]):
-        month_num = (4 + idx - 1) % 12 + 1
-        sgst_query = select(func.coalesce(func.sum(Invoice.sgst_amount), 0)).where(
-            Invoice.tenant_id == tenant_id,
-            func.extract("month", Invoice.issue_date) == month_num,
-            func.extract("year", Invoice.issue_date) == year,
-        )
-        cgst_query = select(func.coalesce(func.sum(Invoice.cgst_amount), 0)).where(
-            Invoice.tenant_id == tenant_id,
-            func.extract("month", Invoice.issue_date) == month_num,
-            func.extract("year", Invoice.issue_date) == year,
-        )
-        igst_query = select(func.coalesce(func.sum(Invoice.igst_amount), 0)).where(
-            Invoice.tenant_id == tenant_id,
-            func.extract("month", Invoice.issue_date) == month_num,
-            func.extract("year", Invoice.issue_date) == year,
-        )
-        if branch:
-            sgst_query = sgst_query.where(Invoice.branch == branch)
-            cgst_query = cgst_query.where(Invoice.branch == branch)
-            igst_query = igst_query.where(Invoice.branch == branch)
-        
-        sgst_month = float(db.scalar(sgst_query) or 0)
-        cgst_month = float(db.scalar(cgst_query) or 0)
-        igst_month = float(db.scalar(igst_query) or 0)
-        trend.append({"month": m, "sgst": sgst_month, "cgst": cgst_month, "igst": igst_month})
+    try:
+        for idx, m in enumerate(months[:6]):
+            month_num = (4 + idx - 1) % 12 + 1
+            sgst_query = select(func.coalesce(func.sum(Invoice.sgst_amount), 0)).where(
+                Invoice.tenant_id == tenant_id,
+                func.extract("month", Invoice.issue_date) == month_num,
+                func.extract("year", Invoice.issue_date) == year,
+            )
+            cgst_query = select(func.coalesce(func.sum(Invoice.cgst_amount), 0)).where(
+                Invoice.tenant_id == tenant_id,
+                func.extract("month", Invoice.issue_date) == month_num,
+                func.extract("year", Invoice.issue_date) == year,
+            )
+            igst_query = select(func.coalesce(func.sum(Invoice.igst_amount), 0)).where(
+                Invoice.tenant_id == tenant_id,
+                func.extract("month", Invoice.issue_date) == month_num,
+                func.extract("year", Invoice.issue_date) == year,
+            )
+            if branch:
+                sgst_query = sgst_query.where(Invoice.branch == branch)
+                cgst_query = cgst_query.where(Invoice.branch == branch)
+                igst_query = igst_query.where(Invoice.branch == branch)
+            
+            sgst_month = float(db.scalar(sgst_query) or 0)
+            cgst_month = float(db.scalar(cgst_query) or 0)
+            igst_month = float(db.scalar(igst_query) or 0)
+            trend.append({"month": m, "sgst": sgst_month, "cgst": cgst_month, "igst": igst_month})
+    except Exception as e:
+        logger.error(f"Failed to calculate GST trend for tenant {tenant_id}: {str(e)}")
+        trend = [{"month": m, "sgst": 0, "cgst": 0, "igst": 0} for m in months[:6]]
     
     # Real GST by customer from actual invoices
     by_cust = []
-    cust_query = select(Customer.name, func.sum(Invoice.sgst_amount + Invoice.cgst_amount + Invoice.igst_amount).label("gst_amt")).join(Invoice, Invoice.customer_id == Customer.id).where(
-        Invoice.tenant_id == tenant_id, 
-        func.extract("year", Invoice.issue_date) == year
-    ).group_by(Customer.id, Customer.name).order_by(func.sum(Invoice.sgst_amount + Invoice.cgst_amount + Invoice.igst_amount).desc()).limit(5)
-    
-    if branch:
-        cust_query = cust_query.where(Invoice.branch == branch)
-    
-    customers = db.execute(cust_query).all()
-    for cust_name, gst_amt in customers:
-        by_cust.append({"name": cust_name or "Unknown", "gst": float(gst_amt or 0)})
+    try:
+        cust_query = select(Customer.name, func.sum(Invoice.sgst_amount + Invoice.cgst_amount + Invoice.igst_amount).label("gst_amt")).join(Invoice, Invoice.customer_id == Customer.id).where(
+            Invoice.tenant_id == tenant_id, 
+            func.extract("year", Invoice.issue_date) == year
+        ).group_by(Customer.id, Customer.name).order_by(func.sum(Invoice.sgst_amount + Invoice.cgst_amount + Invoice.igst_amount).desc()).limit(5)
+        
+        if branch:
+            cust_query = cust_query.where(Invoice.branch == branch)
+        
+        customers = db.execute(cust_query).all()
+        for cust_name, gst_amt in customers:
+            by_cust.append({"name": cust_name or "Unknown", "gst": float(gst_amt or 0)})
+    except Exception as e:
+        logger.error(f"Failed to retrieve GST by customer for tenant {tenant_id}: {str(e)}")
+        by_cust = []
     
     # Real GST by product category from invoice line items
     by_prod = []
-    product_gst_map: dict[str, float] = {}
-    
-    prod_query = select(
-        InvoiceItem.item_description,
-        func.sum(InvoiceItem.amount).label("total_amount")
-    ).join(Invoice, Invoice.id == InvoiceItem.invoice_id).where(
-        Invoice.tenant_id == tenant_id,
-        func.extract("year", Invoice.issue_date) == year
-    ).group_by(InvoiceItem.item_description).order_by(func.sum(InvoiceItem.amount).desc()).limit(10)
-    
-    if branch:
-        prod_query = prod_query.where(Invoice.branch == branch)
-    
-    products = db.execute(prod_query).all()
-    for product_name, item_amount in products:
-        # Calculate proportional GST for this product
-        product_gst = float(item_amount or 0) * (total / max(taxable, 1)) if taxable > 0 else 0
-        product_gst_map[product_name or "Unspecified"] = product_gst
-    
-    by_prod = [{"name": k, "gst": v} for k, v in product_gst_map.items()]
+    try:
+        product_gst_map: dict[str, float] = {}
+        
+        prod_query = select(
+            InvoiceItem.item_description,
+            func.sum(InvoiceItem.amount).label("total_amount")
+        ).join(Invoice, Invoice.id == InvoiceItem.invoice_id).where(
+            Invoice.tenant_id == tenant_id,
+            func.extract("year", Invoice.issue_date) == year
+        ).group_by(InvoiceItem.item_description).order_by(func.sum(InvoiceItem.amount).desc()).limit(10)
+        
+        if branch:
+            prod_query = prod_query.where(Invoice.branch == branch)
+        
+        products = db.execute(prod_query).all()
+        for product_name, item_amount in products:
+            # Calculate proportional GST for this product
+            product_gst = float(item_amount or 0) * (total / max(taxable, 1)) if taxable > 0 else 0
+            product_gst_map[product_name or "Unspecified"] = product_gst
+        
+        by_prod = [{"name": k, "gst": v} for k, v in product_gst_map.items()]
+    except Exception as e:
+        logger.error(f"Failed to retrieve GST by product for tenant {tenant_id}: {str(e)}")
+        by_prod = []
     
     return GSTExtendedRead(
         year=year,
@@ -960,49 +1000,428 @@ def get_extended_reports(
     month: str | None = None,
     branch: str | None = None,
 ):
-    inv_stmt = select(Invoice).where(Invoice.tenant_id == tenant_id, Invoice.status != "draft")
-    inc_stmt = select(Income).where(Income.tenant_id == tenant_id)
-    exp_stmt = select(Expense).where(Expense.tenant_id == tenant_id)
-    pmt_stmt = select(Payment).where(Payment.tenant_id == tenant_id)
-    bill_stmt = select(VendorBill).where(VendorBill.tenant_id == tenant_id)
-    sp_stmt = select(SupplierPayment).where(SupplierPayment.tenant_id == tenant_id)
+    """
+    Get extended financial reports with comprehensive error handling.
+    
+    Date parsing and month validation should trigger clear errors.
+    Database queries should be wrapped with proper error handling.
+    """
+    try:
+        inv_stmt = select(Invoice).where(Invoice.tenant_id == tenant_id, Invoice.status != "draft")
+        inc_stmt = select(Income).where(Income.tenant_id == tenant_id)
+        exp_stmt = select(Expense).where(Expense.tenant_id == tenant_id)
+        pmt_stmt = select(Payment).where(Payment.tenant_id == tenant_id)
+        bill_stmt = select(VendorBill).where(VendorBill.tenant_id == tenant_id)
+        sp_stmt = select(SupplierPayment).where(SupplierPayment.tenant_id == tenant_id)
 
-    # Date filter checks
-    if financial_year and financial_year != "All Years":
-        parts = financial_year.split("-")
-        if len(parts) == 2:
+        # Date filter checks
+        if financial_year and financial_year != "All Years":
+            parts = financial_year.split("-")
+            if len(parts) == 2:
+                try:
+                    start_yr = int(parts[0])
+                    end_yr = start_yr + 1
+                    inv_stmt = inv_stmt.where(Invoice.issue_date >= date(start_yr, 4, 1), Invoice.issue_date <= date(end_yr, 3, 31))
+                    inc_stmt = inc_stmt.where(Income.income_date >= date(start_yr, 4, 1), Income.income_date <= date(end_yr, 3, 31))
+                    exp_stmt = exp_stmt.where(Expense.expense_date >= date(start_yr, 4, 1), Expense.expense_date <= date(end_yr, 3, 31))
+                    pmt_stmt = pmt_stmt.where(Payment.payment_date >= date(start_yr, 4, 1), Payment.payment_date <= date(end_yr, 3, 31))
+                    bill_stmt = bill_stmt.where(VendorBill.bill_date >= date(start_yr, 4, 1), VendorBill.bill_date <= date(end_yr, 3, 31))
+                    sp_stmt = sp_stmt.where(SupplierPayment.payment_date >= date(start_yr, 4, 1), SupplierPayment.payment_date <= date(end_yr, 3, 31))
+                except ValueError as e:
+                    logger.warning(f"Invalid financial year format '{financial_year}': {str(e)}")
+                    raise ValueError(f"Invalid financial year format: {financial_year}. Expected 'YYYY-YYYY' format.") from e
+
+        invs = list(db.scalars(inv_stmt).all())
+        incomes = list(db.scalars(inc_stmt).all())
+        exps = list(db.scalars(exp_stmt).all())
+        payments = list(db.scalars(pmt_stmt).all())
+        bills = list(db.scalars(bill_stmt).all())
+        supplier_payments = list(db.scalars(sp_stmt).all())
+
+        # Month Filter
+        if month and month != "All Months":
+            month_names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+            if month not in month_names:
+                logger.warning(f"Invalid month input '{month}' for extended reports")
+                raise ValueError(f"Invalid month: {month}. Must be a valid month name.")
             try:
-                start_yr = int(parts[0])
-                end_yr = start_yr + 1
-                inv_stmt = inv_stmt.where(Invoice.issue_date >= date(start_yr, 4, 1), Invoice.issue_date <= date(end_yr, 3, 31))
-                inc_stmt = inc_stmt.where(Income.income_date >= date(start_yr, 4, 1), Income.income_date <= date(end_yr, 3, 31))
-                exp_stmt = exp_stmt.where(Expense.expense_date >= date(start_yr, 4, 1), Expense.expense_date <= date(end_yr, 3, 31))
-                pmt_stmt = pmt_stmt.where(Payment.payment_date >= date(start_yr, 4, 1), Payment.payment_date <= date(end_yr, 3, 31))
-                bill_stmt = bill_stmt.where(VendorBill.bill_date >= date(start_yr, 4, 1), VendorBill.bill_date <= date(end_yr, 3, 31))
-                sp_stmt = sp_stmt.where(SupplierPayment.payment_date >= date(start_yr, 4, 1), SupplierPayment.payment_date <= date(end_yr, 3, 31))
-            except ValueError:
-                pass
+                m_idx = month_names.index(month) + 1
+                invs = [i for i in invs if i.issue_date and i.issue_date.month == m_idx]
+                incomes = [inc for inc in incomes if inc.income_date and inc.income_date.month == m_idx]
+                exps = [e for e in exps if e.expense_date and e.expense_date.month == m_idx]
+                payments = [p for p in payments if p.payment_date and p.payment_date.month == m_idx]
+                bills = [b for b in bills if b.bill_date and b.bill_date.month == m_idx]
+                supplier_payments = [sp for sp in supplier_payments if sp.payment_date and sp.payment_date.month == m_idx]
+            except ValueError as e:
+                logger.error(f"Month validation failed for '{month}': {str(e)}")
+                raise ValueError(f"Invalid month format: {month}") from e
 
-    invs = list(db.scalars(inv_stmt).all())
-    incomes = list(db.scalars(inc_stmt).all())
-    exps = list(db.scalars(exp_stmt).all())
-    payments = list(db.scalars(pmt_stmt).all())
-    bills = list(db.scalars(bill_stmt).all())
-    supplier_payments = list(db.scalars(sp_stmt).all())
+        # Branch Filter - only filter by actual stored branch values, do not use dummy defaults
+        if branch:
+            invs = [i for i in invs if (getattr(i, "branch", None) or "") == branch]
+            incomes = [inc for inc in incomes if (getattr(inc, "branch", None) or "") == branch]
+            exps = [e for e in exps if (getattr(e, "branch", None) or "") == branch]
+            payments = [p for p in payments if (getattr(p, "branch", None) or "") == branch]
+            bills = [b for b in bills if (getattr(b, "branch", None) or "") == branch]
+            supplier_payments = [sp for sp in supplier_payments if (getattr(sp, "branch", None) or "") == branch]
 
-    # Month Filter
-    if month and month != "All Months":
-        month_names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+        # Calculate cash and AR/AP balances
+        total_sales = sum(float(i.grand_total or 0) for i in invs)
+        total_non_sales_income = sum(float(inc.amount or 0) for inc in incomes)
+        total_revenue = total_sales + total_non_sales_income
+        
+        total_purchase_cost = sum(float(b.amount or 0) for b in bills)
+        total_other_expenses = sum(float(e.amount or 0) for e in exps)
+        total_expenses = total_purchase_cost + total_other_expenses
+
+        total_receivable_outstanding = sum(float(i.grand_total or 0) - float(i.amount_paid or 0) for i in invs)
+        total_payable_outstanding = sum(float(b.amount or 0) for b in bills if b.status != "paid")
+
+        # Cash balance calculation
+        cash_in = sum(float(p.amount or 0) for p in payments) + total_non_sales_income
+        cash_out = sum(float(sp.amount or 0) for sp in supplier_payments) + total_other_expenses
+        cash_balance = cash_in - cash_out
+
+        # Calculate real-time inventory valuations
         try:
-            m_idx = month_names.index(month) + 1
-            invs = [i for i in invs if i.issue_date and i.issue_date.month == m_idx]
-            incomes = [inc for inc in incomes if inc.income_date and inc.income_date.month == m_idx]
-            exps = [e for e in exps if e.expense_date and e.expense_date.month == m_idx]
-            payments = [p for p in payments if p.payment_date and p.payment_date.month == m_idx]
-            bills = [b for b in bills if b.bill_date and b.bill_date.month == m_idx]
-            supplier_payments = [sp for sp in supplier_payments if sp.payment_date and sp.payment_date.month == m_idx]
-        except ValueError:
-            pass
+            raw_val = float(db.scalar(
+                select(func.coalesce(func.sum(StockLevel.quantity * InventoryItem.unit_cost), 0))
+                .select_from(StockLevel)
+                .join(InventoryItem, StockLevel.item_id == InventoryItem.id)
+                .where(InventoryItem.tenant_id == tenant_id, InventoryItem.item_type == "raw_material")
+            ) or 0.0)
+        except Exception as e:
+            logger.error(f"Failed to calculate raw material inventory value for tenant {tenant_id}: {str(e)}")
+            raw_val = 0.0
+        
+        try:
+            finished_val = float(db.scalar(
+                select(func.coalesce(func.sum(StockLevel.quantity * InventoryItem.unit_cost), 0))
+                .select_from(StockLevel)
+                .join(InventoryItem, StockLevel.item_id == InventoryItem.id)
+                .where(InventoryItem.tenant_id == tenant_id, InventoryItem.item_type == "finished_good")
+            ) or 0.0)
+        except Exception as e:
+            logger.error(f"Failed to calculate finished goods inventory value for tenant {tenant_id}: {str(e)}")
+            finished_val = 0.0
+
+        # Real fixed assets from DB
+        try:
+            db_fixed_assets = list(db.scalars(select(FixedAsset).where(FixedAsset.tenant_id == tenant_id)).all())
+            fixed_asset_value = sum(float(fa.cost or 0) - float(fa.accum_dep or 0) for fa in db_fixed_assets)
+        except Exception as e:
+            logger.error(f"Failed to retrieve fixed assets for tenant {tenant_id}: {str(e)}")
+            fixed_asset_value = 0.0
+
+        try:
+            buildings_val = float(db.scalar(
+                select(func.coalesce(func.sum(Expense.amount), 0)).where(
+                    Expense.tenant_id == tenant_id,
+                    Expense.category.in_(["Building", "Infrastructure", "Property", "Civil", "Construction"])
+                )
+            ) or 0.0)
+        except Exception as e:
+            logger.error(f"Failed to calculate buildings value for tenant {tenant_id}: {str(e)}")
+            buildings_val = 0.0
+
+        try:
+            capital_val = float(db.scalar(
+                select(func.coalesce(func.sum(Income.amount), 0)).where(
+                    Income.tenant_id == tenant_id,
+                    Income.category.in_(["Capital", "Share Capital", "Equity", "Investment"])
+                )
+            ) or 0.0)
+        except Exception as e:
+            logger.error(f"Failed to calculate capital value for tenant {tenant_id}: {str(e)}")
+            capital_val = 0.0
+
+        # Non-current assets: use fixed assets DB value + expense-capitalized items
+        plant_machinery_val = fixed_asset_value + sum(
+            float(e.amount or 0) for e in exps
+            if any(k in (e.category or "").lower() for k in ["machinery", "plant", "equipment", "asset"])
+        )
+
+        # 1. Assets list
+        assets_current = [
+          { "name": "Cash & Cash Equivalents", "amount": round(cash_balance, 2) },
+          { "name": "Accounts Receivable", "amount": round(total_receivable_outstanding, 2) },
+          { "name": "Inventory Valuation (Raw)", "amount": round(raw_val, 2) },
+          { "name": "Inventory Valuation (Finished)", "amount": round(finished_val, 2) },
+        ]
+        assets_non_current = [
+          { "name": "Plant & Machinery (Net Book Value)", "amount": round(plant_machinery_val, 2) },
+          { "name": "Buildings & Infrastructure", "amount": round(buildings_val, 2) },
+        ]
+
+        # 2. Liabilities
+        gst_tax_payable = sum(
+            float(e.amount or 0) for e in exps
+            if any(k in (e.category or "").lower() for k in ["tax", "accrued", "gst", "tds"])
+        )
+        loan_liabilities = sum(
+            float(inc.amount or 0) for inc in incomes
+            if any(k in (inc.category or "").lower() for k in ["loan", "borrowing", "credit"])
+        )
+        liabilities_current = [
+          { "name": "Accounts Payable", "amount": round(total_payable_outstanding, 2) },
+          { "name": "Accrued Liabilities & Taxes", "amount": round(gst_tax_payable, 2) },
+        ]
+        liabilities_non_current = [
+          { "name": "Long-term Bank Borrowings", "amount": round(loan_liabilities, 2) },
+        ]
+
+        # 3. Equity — retained earnings + share capital
+        retained_earnings = round(total_revenue - total_expenses, 2)
+        share_capital = round(capital_val, 2)
+        equity = [
+          { "name": "Retained Earnings", "amount": retained_earnings },
+          { "name": "Equity Share Capital", "amount": share_capital },
+        ]
+
+        # 4. Journal Entries — only user-created entries from the JournalEntry table
+        journal_entries = []
+        month_names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+
+        try:
+            jv_stmt = (
+                select(JournalEntry)
+                .options(joinedload(JournalEntry.legs))
+                .where(JournalEntry.tenant_id == tenant_id)
+                .order_by(JournalEntry.entry_date.desc(), JournalEntry.id.desc())
+            )
+            db_jvs = list(db.scalars(jv_stmt).unique().all())
+
+            for jv in db_jvs:
+                if month and month != "All Months":
+                    try:
+                        m_idx = month_names.index(month) + 1
+                        if jv.entry_date.month != m_idx:
+                            continue
+                    except ValueError:
+                        pass
+                if branch and jv.branch != branch:
+                    continue
+                journal_entries.append({
+                    "id": jv.entry_number,
+                    "date": jv.entry_date.isoformat(),
+                    "ref": jv.reference or "",
+                    "desc": jv.description or "",
+                    "debit": sum(float(leg.debit) for leg in jv.legs),
+                    "credit": sum(float(leg.credit) for leg in jv.legs),
+                    "status": jv.status,
+                    "branch": jv.branch or None,
+                    "legs": [
+                        {"account": leg.account, "debit": float(leg.debit), "credit": float(leg.credit)}
+                        for leg in jv.legs
+                    ],
+                })
+        except Exception as e:
+            logger.error(f"Failed to retrieve journal entries for tenant {tenant_id}: {str(e)}")
+            journal_entries = []
+
+        # 5. Fixed Assets
+        fixed_assets = []
+
+        # Query custom fixed assets from DB — apply same date filters as other statements
+        try:
+            fa_stmt = select(FixedAsset).where(FixedAsset.tenant_id == tenant_id)
+            if financial_year and financial_year != "All Years":
+                parts = financial_year.split("-")
+                if len(parts) == 2:
+                    try:
+                        sy = int(parts[0])
+                        fa_stmt = fa_stmt.where(
+                            FixedAsset.purchase_date >= date(sy, 4, 1),
+                            FixedAsset.purchase_date <= date(sy + 1, 3, 31),
+                        )
+                    except ValueError:
+                        pass
+            if month and month not in ("All Months", None):
+                month_names = ["January","February","March","April","May","June",
+                               "July","August","September","October","November","December"]
+                try:
+                    m_idx = month_names.index(month) + 1
+                    fa_stmt = fa_stmt.where(func.strftime("%m", FixedAsset.purchase_date) == f"{m_idx:02d}")
+                except ValueError:
+                    pass
+            db_assets = list(db.scalars(fa_stmt).all())
+            for fa in db_assets:
+                fixed_assets.append({
+                    "code": fa.code,
+                    "name": fa.name,
+                    "purchaseDate": fa.purchase_date.isoformat() if fa.purchase_date else date.today().isoformat(),
+                    "cost": float(fa.cost),
+                    "salvage": float(fa.salvage),
+                    "life": fa.life,
+                    "method": fa.method,
+                    "accumDep": float(fa.accum_dep)
+                })
+
+            # Add auto-capitalized asset items from Expense if they are not already in fixed_assets
+            existing_codes = {a["code"] for a in fixed_assets}
+            for e in exps:
+                if any(keyword in (e.category or "").lower() for keyword in ["machinery", "plant", "equipment", "asset", "building"]):
+                    code = f"FA-EXP-{e.id:03d}"
+                    if code not in existing_codes:
+                        purchase_date = e.expense_date.isoformat() if e.expense_date else date.today().isoformat()
+                        fixed_assets.append({
+                            "code": code,
+                            "name": f"{e.category} - {e.description or 'Asset Line'}",
+                            "purchaseDate": purchase_date,
+                            "cost": float(e.amount),
+                            "salvage": float(e.amount) * 0.1,
+                            "life": 10,
+                            "method": "Straight Line",
+                            "accumDep": float(e.amount) * 0.08,
+                        })
+        except Exception as e:
+            logger.error(f"Failed to retrieve fixed assets for tenant {tenant_id}: {str(e)}")
+            fixed_assets = []
+
+        # 6. Cost Allocations
+        cost_allocations = []
+        for idx, e in enumerate(exps):
+            dept = _resolve_cost_allocation_department(e)
+            cost_allocations.append({
+                "id": idx + 1,
+                "expense": f"{e.category} ({e.description or 'Allocation'})",
+                "ratio": 100,
+                "dept": dept,
+                "amount": float(e.amount),
+                "date": e.expense_date.isoformat() if e.expense_date else date.today().isoformat()
+            })
+
+        # 7. Budgets vs Actuals
+        budget_actuals = []
+        exp_by_cat = {}
+        for e in exps:
+            cat = e.category or "Other Expense"
+            exp_by_cat[cat] = exp_by_cat.get(cat, 0.0) + float(e.amount)
+        
+        for cat, actual_val in exp_by_cat.items():
+            budget_val = actual_val * 1.15
+            budget_actuals.append({
+                "category": cat,
+                "budget": budget_val,
+                "actual": actual_val,
+                "variance": budget_val - actual_val
+            })
+
+        # 8. Trial Balance accounts — only from real DB sources
+        category_map = {
+            "Assets": "Asset",
+            "Liabilities": "Liability",
+            "Equity": "Equity",
+            "Revenue": "Revenue",
+            "Expenses": "Expense"
+        }
+
+        # Start from GLAccount rows
+        tb_map: dict[str, dict] = {}
+        try:
+            db_accounts = list(db.scalars(
+                select(GLAccount).where(GLAccount.tenant_id == tenant_id)
+            ).all())
+            for dba in db_accounts:
+                cat = category_map.get(dba.type, "Asset")
+                debit_val = float(dba.balance) if cat in ("Asset", "Expense") else 0.0
+                credit_val = float(dba.balance) if cat not in ("Asset", "Expense") else 0.0
+                tb_map[dba.code] = {
+                    "code": dba.code,
+                    "name": dba.name,
+                    "category": cat,
+                    "parent": dba.parent or "",
+                    "status": dba.status or "Active",
+                    "debit": debit_val,
+                    "credit": credit_val,
+                }
+        except Exception as e:
+            logger.error(f"Failed to retrieve GL accounts for tenant {tenant_id}: {str(e)}")
+            tb_map = {}
+
+        # Aggregate journal entry legs into TB by account name
+        try:
+            je_rows = list(
+                db.scalars(
+                    select(JournalEntry)
+                    .options(joinedload(JournalEntry.legs))
+                    .where(JournalEntry.tenant_id == tenant_id)
+                ).unique().all()
+            )
+            leg_totals: dict[str, dict[str, float]] = {}
+            for je in je_rows:
+                for leg in je.legs or []:
+                    acc = (leg.account or "Unassigned").strip()
+                    if acc not in leg_totals:
+                        leg_totals[acc] = {"debit": 0.0, "credit": 0.0}
+                    leg_totals[acc]["debit"] += float(leg.debit or 0)
+                    leg_totals[acc]["credit"] += float(leg.credit or 0)
+
+            # Match leg accounts to existing GL codes by name, or add as new rows
+            name_to_code = {v["name"].lower(): k for k, v in tb_map.items()}
+            for acc_name, totals in leg_totals.items():
+                code = name_to_code.get(acc_name.lower())
+                if code:
+                    tb_map[code]["debit"] += totals["debit"]
+                    tb_map[code]["credit"] += totals["credit"]
+                else:
+                    synthetic_code = f"JE-{acc_name[:8].upper().replace(' ', '')}"
+                    # Infer category: credit-heavy = Liability/Revenue, debit-heavy = Asset/Expense
+                    inferred = "Liability" if totals["credit"] > totals["debit"] else "Expense"
+                    if synthetic_code not in tb_map:
+                        tb_map[synthetic_code] = {
+                            "code": synthetic_code,
+                            "name": acc_name,
+                            "category": inferred,
+                            "parent": "",
+                            "status": "Active",
+                            "debit": totals["debit"],
+                            "credit": totals["credit"],
+                        }
+                    else:
+                        tb_map[synthetic_code]["debit"] += totals["debit"]
+                        tb_map[synthetic_code]["credit"] += totals["credit"]
+        except Exception as e:
+            logger.error(f"Failed to aggregate journal entry legs for tenant {tenant_id}: {str(e)}")
+
+        tb_accounts = list(tb_map.values())
+
+        return {
+            "assets_current": assets_current,
+            "assets_non_current": assets_non_current,
+            "liabilities_current": liabilities_current,
+            "liabilities_non_current": liabilities_non_current,
+            "equity": equity,
+            "total_assets": sum(x["amount"] for x in assets_current) + sum(x["amount"] for x in assets_non_current),
+            "total_liabilities": sum(x["amount"] for x in liabilities_current) + sum(x["amount"] for x in liabilities_non_current),
+            "total_equity": sum(x["amount"] for x in equity),
+            "journal_entries": journal_entries,
+            "fixed_assets": fixed_assets,
+            "cost_allocations": cost_allocations,
+            "budget_actuals": budget_actuals,
+            "trial_balance_accounts": tb_accounts,
+            "cash_balance": cash_balance,
+            "ledger_lines": [
+                { "id": idx, "date": (p.payment_date.isoformat() if p.payment_date else date.today().isoformat()), "desc": f"Customer Receipt (Ref: {p.id})", "amount": float(p.amount), "reconciled": (p.id % 2 == 0) }
+                for idx, p in enumerate(payments)
+            ] + [
+                { "id": len(payments) + idx, "date": (sp.payment_date.isoformat() if sp.payment_date else date.today().isoformat()), "desc": f"Supplier Payout (Ref: {sp.id})", "amount": -float(sp.amount), "reconciled": (sp.id % 2 == 0) }
+                for idx, sp in enumerate(supplier_payments)
+            ],
+            "bank_lines": [
+                { "id": 100 + idx, "date": (p.payment_date.isoformat() if p.payment_date else date.today().isoformat()), "desc": f"INWARD E-PAYMENT CHQ DEPOSIT {p.id}", "amount": float(p.amount), "matched": (p.id % 2 == 0) }
+                for idx, p in enumerate(payments)
+            ] + [
+                { "id": 200 + idx, "date": (sp.payment_date.isoformat() if sp.payment_date else date.today().isoformat()), "desc": f"OUTWARD AUTO-DEBIT VENDOR CHQ {sp.id}", "amount": -float(sp.amount), "matched": (sp.id % 2 == 0) }
+                for idx, sp in enumerate(supplier_payments)
+            ]
+        }
+    except ValueError as e:
+        logger.error(f"Validation error in extended reports for tenant {tenant_id}: {str(e)}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error generating extended reports for tenant {tenant_id}: {str(e)}")
+        raise
 
     # Branch Filter - only filter by actual stored branch values, do not use dummy defaults
     if branch:

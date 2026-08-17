@@ -8,15 +8,19 @@ refactoring callers.
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Any, Callable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.alert import Alert
 from app.models.user import User
 from app.services.notification_management_service import NotificationManagementService
+
+logger = logging.getLogger(__name__)
 
 # Alert type → role names that should receive the bell notification.
 # Admin always receives every alert (see _resolve_audience_user_ids).
@@ -209,24 +213,32 @@ def _resolve_audience_user_ids(
     alert_type: str,
     target_roles: list[str] | None = None,
 ) -> list[int]:
-    roles = list(target_roles) if target_roles else list(ALERT_AUDIENCE.get(alert_type, []))
-    if "Admin" not in roles:
-        roles.append("Admin")
+    """Resolve user IDs for alert audience based on roles. Returns empty list on failure."""
+    try:
+        roles = list(target_roles) if target_roles else list(ALERT_AUDIENCE.get(alert_type, []))
+        if "Admin" not in roles:
+            roles.append("Admin")
 
-    users = list(
-        db.scalars(
-            select(User)
-            .options(joinedload(User.roles))
-            .where(User.tenant_id == tenant_id, User.is_active.is_(True))
-        ).unique().all()
-    )
-    role_set = {r.lower() for r in roles}
-    ids: list[int] = []
-    for u in users:
-        names = {r.name.lower() for r in (u.roles or [])}
-        if names & role_set:
-            ids.append(u.id)
-    return ids
+        users = list(
+            db.scalars(
+                select(User)
+                .options(joinedload(User.roles))
+                .where(User.tenant_id == tenant_id, User.is_active.is_(True))
+            ).unique().all()
+        )
+        role_set = {r.lower() for r in roles}
+        ids: list[int] = []
+        for u in users:
+            names = {r.name.lower() for r in (u.roles or [])}
+            if names & role_set:
+                ids.append(u.id)
+        return ids
+    except SQLAlchemyError as e:
+        logger.error(f"Database error resolving audience for alert {alert_type} in tenant {tenant_id}: {str(e)}")
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error resolving audience for alert {alert_type} in tenant {tenant_id}: {str(e)}")
+        return []
 
 
 def fanout_alert_notifications(
@@ -235,32 +247,44 @@ def fanout_alert_notifications(
     *,
     created_by_user_id: int | None = None,
 ) -> int:
-    """Create per-user erp_notifications for an alert. Returns count created."""
-    roles = None
-    if alert.target_role:
-        roles = [r.strip() for r in alert.target_role.split(",") if r.strip()]
-    user_ids = _resolve_audience_user_ids(db, alert.tenant_id, alert.alert_type, roles)
-    ntype = _ALERT_TO_NOTIF_TYPE.get(alert.alert_type, "information")
-    priority = _severity_to_priority(alert.severity)
-    module = alert.module or _MODULE_DEFAULTS.get(alert.alert_type, "system")
-    link = alert.link or DEFAULT_LINKS.get(alert.alert_type, "/alerts")
-    created = 0
-    for uid in user_ids:
-        NotificationManagementService.create_for_user(
-            db,
-            tenant_id=alert.tenant_id,
-            user_id=uid,
-            title=alert.title,
-            message=alert.message or alert.title,
-            type=ntype,
-            priority=priority,
-            module=module,
-            action_url=link,
-            created_by=alert.created_by or "System",
-            created_by_user_id=created_by_user_id,
-        )
-        created += 1
-    return created
+    """Create per-user erp_notifications for an alert. Returns count created.
+    
+    Wraps each notification creation in try-except so individual failures
+    do not prevent notifications from being sent to other users.
+    """
+    try:
+        roles = None
+        if alert.target_role:
+            roles = [r.strip() for r in alert.target_role.split(",") if r.strip()]
+        user_ids = _resolve_audience_user_ids(db, alert.tenant_id, alert.alert_type, roles)
+        ntype = _ALERT_TO_NOTIF_TYPE.get(alert.alert_type, "information")
+        priority = _severity_to_priority(alert.severity)
+        module = alert.module or _MODULE_DEFAULTS.get(alert.alert_type, "system")
+        link = alert.link or DEFAULT_LINKS.get(alert.alert_type, "/alerts")
+        created = 0
+        for uid in user_ids:
+            try:
+                NotificationManagementService.create_for_user(
+                    db,
+                    tenant_id=alert.tenant_id,
+                    user_id=uid,
+                    title=alert.title,
+                    message=alert.message or alert.title,
+                    type=ntype,
+                    priority=priority,
+                    module=module,
+                    action_url=link,
+                    created_by=alert.created_by or "System",
+                    created_by_user_id=created_by_user_id,
+                )
+                created += 1
+            except Exception as e:
+                logger.error(f"Failed to create notification for user {uid} on alert {alert.id}: {str(e)}")
+                continue
+        return created
+    except Exception as e:
+        logger.error(f"Error fanning out notifications for alert {alert.id}: {str(e)}")
+        return 0
 
 
 def emit_alert(
@@ -282,41 +306,55 @@ def emit_alert(
     status: str = "active",
     fanout: bool = True,
     commit: bool = True,
-) -> Alert:
-    """Persist an Alert and fan out role-targeted bell notifications."""
-    roles = target_roles if target_roles is not None else ALERT_AUDIENCE.get(alert_type, ["Admin"])
-    target_role_str = ",".join(roles) if roles else None
-    mod = module or _MODULE_DEFAULTS.get(alert_type, "system")
-    action_link = link or DEFAULT_LINKS.get(alert_type, "/alerts")
+) -> Alert | None:
+    """Persist an Alert and fan out role-targeted bell notifications.
+    
+    Returns the created Alert on success. On failure, rolls back the transaction
+    and returns None after logging the error. Wraps all database operations in
+    try-except to ensure transaction consistency.
+    """
+    try:
+        roles = target_roles if target_roles is not None else ALERT_AUDIENCE.get(alert_type, ["Admin"])
+        target_role_str = ",".join(roles) if roles else None
+        mod = module or _MODULE_DEFAULTS.get(alert_type, "system")
+        action_link = link or DEFAULT_LINKS.get(alert_type, "/alerts")
 
-    alert = Alert(
-        tenant_id=tenant_id,
-        alert_type=alert_type,
-        title=title,
-        message=message,
-        severity=severity,
-        status=status,
-        triggered_at=datetime.now(timezone.utc),
-        reference_type=reference_type,
-        reference_id=reference_id,
-        module=mod,
-        link=action_link,
-        target_role=target_role_str,
-        metadata_json=json.dumps(metadata) if metadata else None,
-        created_by=created_by or "System",
-        is_read=False,
-    )
-    db.add(alert)
-    db.flush()
-
-    if fanout:
-        fanout_alert_notifications(db, alert, created_by_user_id=created_by_user_id)
-
-    if commit:
-        db.commit()
-        db.refresh(alert)
-    else:
+        alert = Alert(
+            tenant_id=tenant_id,
+            alert_type=alert_type,
+            title=title,
+            message=message,
+            severity=severity,
+            status=status,
+            triggered_at=datetime.now(timezone.utc),
+            reference_type=reference_type,
+            reference_id=reference_id,
+            module=mod,
+            link=action_link,
+            target_role=target_role_str,
+            metadata_json=json.dumps(metadata) if metadata else None,
+            created_by=created_by or "System",
+            is_read=False,
+        )
+        db.add(alert)
         db.flush()
 
-    _notify_listeners(alert)
-    return alert
+        if fanout:
+            fanout_alert_notifications(db, alert, created_by_user_id=created_by_user_id)
+
+        if commit:
+            db.commit()
+            db.refresh(alert)
+        else:
+            db.flush()
+
+        _notify_listeners(alert)
+        return alert
+    except SQLAlchemyError as e:
+        logger.error(f"Database error emitting alert {alert_type} for tenant {tenant_id}: {str(e)}")
+        db.rollback()
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error emitting alert {alert_type} for tenant {tenant_id}: {str(e)}")
+        db.rollback()
+        return None

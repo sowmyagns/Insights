@@ -1,3 +1,4 @@
+import logging
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -5,8 +6,10 @@ from fastapi import HTTPException, status
 from jose import JWTError, jwt
 import bcrypt
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
+
+logger = logging.getLogger(__name__)
 
 from app.core.config import get_settings
 from app.core.rbac_constants import REGISTERABLE_ROLES
@@ -116,25 +119,47 @@ def assert_user_has_role(user: User, selected_role: str | None = None) -> str:
 
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
     """Legacy helper — returns user only when email+password match."""
-    stmt = (
-        select(User)
-        .where(User.email == email)
-        .options(selectinload(User.roles), selectinload(User.tenant))
-    )
-    user = db.scalars(stmt).first()
-    if not user:
+    try:
+        stmt = (
+            select(User)
+            .where(User.email == email)
+            .options(selectinload(User.roles), selectinload(User.tenant))
+        )
+        user = db.scalars(stmt).first()
+        if not user:
+            return None
+        if not verify_password(password, user.hashed_password):
+            return None
+        return user
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in authenticate_user for email {email}: {str(e)}"
+        )
         return None
-    if not verify_password(password, user.hashed_password):
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in authenticate_user for email {email}: {str(e)}"
+        )
         return None
-    return user
 
 
 def find_user_by_email(db: Session, email: str) -> User | None:
-    return db.scalars(
-        select(User)
-        .where(User.email == email)
-        .options(selectinload(User.roles), selectinload(User.tenant))
-    ).first()
+    try:
+        return db.scalars(
+            select(User)
+            .where(User.email == email)
+            .options(selectinload(User.roles), selectinload(User.tenant))
+        ).first()
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in find_user_by_email for email {email}: {str(e)}"
+        )
+        return None
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in find_user_by_email for email {email}: {str(e)}"
+        )
+        return None
 
 
 def login_user(db: Session, email: str, password: str) -> User:
@@ -142,70 +167,89 @@ def login_user(db: Session, email: str, password: str) -> User:
     Validate login with explicit error messages.
     JWT must only be issued by the caller after this succeeds.
     """
-    from app.core.company_email import (
-        MSG_ACCOUNT_DEACTIVATED,
-        MSG_COMPANY_INACTIVE,
-        MSG_EMAIL_NOT_FOUND,
-        MSG_EMAIL_NOT_WITH_COMPANY,
-        MSG_INCORRECT_PASSWORD,
-        MSG_TRIAL_EXPIRED,
-        email_domain,
-        find_company_by_email_domain,
-        is_subscription_active,
-    )
+    try:
+        from app.core.company_email import (
+            MSG_ACCOUNT_DEACTIVATED,
+            MSG_COMPANY_INACTIVE,
+            MSG_EMAIL_NOT_FOUND,
+            MSG_EMAIL_NOT_WITH_COMPANY,
+            MSG_INCORRECT_PASSWORD,
+            MSG_TRIAL_EXPIRED,
+            email_domain,
+            find_company_by_email_domain,
+            is_subscription_active,
+        )
 
-    email = (email or "").strip().lower()
-    user = find_user_by_email(db, email)
+        email = (email or "").strip().lower()
+        user = find_user_by_email(db, email)
 
-    if not user:
-        domain = email_domain(email)
-        company = find_company_by_email_domain(db, domain)
-        if company:
+        if not user:
+            domain = email_domain(email)
+            company = find_company_by_email_domain(db, domain)
+            if company:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=MSG_EMAIL_NOT_WITH_COMPANY,
+                )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=MSG_EMAIL_NOT_WITH_COMPANY,
+                detail=MSG_EMAIL_NOT_FOUND,
             )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=MSG_EMAIL_NOT_FOUND,
+
+        company = user.tenant
+        if company is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=MSG_EMAIL_NOT_FOUND,
+            )
+
+        if not verify_password(password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=MSG_INCORRECT_PASSWORD,
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=MSG_ACCOUNT_DEACTIVATED,
+            )
+
+        if not getattr(user, "email_verified", True):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Please verify your email address before signing in.",
+            )
+
+        if not is_subscription_active(company):
+            sub = (company.subscription or "trial").strip().lower()
+            status_val = (getattr(company, "status", None) or "active").strip().lower()
+            if status_val == "suspended":
+                from app.core.company_email import MSG_COMPANY_SUSPENDED
+                detail = MSG_COMPANY_SUSPENDED
+            else:
+                detail = MSG_TRIAL_EXPIRED if sub in {"trial", "expired", ""} else MSG_COMPANY_INACTIVE
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+
+        return user
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in login_user for email {email}: {str(e)}"
         )
-
-    company = user.tenant
-    if company is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=MSG_EMAIL_NOT_FOUND,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred during authentication. Please try again."
         )
-
-    if not verify_password(password, user.hashed_password):
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in login_user for email {email}: {str(e)}"
+        )
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=MSG_INCORRECT_PASSWORD,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred during authentication. Please try again."
         )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=MSG_ACCOUNT_DEACTIVATED,
-        )
-
-    if not getattr(user, "email_verified", True):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Please verify your email address before signing in.",
-        )
-
-    if not is_subscription_active(company):
-        sub = (company.subscription or "trial").strip().lower()
-        status_val = (getattr(company, "status", None) or "active").strip().lower()
-        if status_val == "suspended":
-            from app.core.company_email import MSG_COMPANY_SUSPENDED
-            detail = MSG_COMPANY_SUSPENDED
-        else:
-            detail = MSG_TRIAL_EXPIRED if sub in {"trial", "expired", ""} else MSG_COMPANY_INACTIVE
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
-
-    return user
 
 
 def issue_auth_response_data(
@@ -216,92 +260,151 @@ def issue_auth_response_data(
     user_agent: str | None = None,
     role_name: str | None = None,
 ) -> dict:
-    from app.services.security_service import clear_login_failures, create_refresh_token
+    try:
+        from app.services.security_service import clear_login_failures, create_refresh_token
 
-    clear_login_failures(db, user)
-    now = datetime.now(timezone.utc)
-    user.last_login_at = now
-    user.tokens_revoked_at = now
-    db.commit()
-    db.refresh(user, ["roles", "tenant"])
-    access = build_access_token_for_user(user, role_name=role_name)
-    refresh = create_refresh_token(db, user, ip_address=ip_address, user_agent=user_agent)
-    user_data = get_user_with_role(db, user, preferred_role=role_name)
-    return {
-        "access_token": access,
-        "refresh_token": refresh,
-        "token_type": "bearer",
-        "user": user_data,
-    }
+        clear_login_failures(db, user)
+        now = datetime.now(timezone.utc)
+        user.last_login_at = now
+        user.tokens_revoked_at = now
+        db.commit()
+        db.refresh(user, ["roles", "tenant"])
+        access = build_access_token_for_user(user, role_name=role_name)
+        refresh = create_refresh_token(db, user, ip_address=ip_address, user_agent=user_agent)
+        user_data = get_user_with_role(db, user, preferred_role=role_name)
+        return {
+            "access_token": access,
+            "refresh_token": refresh,
+            "token_type": "bearer",
+            "user": user_data,
+        }
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in issue_auth_response_data for user {user.id}: {str(e)}"
+        )
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication response generation failed. Please try logging in again."
+        )
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in issue_auth_response_data for user {user.id}: {str(e)}"
+        )
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication response generation failed. Please try logging in again."
+        )
 
 
 def get_user_with_role(db: Session, user: User, *, preferred_role: str | None = None) -> dict:
-    from app.models.platform import CompanyLicense
+    try:
+        from app.models.platform import CompanyLicense
 
-    db.refresh(user, ["roles", "tenant"])
-    role_names = [r.name for r in user.roles]
-    permissions = sorted({p for r in user.roles for p in (r.permissions or [])})
-    primary = None
-    if preferred_role:
-        primary = next((r for r in user.roles if r.name == preferred_role), None)
-    if primary is None:
-        primary = user.roles[0] if user.roles else None
-    role_name = primary.name if primary else "Operator"
-    tenant = user.tenant
-    tenant_name = tenant.name if tenant else None
+        db.refresh(user, ["roles", "tenant"])
+        role_names = [r.name for r in user.roles]
+        permissions = sorted({p for r in user.roles for p in (r.permissions or [])})
+        primary = None
+        if preferred_role:
+            primary = next((r for r in user.roles if r.name == preferred_role), None)
+        if primary is None:
+            primary = user.roles[0] if user.roles else None
+        role_name = primary.name if primary else "Operator"
+        tenant = user.tenant
+        tenant_name = tenant.name if tenant else None
 
-    license_row = None
-    if tenant:
-        license_row = db.scalars(
-            select(CompanyLicense).where(CompanyLicense.tenant_id == tenant.id)
-        ).first()
+        license_row = None
+        if tenant:
+            license_row = db.scalars(
+                select(CompanyLicense).where(CompanyLicense.tenant_id == tenant.id)
+            ).first()
 
-    company_code = None
-    if tenant:
-        company_code = getattr(tenant, "company_code", None) or f"GNS-{tenant.id:05d}"
+        company_code = None
+        if tenant:
+            company_code = getattr(tenant, "company_code", None) or f"GNS-{tenant.id:05d}"
 
-    return {
-        "id": user.id,
-        "email": user.email,
-        "full_name": user.full_name,
-        "phone": getattr(user, "phone", None),
-        "employee_id": getattr(user, "employee_id", None),
-        "designation": getattr(user, "designation", None),
-        "tenant_id": user.tenant_id,
-        "company_id": user.tenant_id,
-        "company_code": company_code,
-        "company_name": tenant_name,
-        "tenant_name": tenant_name,
-        "role_id": primary.id if primary else None,
-        "role": role_name,
-        "role_name": role_name,
-        "roles": role_names,
-        "permissions": permissions,
-        "status": "active" if user.is_active else "inactive",
-        "email_verified": bool(getattr(user, "email_verified", True)),
-        "plant_code": getattr(user, "plant_code", None),
-        "department": getattr(user, "department", None),
-        "assigned_machine_id": getattr(user, "assigned_machine_id", None),
-        "subscription_plan": license_row.plan if license_row else (tenant.subscription if tenant else None),
-        "license_status": getattr(tenant, "license_status", None) if tenant else None,
-        "trial_expires_at": tenant.trial_expires_at.isoformat() if tenant and getattr(tenant, "trial_expires_at", None) else None,
-        "last_login_at": user.last_login_at.isoformat() if getattr(user, "last_login_at", None) else None,
-        "current_login_at": datetime.now(timezone.utc).isoformat(),
-    }
+        return {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "phone": getattr(user, "phone", None),
+            "employee_id": getattr(user, "employee_id", None),
+            "designation": getattr(user, "designation", None),
+            "tenant_id": user.tenant_id,
+            "company_id": user.tenant_id,
+            "company_code": company_code,
+            "company_name": tenant_name,
+            "tenant_name": tenant_name,
+            "role_id": primary.id if primary else None,
+            "role": role_name,
+            "role_name": role_name,
+            "roles": role_names,
+            "permissions": permissions,
+            "status": "active" if user.is_active else "inactive",
+            "email_verified": bool(getattr(user, "email_verified", True)),
+            "plant_code": getattr(user, "plant_code", None),
+            "department": getattr(user, "department", None),
+            "assigned_machine_id": getattr(user, "assigned_machine_id", None),
+            "subscription_plan": license_row.plan if license_row else (tenant.subscription if tenant else None),
+            "license_status": getattr(tenant, "license_status", None) if tenant else None,
+            "trial_expires_at": tenant.trial_expires_at.isoformat() if tenant and getattr(tenant, "trial_expires_at", None) else None,
+            "last_login_at": user.last_login_at.isoformat() if getattr(user, "last_login_at", None) else None,
+            "current_login_at": datetime.now(timezone.utc).isoformat(),
+        }
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in get_user_with_role for user {user.id}: {str(e)}"
+        )
+        return {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "tenant_id": user.tenant_id,
+            "company_id": user.tenant_id,
+            "status": "active" if user.is_active else "inactive",
+            "roles": [],
+            "permissions": [],
+        }
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in get_user_with_role for user {user.id}: {str(e)}"
+        )
+        return {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "tenant_id": user.tenant_id,
+            "company_id": user.tenant_id,
+            "status": "active" if user.is_active else "inactive",
+            "roles": [],
+            "permissions": [],
+        }
 
 
 def find_user_by_name_and_email(db: Session, full_name: str, email: str) -> User | None:
     """Match registration identity by full name AND company email together."""
-    normalized_name = (full_name or "").strip()
-    normalized_email = (email or "").strip().lower()
-    if not normalized_name or not normalized_email:
-        return None
-    return db.scalars(
-        select(User).where(
-            func.lower(User.full_name) == normalized_name.lower(),
-            func.lower(User.email) == normalized_email,
+    try:
+        normalized_name = (full_name or "").strip()
+        normalized_email = (email or "").strip().lower()
+        if not normalized_name or not normalized_email:
+            return None
+        return db.scalars(
+            select(User).where(
+                func.lower(User.full_name) == normalized_name.lower(),
+                func.lower(User.email) == normalized_email,
+            )
+        ).first()
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in find_user_by_name_and_email for email {email}: {str(e)}"
         )
-    ).first()
+        return None
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in find_user_by_name_and_email for email {email}: {str(e)}"
+        )
+        return None
 
 
 def register_user(
@@ -335,28 +438,28 @@ def register_user(
     normalized_name = full_name.strip()
     normalized_email = email.strip().lower()
 
-    existing = find_user_by_name_and_email(db, normalized_name, normalized_email)
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=MSG_DUPLICATE_REGISTRATION,
-        )
-
-    base_name = company_name.strip()[:255]
-    slug_base = _slugify(company_name)
-    display_name = base_name
-    slug = slug_base
-    n = 0
-    while True:
-        name_taken = db.scalars(select(Tenant).where(Tenant.name == display_name)).first()
-        slug_taken = db.scalars(select(Tenant).where(Tenant.slug == slug)).first()
-        if not name_taken and not slug_taken:
-            break
-        n += 1
-        slug = f"{slug_base}-{n}"
-        display_name = f"{base_name} ({n})"[:255]
-
     try:
+        # Database checks - wrapped in exception handling for complete transaction coverage
+        existing = find_user_by_name_and_email(db, normalized_name, normalized_email)
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=MSG_DUPLICATE_REGISTRATION,
+            )
+
+        base_name = company_name.strip()[:255]
+        slug_base = _slugify(company_name)
+        display_name = base_name
+        slug = slug_base
+        n = 0
+        while True:
+            name_taken = db.scalars(select(Tenant).where(Tenant.name == display_name)).first()
+            slug_taken = db.scalars(select(Tenant).where(Tenant.slug == slug)).first()
+            if not name_taken and not slug_taken:
+                break
+            n += 1
+            slug = f"{slug_base}-{n}"
+            display_name = f"{base_name} ({n})"[:255]
         tenant = Tenant(
             name=display_name,
             slug=slug,
@@ -395,4 +498,22 @@ def register_user(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Could not create company account. Please try again.",
+        )
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in register_user for email {normalized_email}: {str(e)}"
+        )
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Registration failed. Please try again."
+        )
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in register_user for email {normalized_email}: {str(e)}"
+        )
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Registration failed. Please try again."
         )

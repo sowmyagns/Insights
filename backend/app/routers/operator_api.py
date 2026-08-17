@@ -75,22 +75,51 @@ def api_register(payload: dict, db: Session = Depends(get_db)):
             status_code=exc.status_code,
             content=error_response(str(exc.detail), errors=[str(exc.detail)]),
         )
-
-    settings = get_settings()
-    if settings.email_verification_required:
-        raw_token = create_email_verification(db, user)
-        return success_response(
-            "Registration successful. Please verify your email before signing in.",
-            {
-                "email_verification_required": True,
-                "verification_token": raw_token if settings.environment == "development" else None,
-            },
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error registering user with email=%s: %s", req.email, exc)
+        return JSONResponse(
+            status_code=503,
+            content=error_response("Database connection unavailable"),
+        )
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Unexpected error registering user with email=%s: %s", req.email, exc)
+        return JSONResponse(
+            status_code=500,
+            content=error_response("Failed to register user"),
         )
 
-    return success_response(
-        MSG_REGISTRATION_SUCCESS,
-        {"email_verification_required": False},
-    )
+    settings = get_settings()
+    try:
+        if settings.email_verification_required:
+            raw_token = create_email_verification(db, user)
+            return success_response(
+                "Registration successful. Please verify your email before signing in.",
+                {
+                    "email_verification_required": True,
+                    "verification_token": raw_token if settings.environment == "development" else None,
+                },
+            )
+
+        return success_response(
+            MSG_REGISTRATION_SUCCESS,
+            {"email_verification_required": False},
+        )
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error during registration finalization for email=%s: %s", req.email, exc)
+        return JSONResponse(
+            status_code=503,
+            content=error_response("Database connection unavailable"),
+        )
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Unexpected error during registration finalization for email=%s: %s", req.email, exc)
+        return JSONResponse(
+            status_code=500,
+            content=error_response("Failed to complete registration"),
+        )
 
 
 @router.post("/auth/login")
@@ -140,11 +169,40 @@ def api_login(
             status_code=exc.status_code,
             content=error_response(detail, errors=[detail]),
         )
-    AuditLogService.log_login_success(
-        db, request=request, user=authenticated, role=role
-    )
-    data = issue_auth_response_data(db, authenticated, role_name=role)
-    return success_response("Login successful", data)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error during login for email=%s: %s", email, exc)
+        return JSONResponse(
+            status_code=503,
+            content=error_response("Database connection unavailable"),
+        )
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Unexpected error during login for email=%s: %s", email, exc)
+        return JSONResponse(
+            status_code=500,
+            content=error_response("Failed to log in"),
+        )
+    try:
+        AuditLogService.log_login_success(
+            db, request=request, user=authenticated, role=role
+        )
+        data = issue_auth_response_data(db, authenticated, role_name=role)
+        return success_response("Login successful", data)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error after successful login for email=%s: %s", email, exc)
+        return JSONResponse(
+            status_code=503,
+            content=error_response("Database connection unavailable"),
+        )
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Unexpected error after successful login for email=%s: %s", email, exc)
+        return JSONResponse(
+            status_code=500,
+            content=error_response("Failed to complete login"),
+        )
 
 
 @router.post("/auth/logout")
@@ -154,9 +212,26 @@ def api_logout(
     db: Session = Depends(get_db),
 ):
     from app.services.audit_log_service import AuditLogService
+    from fastapi.responses import JSONResponse
+    from app.utils.api_response import error_response
 
-    AuditLogService.log_logout(db, request=request, user=current_user)
-    return success_response("Logged out successfully. Discard your access token on the client.")
+    try:
+        AuditLogService.log_logout(db, request=request, user=current_user)
+        return success_response("Logged out successfully. Discard your access token on the client.")
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error during logout for user_id=%s: %s", current_user.id, exc)
+        return JSONResponse(
+            status_code=503,
+            content=error_response("Database connection unavailable"),
+        )
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Unexpected error during logout for user_id=%s: %s", current_user.id, exc)
+        return JSONResponse(
+            status_code=500,
+            content=error_response("Failed to log out"),
+        )
 
 
 @router.get("/auth/profile")
@@ -165,10 +240,27 @@ def api_profile(
     db: Session = Depends(get_db),
 ):
     from app.services.auth_service import get_user_with_role
+    from fastapi.responses import JSONResponse
+    from app.utils.api_response import error_response
 
-    profile = get_user_with_role(db, current_user)
-    profile["email_verified"] = bool(getattr(current_user, "email_verified", True))
-    return success_response("Profile retrieved", profile)
+    try:
+        profile = get_user_with_role(db, current_user)
+        profile["email_verified"] = bool(getattr(current_user, "email_verified", True))
+        return success_response("Profile retrieved", profile)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving profile for user_id=%s: %s", current_user.id, exc)
+        return JSONResponse(
+            status_code=503,
+            content=error_response("Database connection unavailable"),
+        )
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Unexpected error retrieving profile for user_id=%s: %s", current_user.id, exc)
+        return JSONResponse(
+            status_code=500,
+            content=error_response("Failed to retrieve profile"),
+        )
 
 
 # ── Dashboard ──────────────────────────────────────────────────────────────
@@ -310,7 +402,18 @@ def api_get_product(
 @router.get("/bom")
 def api_list_bom(user_tenant: tuple[User, int] = Depends(require_tenant("bom")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("BOM retrieved", _svc(db, tenant_id).list_bom())
+    try:
+        return success_response("BOM retrieved", _svc(db, tenant_id).list_bom())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error listing BOM for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to list BOM for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to list BOM") from exc
 
 
 @router.get("/bom/product/{product_id}")
@@ -320,7 +423,18 @@ def api_bom_by_product(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Product BOM retrieved", _svc(db, tenant_id).get_bom_for_product(product_id))
+    try:
+        return success_response("Product BOM retrieved", _svc(db, tenant_id).get_bom_for_product(product_id))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving BOM for product_id=%s, tenant_id=%s: %s", product_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve BOM for product_id=%s, tenant_id=%s: %s", product_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve product BOM") from exc
 
 
 @router.get("/bom/{bom_id}")
@@ -330,7 +444,18 @@ def api_get_bom(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("BOM item retrieved", _svc(db, tenant_id).get_bom(bom_id))
+    try:
+        return success_response("BOM item retrieved", _svc(db, tenant_id).get_bom(bom_id))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving BOM item bom_id=%s for tenant_id=%s: %s", bom_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve BOM item bom_id=%s for tenant_id=%s: %s", bom_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve BOM item") from exc
 
 
 # ── Machines ───────────────────────────────────────────────────────────────
@@ -428,7 +553,18 @@ def api_report_breakdown(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    return success_response("Machine breakdown reported", _svc(db, tenant_id).report_breakdown(user, payload))
+    try:
+        return success_response("Machine breakdown reported", _svc(db, tenant_id).report_breakdown(user, payload))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error reporting machine breakdown for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to report machine breakdown for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to report machine breakdown") from exc
 
 
 @router.get("/machines/{machine_id}")
@@ -458,13 +594,35 @@ def api_get_machine(
 @router.get("/production/plans")
 def api_production_plans(user_tenant: tuple[User, int] = Depends(require_tenant("production")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Production plans retrieved", _svc(db, tenant_id).list_production_plans())
+    try:
+        return success_response("Production plans retrieved", _svc(db, tenant_id).list_production_plans())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error listing production plans for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to list production plans for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to list production plans") from exc
 
 
 @router.get("/production/plans/today")
 def api_production_plans_today(user_tenant: tuple[User, int] = Depends(require_tenant("production")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Today's production plans retrieved", _svc(db, tenant_id).list_today_plans())
+    try:
+        return success_response("Today's production plans retrieved", _svc(db, tenant_id).list_today_plans())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error listing today's production plans for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to list today's production plans for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to list today's production plans") from exc
 
 
 @router.get("/production/plans/{plan_id}")
@@ -474,7 +632,18 @@ def api_production_plan(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Production plan retrieved", _svc(db, tenant_id).get_production_plan(plan_id))
+    try:
+        return success_response("Production plan retrieved", _svc(db, tenant_id).get_production_plan(plan_id))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving production plan_id=%s for tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve production plan_id=%s for tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve production plan") from exc
 
 
 # ── Work Orders ────────────────────────────────────────────────────────────
@@ -483,19 +652,52 @@ def api_production_plan(
 @router.get("/workorders")
 def api_workorders(user_tenant: tuple[User, int] = Depends(require_tenant("workorders")), db: Session = Depends(get_db)):
     user, tenant_id = user_tenant
-    return success_response("Work orders retrieved", _svc(db, tenant_id).list_work_orders(user))
+    try:
+        return success_response("Work orders retrieved", _svc(db, tenant_id).list_work_orders(user))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error listing work orders for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to list work orders for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to list work orders") from exc
 
 
 @router.get("/workorders/today")
 def api_workorders_today(user_tenant: tuple[User, int] = Depends(require_tenant("workorders")), db: Session = Depends(get_db)):
     user, tenant_id = user_tenant
-    return success_response("Today's work orders retrieved", _svc(db, tenant_id).list_today_work_orders(user))
+    try:
+        return success_response("Today's work orders retrieved", _svc(db, tenant_id).list_today_work_orders(user))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error listing today's work orders for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to list today's work orders for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to list today's work orders") from exc
 
 
 @router.get("/workorders/assigned")
 def api_workorders_assigned(user_tenant: tuple[User, int] = Depends(require_tenant("workorders")), db: Session = Depends(get_db)):
     user, tenant_id = user_tenant
-    return success_response("Assigned work orders retrieved", _svc(db, tenant_id).list_assigned_work_orders(user))
+    try:
+        return success_response("Assigned work orders retrieved", _svc(db, tenant_id).list_assigned_work_orders(user))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error listing assigned work orders for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to list assigned work orders for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to list assigned work orders") from exc
 
 
 @router.get("/workorders/{work_order_id}")
@@ -505,7 +707,18 @@ def api_workorder(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    return success_response("Work order retrieved", _svc(db, tenant_id).get_work_order(work_order_id, user))
+    try:
+        return success_response("Work order retrieved", _svc(db, tenant_id).get_work_order(work_order_id, user))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving work order_id=%s for user_id=%s, tenant_id=%s: %s", work_order_id, user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve work order_id=%s for user_id=%s, tenant_id=%s: %s", work_order_id, user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve work order") from exc
 
 
 @router.post("/workorders/start")
@@ -619,13 +832,35 @@ def api_update_progress(
 @router.get("/allocation")
 def api_allocation(user_tenant: tuple[User, int] = Depends(require_tenant("allocation")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Machine allocation retrieved", _svc(db, tenant_id).get_allocation())
+    try:
+        return success_response("Machine allocation retrieved", _svc(db, tenant_id).get_allocation())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving machine allocation for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve machine allocation for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve machine allocation") from exc
 
 
 @router.get("/allocation/operator")
 def api_allocation_operator(user_tenant: tuple[User, int] = Depends(require_tenant("allocation")), db: Session = Depends(get_db)):
     user, tenant_id = user_tenant
-    return success_response("Operator allocation retrieved", _svc(db, tenant_id).get_operator_allocation(user))
+    try:
+        return success_response("Operator allocation retrieved", _svc(db, tenant_id).get_operator_allocation(user))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving operator allocation for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve operator allocation for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve operator allocation") from exc
 
 
 @router.get("/allocation/{machine_id}")
@@ -635,7 +870,18 @@ def api_allocation_machine(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Machine allocation retrieved", _svc(db, tenant_id).get_allocation_for_machine(machine_id))
+    try:
+        return success_response("Machine allocation retrieved", _svc(db, tenant_id).get_allocation_for_machine(machine_id))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving allocation for machine_id=%s, tenant_id=%s: %s", machine_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve allocation for machine_id=%s, tenant_id=%s: %s", machine_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve machine allocation") from exc
 
 
 # ── Batch Tracking ─────────────────────────────────────────────────────────
@@ -720,7 +966,18 @@ def api_batch_update(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    return success_response("Batch updated", _svc(db, tenant_id).update_batch(user, payload))
+    try:
+        return success_response("Batch updated", _svc(db, tenant_id).update_batch(user, payload))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error updating batch for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to update batch for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to update batch") from exc
 
 
 # ── AI Operator Assistant ────────────────────────────────────────────────────
@@ -762,4 +1019,10 @@ def api_ai_chat(
 def api_ai_suggestions(user_tenant: tuple[User, int] = Depends(require_tenant("ai"))):
     from app.llm.operator_agent import OperatorAgent
 
-    return success_response("Suggestions retrieved", OperatorAgent().get_suggestions())
+    try:
+        return success_response("Suggestions retrieved", OperatorAgent().get_suggestions())
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Unexpected error retrieving AI suggestions: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve AI suggestions") from exc

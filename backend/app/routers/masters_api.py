@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -50,7 +50,16 @@ def _dump(obj):
 @router.get("/products")
 def list_products(user_tenant: tuple[User, int] = Depends(require_tenant("products")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Products retrieved", _svc(db, tenant_id).list_products())
+    try:
+        return success_response("Products retrieved", _svc(db, tenant_id).list_products())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error listing products for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to list products for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to list products") from exc
 
 
 @router.get("/products/{product_id}")
@@ -60,10 +69,19 @@ def get_product(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    data = _svc(db, tenant_id).get_product(product_id)
-    if not data:
-        raise HTTPException(404, "Product not found")
-    return success_response("Product retrieved", data)
+    try:
+        data = _svc(db, tenant_id).get_product(product_id)
+        if not data:
+            raise HTTPException(404, "Product not found")
+        return success_response("Product retrieved", data)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error getting product_id=%s for tenant_id=%s: %s", product_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to get product_id=%s for tenant_id=%s: %s", product_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve product") from exc
 
 
 @router.post("/products")
@@ -73,7 +91,16 @@ def create_product(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Product created", _svc(db, tenant_id).create_product(payload))
+    try:
+        return success_response("Product created", _svc(db, tenant_id).create_product(payload))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error creating product for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to create product for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create product") from exc
 
 
 @router.put("/products/{product_id}")
@@ -84,10 +111,19 @@ def update_product(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    data = _svc(db, tenant_id).update_product(product_id, payload)
-    if not data:
-        raise HTTPException(404, "Product not found")
-    return success_response("Product updated", data)
+    try:
+        data = _svc(db, tenant_id).update_product(product_id, payload)
+        if not data:
+            raise HTTPException(404, "Product not found")
+        return success_response("Product updated", data)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error updating product_id=%s for tenant_id=%s: %s", product_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to update product_id=%s for tenant_id=%s: %s", product_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update product") from exc
 
 
 @router.delete("/products/{product_id}")
@@ -101,9 +137,17 @@ def delete_product(
     try:
         if not _svc(db, tenant_id).delete_product(product_id):
             raise HTTPException(404, "Product not found")
+        return success_response("Product deleted", {"id": product_id})
+    except HTTPException:
+        raise
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return success_response("Product deleted", {"id": product_id})
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        logger.exception("Database error deleting product_id=%s for tenant_id=%s: %s", product_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to delete product_id=%s for tenant_id=%s: %s", product_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete product") from exc
 
 
 # ── BOM ────────────────────────────────────────────────────────────────────
@@ -112,7 +156,16 @@ def delete_product(
 @router.get("/bom")
 def list_bom(user_tenant: tuple[User, int] = Depends(require_tenant("bom")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("BOM retrieved", _svc(db, tenant_id).list_all_bom())
+    try:
+        return success_response("BOM retrieved", _svc(db, tenant_id).list_all_bom())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error listing BOM for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to list BOM for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to list BOM") from exc
 
 
 @router.get("/bom/product/{product_id}")
@@ -122,7 +175,16 @@ def bom_for_product(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Product BOM retrieved", _svc(db, tenant_id).list_bom_for_product(product_id))
+    try:
+        return success_response("Product BOM retrieved", _svc(db, tenant_id).list_bom_for_product(product_id))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error listing BOM for product_id=%s, tenant_id=%s: %s", product_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to list BOM for product_id=%s, tenant_id=%s: %s", product_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve product BOM") from exc
 
 
 @router.post("/bom")
@@ -132,7 +194,16 @@ def add_bom_line(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("BOM line added", _svc(db, tenant_id).add_bom_line(payload))
+    try:
+        return success_response("BOM line added", _svc(db, tenant_id).add_bom_line(payload))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error adding BOM line for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to add BOM line for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to add BOM line") from exc
 
 
 @router.delete("/bom/{bom_id}")
@@ -142,9 +213,18 @@ def delete_bom_line(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    if not _svc(db, tenant_id).delete_bom_line(bom_id):
-        raise HTTPException(404, "BOM line not found")
-    return success_response("BOM line deleted", {"id": bom_id})
+    try:
+        if not _svc(db, tenant_id).delete_bom_line(bom_id):
+            raise HTTPException(404, "BOM line not found")
+        return success_response("BOM line deleted", {"id": bom_id})
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error deleting bom_id=%s for tenant_id=%s: %s", bom_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to delete bom_id=%s for tenant_id=%s: %s", bom_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete BOM line") from exc
 
 
 # ── Machines ───────────────────────────────────────────────────────────────
@@ -153,13 +233,27 @@ def delete_bom_line(
 @router.get("/machines")
 def list_machines(user_tenant: tuple[User, int] = Depends(require_tenant("machines")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Machines retrieved", _svc(db, tenant_id).list_machines())
+    try:
+        return success_response("Machines retrieved", _svc(db, tenant_id).list_machines())
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to load machines") from exc
 
 
 @router.get("/machines/summary")
 def machine_summary(user_tenant: tuple[User, int] = Depends(require_tenant("machines")), db: Session = Depends(get_db)):
     user, tenant_id = user_tenant
-    return success_response("Machine summary retrieved", _dump(get_machine_summary(db, tenant_id, user=user)))
+    try:
+        return success_response("Machine summary retrieved", _dump(get_machine_summary(db, tenant_id, user=user)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to load machine summary") from exc
 
 
 @router.get("/machines/{machine_id}")
@@ -169,10 +263,17 @@ def get_machine(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    data = _svc(db, tenant_id).get_machine(machine_id)
-    if not data:
-        raise HTTPException(404, "Machine not found")
-    return success_response("Machine retrieved", data)
+    try:
+        data = _svc(db, tenant_id).get_machine(machine_id)
+        if not data:
+            raise HTTPException(404, "Machine not found")
+        return success_response("Machine retrieved", data)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to load machine") from exc
 
 
 @router.post("/machines")
@@ -182,7 +283,14 @@ def create_machine(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Machine created", _svc(db, tenant_id).create_machine(payload))
+    try:
+        return success_response("Machine created", _svc(db, tenant_id).create_machine(payload))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create machine") from exc
 
 
 @router.put("/machines/{machine_id}")
@@ -193,10 +301,19 @@ def update_machine(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    data = _svc(db, tenant_id).update_machine(machine_id, payload)
-    if not data:
-        raise HTTPException(404, "Machine not found")
-    return success_response("Machine updated", data)
+    try:
+        data = _svc(db, tenant_id).update_machine(machine_id, payload)
+        if not data:
+            raise HTTPException(404, "Machine not found")
+        return success_response("Machine updated", data)
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update machine") from exc
 
 
 @router.post("/machines/simple")
@@ -206,9 +323,16 @@ def create_machine_simple(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    payload.tenant_id = tenant_id
-    machine = _create_machine_svc(db, payload)
-    return success_response("Machine created", _dump(machine))
+    try:
+        payload.tenant_id = tenant_id
+        machine = _create_machine_svc(db, payload)
+        return success_response("Machine created", _dump(machine))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create machine") from exc
 
 
 @router.patch("/machines/{machine_id}/status")
@@ -272,14 +396,17 @@ def update_machine_status_endpoint(
         return success_response("Machine status updated", _dump(machine))
     except HTTPException:
         raise
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except SQLAlchemyError as exc:
         db.rollback()
         logger.exception("Database error occurred while updating status for machine_id=%s: %s", machine_id, exc)
-        raise HTTPException(status_code=500, detail=f"Database error updating machine status: {exc}") from exc
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database error updating machine status") from exc
     except Exception as exc:
         db.rollback()
         logger.exception("Service error occurred while updating status for machine_id=%s: %s", machine_id, exc)
-        raise HTTPException(status_code=500, detail=f"Failed to update machine status: {exc}") from exc
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update machine status") from exc
 
 
 # ── Machine Status Events ──────────────────────────────────────────────────
@@ -292,9 +419,18 @@ def create_machine_status_event_endpoint(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    payload.tenant_id = tenant_id
-    event = create_machine_status_event(db, payload)
-    return success_response("Machine status event created", _dump(event))
+    try:
+        payload.tenant_id = tenant_id
+        event = create_machine_status_event(db, payload)
+        return success_response("Machine status event created", _dump(event))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error creating machine status event for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to create machine status event for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create machine status event") from exc
 
 
 @router.get("/machine-status")
@@ -304,10 +440,19 @@ def list_machine_status_events_endpoint(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response(
-        "Machine status events retrieved",
-        _dump(list_machine_status_events(db, tenant_id, machine_id)),
-    )
+    try:
+        return success_response(
+            "Machine status events retrieved",
+            _dump(list_machine_status_events(db, tenant_id, machine_id)),
+        )
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error listing machine status events for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to list machine status events for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve machine status events") from exc
 
 
 # ── Vendors (Masters → Vendors page) ───────────────────────────────────────
@@ -324,7 +469,16 @@ def list_vendors(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Vendors retrieved", _svc(db, tenant_id).list_vendors(search=search))
+    try:
+        return success_response("Vendors retrieved", _svc(db, tenant_id).list_vendors(search=search))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error listing vendors for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to list vendors for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to list vendors") from exc
 
 
 @router.get("/vendors/{vendor_id}")
@@ -334,10 +488,19 @@ def get_vendor(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    data = _svc(db, tenant_id).get_vendor(vendor_id)
-    if not data:
-        raise HTTPException(404, "Vendor not found")
-    return success_response("Vendor retrieved", data)
+    try:
+        data = _svc(db, tenant_id).get_vendor(vendor_id)
+        if not data:
+            raise HTTPException(404, "Vendor not found")
+        return success_response("Vendor retrieved", data)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error getting vendor_id=%s for tenant_id=%s: %s", vendor_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to get vendor_id=%s for tenant_id=%s: %s", vendor_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve vendor") from exc
 
 
 @router.post("/vendors")
@@ -351,11 +514,17 @@ def create_vendor(
         if not payload.contact:
             payload.contact = payload.name
         data = _svc(db, tenant_id).create_vendor(payload, actor=_actor_label(user))
+        return success_response("Vendor created", data)
     except HTTPException:
         raise
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc) or "Failed to create vendor") from exc
+    except SQLAlchemyError as exc:
+        logger.exception("Database error creating vendor for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc) or "Failed to create vendor") from exc
-    return success_response("Vendor created", data)
+        logger.exception("Failed to create vendor for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create vendor") from exc
 
 
 @router.put("/vendors/{vendor_id}")
@@ -370,13 +539,19 @@ def update_vendor(
         data = _svc(db, tenant_id).update_vendor(
             vendor_id, payload, actor=_actor_label(user)
         )
+        if not data:
+            raise HTTPException(404, "Vendor not found")
+        return success_response("Vendor updated", data)
     except HTTPException:
         raise
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc) or "Failed to update vendor") from exc
+    except SQLAlchemyError as exc:
+        logger.exception("Database error updating vendor_id=%s for tenant_id=%s: %s", vendor_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc) or "Failed to update vendor") from exc
-    if not data:
-        raise HTTPException(404, "Vendor not found")
-    return success_response("Vendor updated", data)
+        logger.exception("Failed to update vendor_id=%s for tenant_id=%s: %s", vendor_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update vendor") from exc
 
 
 @router.delete("/vendors/{vendor_id}")
@@ -387,9 +562,18 @@ def delete_vendor(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    if not _svc(db, tenant_id).delete_vendor(vendor_id, actor=_actor_label(user)):
-        raise HTTPException(404, "Vendor not found")
-    return success_response("Vendor deleted", {"id": vendor_id})
+    try:
+        if not _svc(db, tenant_id).delete_vendor(vendor_id, actor=_actor_label(user)):
+            raise HTTPException(404, "Vendor not found")
+        return success_response("Vendor deleted", {"id": vendor_id})
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error deleting vendor_id=%s for tenant_id=%s: %s", vendor_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to delete vendor_id=%s for tenant_id=%s: %s", vendor_id, tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete vendor") from exc
 
 
 @router.post("/vendors/bulk-import")
@@ -399,7 +583,16 @@ def bulk_import_vendors(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    result = _svc(db, tenant_id).bulk_import_vendors(
-        payload.rows, actor=_actor_label(user)
-    )
-    return success_response("Vendor bulk import completed", result)
+    try:
+        result = _svc(db, tenant_id).bulk_import_vendors(
+            payload.rows, actor=_actor_label(user)
+        )
+        return success_response("Vendor bulk import completed", result)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        logger.exception("Database error bulk importing vendors for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        logger.exception("Failed to bulk import vendors for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to import vendors") from exc

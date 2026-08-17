@@ -1,5 +1,15 @@
 import api from "./axiosConfig";
 
+/**
+ * ============================================================================
+ * PRODUCTION API - Exception Handling Pattern (mirrors backend production_*_repository.py)
+ * ============================================================================
+ * Each function includes:
+ * - Try-catch block to catch network/API errors
+ * - Console.error logging with function name and parameters
+ * - Re-throw error for caller to handle
+ */
+
 function unwrap(res) {
   const body = res?.data;
   if (body && typeof body === "object" && "success" in body && "data" in body) {
@@ -9,19 +19,39 @@ function unwrap(res) {
 }
 
 async function apiGet(url, config) {
-  return unwrap(await api.get(url, config));
+  try {
+    return unwrap(await api.get(url, config));
+  } catch (error) {
+    console.error("[productionApi.apiGet] Error in GET request:", error.message, { url });
+    throw error;
+  }
 }
 
 async function apiPost(url, data, config) {
-  return unwrap(await api.post(url, data, config));
+  try {
+    return unwrap(await api.post(url, data, config));
+  } catch (error) {
+    console.error("[productionApi.apiPost] Error in POST request:", error.message, { url, data });
+    throw error;
+  }
 }
 
 async function apiPatch(url, data, config) {
-  return unwrap(await api.patch(url, data, config));
+  try {
+    return unwrap(await api.patch(url, data, config));
+  } catch (error) {
+    console.error("[productionApi.apiPatch] Error in PATCH request:", error.message, { url, data });
+    throw error;
+  }
 }
 
 async function apiPut(url, data, config) {
-  return unwrap(await api.put(url, data, config));
+  try {
+    return unwrap(await api.put(url, data, config));
+  } catch (error) {
+    console.error("[productionApi.apiPut] Error in PUT request:", error.message, { url, data });
+    throw error;
+  }
 }
 
 export const seedProducts = () => apiPost("/api/masters/products/seed").catch(() => ({ data: { status: "ok" } }));
@@ -127,26 +157,54 @@ export const updateMachineStatus = (machineId, _tenantId, status, idleReason) =>
     ...(idleReason ? { idle_reason: idleReason } : {}),
   });
 
-export const getBatches = (_tenantId, workOrderId) =>
-  apiGet("/api/production/batches", {
+export const getBatches = (_tenantId, workOrderId) => {
+  if (workOrderId && (typeof workOrderId !== "number" || workOrderId <= 0)) {
+    return Promise.reject(new Error("Invalid work order ID"));
+  }
+  return apiGet("/api/production/batches", {
     params: workOrderId ? { work_order_id: workOrderId } : {},
   });
+};
 
-export const createBatch = (payload) => apiPost("/api/production/batches", payload);
+export const createBatch = (payload) => {
+  if (!payload || typeof payload !== "object") {
+    return Promise.reject(new Error("Invalid batch payload"));
+  }
+  return apiPost("/api/production/batches", payload);
+};
 
 export const getMachineSummary = () => apiGet("/api/masters/machines/summary");
 
-export const getMachineDetail = (machineId) =>
-  apiGet(`/api/masters/machines/${machineId}`);
+export const getMachineDetail = (machineId) => {
+  if (!machineId || typeof machineId !== "number" || machineId <= 0) {
+    return Promise.reject(new Error("Invalid machine ID"));
+  }
+  return apiGet(`/api/masters/machines/${machineId}`);
+};
 
-export const createMachineFull = (payload) =>
-  apiPost("/api/masters/machines", payload);
+export const createMachineFull = (payload) => {
+  if (!payload || typeof payload !== "object") {
+    return Promise.reject(new Error("Invalid machine payload"));
+  }
+  return apiPost("/api/masters/machines", payload);
+};
 
-export const updateMachineFull = (machineId, payload) =>
-  apiPut(`/api/masters/machines/${machineId}`, payload);
+export const updateMachineFull = (machineId, payload) => {
+  if (!machineId || typeof machineId !== "number" || machineId <= 0) {
+    return Promise.reject(new Error("Invalid machine ID"));
+  }
+  if (!payload || typeof payload !== "object") {
+    return Promise.reject(new Error("Invalid machine payload"));
+  }
+  return apiPut(`/api/masters/machines/${machineId}`, payload);
+};
 
-export const createMachine = (payload) =>
-  apiPost("/api/masters/machines/simple", payload);
+export const createMachine = (payload) => {
+  if (!payload || typeof payload !== "object") {
+    return Promise.reject(new Error("Invalid machine payload"));
+  }
+  return apiPost("/api/masters/machines/simple", payload);
+};
 
 export const getMachineStatusEvents = (_tenantId, machineId) =>
   apiGet("/api/masters/machine-status", {
@@ -163,25 +221,38 @@ export const createDailyReport = (payload) =>
   apiPost("/api/production/daily-reports", payload);
 
 export const getAllocationSummary = () =>
-  apiGet("/api/production/allocation/summary");
+  apiGet("/api/production/allocation/summary").catch((error) => {
+    console.error("[productionApi.getAllocationSummary] Error retrieving allocation summary:", error.message);
+    throw error;
+  });
 
 export const getAllocations = () =>
-  apiGet("/api/production/allocation/rows");
+  apiGet("/api/production/allocation/rows").catch((error) => {
+    console.error("[productionApi.getAllocations] Error retrieving allocations:", error.message);
+    throw error;
+  });
 
 export const getAllocationMachines = () =>
-  apiGet("/api/production/allocation/machines");
+  apiGet("/api/production/allocation/machines").catch((error) => {
+    console.error("[productionApi.getAllocationMachines] Error retrieving allocation machines:", error.message);
+    throw error;
+  });
 
 export const assignAllocation = (payload) =>
-  apiPost("/api/production/allocation/assign", payload);
+  apiPost("/api/production/allocation/assign", payload).catch((error) => {
+    console.error("[productionApi.assignAllocation] Error assigning allocation:", error.message, { payload });
+    throw error;
+  });
 
-export const getBatchSummary = () =>
-  apiGet("/api/production/batches/summary");
+export const getBatchSummary = () => apiGet("/api/production/batches/summary");
 
-export const getBatchesEnriched = () =>
-  apiGet("/api/production/batches/items");
+export const getBatchesEnriched = () => apiGet("/api/production/batches/items");
 
-export const getBatchDetail = (batchId) =>
-  apiGet(`/api/production/batches/${batchId}`);
+export const getBatchDetail = (batchId) => {
+  if (!batchId || typeof batchId !== "number" || batchId <= 0) {
+    return Promise.reject(new Error("Invalid batch ID"));
+  }
+  return apiGet(`/api/production/batches/${batchId}`);
+};
 
-export const getProductionHub = () =>
-  apiGet("/api/production/hub");
+export const getProductionHub = () => apiGet("/api/production/hub");

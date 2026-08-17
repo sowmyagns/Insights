@@ -11,6 +11,7 @@ from typing import Any
 
 from fastapi import HTTPException, Request
 from sqlalchemy import and_, func, insert, or_, select, update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.permissions import user_is_admin
@@ -284,29 +285,44 @@ class AuditLogService:
         }
 
         # Force SQL INSERT with all columns (avoids ORM metadata drift issues)
-        result = db.execute(insert(AccessLog).values(**values))
-        new_id = result.inserted_primary_key[0] if result.inserted_primary_key else None
-
-        # Backward-compatible mirror into audit_logs (legacy table)
         try:
-            db.add(
-                AuditLog(
-                    tenant_id=int(tenant_id),
-                    user_id=actor["user_id"],
-                    action=(action or "")[:32],
-                    resource=(resource or module or "system")[:128],
-                    resource_id=resource_id,
-                    details=details,
-                    ip_address=ip,
-                )
-            )
-        except Exception:
-            logger.exception("legacy_audit_mirror_failed")
+            result = db.execute(insert(AccessLog).values(**values))
+            new_id = result.inserted_primary_key[0] if result.inserted_primary_key else None
 
-        if commit:
-            db.commit()
-        else:
-            db.flush()
+            # Backward-compatible mirror into audit_logs (legacy table)
+            try:
+                db.add(
+                    AuditLog(
+                        tenant_id=int(tenant_id),
+                        user_id=actor["user_id"],
+                        action=(action or "")[:32],
+                        resource=(resource or module or "system")[:128],
+                        resource_id=resource_id,
+                        details=details,
+                        ip_address=ip,
+                    )
+                )
+            except Exception:
+                logger.exception("legacy_audit_mirror_failed")
+
+            if commit:
+                db.commit()
+            else:
+                db.flush()
+        except SQLAlchemyError as e:
+            logger.error(
+                f"Database error in AuditLogService.log() - action={action}, tenant_id={tenant_id}: {str(e)}"
+            )
+            if commit:
+                db.rollback()
+            return None
+        except Exception as e:
+            logger.error(
+                f"Unexpected error in AuditLogService.log() - action={action}, tenant_id={tenant_id}: {str(e)}"
+            )
+            if commit:
+                db.rollback()
+            return None
 
         row = db.get(AccessLog, new_id) if new_id else None
         logger.info(
@@ -416,68 +432,81 @@ class AuditLogService:
         request: Request | None,
         user: User,
     ) -> AccessLog | None:
-        now = _utcnow()
-        open_login = db.scalars(
-            select(AccessLog)
-            .where(
-                AccessLog.user_id == user.id,
-                AccessLog.action == "login",
-                AccessLog.login_status == "Success",
-                AccessLog.logout_at.is_(None),
-            )
-            .order_by(AccessLog.logged_at.desc())
-        ).first()
-
-        session_id = open_login.session_id if open_login else None
-        login_at = open_login.login_at if open_login else None
-
-        # Deduplication check: prevent creating duplicate logout records for the same session ID or recent request
-        if session_id:
-            existing_logout = db.scalars(
-                select(AccessLog).where(
+        try:
+            now = _utcnow()
+            open_login = db.scalars(
+                select(AccessLog)
+                .where(
                     AccessLog.user_id == user.id,
-                    AccessLog.action == "logout",
-                    AccessLog.session_id == session_id,
+                    AccessLog.action == "login",
+                    AccessLog.login_status == "Success",
+                    AccessLog.logout_at.is_(None),
                 )
+                .order_by(AccessLog.logged_at.desc())
             ).first()
-            if existing_logout:
-                logger.info("log_logout_skip_duplicate user_id=%s session_id=%s", user.id, session_id)
-                return existing_logout
-        else:
-            recent_logout = db.scalars(
-                select(AccessLog).where(
-                    AccessLog.user_id == user.id,
-                    AccessLog.action == "logout",
-                    AccessLog.logged_at >= now - timedelta(seconds=5),
-                )
-            ).first()
-            if recent_logout:
-                logger.info("log_logout_skip_recent user_id=%s", user.id)
-                return recent_logout
 
-        if open_login:
-            db.execute(
-                update(AccessLog)
-                .where(AccessLog.id == open_login.id)
-                .values(
-                    logout_at=now,
+            session_id = open_login.session_id if open_login else None
+            login_at = open_login.login_at if open_login else None
+
+            # Deduplication check: prevent creating duplicate logout records for the same session ID or recent request
+            if session_id:
+                existing_logout = db.scalars(
+                    select(AccessLog).where(
+                        AccessLog.user_id == user.id,
+                        AccessLog.action == "logout",
+                        AccessLog.session_id == session_id,
+                    )
+                ).first()
+                if existing_logout:
+                    logger.info("log_logout_skip_duplicate user_id=%s session_id=%s", user.id, session_id)
+                    return existing_logout
+            else:
+                recent_logout = db.scalars(
+                    select(AccessLog).where(
+                        AccessLog.user_id == user.id,
+                        AccessLog.action == "logout",
+                        AccessLog.logged_at >= now - timedelta(seconds=5),
+                    )
+                ).first()
+                if recent_logout:
+                    logger.info("log_logout_skip_recent user_id=%s", user.id)
+                    return recent_logout
+
+            if open_login:
+                db.execute(
+                    update(AccessLog)
+                    .where(AccessLog.id == open_login.id)
+                    .values(
+                        logout_at=now,
+                    )
                 )
+                db.commit()
+
+            return cls.log(
+                db=db,
+                request=request,
+                current_user=user,
+                action="logout",
+                module_name="Authentication",
+                details="User logged out successfully.",
+                resource="auth",
+                login_status="Logged Out",
+                session_id=session_id,
+                login_at=login_at,
+                logout_at=now,
             )
-            db.commit()
-
-        return cls.log(
-            db=db,
-            request=request,
-            current_user=user,
-            action="logout",
-            module_name="Authentication",
-            details="User logged out successfully.",
-            resource="auth",
-            login_status="Logged Out",
-            session_id=session_id,
-            login_at=login_at,
-            logout_at=now,
-        )
+        except SQLAlchemyError as e:
+            logger.error(
+                f"Database error in log_logout for user {user.id}: {str(e)}"
+            )
+            db.rollback()
+            return None
+        except Exception as e:
+            logger.error(
+                f"Unexpected error in log_logout for user {user.id}: {str(e)}"
+            )
+            db.rollback()
+            return None
 
 
 # ---------------------------------------------------------------------------
@@ -563,22 +592,15 @@ def query_audit_logs(
     page: int = 1,
     page_size: int = 25,
 ) -> dict:
-    page = max(1, page)
-    page_size = min(max(1, page_size), 500)
+    try:
+        page = max(1, page)
+        page_size = min(max(1, page_size), 500)
 
-    if scope == "me":
-        stmt = select(AccessLog).where(AccessLog.user_id == current_user.id)
-    elif scope == "company":
-        if not user_is_admin(current_user):
-            raise HTTPException(status_code=403, detail="Administrator privileges are required.")
-        stmt = select(AccessLog).where(
-            or_(
-                AccessLog.company_id == current_user.tenant_id,
-                AccessLog.tenant_id == current_user.tenant_id,
-            )
-        )
-    else:
-        if user_is_admin(current_user):
+        if scope == "me":
+            stmt = select(AccessLog).where(AccessLog.user_id == current_user.id)
+        elif scope == "company":
+            if not user_is_admin(current_user):
+                raise HTTPException(status_code=403, detail="Administrator privileges are required.")
             stmt = select(AccessLog).where(
                 or_(
                     AccessLog.company_id == current_user.tenant_id,
@@ -586,91 +608,150 @@ def query_audit_logs(
                 )
             )
         else:
-            stmt = select(AccessLog).where(AccessLog.user_id == current_user.id)
+            if user_is_admin(current_user):
+                stmt = select(AccessLog).where(
+                    or_(
+                        AccessLog.company_id == current_user.tenant_id,
+                        AccessLog.tenant_id == current_user.tenant_id,
+                    )
+                )
+            else:
+                stmt = select(AccessLog).where(AccessLog.user_id == current_user.id)
 
-    filters = []
-    if search:
-        q = f"%{search.strip().lower()}%"
-        filters.append(
-            or_(
-                func.lower(AccessLog.full_name).like(q),
-                func.lower(AccessLog.email).like(q),
-                func.lower(AccessLog.action).like(q),
-                func.lower(AccessLog.module_name).like(q),
-                func.lower(AccessLog.company_name).like(q),
-                AccessLog.ip_address.like(q),
+        filters = []
+        if search:
+            q = f"%{search.strip().lower()}%"
+            filters.append(
+                or_(
+                    func.lower(AccessLog.full_name).like(q),
+                    func.lower(AccessLog.email).like(q),
+                    func.lower(AccessLog.action).like(q),
+                    func.lower(AccessLog.module_name).like(q),
+                    func.lower(AccessLog.company_name).like(q),
+                    AccessLog.ip_address.like(q),
+                )
             )
-        )
-    if action:
-        filters.append(AccessLog.action == action)
-    if role:
-        filters.append(AccessLog.role == role)
-    if module_name:
-        filters.append(AccessLog.module_name == module_name)
-    if login_status:
-        filters.append(AccessLog.login_status == login_status)
-    if user_id:
-        filters.append(AccessLog.user_id == user_id)
-    if date_from:
-        filters.append(AccessLog.logged_at >= date_from)
-    if date_to:
-        filters.append(AccessLog.logged_at <= date_to)
-    if filters:
-        stmt = stmt.where(and_(*filters))
+        if action:
+            filters.append(AccessLog.action == action)
+        if role:
+            filters.append(AccessLog.role == role)
+        if module_name:
+            filters.append(AccessLog.module_name == module_name)
+        if login_status:
+            filters.append(AccessLog.login_status == login_status)
+        if user_id:
+            filters.append(AccessLog.user_id == user_id)
+        if date_from:
+            filters.append(AccessLog.logged_at >= date_from)
+        if date_to:
+            filters.append(AccessLog.logged_at <= date_to)
+        if filters:
+            stmt = stmt.where(and_(*filters))
 
-    sort_col = getattr(AccessLog, sort_by, AccessLog.logged_at)
-    stmt = stmt.order_by(sort_col.asc() if sort_dir == "asc" else sort_col.desc())
-    total = int(db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0)
-    rows = db.scalars(stmt.offset((page - 1) * page_size).limit(page_size)).all()
-    return {
-        "items": [format_audit_row(r) for r in rows],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "pages": max(1, (total + page_size - 1) // page_size),
-    }
+        sort_col = getattr(AccessLog, sort_by, AccessLog.logged_at)
+        stmt = stmt.order_by(sort_col.asc() if sort_dir == "asc" else sort_col.desc())
+        total = int(db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0)
+        rows = db.scalars(stmt.offset((page - 1) * page_size).limit(page_size)).all()
+        return {
+            "items": [format_audit_row(r) for r in rows],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "pages": max(1, (total + page_size - 1) // page_size),
+        }
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in query_audit_logs for user {current_user.id}, scope {scope}: {str(e)}"
+        )
+        return {"items": [], "total": 0, "page": page, "page_size": page_size, "pages": 0}
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in query_audit_logs for user {current_user.id}, scope {scope}: {str(e)}"
+        )
+        return {"items": [], "total": 0, "page": page, "page_size": page_size, "pages": 0}
 
 
 def export_audit_logs_csv(db: Session, current_user: User, *, scope: str = "visible", **filters) -> str:
-    result = query_audit_logs(db, current_user, scope=scope, page=1, page_size=5000, **filters)
-    buf = io.StringIO()
-    fields = [
-        "date", "time", "company_name", "full_name", "email", "role", "module_name",
-        "action", "login_status", "ip_address", "browser", "operating_system",
-        "device_type", "logout_time", "session_duration", "details",
-    ]
-    writer = csv.DictWriter(buf, fieldnames=fields)
-    writer.writeheader()
-    for item in result["items"]:
-        writer.writerow({k: item.get(k) or "" for k in fields})
-    return buf.getvalue()
+    try:
+        result = query_audit_logs(db, current_user, scope=scope, page=1, page_size=5000, **filters)
+        buf = io.StringIO()
+        fields = [
+            "date", "time", "company_name", "full_name", "email", "role", "module_name",
+            "action", "login_status", "ip_address", "browser", "operating_system",
+            "device_type", "logout_time", "session_duration", "details",
+        ]
+        writer = csv.DictWriter(buf, fieldnames=fields)
+        writer.writeheader()
+        for item in result["items"]:
+            writer.writerow({k: item.get(k) or "" for k in fields})
+        return buf.getvalue()
+    except Exception as e:
+        logger.error(
+            f"Error in export_audit_logs_csv for user {current_user.id}, scope {scope}: {str(e)}"
+        )
+        # Return CSV with headers only on error
+        buf = io.StringIO()
+        fields = [
+            "date", "time", "company_name", "full_name", "email", "role", "module_name",
+            "action", "login_status", "ip_address", "browser", "operating_system",
+            "device_type", "logout_time", "session_duration", "details",
+        ]
+        writer = csv.DictWriter(buf, fieldnames=fields)
+        writer.writeheader()
+        return buf.getvalue()
 
 
 def delete_audit_log(db: Session, *, log_id: int, admin: User) -> None:
-    if not user_is_admin(admin):
-        raise HTTPException(status_code=403, detail="Administrator privileges are required.")
-    row = db.get(AccessLog, log_id)
-    if not row:
-        raise HTTPException(status_code=404, detail="Audit log not found.")
-    if (row.company_id or row.tenant_id) != admin.tenant_id:
-        raise HTTPException(status_code=403, detail="Cannot delete logs outside your company.")
-    db.delete(row)
-    db.commit()
+    try:
+        if not user_is_admin(admin):
+            raise HTTPException(status_code=403, detail="Administrator privileges are required.")
+        row = db.get(AccessLog, log_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Audit log not found.")
+        if (row.company_id or row.tenant_id) != admin.tenant_id:
+            raise HTTPException(status_code=403, detail="Cannot delete logs outside your company.")
+        db.delete(row)
+        db.commit()
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in delete_audit_log for log_id {log_id}, admin {admin.id}: {str(e)}"
+        )
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete audit log due to database error.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in delete_audit_log for log_id {log_id}, admin {admin.id}: {str(e)}"
+        )
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete audit log.")
 
 
 def recent_login_activity(db: Session, current_user: User, *, limit: int = 10) -> list[dict]:
-    stmt = (
-        select(AccessLog)
-        .where(
-            or_(
-                AccessLog.company_id == current_user.tenant_id,
-                AccessLog.tenant_id == current_user.tenant_id,
-            ),
-            AccessLog.action.in_(("login", "login_failed")),
+    try:
+        stmt = (
+            select(AccessLog)
+            .where(
+                or_(
+                    AccessLog.company_id == current_user.tenant_id,
+                    AccessLog.tenant_id == current_user.tenant_id,
+                ),
+                AccessLog.action.in_(("login", "login_failed")),
+            )
+            .order_by(AccessLog.logged_at.desc())
+            .limit(limit)
         )
-        .order_by(AccessLog.logged_at.desc())
-        .limit(limit)
-    )
-    if not user_is_admin(current_user):
-        stmt = stmt.where(AccessLog.user_id == current_user.id)
-    return [format_audit_row(r) for r in db.scalars(stmt).all()]
+        if not user_is_admin(current_user):
+            stmt = stmt.where(AccessLog.user_id == current_user.id)
+        return [format_audit_row(r) for r in db.scalars(stmt).all()]
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in recent_login_activity for user {current_user.id}: {str(e)}"
+        )
+        return []
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in recent_login_activity for user {current_user.id}: {str(e)}"
+        )
+        return []

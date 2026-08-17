@@ -1,6 +1,7 @@
 """GNS Super Admin platform API — OTP auth + company management."""
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -49,12 +50,21 @@ def super_admin_login(
     db: Session = Depends(get_db),
 ):
     """Validate Super Admin credentials, then send OTP to registered mobile."""
-    return SuperAdminService(db).initiate_login(
-        req.email,
-        req.password,
-        ip_address=_client_ip(request),
-        user_agent=request.headers.get("User-Agent"),
-    )
+    try:
+        return SuperAdminService(db).initiate_login(
+            req.email,
+            req.password,
+            ip_address=_client_ip(request),
+            user_agent=request.headers.get("User-Agent"),
+        )
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Database service unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to initiate login") from exc
 
 
 @router.post("/auth/verify-otp", response_model=SuperAdminAuthResponse)
@@ -64,12 +74,23 @@ def super_admin_verify_otp(
     db: Session = Depends(get_db),
 ):
     """Verify 6-digit OTP and issue platform JWT (user_id, company_id, role)."""
-    return SuperAdminService(db).verify_login_otp(
-        req.challenge_token,
-        req.otp,
-        ip_address=_client_ip(request),
-        user_agent=request.headers.get("User-Agent"),
-    )
+    try:
+        return SuperAdminService(db).verify_login_otp(
+            req.challenge_token,
+            req.otp,
+            ip_address=_client_ip(request),
+            user_agent=request.headers.get("User-Agent"),
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Database service unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to verify OTP") from exc
 
 
 @router.post("/auth/resend-otp", response_model=SuperAdminLoginChallengeResponse)
@@ -79,11 +100,20 @@ def super_admin_resend_otp(
     db: Session = Depends(get_db),
 ):
     """Invalidate previous OTP and send a new one (60s cooldown + rate limit)."""
-    return SuperAdminService(db).resend_otp(
-        req.challenge_token,
-        ip_address=_client_ip(request),
-        user_agent=request.headers.get("User-Agent"),
-    )
+    try:
+        return SuperAdminService(db).resend_otp(
+            req.challenge_token,
+            ip_address=_client_ip(request),
+            user_agent=request.headers.get("User-Agent"),
+        )
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Database service unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to resend OTP") from exc
 
 
 @router.get("/auth/me")

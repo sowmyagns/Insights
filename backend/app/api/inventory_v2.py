@@ -1,6 +1,7 @@
 """Inventory V2 HTTP API — items list/detail, stock adjust, categories."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -46,8 +47,15 @@ def create_inventory_v2_item(
     user: User = Depends(require_permission(MODULE)),
     db: Session = Depends(get_db),
 ):
-    data = svc.create_item(db, user.tenant_id, payload)
-    return success_response("Inventory item created", data)
+    try:
+        data = svc.create_item(db, user.tenant_id, payload)
+        return success_response("Inventory item created", data)
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(500, detail="Failed to create inventory item") from exc
 
 
 @router.put("/items/{product_id}")
@@ -57,10 +65,19 @@ def update_inventory_v2_item(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     db: Session = Depends(get_db),
 ):
-    data = svc.update_item(db, tenant_id, product_id, payload)
-    if not data:
-        raise HTTPException(404, detail="Item not found")
-    return success_response("Inventory item updated", data)
+    try:
+        data = svc.update_item(db, tenant_id, product_id, payload)
+        if not data:
+            raise HTTPException(404, detail="Item not found")
+        return success_response("Inventory item updated", data)
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(500, detail="Failed to update inventory item") from exc
 
 
 @router.delete("/items/{product_id}")
@@ -72,9 +89,15 @@ def delete_inventory_v2_item(
     try:
         if not svc.delete_item(db, user.tenant_id, product_id):
             raise HTTPException(404, detail="Item not found")
+        return success_response("Inventory item deleted", {"id": product_id})
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return success_response("Inventory item deleted", {"id": product_id})
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(500, detail="Failed to delete inventory item") from exc
 
 
 @router.get("/items/{product_id}/timeline")
@@ -97,8 +120,17 @@ def add_inventory_v2_stock(
     user: User = Depends(require_permission(MODULE)),
     db: Session = Depends(get_db),
 ):
-    data = svc.add_stock(db, user.tenant_id, product_id, payload)
-    return success_response("Stock added", data)
+    if not svc.get_item(db, user.tenant_id, product_id):
+        raise HTTPException(404, detail="Item not found")
+    try:
+        data = svc.add_stock(db, user.tenant_id, product_id, payload)
+        return success_response("Stock added", data)
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(500, detail="Failed to add stock") from exc
 
 
 @router.post("/items/{product_id}/remove-stock")
@@ -108,8 +140,17 @@ def remove_inventory_v2_stock(
     user: User = Depends(require_permission(MODULE)),
     db: Session = Depends(get_db),
 ):
-    data = svc.remove_stock(db, user.tenant_id, product_id, payload)
-    return success_response("Stock removed", data)
+    if not svc.get_item(db, user.tenant_id, product_id):
+        raise HTTPException(404, detail="Item not found")
+    try:
+        data = svc.remove_stock(db, user.tenant_id, product_id, payload)
+        return success_response("Stock removed", data)
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(500, detail="Failed to remove stock") from exc
 
 
 @router.get("/categories")
@@ -134,8 +175,15 @@ def create_inventory_v2_category(
     user: User = Depends(require_permission(MODULE)),
     db: Session = Depends(get_db),
 ):
-    data = svc.create_category(db, user.tenant_id, payload.name)
-    return success_response("Category created", data)
+    try:
+        data = svc.create_category(db, user.tenant_id, payload.name)
+        return success_response("Category created", data)
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(500, detail="Failed to create category") from exc
 
 
 @router.delete("/categories/{category_id}")
@@ -144,6 +192,15 @@ def delete_inventory_v2_category(
     user: User = Depends(require_permission(MODULE)),
     db: Session = Depends(get_db),
 ):
-    if not svc.delete_category(db, user.tenant_id, category_id):
-        raise HTTPException(404, detail="Category not found")
-    return success_response("Category deleted", {"id": category_id})
+    try:
+        if not svc.delete_category(db, user.tenant_id, category_id):
+            raise HTTPException(404, detail="Category not found")
+        return success_response("Category deleted", {"id": category_id})
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(500, detail="Failed to delete category") from exc

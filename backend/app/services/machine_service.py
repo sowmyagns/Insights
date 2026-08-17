@@ -1,9 +1,13 @@
 """Machine master — enriched list, summary, detail."""
 
+import logging
 from datetime import date, datetime, timezone
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger("gns_insights.machine_service")
 
 from app.models.machine import Machine, MachineStatusEvent
 from app.models.production import DailyProductionReport, WorkOrder
@@ -153,23 +157,45 @@ def get_machine_detail(
 
 
 def create_machine_extended(db: Session, payload: MachineCreateExtended) -> Machine:
-    machine = Machine(**payload.model_dump())
-    db.add(machine)
-    db.commit()
-    db.refresh(machine)
-    return machine
+    try:
+        machine = Machine(**payload.model_dump())
+        db.add(machine)
+        db.commit()
+        db.refresh(machine)
+        return machine
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error while creating machine")
+        raise RuntimeError("Machine creation failed: Database error") from exc
+    except Exception:
+        db.rollback()
+        raise
 
 
 def update_machine_full(
     db: Session, tenant_id: int, machine_id: int, payload: MachineFullUpdate
 ) -> Machine | None:
-    machine = db.scalars(
-        select(Machine).where(Machine.id == machine_id, Machine.tenant_id == tenant_id)
-    ).first()
-    if not machine:
-        return None
-    for key, value in payload.model_dump(exclude_unset=True).items():
-        setattr(machine, key, value)
-    db.commit()
-    db.refresh(machine)
-    return machine
+    try:
+        machine = db.scalars(
+            select(Machine).where(Machine.id == machine_id, Machine.tenant_id == tenant_id)
+        ).first()
+        if not machine:
+            return None
+        for key, value in payload.model_dump(exclude_unset=True).items():
+            setattr(machine, key, value)
+        db.commit()
+        db.refresh(machine)
+        return machine
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error while updating machine %s", machine_id)
+        raise RuntimeError("Machine update failed: Database error") from exc
+    except Exception:
+        db.rollback()
+        raise

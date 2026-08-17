@@ -31,97 +31,194 @@ function platformHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+async function withApiErrorHandling(label, operation, context = {}) {
+  try {
+    return await operation();
+  } catch (error) {
+    console.error(`[platformApi.${label}] Error performing request:`, error.message, context);
+    throw error;
+  }
+}
+
 export async function superAdminLogin(email, password) {
-  const { data } = await api.post("/platform/auth/login", { email, password });
-  return data;
+  return withApiErrorHandling(
+    "superAdminLogin",
+    async () => {
+      const { data } = await api.post("/platform/auth/login", { email, password });
+      return data;
+    },
+    { email }
+  );
 }
 
 export async function superAdminVerifyOtp(challengeToken, otp) {
-  const { data } = await api.post("/platform/auth/verify-otp", {
-    challenge_token: challengeToken,
-    otp,
-  });
-  return data;
+  return withApiErrorHandling(
+    "superAdminVerifyOtp",
+    async () => {
+      const { data } = await api.post("/platform/auth/verify-otp", {
+        challenge_token: challengeToken,
+        otp,
+      });
+      return data;
+    },
+    { challengeToken }
+  );
 }
 
 export async function superAdminResendOtp(challengeToken) {
-  const { data } = await api.post("/platform/auth/resend-otp", {
-    challenge_token: challengeToken,
-  });
-  return data;
+  return withApiErrorHandling(
+    "superAdminResendOtp",
+    async () => {
+      const { data } = await api.post("/platform/auth/resend-otp", {
+        challenge_token: challengeToken,
+      });
+      return data;
+    },
+    { challengeToken }
+  );
 }
 
 export async function getSuperAdminProfile() {
-  const { data } = await api.get("/platform/auth/me", { headers: platformHeaders() });
-  return data;
+  return withApiErrorHandling(
+    "getSuperAdminProfile",
+    async () => {
+      const { data } = await api.get("/platform/auth/me", { headers: platformHeaders() });
+      return data;
+    }
+  );
 }
 
 export async function listCompanies() {
-  const { data } = await api.get("/platform/companies", { headers: platformHeaders() });
-  return data;
+  return withApiErrorHandling(
+    "listCompanies",
+    async () => {
+      const { data } = await api.get("/platform/companies", { headers: platformHeaders() });
+      return data;
+    }
+  );
 }
 
 export async function createCompany(payload) {
-  const { data } = await api.post("/platform/companies", payload, { headers: platformHeaders() });
-  return data;
+  return withApiErrorHandling(
+    "createCompany",
+    async () => {
+      const { data } = await api.post("/platform/companies", payload, { headers: platformHeaders() });
+      return data;
+    },
+    { payload }
+  );
 }
 
 export async function getCompany(tenantId) {
-  const { data } = await api.get(`/platform/companies/${tenantId}`, { headers: platformHeaders() });
-  return data;
+  return withApiErrorHandling(
+    "getCompany",
+    async () => {
+      const { data } = await api.get(`/platform/companies/${tenantId}`, { headers: platformHeaders() });
+      return data;
+    },
+    { tenantId }
+  );
 }
 
 export async function updateCompany(tenantId, payload) {
-  const { data } = await api.put(`/platform/companies/${tenantId}`, payload, {
-    headers: platformHeaders(),
-  });
-  return data;
+  return withApiErrorHandling(
+    "updateCompany",
+    async () => {
+      const { data } = await api.put(`/platform/companies/${tenantId}`, payload, {
+        headers: platformHeaders(),
+      });
+      return data;
+    },
+    { tenantId, payload }
+  );
 }
 
 export async function activateCompany(tenantId) {
-  const { data } = await api.post(`/platform/companies/${tenantId}/activate`, null, {
-    headers: platformHeaders(),
-  });
-  return data;
+  return withApiErrorHandling(
+    "activateCompany",
+    async () => {
+      const { data } = await api.post(`/platform/companies/${tenantId}/activate`, null, {
+        headers: platformHeaders(),
+      });
+      return data;
+    },
+    { tenantId }
+  );
 }
 
 export async function suspendCompany(tenantId) {
-  const { data } = await api.post(`/platform/companies/${tenantId}/suspend`, null, {
-    headers: platformHeaders(),
-  });
-  return data;
+  return withApiErrorHandling(
+    "suspendCompany",
+    async () => {
+      const { data } = await api.post(`/platform/companies/${tenantId}/suspend`, null, {
+        headers: platformHeaders(),
+      });
+      return data;
+    },
+    { tenantId }
+  );
 }
 
 export async function deleteCompany(tenantId) {
-  await api.delete(`/platform/companies/${tenantId}`, { headers: platformHeaders() });
+  return withApiErrorHandling(
+    "deleteCompany",
+    async () => {
+      await api.delete(`/platform/companies/${tenantId}`, { headers: platformHeaders() });
+    },
+    { tenantId }
+  );
 }
 
 export async function resetCompanyPassword(tenantId, newPassword) {
-  const { data } = await api.post(
-    `/platform/companies/${tenantId}/reset-password`,
-    { new_password: newPassword },
-    { headers: platformHeaders() }
+  return withApiErrorHandling(
+    "resetCompanyPassword",
+    async () => {
+      const { data } = await api.post(
+        `/platform/companies/${tenantId}/reset-password`,
+        { new_password: newPassword },
+        { headers: platformHeaders() }
+      );
+      return data;
+    },
+    { tenantId }
   );
-  return data;
 }
 
 export async function listCompanyUsers(tenantId) {
-  const { data } = await api.get(`/platform/companies/${tenantId}/users`, {
-    headers: platformHeaders(),
-  });
-  return data;
+  return withApiErrorHandling(
+    "listCompanyUsers",
+    async () => {
+      const { data } = await api.get(`/platform/companies/${tenantId}/users`, {
+        headers: platformHeaders(),
+      });
+      return data;
+    },
+    { tenantId }
+  );
 }
 
 export async function getCompanySubscription(tenantId) {
-  const { data } = await api.get(`/platform/companies/${tenantId}/subscription`, {
-    headers: platformHeaders(),
-  });
-  return data;
+  return withApiErrorHandling(
+    "getCompanySubscription",
+    async () => {
+      const { data } = await api.get(`/platform/companies/${tenantId}/subscription`, {
+        headers: platformHeaders(),
+      });
+      return data;
+    },
+    { tenantId }
+  );
 }
 
 export async function updateCompanyLicense(tenantId, payload) {
-  const { data } = await api.put(`/platform/companies/${tenantId}/license`, payload, {
-    headers: platformHeaders(),
-  });
-  return data;
+  return withApiErrorHandling(
+    "updateCompanyLicense",
+    async () => {
+      const { data } = await api.put(`/platform/companies/${tenantId}/license`, payload, {
+        headers: platformHeaders(),
+      });
+      return data;
+    },
+    { tenantId, payload }
+  );
 }

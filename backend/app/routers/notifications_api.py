@@ -74,7 +74,7 @@ async def mark_all_read(
     except SQLAlchemyError as exc:
         db.rollback()
         logger.exception("Database error marking all notifications read for user_id=%s: %s", user.id, exc)
-        raise HTTPException(status_code=500, detail="Database error marking all notifications as read") from exc
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
     except Exception as exc:
         db.rollback()
         logger.exception("Failed to mark all notifications as read for user_id=%s: %s", user.id, exc)
@@ -94,7 +94,7 @@ async def clear_notifications(
     except SQLAlchemyError as exc:
         db.rollback()
         logger.exception("Database error clearing notifications for user_id=%s: %s", user.id, exc)
-        raise HTTPException(status_code=500, detail="Database error clearing notifications") from exc
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
     except Exception as exc:
         db.rollback()
         logger.exception("Failed to clear notifications for user_id=%s: %s", user.id, exc)
@@ -115,7 +115,7 @@ async def mark_notification_read(
     except SQLAlchemyError as exc:
         db.rollback()
         logger.exception("Database error marking notification_id=%s read for user_id=%s: %s", notification_id, user.id, exc)
-        raise HTTPException(status_code=500, detail="Database error marking notification as read") from exc
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
     except Exception as exc:
         db.rollback()
         logger.exception("Failed to mark notification_id=%s as read for user_id=%s: %s", notification_id, user.id, exc)
@@ -136,7 +136,7 @@ async def delete_notification(
     except SQLAlchemyError as exc:
         db.rollback()
         logger.exception("Database error deleting notification_id=%s for user_id=%s: %s", notification_id, user.id, exc)
-        raise HTTPException(status_code=500, detail="Database error deleting notification") from exc
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
     except Exception as exc:
         db.rollback()
         logger.exception("Failed to delete notification_id=%s for user_id=%s: %s", notification_id, user.id, exc)

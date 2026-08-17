@@ -31,7 +31,7 @@ import {
   updateStockTransferStatus,
 } from "../../api/inventoryApi";
 import usePageRefresh from "../../hooks/usePageRefresh";
-import { asArray } from "../../utils/apiError";
+import { apiErrorMessage, asArray } from "../../utils/apiError";
 
 const STATUS_TONE = {
   draft: "neutral",
@@ -302,8 +302,8 @@ export default function StockTransfer() {
       addToast("Transfer cancelled successfully");
       setDeleteTarget(null);
       await load(true);
-    } catch {
-      addToast("Could not cancel transfer", "error");
+    } catch (err) {
+      addToast(apiErrorMessage(err, "Could not cancel transfer"), "error");
     } finally {
       setDeleting(false);
     }
@@ -368,8 +368,8 @@ export default function StockTransfer() {
       resetForm();
       setShowForm(false);
       load();
-    } catch {
-      addToast("Transfer failed", "error");
+    } catch (err) {
+      addToast(apiErrorMessage(err, "Transfer failed"), "error");
     } finally {
       setSubmitting(false);
     }
@@ -385,8 +385,8 @@ export default function StockTransfer() {
       });
       addToast(`Transfer updated to ${STATUS_LABEL[newStatus] || newStatus.replace(/_/g, " ")}`);
       await load();
-    } catch {
-      addToast("Failed to update status", "error");
+    } catch (err) {
+      addToast(apiErrorMessage(err, "Failed to update status"), "error");
     } finally {
       setUpdatingId(null);
     }

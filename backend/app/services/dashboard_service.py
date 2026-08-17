@@ -17,11 +17,15 @@ from app.services.notification_management_service import get_user_notifications
 def _user_role_names(user: User | None) -> list[str]:
     if not user:
         return []
-    from app.core.permissions import get_role_names, user_is_admin
-
-    if user_is_admin(user):
-        return ["Admin"]
-    return get_role_names(user)
+    try:
+        from app.core.permissions import get_role_names, user_is_admin
+        if user_is_admin(user):
+            return ["Admin"]
+        return get_role_names(user)
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to retrieve role names for user {user.id}: {str(e)}")
+        return []
 
 
 def _is_store_manager_only(user: User | None) -> bool:
@@ -420,15 +424,21 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
             )
             or 0
         )
-    except Exception:
-        stock_moves_today = int(
-            db.scalar(
-                select(func.count(StockMovement.id)).where(
-                    StockMovement.tenant_id == tenant_id
+    except Exception as e:
+        import logging
+        logging.warning(f"Failed to retrieve stock movements by date for tenant {tenant_id}, falling back to total count: {str(e)}")
+        try:
+            stock_moves_today = int(
+                db.scalar(
+                    select(func.count(StockMovement.id)).where(
+                        StockMovement.tenant_id == tenant_id
+                    )
                 )
+                or 0
             )
-            or 0
-        )
+        except Exception as fallback_e:
+            logging.error(f"Failed to retrieve stock movements count for tenant {tenant_id}: {str(fallback_e)}")
+            stock_moves_today = 0
 
     users_count = int(db.scalar(select(func.count(User.id)).where(User.tenant_id == tenant_id)) or 0)
     total_planned_today = int(sum(float(r.get("planned_quantity", 0) or 0) for r in today_reports))
@@ -445,13 +455,20 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
     ]
 
     if user:
-        from app.core.permissions import get_role_names
-        user_roles_list = [r.lower() for r in get_role_names(user)]
-        is_admin = any("admin" in r for r in user_roles_list)
-        is_operator = not is_admin and any("operator" in r for r in user_roles_list)
-        is_prod_manager = not is_admin and not is_operator and any(
-            "production manager" in r or "production_manager" in r for r in user_roles_list
-        )
+        try:
+            from app.core.permissions import get_role_names
+            user_roles_list = [r.lower() for r in get_role_names(user)]
+            is_admin = any("admin" in r for r in user_roles_list)
+            is_operator = not is_admin and any("operator" in r for r in user_roles_list)
+            is_prod_manager = not is_admin and not is_operator and any(
+                "production manager" in r or "production_manager" in r for r in user_roles_list
+            )
+        except Exception as e:
+            import logging
+            logging.error(f"Failed to retrieve roles for user {user.id} during dashboard filtering: {str(e)}")
+            is_admin = False
+            is_operator = False
+            is_prod_manager = False
         if is_operator:
             todays_summary = [
                 item for item in todays_summary if item["key"] not in ("manPower", "powerConsumption", "stockMovements") and item.get("label") not in ("Man Power", "Manpower", "Power Consumption", "Stock Movements")
@@ -504,7 +521,6 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
     alerts_feed = []
     try:
         from app.services.alert_service import list_alerts as list_tenant_alerts
-
         alert_rows, _, _ = list_tenant_alerts(
             db, tenant_id, status="active", user=user, page=1, page_size=5
         )
@@ -525,7 +541,9 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
             }
             for a in alert_rows
         ]
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to retrieve alerts for tenant {tenant_id}: {str(e)}")
         alerts_feed = []
 
     total_wo = total_work_orders
@@ -556,7 +574,9 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
             )
             or 0
         )
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to retrieve goods receipt data for tenant {tenant_id}: {str(e)}")
         grn_today = 0
         pending_grn_qc = 0
 
@@ -573,9 +593,10 @@ def get_erp_dashboard(db: Session, tenant_id: int, user: User | None = None) -> 
 
     try:
         from app.services.approval_service import get_pending_approvals
-
         pending_approvals_total = int(get_pending_approvals(db, tenant_id).get("total") or 0)
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to retrieve pending approvals for tenant {tenant_id}: {str(e)}")
         pending_approvals_total = 0
 
     payload = {

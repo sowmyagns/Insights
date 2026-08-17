@@ -78,7 +78,18 @@ def _dump(obj):
 @router.get("/hub")
 def production_hub(user_tenant: tuple[User, int] = Depends(require_tenant("production")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Production hub retrieved", _dump(get_production_hub(db, tenant_id)))
+    try:
+        return success_response("Production hub retrieved", _dump(get_production_hub(db, tenant_id)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving production hub for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve production hub for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve production hub") from exc
 
 
 # ── Production Planning ──────────────────────────────────────────────────
@@ -87,10 +98,21 @@ def production_hub(user_tenant: tuple[User, int] = Depends(require_tenant("produ
 @router.get("/planning")
 def production_planning(user_tenant: tuple[User, int] = Depends(require_tenant("production")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Production planning retrieved", {
-        "summary": _dump(get_production_planning_summary(db, tenant_id)),
-        "orders": _dump(list_production_orders_enriched(db, tenant_id)),
-    })
+    try:
+        return success_response("Production planning retrieved", {
+            "summary": _dump(get_production_planning_summary(db, tenant_id)),
+            "orders": _dump(list_production_orders_enriched(db, tenant_id)),
+        })
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving production planning for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve production planning for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve production planning") from exc
 
 
 @router.get("/planning/summary")
@@ -99,7 +121,18 @@ def production_planning_summary(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Production planning summary retrieved", _dump(get_production_planning_summary(db, tenant_id)))
+    try:
+        return success_response("Production planning summary retrieved", _dump(get_production_planning_summary(db, tenant_id)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving production planning summary for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve production planning summary for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve production planning summary") from exc
 
 
 @router.get("/planning/{plan_id}")
@@ -109,10 +142,21 @@ def production_plan_detail(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    detail = get_production_order_detail(db, tenant_id, plan_id)
-    if not detail:
-        raise HTTPException(404, "Production plan not found")
-    return success_response("Production plan retrieved", _dump(detail))
+    try:
+        detail = get_production_order_detail(db, tenant_id, plan_id)
+        if not detail:
+            raise HTTPException(404, "Production plan not found")
+        return success_response("Production plan retrieved", _dump(detail))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving production plan_id=%s for tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve production plan_id=%s for tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve production plan") from exc
 
 
 @router.post("/planning")
@@ -122,9 +166,20 @@ def create_plan(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    payload.tenant_id = tenant_id
-    order = create_production_order(db, payload)
-    return success_response("Production plan created", _dump(order))
+    try:
+        payload.tenant_id = tenant_id
+        order = create_production_order(db, payload)
+        return success_response("Production plan created", _dump(order))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error creating production plan for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Database error creating production plan") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to create production plan for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to create production plan") from exc
 
 
 @router.get("/planning/{plan_id}/start-checks")
@@ -134,7 +189,18 @@ def production_plan_start_checks(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Start checks retrieved", _dump(preview_start_checks(db, tenant_id, plan_id)))
+    try:
+        return success_response("Start checks retrieved", _dump(preview_start_checks(db, tenant_id, plan_id)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving production plan start checks for plan_id=%s, tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve production plan start checks for plan_id=%s, tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve production plan start checks") from exc
 
 
 @router.post("/planning/{plan_id}/start")
@@ -144,7 +210,18 @@ def production_plan_start(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Production plan started", _dump(start_production_order(db, tenant_id, plan_id)))
+    try:
+        return success_response("Production plan started", _dump(start_production_order(db, tenant_id, plan_id)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error starting production plan_id=%s for tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to start production plan_id=%s for tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to start production plan") from exc
 
 
 @router.post("/planning/{plan_id}/complete")
@@ -154,7 +231,18 @@ def production_plan_complete(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response("Production plan completed", _dump(complete_production_order(db, tenant_id, plan_id)))
+    try:
+        return success_response("Production plan completed", _dump(complete_production_order(db, tenant_id, plan_id)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error completing production plan_id=%s for tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to complete production plan_id=%s for tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to complete production plan") from exc
 
 
 @router.post("/planning/{plan_id}/pause")
@@ -164,10 +252,21 @@ def production_plan_pause(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    order = pause_production_order(db, tenant_id, plan_id)
-    if not order:
-        raise HTTPException(404, "Production plan not found")
-    return success_response("Production plan paused", _dump(order))
+    try:
+        order = pause_production_order(db, tenant_id, plan_id)
+        if not order:
+            raise HTTPException(404, "Production plan not found")
+        return success_response("Production plan paused", _dump(order))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error pausing production plan_id=%s for tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to pause production plan_id=%s for tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to pause production plan") from exc
 
 
 @router.patch("/planning/{plan_id}/status")
@@ -178,10 +277,21 @@ def production_plan_status(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    order = update_production_order_status(db, plan_id, tenant_id, status)
-    if not order:
-        raise HTTPException(404, "Production plan not found")
-    return success_response("Production plan status updated", _dump(order))
+    try:
+        order = update_production_order_status(db, plan_id, tenant_id, status)
+        if not order:
+            raise HTTPException(404, "Production plan not found")
+        return success_response("Production plan status updated", _dump(order))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error updating production plan status for plan_id=%s, tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to update production plan status for plan_id=%s, tenant_id=%s: %s", plan_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to update production plan status") from exc
 
 
 @router.patch("/planning/{plan_id}/priority")
@@ -268,7 +378,18 @@ def list_job_cards_endpoint(
     from app.services.job_card_service import list_job_cards
 
     user, tenant_id = user_tenant
-    return success_response("Job cards retrieved", list_job_cards(db, tenant_id, user=user))
+    try:
+        return success_response("Job cards retrieved", list_job_cards(db, tenant_id, user=user))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving job cards for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve job cards for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve job cards") from exc
 
 
 @router.get("/job-cards/{work_order_id}")
@@ -280,10 +401,21 @@ def get_job_card_endpoint(
     from app.services.job_card_service import build_job_card
 
     user, tenant_id = user_tenant
-    card = build_job_card(db, tenant_id, work_order_id, user=user)
-    if not card:
-        raise HTTPException(404, "Job card not found")
-    return success_response("Job card retrieved", card)
+    try:
+        card = build_job_card(db, tenant_id, work_order_id, user=user)
+        if not card:
+            raise HTTPException(404, "Job card not found")
+        return success_response("Job card retrieved", card)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving job card for work_order_id=%s, user_id=%s, tenant_id=%s: %s", work_order_id, user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve job card for work_order_id=%s, user_id=%s, tenant_id=%s: %s", work_order_id, user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve job card") from exc
 
 
 # ── Work Orders ────────────────────────────────────────────────────────────
@@ -296,10 +428,21 @@ def work_orders(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    return success_response(
-        "Work orders retrieved",
-        _dump(list_work_orders_enriched(db, tenant_id, production_order_id, user=user)),
-    )
+    try:
+        return success_response(
+            "Work orders retrieved",
+            _dump(list_work_orders_enriched(db, tenant_id, production_order_id, user=user)),
+        )
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving work orders for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve work orders for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve work orders") from exc
 
 
 @router.get("/work-orders/summary")
@@ -309,10 +452,21 @@ def work_orders_summary(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    return success_response(
-        "Work order summary retrieved",
-        _dump(get_work_order_summary(db, tenant_id, production_order_id, user=user)),
-    )
+    try:
+        return success_response(
+            "Work order summary retrieved",
+            _dump(get_work_order_summary(db, tenant_id, production_order_id, user=user)),
+        )
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving work order summary for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve work order summary for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve work order summary") from exc
 
 
 @router.get("/work-orders/{work_order_id}")
@@ -322,10 +476,21 @@ def work_order_detail(
     db: Session = Depends(get_db),
 ):
     user, tenant_id = user_tenant
-    detail = get_work_order_detail(db, tenant_id, work_order_id, user=user)
-    if not detail:
-        raise HTTPException(404, "Work order not found")
-    return success_response("Work order retrieved", _dump(detail))
+    try:
+        detail = get_work_order_detail(db, tenant_id, work_order_id, user=user)
+        if not detail:
+            raise HTTPException(404, "Work order not found")
+        return success_response("Work order retrieved", _dump(detail))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving work_order_id=%s for user_id=%s, tenant_id=%s: %s", work_order_id, user.id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve work_order_id=%s for user_id=%s, tenant_id=%s: %s", work_order_id, user.id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve work order") from exc
 
 
 @router.post("/work-orders")
@@ -424,10 +589,21 @@ def work_order_start_checks(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    return success_response(
-        "Work order start checks retrieved",
-        _dump(preview_work_order_start_checks(db, tenant_id, work_order_id)),
-    )
+    try:
+        return success_response(
+            "Work order start checks retrieved",
+            _dump(preview_work_order_start_checks(db, tenant_id, work_order_id)),
+        )
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving work order start checks for work_order_id=%s, tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve work order start checks for work_order_id=%s, tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve work order start checks") from exc
 
 
 @router.post("/work-orders/{work_order_id}/start")
@@ -503,10 +679,21 @@ def work_order_issue_materials(
     from app.services.manufacturing_workflow_service import issue_materials_for_work_order
 
     _, tenant_id = user_tenant
-    result = issue_materials_for_work_order(
-        db, tenant_id, work_order_id, warehouse_id=warehouse_id
-    )
-    return success_response(result.get("message") or "Materials issued", result)
+    try:
+        result = issue_materials_for_work_order(
+            db, tenant_id, work_order_id, warehouse_id=warehouse_id
+        )
+        return success_response(result.get("message") or "Materials issued", result)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error issuing materials for work_order_id=%s, tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to issue materials for work_order_id=%s, tenant_id=%s: %s", work_order_id, tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to issue materials") from exc
 
 
 @router.post("/work-orders/{work_order_id}/complete")
@@ -580,28 +767,72 @@ def run_mrp_endpoint(
 @router.get("/allocation")
 def machine_allocation(user_tenant: tuple[User, int] = Depends(require_tenant("allocation")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Machine allocation retrieved", {
-        "summary": _dump(get_allocation_summary(db, tenant_id)),
-        "rows": _dump(get_allocation_list(db, tenant_id)),
-    })
+    try:
+        return success_response("Machine allocation retrieved", {
+            "summary": _dump(get_allocation_summary(db, tenant_id)),
+            "rows": _dump(get_allocation_list(db, tenant_id)),
+        })
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving machine allocation for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve machine allocation for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve machine allocation") from exc
 
 
 @router.get("/allocation/summary")
 def allocation_summary(user_tenant: tuple[User, int] = Depends(require_tenant("allocation")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Allocation summary retrieved", _dump(get_allocation_summary(db, tenant_id)))
+    try:
+        return success_response("Allocation summary retrieved", _dump(get_allocation_summary(db, tenant_id)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving allocation summary for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve allocation summary for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve allocation summary") from exc
 
 
 @router.get("/allocation/rows")
 def allocation_rows(user_tenant: tuple[User, int] = Depends(require_tenant("allocation")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Allocation rows retrieved", _dump(get_allocation_list(db, tenant_id)))
+    try:
+        return success_response("Allocation rows retrieved", _dump(get_allocation_list(db, tenant_id)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving allocation rows for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve allocation rows for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve allocation rows") from exc
 
 
 @router.get("/allocation/machines")
 def allocation_machines(user_tenant: tuple[User, int] = Depends(require_tenant("allocation")), db: Session = Depends(get_db)):
     _, tenant_id = user_tenant
-    return success_response("Allocation machines retrieved", _dump(get_machine_availability(db, tenant_id)))
+    try:
+        return success_response("Allocation machines retrieved", _dump(get_machine_availability(db, tenant_id)))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving allocation machines for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve allocation machines for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve allocation machines") from exc
 
 
 @router.post("/allocation/assign")
@@ -611,8 +842,19 @@ def assign_machine(
     db: Session = Depends(get_db),
 ):
     _, tenant_id = user_tenant
-    result = assign_allocation(db, tenant_id, payload)
-    return success_response("Machine allocated", _dump(result))
+    try:
+        result = assign_allocation(db, tenant_id, payload)
+        return success_response("Machine allocated", _dump(result))
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error assigning machine for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to assign machine for tenant_id=%s: %s", tenant_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to assign machine") from exc
 
 
 # ── Batch Tracking ─────────────────────────────────────────────────────────

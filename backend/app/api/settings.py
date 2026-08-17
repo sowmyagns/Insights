@@ -1,6 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.api.auth_deps import get_current_user
 from app.api.deps import get_db
@@ -39,8 +43,19 @@ def get_account_overview_endpoint(
     db: Session = Depends(get_db),
 ) -> dict:
     """Live profile, subscription, and session details for the JWT user."""
-    data = get_account_overview(db, user)
-    return success_response("Account overview retrieved", data)
+    try:
+        data = get_account_overview(db, user)
+        return success_response("Account overview retrieved", data)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error retrieving account overview: %s", exc)
+        raise HTTPException(status_code=503, detail="Database connection unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to retrieve account overview: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to retrieve account overview") from exc
 
 
 @router.get("/subscription")

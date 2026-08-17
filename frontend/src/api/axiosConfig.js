@@ -131,8 +131,9 @@ api.interceptors.response.use(
         }
       }
     } else if (typeof onApiError === "function" && !error.config?.skipGlobalError) {
-      if (!status || status >= 500) {
-        const raw = error.response?.data?.detail;
+      const shouldNotify = !status || status >= 500 || status === 503;
+      if (shouldNotify) {
+        const raw = error.response?.data?.detail ?? error.response?.data?.message;
         const message = !status
           ? "Network error - please check your connection."
           : typeof raw === "string"

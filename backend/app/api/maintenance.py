@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -46,14 +47,26 @@ def create_maintenance_record_endpoint(
     db: Session = Depends(get_db),
 ) -> MaintenanceRecordRead:
     payload.tenant_id = user.tenant_id
-    return create_maintenance_record(db, payload)
+    try:
+        return create_maintenance_record(db, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create maintenance record") from exc
 
 
 @router.get("/records", response_model=list[MaintenanceRecordRead])
 def list_maintenance_records_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)
 ) -> list[MaintenanceRecordRead]:
-    return list_maintenance_records(db, tenant_id)
+    try:
+        return list_maintenance_records(db, tenant_id)
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to load maintenance records") from exc
 
 
 @router.post("/preventive", response_model=PreventiveMaintenanceRead)
@@ -63,14 +76,26 @@ def create_preventive_endpoint(
     db: Session = Depends(get_db),
 ) -> PreventiveMaintenanceRead:
     payload.tenant_id = user.tenant_id
-    return create_preventive_maintenance(db, payload)
+    try:
+        return create_preventive_maintenance(db, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create preventive maintenance") from exc
 
 
 @router.get("/preventive", response_model=list[PreventiveMaintenanceRead])
 def list_preventive_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)
 ) -> list[PreventiveMaintenanceRead]:
-    return list_preventive_maintenance(db, tenant_id)
+    try:
+        return list_preventive_maintenance(db, tenant_id)
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to load preventive maintenance") from exc
 
 
 @router.post("/breakdowns", response_model=BreakdownReportRead)
@@ -80,27 +105,48 @@ def create_breakdown_endpoint(
     db: Session = Depends(get_db),
 ) -> BreakdownReportRead:
     payload.tenant_id = user.tenant_id
-    return create_breakdown_report(db, payload)
+    try:
+        return create_breakdown_report(db, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create breakdown report") from exc
 
 
 @router.get("/breakdowns", response_model=list[BreakdownReportRead])
 def list_breakdowns_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)
 ) -> list[BreakdownReportRead]:
-    return list_breakdown_reports(db, tenant_id)
+    try:
+        return list_breakdown_reports(db, tenant_id)
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to load breakdown reports") from exc
 
 
 @router.patch("/breakdowns/{breakdown_id}/status", response_model=BreakdownReportRead)
 def update_breakdown_status_endpoint(
     breakdown_id: int,
-    status: str = Query(..., description="e.g. reported, in_progress, resolved"),
+    new_status: str = Query(..., alias="status", description="e.g. reported, in_progress, resolved"),
     tenant_id: int = Depends(tenant_scope(MODULE)),
     db: Session = Depends(get_db),
 ) -> BreakdownReportRead:
-    br = update_breakdown_status(db, tenant_id, breakdown_id, status)
-    if not br:
-        raise HTTPException(404, "Breakdown report not found")
-    return br
+    try:
+        br = update_breakdown_status(db, tenant_id, breakdown_id, new_status)
+        if not br:
+            raise HTTPException(404, "Breakdown report not found")
+        return br
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update breakdown status") from exc
 
 
 @router.post("/schedule", response_model=MaintenanceScheduleRead)
@@ -110,14 +156,26 @@ def create_schedule_endpoint(
     db: Session = Depends(get_db),
 ) -> MaintenanceScheduleRead:
     payload.tenant_id = user.tenant_id
-    return create_maintenance_schedule(db, payload)
+    try:
+        return create_maintenance_schedule(db, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create maintenance schedule") from exc
 
 
 @router.get("/schedule", response_model=list[MaintenanceScheduleRead])
 def list_schedule_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)
 ) -> list[MaintenanceScheduleRead]:
-    return list_maintenance_schedules(db, tenant_id)
+    try:
+        return list_maintenance_schedules(db, tenant_id)
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to load maintenance schedules") from exc
 
 
 @router.get("/hub")

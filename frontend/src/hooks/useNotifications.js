@@ -51,7 +51,7 @@ export default function useNotifications() {
       setCount(0);
       setNotifications([]);
       setHasMore(false);
-      setError(err.response?.data?.detail || err.response?.data?.message || "Failed to load notifications");
+      setError(err.response?.data?.message || err.message || "Failed to load notifications");
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export default function useNotifications() {
       setPage(nextPage);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to load more notifications");
+      setError(err.response?.data?.message || err.message || "Failed to load more notifications");
     } finally {
       setLoadingMore(false);
     }

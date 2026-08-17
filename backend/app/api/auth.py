@@ -336,20 +336,55 @@ def resend_verification(req: ForgotPasswordRequest, db: Session = Depends(get_db
 async def forgot_password(
     req: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)
 ):
-    message = await PasswordResetService(db).request_reset(req.email, request)
-    return ForgotPasswordSuccessResponse(success=True, message=message)
+    try:
+        message = await PasswordResetService(db).request_reset(req.email, request)
+        return ForgotPasswordSuccessResponse(success=True, message=message)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error processing forgot-password request for email=%s: %s", req.email, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Unexpected error processing forgot-password request for email=%s: %s", req.email, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send password reset email") from exc
 
 
 @router.get("/validate-reset-token")
 def validate_reset_token(token: str, db: Session = Depends(get_db)):
-    data = PasswordResetService(db).validate_reset_token(token)
-    return {"success": True, "message": data["message"], "data": data}
+    try:
+        data = PasswordResetService(db).validate_reset_token(token)
+        return {"success": True, "message": data["message"], "data": data}
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error validating reset token=%s: %s", token, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Unexpected error validating reset token=%s: %s", token, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to validate reset token") from exc
 
 
 @router.post("/reset-password", response_model=ResetPasswordSuccessResponse)
 def reset_password(req: ResetPasswordRequest, request: Request, db: Session = Depends(get_db)):
-    message = PasswordResetService(db).reset_password(req.token, req.password, request)
-    return ResetPasswordSuccessResponse(success=True, message=message)
+    try:
+        message = PasswordResetService(db).reset_password(req.token, req.password, request)
+        return ResetPasswordSuccessResponse(success=True, message=message)
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error resetting password for token=%s: %s", req.token, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database service unavailable") from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Unexpected error resetting password for token=%s: %s", req.token, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to reset password") from exc
 
 
 @router.post("/refresh", response_model=AuthResponse)

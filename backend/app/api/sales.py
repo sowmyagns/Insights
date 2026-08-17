@@ -2,6 +2,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -438,9 +439,16 @@ def create_invoice_endpoint(
     db: Session = Depends(get_db),
 ):
     """Invoice v2 create — Tax Invoice / Bill of Supply / Export + optional fields."""
-    payload.tenant_id = user.tenant_id
-    inv = create_invoice_v2(db, payload)
-    return get_invoice_v2(db, user.tenant_id, inv.id)
+    try:
+        payload.tenant_id = user.tenant_id
+        inv = create_invoice_v2(db, payload)
+        return get_invoice_v2(db, user.tenant_id, inv.id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, "Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(500, "Failed to create invoice") from exc
 
 
 @router.get("/invoices/summary", response_model=InvoiceV2SummaryRead)
@@ -705,11 +713,17 @@ def update_invoice_endpoint(
     payload.tenant_id = user.tenant_id
     try:
         inv = update_invoice_v2(db, user.tenant_id, invoice_id, payload)
+        if not inv:
+            raise HTTPException(404, "Invoice not found")
+        return get_invoice_v2(db, user.tenant_id, inv.id)
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    if not inv:
-        raise HTTPException(404, "Invoice not found")
-    return get_invoice_v2(db, user.tenant_id, inv.id)
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, "Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(500, "Failed to update invoice") from exc
 
 
 @router.delete("/invoices/{invoice_id}")
@@ -718,10 +732,19 @@ def cancel_invoice_endpoint(
     user: User = Depends(require_permission(MODULE)),
     db: Session = Depends(get_db),
 ):
-    inv = cancel_invoice_v2(db, user.tenant_id, invoice_id)
-    if not inv:
-        raise HTTPException(404, "Invoice not found")
-    return {"ok": True, "id": inv.id, "invoice_status": inv.invoice_status}
+    try:
+        inv = cancel_invoice_v2(db, user.tenant_id, invoice_id)
+        if not inv:
+            raise HTTPException(404, "Invoice not found")
+        return {"ok": True, "id": inv.id, "invoice_status": inv.invoice_status}
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, "Database service unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(500, "Failed to cancel invoice") from exc
 
 
 @router.post("/payments", response_model=PaymentRead)

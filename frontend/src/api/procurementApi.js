@@ -21,10 +21,16 @@ export const getVendorProducts = (vendorId) =>
   api.get(`/procurement/vendors/${vendorId}/products`);
 export const exportVendors = (params = {}) =>
   api.get("/procurement/vendors/export", { params });
-export const lookupVendorBank = (ifsc, accountNumber) =>
-  api.get("/procurement/vendors/bank-lookup", {
-    params: { ifsc, account_number: accountNumber },
-  });
+export const lookupVendorBank = async (ifsc, accountNumber) => {
+  try {
+    return await api.get("/procurement/vendors/bank-lookup", {
+      params: { ifsc, account_number: accountNumber },
+    });
+  } catch (error) {
+    console.error("[procurementApi.lookupVendorBank] Error looking up bank details:", error.message, { ifsc, accountNumber });
+    throw error;
+  }
+};
 export const createVendor = (payload) => api.post("/procurement/vendors", payload);
 export const updateVendor = (vendorId, payload) =>
   api.put(`/procurement/vendors/${vendorId}`, payload);

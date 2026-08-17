@@ -23,9 +23,11 @@ class MachineRepository(BaseRepository):
                 ).all()
             )
         except (OperationalError, SQLAlchemyError) as exc:
+            self.db.rollback()
             logger.exception("Database connection error listing machines: %s", exc)
             raise HTTPException(503, "Database connection unavailable") from exc
         except Exception as exc:
+            self.db.rollback()
             logger.exception("Error listing machines: %s", exc)
             raise HTTPException(500, "Database operation failed") from exc
 
@@ -40,9 +42,11 @@ class MachineRepository(BaseRepository):
                 )
             ).first()
         except (OperationalError, SQLAlchemyError) as exc:
+            self.db.rollback()
             logger.exception("Database error getting machine by id %s: %s", machine_id, exc)
             raise HTTPException(503, "Database connection unavailable") from exc
         except Exception as exc:
+            self.db.rollback()
             logger.exception("Error getting machine by id %s: %s", machine_id, exc)
             raise HTTPException(500, "Database operation failed") from exc
 
@@ -57,9 +61,11 @@ class MachineRepository(BaseRepository):
                 )
             ).first()
         except (OperationalError, SQLAlchemyError) as exc:
+            self.db.rollback()
             logger.exception("Database error getting machine by code %s: %s", code, exc)
             raise HTTPException(503, "Database connection unavailable") from exc
         except Exception as exc:
+            self.db.rollback()
             logger.exception("Error getting machine by code %s: %s", code, exc)
             raise HTTPException(500, "Database operation failed") from exc
 
@@ -74,9 +80,11 @@ class MachineRepository(BaseRepository):
                 ).all()
             )
         except (OperationalError, SQLAlchemyError) as exc:
+            self.db.rollback()
             logger.exception("Database error listing machines by status: %s", exc)
             raise HTTPException(503, "Database connection unavailable") from exc
         except Exception as exc:
+            self.db.rollback()
             logger.exception("Error listing machines by status: %s", exc)
             raise HTTPException(500, "Database operation failed") from exc
 

@@ -1,4 +1,5 @@
 from datetime import date
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -457,7 +458,15 @@ def create_asset_endpoint(
     user: User = Depends(require_permission(MODULE)),
     db: Session = Depends(get_db),
 ):
-    return create_hr_asset(db, user.tenant_id, payload)
+    try:
+        return create_hr_asset(db, user.tenant_id, payload)
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(503, detail=str(e))
+    except Exception as e:
+        logging.error(f"Unexpected error creating HR asset: {str(e)}")
+        raise HTTPException(500, detail="Failed to create asset")
 
 
 @router.put("/assets/{asset_id}", response_model=HrAssetRead)
@@ -467,10 +476,20 @@ def update_asset_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     db: Session = Depends(get_db),
 ):
-    row = update_hr_asset(db, tenant_id, asset_id, payload)
-    if not row:
-        raise HTTPException(404, "Asset not found")
-    return row
+    try:
+        row = update_hr_asset(db, tenant_id, asset_id, payload)
+        if not row:
+            raise HTTPException(404, "Asset not found")
+        return row
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(503, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Unexpected error updating HR asset {asset_id}: {str(e)}")
+        raise HTTPException(500, detail="Failed to update asset")
 
 
 @router.delete("/assets/{asset_id}", status_code=204)
@@ -479,9 +498,17 @@ def delete_asset_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     db: Session = Depends(get_db),
 ):
-    if not delete_hr_asset(db, tenant_id, asset_id):
-        raise HTTPException(404, "Asset not found")
-    return None
+    try:
+        if not delete_hr_asset(db, tenant_id, asset_id):
+            raise HTTPException(404, "Asset not found")
+        return None
+    except RuntimeError as e:
+        raise HTTPException(503, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Unexpected error deleting HR asset {asset_id}: {str(e)}")
+        raise HTTPException(500, detail="Failed to delete asset")
 
 
 @router.get("/incidents", response_model=list[SafetyIncidentRead])
@@ -498,7 +525,15 @@ def create_incident_endpoint(
     user: User = Depends(require_permission(MODULE)),
     db: Session = Depends(get_db),
 ):
-    return create_safety_incident(db, user.tenant_id, payload)
+    try:
+        return create_safety_incident(db, user.tenant_id, payload)
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(503, detail=str(e))
+    except Exception as e:
+        logging.error(f"Unexpected error creating safety incident: {str(e)}")
+        raise HTTPException(500, detail="Failed to create incident")
 
 
 @router.put("/incidents/{incident_id}", response_model=SafetyIncidentRead)
@@ -508,10 +543,20 @@ def update_incident_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     db: Session = Depends(get_db),
 ):
-    row = update_safety_incident(db, tenant_id, incident_id, payload)
-    if not row:
-        raise HTTPException(404, "Incident not found")
-    return row
+    try:
+        row = update_safety_incident(db, tenant_id, incident_id, payload)
+        if not row:
+            raise HTTPException(404, "Incident not found")
+        return row
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(503, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Unexpected error updating safety incident {incident_id}: {str(e)}")
+        raise HTTPException(500, detail="Failed to update incident")
 
 
 @router.delete("/incidents/{incident_id}", status_code=204)
@@ -520,9 +565,17 @@ def delete_incident_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)),
     db: Session = Depends(get_db),
 ):
-    if not delete_safety_incident(db, tenant_id, incident_id):
-        raise HTTPException(404, "Incident not found")
-    return None
+    try:
+        if not delete_safety_incident(db, tenant_id, incident_id):
+            raise HTTPException(404, "Incident not found")
+        return None
+    except RuntimeError as e:
+        raise HTTPException(503, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Unexpected error deleting safety incident {incident_id}: {str(e)}")
+        raise HTTPException(500, detail="Failed to delete incident")
 
 
 # ── Recruitment ──────────────────────────────────────────────────────────────

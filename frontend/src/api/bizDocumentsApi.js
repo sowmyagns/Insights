@@ -1,28 +1,78 @@
 import api from "./axiosConfig";
 
-export const listBizDocuments = (params = {}) =>
-  api.get("/biz/documents", { params });
+/**
+ * Generic API error handler for business document operations.
+ * Logs error details and re-throws for caller to handle.
+ */
+function withErrorHandling(operation, label) {
+  return async (...args) => {
+    try {
+      return await operation(...args);
+    } catch (error) {
+      const detail = error?.response?.data?.detail || error?.message;
+      console.error(`[bizDocumentsApi.${label}] Error:`, detail, {
+        status: error?.response?.status,
+        url: error?.config?.url,
+      });
+      throw error;
+    }
+  };
+}
 
-export const getBizDocument = (id) => api.get(`/biz/documents/${id}`);
+export const listBizDocuments = withErrorHandling(
+  (params = {}) => api.get("/biz/documents", { params }),
+  "listBizDocuments"
+);
 
-export const createBizDocument = (payload) =>
-  api.post("/biz/documents", payload);
+export const getBizDocument = withErrorHandling(
+  (id) => api.get(`/biz/documents/${id}`),
+  "getBizDocument"
+);
 
-export const updateBizDocument = (id, payload) =>
-  api.put(`/biz/documents/${id}`, payload);
+export const createBizDocument = withErrorHandling(
+  (payload) => api.post("/biz/documents", payload),
+  "createBizDocument"
+);
 
-export const deleteBizDocument = (id) =>
-  api.delete(`/biz/documents/${id}`);
+export const updateBizDocument = withErrorHandling(
+  (id, payload) => api.put(`/biz/documents/${id}`, payload),
+  "updateBizDocument"
+);
 
-export const getPurchaseDocument = (id) => api.get(`/biz/documents/${id}/document`);
-export const downloadPurchasePdf = (id) =>
-  api.get(`/biz/documents/${id}/pdf`, { responseType: "blob" });
+export const deleteBizDocument = withErrorHandling(
+  (id) => api.delete(`/biz/documents/${id}`),
+  "deleteBizDocument"
+);
 
-export const getEwaybillStatus = () => api.get("/biz/ewaybill/status");
-export const ewaybillLogin = (payload) => api.post("/biz/ewaybill/login", payload);
-export const ewaybillLogout = () => api.post("/biz/ewaybill/logout");
+export const getPurchaseDocument = withErrorHandling(
+  (id) => api.get(`/biz/documents/${id}/document`),
+  "getPurchaseDocument"
+);
 
-export const getEinvoiceStatus = () => api.get("/biz/einvoice/status");
+export const downloadPurchasePdf = withErrorHandling(
+  (id) => api.get(`/biz/documents/${id}/pdf`, { responseType: "blob" }),
+  "downloadPurchasePdf"
+);
+
+export const getEwaybillStatus = withErrorHandling(
+  () => api.get("/biz/ewaybill/status"),
+  "getEwaybillStatus"
+);
+
+export const ewaybillLogin = withErrorHandling(
+  (payload) => api.post("/biz/ewaybill/login", payload),
+  "ewaybillLogin"
+);
+
+export const ewaybillLogout = withErrorHandling(
+  () => api.post("/biz/ewaybill/logout"),
+  "ewaybillLogout"
+);
+
+export const getEinvoiceStatus = withErrorHandling(
+  () => api.get("/biz/einvoice/status"),
+  "getEinvoiceStatus"
+);
 export const einvoiceLogin = (payload) => api.post("/biz/einvoice/login", payload);
 export const einvoiceLogout = () => api.post("/biz/einvoice/logout");
 

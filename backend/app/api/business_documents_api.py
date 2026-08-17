@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -32,6 +33,8 @@ from app.schemas.business_documents import (
     FeatureSettingUpdate,
 )
 from app.services.auth_service import hash_password
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/biz", tags=["business-documents"])
 
@@ -115,25 +118,43 @@ def create_document(
     user: User = Depends(require_any_permission("sales", "procurement")),
     db: Session = Depends(get_db),
 ):
-    doc_type = payload.doc_type
-    number = payload.document_number or _next_number(db, user.tenant_id, doc_type)
-    row = BusinessDocument(
-        tenant_id=user.tenant_id,
-        module=payload.module or "sales",
-        doc_type=doc_type,
-        document_number=number,
-        party_name=payload.party_name,
-        document_date=payload.document_date or date.today(),
-        due_date=payload.due_date,
-        amount=float(payload.amount or 0),
-        status=payload.status or "draft",
-        notes=payload.notes,
-        meta_json=json.dumps(payload.meta) if payload.meta else None,
-    )
-    db.add(row)
-    db.commit()
-    db.refresh(row)
-    return BusinessDocumentRead.model_validate(row)
+    """
+    Create a business document with comprehensive error handling.
+    
+    Catches constraint violations and database errors.
+    """
+    try:
+        doc_type = payload.doc_type
+        number = payload.document_number or _next_number(db, user.tenant_id, doc_type)
+        row = BusinessDocument(
+            tenant_id=user.tenant_id,
+            module=payload.module or "sales",
+            doc_type=doc_type,
+            document_number=number,
+            party_name=payload.party_name,
+            document_date=payload.document_date or date.today(),
+            due_date=payload.due_date,
+            amount=float(payload.amount or 0),
+            status=payload.status or "draft",
+            notes=payload.notes,
+            meta_json=json.dumps(payload.meta) if payload.meta else None,
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return BusinessDocumentRead.model_validate(row)
+    except ValueError as e:
+        db.rollback()
+        logger.warning(f"Business document creation validation error for user {user.id}: {str(e)}")
+        raise HTTPException(400, detail=str(e))
+    except RuntimeError as e:
+        db.rollback()
+        logger.error(f"Business document creation database error for user {user.id}: {str(e)}")
+        raise HTTPException(503, detail="Database error - please try again later")
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"Unexpected error creating business document for user {user.id}: {str(e)}")
+        raise HTTPException(500, detail="Failed to create business document")
 
 
 @router.get("/documents/{doc_id}", response_model=BusinessDocumentRead)
@@ -198,18 +219,39 @@ def update_document(
     user: User = Depends(require_any_permission("sales", "procurement")),
     db: Session = Depends(get_db),
 ):
-    row = db.get(BusinessDocument, doc_id)
-    if not row or row.tenant_id != user.tenant_id:
-        raise HTTPException(404, "Document not found")
-    data = payload.model_dump(exclude_unset=True)
-    if "meta" in data:
-        meta = data.pop("meta")
-        row.meta_json = json.dumps(meta) if meta is not None else None
-    for key, value in data.items():
-        setattr(row, key, value)
-    db.commit()
-    db.refresh(row)
-    return BusinessDocumentRead.model_validate(row)
+    """
+    Update a business document with comprehensive error handling.
+    
+    Catches database errors and prevents unauthorized updates.
+    """
+    try:
+        row = db.get(BusinessDocument, doc_id)
+        if not row or row.tenant_id != user.tenant_id:
+            raise HTTPException(404, "Document not found")
+        data = payload.model_dump(exclude_unset=True)
+        if "meta" in data:
+            meta = data.pop("meta")
+            row.meta_json = json.dumps(meta) if meta is not None else None
+        for key, value in data.items():
+            setattr(row, key, value)
+        db.commit()
+        db.refresh(row)
+        return BusinessDocumentRead.model_validate(row)
+    except ValueError as e:
+        db.rollback()
+        logger.warning(f"Business document update validation error for user {user.id}, doc {doc_id}: {str(e)}")
+        raise HTTPException(400, detail=str(e))
+    except RuntimeError as e:
+        db.rollback()
+        logger.error(f"Business document update database error for user {user.id}, doc {doc_id}: {str(e)}")
+        raise HTTPException(503, detail="Database error - please try again later")
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"Unexpected error updating business document {doc_id} for user {user.id}: {str(e)}")
+        raise HTTPException(500, detail="Failed to update business document")
 
 
 @router.delete("/documents/{doc_id}")
@@ -218,12 +260,33 @@ def delete_document(
     user: User = Depends(require_any_permission("sales", "procurement")),
     db: Session = Depends(get_db),
 ):
-    row = db.get(BusinessDocument, doc_id)
-    if not row or row.tenant_id != user.tenant_id:
-        raise HTTPException(404, "Document not found")
-    db.delete(row)
-    db.commit()
-    return {"ok": True}
+    """
+    Delete a business document with comprehensive error handling.
+    
+    Catches foreign key constraint errors and database errors.
+    """
+    try:
+        row = db.get(BusinessDocument, doc_id)
+        if not row or row.tenant_id != user.tenant_id:
+            raise HTTPException(404, "Document not found")
+        db.delete(row)
+        db.commit()
+        return {"ok": True}
+    except ValueError as e:
+        db.rollback()
+        logger.warning(f"Business document deletion constraint error for user {user.id}, doc {doc_id}: {str(e)}")
+        raise HTTPException(409, detail="Cannot delete document due to related records")
+    except RuntimeError as e:
+        db.rollback()
+        logger.error(f"Business document deletion database error for user {user.id}, doc {doc_id}: {str(e)}")
+        raise HTTPException(503, detail="Database error - please try again later")
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"Unexpected error deleting business document {doc_id} for user {user.id}: {str(e)}")
+        raise HTTPException(500, detail="Failed to delete business document")
 
 
 @router.get("/ewaybill/status", response_model=EwaybillStatusRead)

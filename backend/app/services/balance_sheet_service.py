@@ -1,48 +1,85 @@
 """Balance sheet layout and amounts fetched from DB."""
+import logging
 from typing import List, Dict
 from sqlalchemy import select, func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.accounts import GLAccount, FixedAsset
 from app.models.inventory import InventoryItem, StockLevel
 
+logger = logging.getLogger(__name__)
+
 
 def _get_gl_balance(db: Session, tenant_id: int, name_patterns: List[str]) -> float:
-    total = 0.0
-    for pattern in name_patterns:
-        stmt = select(func.coalesce(func.sum(GLAccount.balance), 0)).where(
-            GLAccount.tenant_id == tenant_id,
-            GLAccount.name.ilike(f"%{pattern}%"),
+    try:
+        total = 0.0
+        for pattern in name_patterns:
+            stmt = select(func.coalesce(func.sum(GLAccount.balance), 0)).where(
+                GLAccount.tenant_id == tenant_id,
+                GLAccount.name.ilike(f"%{pattern}%"),
+            )
+            total += float(db.scalar(stmt) or 0)
+        return total
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in _get_gl_balance for tenant {tenant_id}: {str(e)}"
         )
-        total += float(db.scalar(stmt) or 0)
-    return total
+        return 0.0
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in _get_gl_balance for tenant {tenant_id}: {str(e)}"
+        )
+        return 0.0
 
 
 def _get_fixed_assets_net(db: Session, tenant_id: int) -> float:
     # Sum(cost) - sum(accum_dep) for tenant fixed assets
-    cost = float(
-        db.scalar(select(func.coalesce(func.sum(FixedAsset.cost), 0)).where(FixedAsset.tenant_id == tenant_id))
-        or 0
-    )
-    accum = float(
-        db.scalar(select(func.coalesce(func.sum(FixedAsset.accum_dep), 0)).where(FixedAsset.tenant_id == tenant_id))
-        or 0
-    )
-    return max(0.0, cost - accum)
+    try:
+        cost = float(
+            db.scalar(select(func.coalesce(func.sum(FixedAsset.cost), 0)).where(FixedAsset.tenant_id == tenant_id))
+            or 0
+        )
+        accum = float(
+            db.scalar(select(func.coalesce(func.sum(FixedAsset.accum_dep), 0)).where(FixedAsset.tenant_id == tenant_id))
+            or 0
+        )
+        return max(0.0, cost - accum)
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in _get_fixed_assets_net for tenant {tenant_id}: {str(e)}"
+        )
+        return 0.0
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in _get_fixed_assets_net for tenant {tenant_id}: {str(e)}"
+        )
+        return 0.0
 
 
 def _get_closing_stock(db: Session, tenant_id: int) -> float:
     # approximate using inventory stock levels and unit cost
-    val = float(
-        db.scalar(
-            select(func.coalesce(func.sum(StockLevel.quantity * InventoryItem.unit_cost), 0))
-            .select_from(StockLevel)
-            .join(InventoryItem, StockLevel.item_id == InventoryItem.id)
-            .where(InventoryItem.tenant_id == tenant_id)
+    try:
+        val = float(
+            db.scalar(
+                select(func.coalesce(func.sum(StockLevel.quantity * InventoryItem.unit_cost), 0))
+                .select_from(StockLevel)
+                .join(InventoryItem, StockLevel.item_id == InventoryItem.id)
+                .where(InventoryItem.tenant_id == tenant_id)
+            )
+            or 0
         )
-        or 0
-    )
-    return val
+        return val
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in _get_closing_stock for tenant {tenant_id}: {str(e)}"
+        )
+        return 0.0
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in _get_closing_stock for tenant {tenant_id}: {str(e)}"
+        )
+        return 0.0
 
 
 def get_balance_sheet(db: Session, tenant_id: int) -> Dict[str, List[Dict[str, float]]]:
@@ -51,75 +88,86 @@ def get_balance_sheet(db: Session, tenant_id: int) -> Dict[str, List[Dict[str, f
     Each column is a list of {'label': str, 'amount': float} in the same
     order as the provided image where possible.
     """
-    # Left / Liabilities side mappings (label -> GL name patterns)
-    left_map = [
-        ("Capital Account", ["Proprietor", "Capital", "Reserves"]),
-        ("Retained Earnings (Reserves & Surplus)", ["Reserves and Surplus", "Retained Earnings"]),
-        ("Reserves & Surplus", ["Reserves and Surplus"]),
-        ("Loans (Liability)", []),
-        ("Bank OCC A/c (Bank OD A/c)", ["Bank Accounts", "OCA", "OCA"]),
-        ("Secured Loans", ["Secured"]),
-        ("Unsecured Loans", ["Unsecured"]),
-        ("Current Liabilities", []),
-        ("Duties & Taxes", ["Duties", "Duties And Taxes"]),
-        ("Provisions", ["Provision"]),
-        ("Sundry Creditors", ["Accounts Payable", "Sundry Creditors", "AP"]),
-        ("Branch / Divisions", []),
-        ("BRANCH NOIDA", ["BRANCH NOIDA"]),
-        ("HEAD OFFICE STICON", ["Head Office"]),
-        ("Profit & Loss A/c", ["Profit & Loss", "P&L", "Retained Earnings"]),
-        ("Opening Balance", ["Opening Balance"]),
-        ("Current Period", ["Current Period", "Profit & Loss"]),
-    ]
+    try:
+        # Left / Liabilities side mappings (label -> GL name patterns)
+        left_map = [
+            ("Capital Account", ["Proprietor", "Capital", "Reserves"]),
+            ("Retained Earnings (Reserves & Surplus)", ["Reserves and Surplus", "Retained Earnings"]),
+            ("Reserves & Surplus", ["Reserves and Surplus"]),
+            ("Loans (Liability)", []),
+            ("Bank OCC A/c (Bank OD A/c)", ["Bank Accounts", "OCA", "OCA"]),
+            ("Secured Loans", ["Secured"]),
+            ("Unsecured Loans", ["Unsecured"]),
+            ("Current Liabilities", []),
+            ("Duties & Taxes", ["Duties", "Duties And Taxes"]),
+            ("Provisions", ["Provision"]),
+            ("Sundry Creditors", ["Accounts Payable", "Sundry Creditors", "AP"]),
+            ("Branch / Divisions", []),
+            ("BRANCH NOIDA", ["BRANCH NOIDA"]),
+            ("HEAD OFFICE STICON", ["Head Office"]),
+            ("Profit & Loss A/c", ["Profit & Loss", "P&L", "Retained Earnings"]),
+            ("Opening Balance", ["Opening Balance"]),
+            ("Current Period", ["Current Period", "Profit & Loss"]),
+        ]
 
-    # Right / Assets side mappings
-    right_map = [
-        ("FIXED ASSET", []),
-        ("CAPITAL WORK IN PROGRESS", ["Capital Work In Progress", "CWIP"]),
-        ("CIVILWORKS COST", ["Civil", "Civilworks"]),
-        ("COMPUTER & LAPTOP", ["Computer", "Laptop"]),
-        ("Fixed Asset -21-22", ["Fixed Asset"]),
-        ("FURNITURE & FIXTURE", ["Furniture", "Fixture"]),
-        ("IMMOVABLE PROPERTY", ["Immovable"]),
-        ("LAB EQUIPMENT", ["Lab Equipment"]),
-        ("Land Level Works Cost", ["Land"]),
-        ("PLANT & MACHINERY", ["Plant", "Machinery"]),
-        ("VEHICLES", ["Vehicle"]),
-        ("Depreciation Reserve", ["Accumulated Depreciation", "accum_dep"]),
-        ("Inverter -Amaraon", ["Inverter"]),
-        ("Current Assets", []),
-        ("Closing Stock", []),
-        ("Deposits (Asset)", ["Deposit"]),
-        ("Loans & Advances (Asset)", ["Advances", "Loan" ]),
-        ("Sundry Debtors", ["Accounts Receivable", "Sundry Debtors", "AR"]),
-        ("Cash-in-Hand", ["Cash In Hand", "Cash"]),
-        ("Bank Accounts", ["Bank Accounts", "Bank"]),
-        ("Advances", ["Advances"]),
-        ("RENT -ADVANCE", ["Rent Advance"]),
-        ("SALARY ADVANCES", ["Salary"]),
-        ("Staff Advances", ["Staff Advances"]),
-        ("Capital Subsidy Receivable", ["Capital Subsidy"]),
-        ("GST ON RCM", ["GST", "RCM"]),
-        ("Suspense A/c", ["Suspense"]),
-        ("Miscelleneous Expenses Written Off", ["Miscellaneous Expenses", "Written Off"]),
-        ("Preoperative Expenses - 21-22", ["Preoperative"]),
-        ("Raw Material", ["Raw Material"]),
-    ]
+        # Right / Assets side mappings
+        right_map = [
+            ("FIXED ASSET", []),
+            ("CAPITAL WORK IN PROGRESS", ["Capital Work In Progress", "CWIP"]),
+            ("CIVILWORKS COST", ["Civil", "Civilworks"]),
+            ("COMPUTER & LAPTOP", ["Computer", "Laptop"]),
+            ("Fixed Asset -21-22", ["Fixed Asset"]),
+            ("FURNITURE & FIXTURE", ["Furniture", "Fixture"]),
+            ("IMMOVABLE PROPERTY", ["Immovable"]),
+            ("LAB EQUIPMENT", ["Lab Equipment"]),
+            ("Land Level Works Cost", ["Land"]),
+            ("PLANT & MACHINERY", ["Plant", "Machinery"]),
+            ("VEHICLES", ["Vehicle"]),
+            ("Depreciation Reserve", ["Accumulated Depreciation", "accum_dep"]),
+            ("Inverter -Amaraon", ["Inverter"]),
+            ("Current Assets", []),
+            ("Closing Stock", []),
+            ("Deposits (Asset)", ["Deposit"]),
+            ("Loans & Advances (Asset)", ["Advances", "Loan" ]),
+            ("Sundry Debtors", ["Accounts Receivable", "Sundry Debtors", "AR"]),
+            ("Cash-in-Hand", ["Cash In Hand", "Cash"]),
+            ("Bank Accounts", ["Bank Accounts", "Bank"]),
+            ("Advances", ["Advances"]),
+            ("RENT -ADVANCE", ["Rent Advance"]),
+            ("SALARY ADVANCES", ["Salary"]),
+            ("Staff Advances", ["Staff Advances"]),
+            ("Capital Subsidy Receivable", ["Capital Subsidy"]),
+            ("GST ON RCM", ["GST", "RCM"]),
+            ("Suspense A/c", ["Suspense"]),
+            ("Miscelleneous Expenses Written Off", ["Miscellaneous Expenses", "Written Off"]),
+            ("Preoperative Expenses - 21-22", ["Preoperative"]),
+            ("Raw Material", ["Raw Material"]),
+        ]
 
-    left = []
-    for label, patterns in left_map:
-        amt = _get_gl_balance(db, tenant_id, patterns) if patterns else 0.0
-        left.append({"label": label, "amount": round(float(amt or 0), 2)})
-
-    # Right side: for Fixed Asset group, compute net fixed assets
-    right = []
-    for label, patterns in right_map:
-        if label == "FIXED ASSET":
-            amt = _get_fixed_assets_net(db, tenant_id)
-        elif label == "Closing Stock":
-            amt = _get_closing_stock(db, tenant_id)
-        else:
+        left = []
+        for label, patterns in left_map:
             amt = _get_gl_balance(db, tenant_id, patterns) if patterns else 0.0
-        right.append({"label": label, "amount": round(float(amt or 0), 2)})
+            left.append({"label": label, "amount": round(float(amt or 0), 2)})
 
-    return {"liabilities": left, "assets": right}
+        # Right side: for Fixed Asset group, compute net fixed assets
+        right = []
+        for label, patterns in right_map:
+            if label == "FIXED ASSET":
+                amt = _get_fixed_assets_net(db, tenant_id)
+            elif label == "Closing Stock":
+                amt = _get_closing_stock(db, tenant_id)
+            else:
+                amt = _get_gl_balance(db, tenant_id, patterns) if patterns else 0.0
+            right.append({"label": label, "amount": round(float(amt or 0), 2)})
+
+        return {"liabilities": left, "assets": right}
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error in get_balance_sheet for tenant {tenant_id}: {str(e)}"
+        )
+        return {"liabilities": [], "assets": []}
+    except Exception as e:
+        logger.error(
+            f"Unexpected error in get_balance_sheet for tenant {tenant_id}: {str(e)}"
+        )
+        return {"liabilities": [], "assets": []}

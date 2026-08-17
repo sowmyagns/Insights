@@ -9,6 +9,7 @@ import MaintenanceErrorState from "../../components/maintenance/MaintenanceError
 import MaintenanceFilters from "../../components/maintenance/MaintenanceFilters";
 import Loader from "../../components/common/Loader";
 import { useToast } from "../../context/ToastContext";
+import { apiErrorMessage } from "../../utils/apiError";
 import { getPreventiveEnriched, getPreventiveSummary } from "../../api/maintenanceApi";
 import { DEMO_PREVENTIVE_LIST, DEMO_PREVENTIVE_SUMMARY, MAINTENANCE_FLOW, mntStatusColor } from "../../data/maintenanceMasterData";
 
@@ -33,7 +34,7 @@ export default function PreventiveMaintenance() {
       if (listRes.status === "fulfilled" && listRes.value?.data?.length) setRows(listRes.value.data);
       else setRows([]);
     } catch (e) {
-      setError(e.message || "Failed to load data");
+      setError(apiErrorMessage(e, "Failed to load preventive maintenance data"));
       setSummary(DEMO_PREVENTIVE_SUMMARY);
       setRows([]);
     } finally {

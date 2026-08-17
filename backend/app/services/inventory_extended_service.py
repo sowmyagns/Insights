@@ -1,9 +1,11 @@
 """Inventory extended — materials, finished goods, transfers, adjustments, ledger, hub."""
 
+import logging
 from datetime import date, datetime, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 from app.models.inventory import (
     InventoryItem,
@@ -28,6 +30,20 @@ from app.schemas.inventory_extended import (
     StockTransferRead,
 )
 from app.services.inventory_service import get_total_stock
+
+logger = logging.getLogger(__name__)
+
+TRANSFER_STATUSES = {
+    "draft",
+    "pending_approval",
+    "approved",
+    "in_transit",
+    "received",
+    "completed",
+    "rejected",
+    "cancelled",
+}
+ADJUSTMENT_STATUSES = {"pending", "approved", "rejected", "cancelled"}
 
 
 def _item_status(qty: int, reorder: int) -> str:
@@ -310,105 +326,156 @@ def list_transfers(db: Session, tenant_id: int) -> list[StockTransferRead]:
 
 
 def create_transfer(db: Session, tenant_id: int, payload: StockTransferCreate) -> StockTransfer:
-    count = int(
-        db.scalar(select(func.count(StockTransfer.id)).where(StockTransfer.tenant_id == tenant_id)) or 0
-    )
-    t_date = date.today()
-    if payload.transfer_date:
-        try:
-            t_date = date.fromisoformat(payload.transfer_date)
-        except ValueError:
-            pass
+    """
+    Create a stock transfer with database error handling.
+    
+    Transfer insertion may fail due to constraints or connection errors.
+    Invalid date formats should raise clear validation errors.
+    Failed transactions are rolled back.
+    """
+    try:
+        if payload.quantity <= 0:
+            raise ValueError("Transfer quantity must be greater than zero.")
+        if payload.from_warehouse_id == payload.to_warehouse_id:
+            raise ValueError("Source and destination warehouse must be different.")
 
-    t_num = payload.transfer_number.strip() if payload.transfer_number and payload.transfer_number.strip() else f"TRF-{date.today().year}-{count + 1:04d}"
+        count = int(
+            db.scalar(select(func.count(StockTransfer.id)).where(StockTransfer.tenant_id == tenant_id)) or 0
+        )
+        t_date = date.today()
+        if payload.transfer_date:
+            try:
+                t_date = date.fromisoformat(payload.transfer_date)
+            except ValueError as e:
+                logger.warning(f"Invalid transfer date format '{payload.transfer_date}': {str(e)}")
+                raise ValueError(f"Invalid transfer date format: {payload.transfer_date}. Expected YYYY-MM-DD.") from e
 
-    transfer = StockTransfer(
-        tenant_id=tenant_id,
-        transfer_number=t_num,
-        from_warehouse_id=payload.from_warehouse_id,
-        to_warehouse_id=payload.to_warehouse_id,
-        item_id=payload.item_id,
-        batch_number=payload.batch_number,
-        quantity=payload.quantity,
-        vehicle=payload.vehicle,
-        driver=payload.driver,
-        notes=payload.notes,
-        status="pending_approval",
-        transfer_date=t_date,
-    )
-    db.add(transfer)
-    db.commit()
-    db.refresh(transfer)
-    return transfer
+        t_num = payload.transfer_number.strip() if payload.transfer_number and payload.transfer_number.strip() else f"TRF-{date.today().year}-{count + 1:04d}"
+
+        transfer = StockTransfer(
+            tenant_id=tenant_id,
+            transfer_number=t_num,
+            from_warehouse_id=payload.from_warehouse_id,
+            to_warehouse_id=payload.to_warehouse_id,
+            item_id=payload.item_id,
+            batch_number=payload.batch_number,
+            quantity=payload.quantity,
+            vehicle=payload.vehicle,
+            driver=payload.driver,
+            notes=payload.notes,
+            status="pending_approval",
+            transfer_date=t_date,
+        )
+        db.add(transfer)
+        db.commit()
+        db.refresh(transfer)
+        return transfer
+    except ValueError as e:
+        db.rollback()
+        raise
+    except IntegrityError as e:
+        db.rollback()
+        logger.error(f"Transfer creation failed due to integrity constraint: {str(e)}")
+        raise ValueError(f"Transfer creation failed: Duplicate or invalid data - {str(e)}") from e
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Transfer creation failed due to database error: {str(e)}")
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Unexpected error during transfer creation for tenant {tenant_id}: {str(e)}")
+        raise
 
 
 def update_transfer_status(
     db: Session, tenant_id: int, transfer_id: int, new_status: str, approved_by: str | None = None
 ) -> StockTransfer | None:
-    transfer = db.scalars(
-        select(StockTransfer).where(StockTransfer.id == transfer_id, StockTransfer.tenant_id == tenant_id)
-    ).first()
-    if not transfer:
-        return None
+    """
+    Update transfer status with database error handling.
+    
+    Stock updates and movement creation can fail due to database errors.
+    Failed transactions are rolled back completely.
+    """
+    try:
+        normalized_status = (new_status or "").strip()
+        if normalized_status not in TRANSFER_STATUSES:
+            raise ValueError(f"Invalid transfer status: {new_status}.")
 
-    previous_status = transfer.status
-    transfer.status = new_status
-    if approved_by:
-        transfer.approved_by = approved_by
-    elif new_status in ["approved", "in_transit", "completed", "received"] and not transfer.approved_by:
-        transfer.approved_by = "Store Manager"
-
-    if new_status in ["completed", "received"] and previous_status not in ["completed", "received"]:
-        from_sl = db.scalars(
-            select(StockLevel).where(
-                StockLevel.warehouse_id == transfer.from_warehouse_id,
-                StockLevel.item_id == transfer.item_id,
-            )
+        transfer = db.scalars(
+            select(StockTransfer).where(StockTransfer.id == transfer_id, StockTransfer.tenant_id == tenant_id)
         ).first()
-        if from_sl:
-            from_sl.quantity = max(0, from_sl.quantity - transfer.quantity)
+        if not transfer:
+            return None
 
-        to_sl = db.scalars(
-            select(StockLevel).where(
-                StockLevel.warehouse_id == transfer.to_warehouse_id,
-                StockLevel.item_id == transfer.item_id,
-            )
-        ).first()
-        if to_sl:
-            to_sl.quantity += transfer.quantity
-        else:
+        previous_status = transfer.status
+        transfer.status = normalized_status
+        if approved_by:
+            transfer.approved_by = approved_by
+        elif normalized_status in ["approved", "in_transit", "completed", "received"] and not transfer.approved_by:
+            transfer.approved_by = "Store Manager"
+
+        if normalized_status in ["completed", "received"] and previous_status not in ["completed", "received"]:
+            from_sl = db.scalars(
+                select(StockLevel).where(
+                    StockLevel.warehouse_id == transfer.from_warehouse_id,
+                    StockLevel.item_id == transfer.item_id,
+                )
+            ).first()
+            if from_sl:
+                from_sl.quantity = max(0, from_sl.quantity - transfer.quantity)
+
+            to_sl = db.scalars(
+                select(StockLevel).where(
+                    StockLevel.warehouse_id == transfer.to_warehouse_id,
+                    StockLevel.item_id == transfer.item_id,
+                )
+            ).first()
+            if to_sl:
+                to_sl.quantity += transfer.quantity
+            else:
+                db.add(
+                    StockLevel(
+                        warehouse_id=transfer.to_warehouse_id,
+                        item_id=transfer.item_id,
+                        quantity=transfer.quantity,
+                    )
+                )
+
             db.add(
-                StockLevel(
+                StockMovement(
+                    tenant_id=tenant_id,
+                    warehouse_id=transfer.from_warehouse_id,
+                    item_id=transfer.item_id,
+                    quantity=-transfer.quantity,
+                    movement_type="out",
+                    reference=transfer.transfer_number,
+                )
+            )
+            db.add(
+                StockMovement(
+                    tenant_id=tenant_id,
                     warehouse_id=transfer.to_warehouse_id,
                     item_id=transfer.item_id,
                     quantity=transfer.quantity,
+                    movement_type="in",
+                    reference=transfer.transfer_number,
                 )
             )
 
-        db.add(
-            StockMovement(
-                tenant_id=tenant_id,
-                warehouse_id=transfer.from_warehouse_id,
-                item_id=transfer.item_id,
-                quantity=-transfer.quantity,
-                movement_type="out",
-                reference=transfer.transfer_number,
-            )
-        )
-        db.add(
-            StockMovement(
-                tenant_id=tenant_id,
-                warehouse_id=transfer.to_warehouse_id,
-                item_id=transfer.item_id,
-                quantity=transfer.quantity,
-                movement_type="in",
-                reference=transfer.transfer_number,
-            )
-        )
-
-    db.commit()
-    db.refresh(transfer)
-    return transfer
+        db.commit()
+        db.refresh(transfer)
+        return transfer
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Transfer status update failed for transfer {transfer_id}: {str(e)}")
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Unexpected error updating transfer {transfer_id} for tenant {tenant_id}: {str(e)}")
+        raise
 
 
 
@@ -440,86 +507,135 @@ def list_adjustments(db: Session, tenant_id: int) -> list[StockAdjustmentRead]:
 
 
 def create_adjustment(db: Session, tenant_id: int, payload: StockAdjustmentCreate) -> StockAdjustment:
-    sl = db.scalars(
-        select(StockLevel).where(
-            StockLevel.warehouse_id == payload.warehouse_id,
-            StockLevel.item_id == payload.item_id,
-        )
-    ).first()
-    old_qty = sl.quantity if sl else 0
-    diff = payload.new_qty - old_qty
-    a_date = date.today()
-    if payload.adjustment_date:
-        try:
-            a_date = date.fromisoformat(payload.adjustment_date)
-        except ValueError:
-            pass
+    """
+    Create a stock adjustment with database error handling.
+    
+    Adjustment insertion may fail due to constraints or connection errors.
+    Invalid date formats should raise clear validation errors.
+    Failed transactions are rolled back.
+    """
+    try:
+        if payload.new_qty < 0:
+            raise ValueError("Adjustment quantity cannot be negative.")
 
-    adj = StockAdjustment(
-        tenant_id=tenant_id,
-        warehouse_id=payload.warehouse_id,
-        item_id=payload.item_id,
-        old_qty=old_qty,
-        new_qty=payload.new_qty,
-        difference=diff,
-        reason=payload.reason,
-        status="pending",
-        adjustment_date=a_date,
-    )
-    db.add(adj)
-    db.commit()
-    db.refresh(adj)
-    return adj
+        sl = db.scalars(
+            select(StockLevel).where(
+                StockLevel.warehouse_id == payload.warehouse_id,
+                StockLevel.item_id == payload.item_id,
+            )
+        ).first()
+        old_qty = sl.quantity if sl else 0
+        diff = payload.new_qty - old_qty
+        a_date = date.today()
+        if payload.adjustment_date:
+            try:
+                a_date = date.fromisoformat(payload.adjustment_date)
+            except ValueError as e:
+                logger.warning(f"Invalid adjustment date format '{payload.adjustment_date}': {str(e)}")
+                raise ValueError(f"Invalid adjustment date format: {payload.adjustment_date}. Expected YYYY-MM-DD.") from e
+
+        adj = StockAdjustment(
+            tenant_id=tenant_id,
+            warehouse_id=payload.warehouse_id,
+            item_id=payload.item_id,
+            old_qty=old_qty,
+            new_qty=payload.new_qty,
+            difference=diff,
+            reason=payload.reason,
+            status="pending",
+            adjustment_date=a_date,
+        )
+        db.add(adj)
+        db.commit()
+        db.refresh(adj)
+        return adj
+    except ValueError as e:
+        db.rollback()
+        raise
+    except IntegrityError as e:
+        db.rollback()
+        logger.error(f"Adjustment creation failed due to integrity constraint: {str(e)}")
+        raise ValueError(f"Adjustment creation failed: Duplicate or invalid data - {str(e)}") from e
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Adjustment creation failed due to database error: {str(e)}")
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Unexpected error during adjustment creation for tenant {tenant_id}: {str(e)}")
+        raise
 
 
 def update_adjustment_status(
     db: Session, tenant_id: int, adjustment_id: int, new_status: str, approved_by: str | None = None
 ) -> StockAdjustment | None:
-    adj = db.scalars(
-        select(StockAdjustment).where(StockAdjustment.id == adjustment_id, StockAdjustment.tenant_id == tenant_id)
-    ).first()
-    if not adj:
-        return None
+    """
+    Update adjustment status with database error handling.
+    
+    Stock updates and movement creation can fail due to database errors.
+    Failed transactions are rolled back completely.
+    """
+    try:
+        normalized_status = (new_status or "").strip()
+        if normalized_status not in ADJUSTMENT_STATUSES:
+            raise ValueError(f"Invalid adjustment status: {new_status}.")
 
-    previous_status = adj.status
-    adj.status = new_status
-    if approved_by:
-        adj.approved_by = approved_by
-    elif new_status == "approved" and not adj.approved_by:
-        adj.approved_by = "Store Manager"
-
-    if new_status == "approved" and previous_status != "approved":
-        sl = db.scalars(
-            select(StockLevel).where(
-                StockLevel.warehouse_id == adj.warehouse_id,
-                StockLevel.item_id == adj.item_id,
-            )
+        adj = db.scalars(
+            select(StockAdjustment).where(StockAdjustment.id == adjustment_id, StockAdjustment.tenant_id == tenant_id)
         ).first()
-        if sl:
-            sl.quantity = max(0, adj.new_qty)
-        elif adj.new_qty > 0:
+        if not adj:
+            return None
+
+        previous_status = adj.status
+        adj.status = normalized_status
+        if approved_by:
+            adj.approved_by = approved_by
+        elif normalized_status == "approved" and not adj.approved_by:
+            adj.approved_by = "Store Manager"
+
+        if normalized_status == "approved" and previous_status != "approved":
+            sl = db.scalars(
+                select(StockLevel).where(
+                    StockLevel.warehouse_id == adj.warehouse_id,
+                    StockLevel.item_id == adj.item_id,
+                )
+            ).first()
+            if sl:
+                sl.quantity = max(0, adj.new_qty)
+            elif adj.new_qty > 0:
+                db.add(
+                    StockLevel(
+                        warehouse_id=adj.warehouse_id,
+                        item_id=adj.item_id,
+                        quantity=adj.new_qty,
+                    )
+                )
+
             db.add(
-                StockLevel(
+                StockMovement(
+                    tenant_id=tenant_id,
                     warehouse_id=adj.warehouse_id,
                     item_id=adj.item_id,
-                    quantity=adj.new_qty,
+                    quantity=adj.difference,
+                    movement_type="adjustment",
+                    reference=f"ADJ-{adj.adjustment_date.isoformat() if adj.adjustment_date else date.today().isoformat()}",
                 )
             )
 
-        db.add(
-            StockMovement(
-                tenant_id=tenant_id,
-                warehouse_id=adj.warehouse_id,
-                item_id=adj.item_id,
-                quantity=adj.difference,
-                movement_type="adjustment",
-                reference=f"ADJ-{adj.adjustment_date.isoformat() if adj.adjustment_date else date.today().isoformat()}",
-            )
-        )
-
-    db.commit()
-    db.refresh(adj)
-    return adj
+        db.commit()
+        db.refresh(adj)
+        return adj
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Adjustment status update failed for adjustment {adjustment_id}: {str(e)}")
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Unexpected error updating adjustment {adjustment_id} for tenant {tenant_id}: {str(e)}")
+        raise
 
 
 
