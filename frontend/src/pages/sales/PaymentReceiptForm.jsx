@@ -31,6 +31,7 @@ import {
 } from "../../utils/manufacturingEvents";
 import { formatInr } from "../../data/salesMasterData";
 import { apiErrorMessage } from "../../utils/apiError";
+import { inputClass } from "../../design-system/classes";
 
 const PURPLE = "#6b4eff";
 const LAVENDER = "#efeaf8";

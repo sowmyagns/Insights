@@ -18,8 +18,10 @@ import { useToast } from "../../context/ToastContext";
 import useTenantId from "../../hooks/useTenantId";
 import { apiErrorMessage } from "../../utils/apiError";
 
-const PURPLE = "#6b4eff";
-const BLUE = "#2563eb";
+import { inputClass } from "../../design-system/classes";
+
+const PURPLE = "var(--color-primary)";
+const BLUE = "var(--color-info)";
 
 const GST_OPTIONS = ["0", "5", "12", "18", "28"];
 const TAX_TYPES = ["Exclusive", "Inclusive"];

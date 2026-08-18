@@ -93,7 +93,6 @@ export const DocumentModule = lazy(() => import("../pages/common/DocumentModule"
 export const EwaybillLogin = lazy(() => import("../pages/sales/EwaybillLogin"));
 export const DigitalSignatureSetup = lazy(() => import("../pages/sales/DigitalSignatureSetup"));
 export const SettingsFeatureModule = lazy(() => import("../pages/settings/SettingsFeatureModule"));
-export const SectorSettingsV2 = lazy(() => import("../pages/settings/SectorSettingsV2"));
 export const SequenceResetSettingV2 = lazy(() => import("../pages/settings/SequenceResetSettingV2"));
 export const TemplateSettings = lazy(() => import("../pages/settings/TemplateSettingsV2"));
 export const FormatSettings = lazy(() => import("../pages/settings/FormatSettingsV2"));
