@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -5,14 +6,23 @@ from app.api.deps import get_db
 from app.core.permissions import require_permission, tenant_scope
 from app.models.user import User
 from app.schemas.hr import (
+    AttendanceRecordCreate,
+    AttendanceRecordRead,
     EmployeeCreate,
     EmployeeRead,
     HrAssetCreate,
     HrAssetRead,
     HrAssetUpdate,
+    LeaveRequestCreate,
+    LeaveRequestRead,
+    LeaveRequestUpdate,
+    PayrollRecordCreate,
+    PayrollRecordRead,
     SafetyIncidentCreate,
     SafetyIncidentRead,
     SafetyIncidentUpdate,
+    ShiftCreate,
+    ShiftRead,
 )
 from app.schemas.department import (
     DepartmentCreate,
@@ -32,17 +42,30 @@ from app.services.department_service import (
 )
 from app.schemas.hr_extended import EmployeeListRead, EmployeeSummaryRead
 from app.services.hr_service import (
+    create_attendance_record,
     create_employee,
     create_hr_asset,
+    create_leave_request,
+    create_payroll_record,
     create_safety_incident,
+    create_shift,
+    delete_employee,
     delete_hr_asset,
     delete_safety_incident,
+    get_employee,
     get_employee_summary,
+    get_hr_dashboard,
+    list_attendance,
     list_employees,
     list_employees_enriched,
     list_hr_assets,
+    list_leave_requests,
+    list_payroll,
     list_safety_incidents,
+    list_shifts,
+    update_employee,
     update_hr_asset,
+    update_leave_request,
     update_safety_incident,
 )
 
@@ -66,6 +89,16 @@ def list_employees_endpoint(
     tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)
 ):
     return list_employees(db, tenant_id)
+
+
+@router.get("/employees/summary", response_model=EmployeeSummaryRead)
+def employees_summary(tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)):
+    return get_employee_summary(db, tenant_id)
+
+
+@router.get("/employees/enriched", response_model=list[EmployeeListRead])
+def employees_enriched(tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)):
+    return list_employees_enriched(db, tenant_id)
 
 
 @router.get("/departments/summary", response_model=DepartmentSummaryRead)
@@ -142,14 +175,152 @@ def deactivate_department_endpoint(
     return match
 
 
-@router.get("/employees/summary", response_model=EmployeeSummaryRead)
-def employees_summary(tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)):
-    return get_employee_summary(db, tenant_id)
+# ── Dashboard ──────────────────────────────────────────────────────────────
+
+@router.get("/dashboard")
+def hr_dashboard(
+    tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)
+):
+    return get_hr_dashboard(db, tenant_id)
 
 
-@router.get("/employees/enriched", response_model=list[EmployeeListRead])
-def employees_enriched(tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)):
-    return list_employees_enriched(db, tenant_id)
+# ── Shifts ─────────────────────────────────────────────────────────────────
+
+@router.get("/shifts", response_model=list[ShiftRead])
+def list_shifts_endpoint(
+    tenant_id: int = Depends(tenant_scope(MODULE)), db: Session = Depends(get_db)
+):
+    return list_shifts(db, tenant_id)
+
+
+@router.post("/shifts", response_model=ShiftRead, status_code=201)
+def create_shift_endpoint(
+    payload: ShiftCreate,
+    user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    payload.tenant_id = user.tenant_id
+    return create_shift(db, payload)
+
+
+# ── Attendance ─────────────────────────────────────────────────────────────
+
+@router.get("/attendance", response_model=list[AttendanceRecordRead])
+def list_attendance_endpoint(
+    employee_id: int | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    from datetime import date as _date
+    df = _date.fromisoformat(date_from) if date_from else None
+    dt = _date.fromisoformat(date_to) if date_to else None
+    return list_attendance(db, tenant_id, date_from=df, date_to=dt, employee_id=employee_id)
+
+
+@router.post("/attendance", response_model=AttendanceRecordRead, status_code=201)
+def create_attendance_endpoint(
+    payload: AttendanceRecordCreate,
+    user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    payload.tenant_id = user.tenant_id
+    return create_attendance_record(db, payload)
+
+
+# ── Leave Requests ─────────────────────────────────────────────────────────
+
+@router.get("/leaves", response_model=list[LeaveRequestRead])
+def list_leaves_endpoint(
+    employee_id: int | None = None,
+    status: str | None = None,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    return list_leave_requests(db, tenant_id, employee_id=employee_id, status=status)
+
+
+@router.post("/leaves", response_model=LeaveRequestRead, status_code=201)
+def create_leave_endpoint(
+    payload: LeaveRequestCreate,
+    user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    payload.tenant_id = user.tenant_id
+    return create_leave_request(db, payload)
+
+
+@router.put("/leaves/{leave_id}", response_model=LeaveRequestRead)
+def update_leave_endpoint(
+    leave_id: int,
+    payload: LeaveRequestUpdate,
+    user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    leave = update_leave_request(db, user.tenant_id, leave_id, payload)
+    if not leave:
+        raise HTTPException(404, "Leave request not found")
+    return leave
+
+
+# ── Payroll ────────────────────────────────────────────────────────────────
+
+@router.get("/payroll", response_model=list[PayrollRecordRead])
+def list_payroll_endpoint(
+    employee_id: int | None = None,
+    tenant_id: int = Depends(tenant_scope(MODULE)),
+    db: Session = Depends(get_db),
+):
+    return list_payroll(db, tenant_id, employee_id=employee_id)
+
+
+@router.post("/payroll", response_model=PayrollRecordRead, status_code=201)
+def create_payroll_endpoint(
+    payload: PayrollRecordCreate,
+    user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    payload.tenant_id = user.tenant_id
+    return create_payroll_record(db, payload)
+
+
+# ── Employees (by ID) ──────────────────────────────────────────────────────
+
+@router.get("/employees/{employee_id}", response_model=EmployeeRead)
+def get_employee_endpoint(
+    employee_id: int,
+    user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    emp = get_employee(db, user.tenant_id, employee_id)
+    if not emp:
+        raise HTTPException(404, "Employee not found")
+    return emp
+
+
+@router.put("/employees/{employee_id}", response_model=EmployeeRead)
+def update_employee_endpoint(
+    employee_id: int,
+    payload: dict,
+    user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    emp = update_employee(db, user.tenant_id, employee_id, payload)
+    if not emp:
+        raise HTTPException(404, "Employee not found")
+    return emp
+
+
+@router.delete("/employees/{employee_id}", status_code=204)
+def delete_employee_endpoint(
+    employee_id: int,
+    user: User = Depends(require_permission(MODULE)),
+    db: Session = Depends(get_db),
+):
+    if not delete_employee(db, user.tenant_id, employee_id):
+        raise HTTPException(404, "Employee not found")
+    return None
 
 
 @router.get("/assets", response_model=list[HrAssetRead])

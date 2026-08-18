@@ -71,6 +71,46 @@ def list_employees(db: Session, tenant_id: int) -> list[Employee]:
     return list(db.scalars(stmt).all())
 
 
+def get_employee(db: Session, tenant_id: int, employee_id: int) -> Employee | None:
+    return db.scalar(
+        select(Employee).where(Employee.id == employee_id, Employee.tenant_id == tenant_id)
+    )
+
+
+def update_employee(db: Session, tenant_id: int, employee_id: int, data: dict) -> Employee | None:
+    try:
+        emp = get_employee(db, tenant_id, employee_id)
+        if not emp:
+            return None
+        allowed = {"full_name", "email", "phone", "department", "designation", "shift_name",
+                   "reporting_manager", "hire_date", "hourly_rate", "is_active",
+                   "address", "employee_code", "employment_type", "branch", "gender", "status"}
+        for k, v in data.items():
+            if k in allowed and v is not None:
+                setattr(emp, k, v)
+        db.commit()
+        db.refresh(emp)
+        return emp
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Employee update failed for {employee_id}: {e}")
+        raise RuntimeError(str(e)) from e
+
+
+def delete_employee(db: Session, tenant_id: int, employee_id: int) -> bool:
+    try:
+        emp = get_employee(db, tenant_id, employee_id)
+        if not emp:
+            return False
+        emp.is_active = False
+        db.commit()
+        return True
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Employee delete failed for {employee_id}: {e}")
+        raise RuntimeError(str(e)) from e
+
+
 def get_employee_summary(db: Session, tenant_id: int) -> EmployeeSummaryRead:
     employees = list_employees(db, tenant_id)
     today = date.today()

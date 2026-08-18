@@ -40,6 +40,19 @@ def test_login_success(client, register_admin):
     assert payload_user["company_id"] is not None
 
 
+def test_login_issued_token_remains_valid_immediately(client, register_admin):
+    ctx = register_admin()
+    resp = client.post(
+        "/auth/login", json={"email": ctx["email"], "password": ctx["password"], "role": "Admin"}
+    )
+    assert resp.status_code == 200, resp.text
+    token = resp.json()["access_token"]
+
+    me = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.status_code == 200, me.text
+    assert me.json()["email"] == ctx["email"]
+
+
 def test_login_wrong_password(client, register_admin):
     ctx = register_admin()
     resp = client.post(

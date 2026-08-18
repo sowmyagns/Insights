@@ -883,131 +883,81 @@ def get_finance_analytics(db: Session, tenant_id: int, year=None) -> FinanceAnal
         cash_flow_data: list = []
         profit_trend_data: list = []
         aging = {"0-30": 0.0, "31-60": 0.0, "61-90": 0.0, "90+": 0.0}
-    try:
-        y = year or date.today().year
-        profit = get_profit_analysis(db, tenant_id, y) or {}
-        receivables = payables = 0.0
-        cash_flow_data: list = []
-        profit_trend_data: list = []
-        aging = {"0-30": 0.0, "31-60": 0.0, "61-90": 0.0, "90+": 0.0}
 
         try:
             from app.services.finance_extended_service import get_ap_summary, get_ar_summary, get_finance_hub
-            ar  = get_ar_summary(db, tenant_id)
-            ap  = get_ap_summary(db, tenant_id)
+
+            ar = get_ar_summary(db, tenant_id)
+            ap = get_ap_summary(db, tenant_id)
             hub = get_finance_hub(db, tenant_id)
-            receivables       = float(ar.total_receivables    or 0)
-            payables          = float(ap.outstanding_payables or 0)
-            cash_flow_data    = hub.cash_flow_trend or []
-            profit_trend_data = hub.profit_trend    or []
+            receivables = float(ar.total_receivables or 0)
+            payables = float(ap.outstanding_payables or 0)
+            cash_flow_data = hub.cash_flow_trend or []
+            profit_trend_data = hub.profit_trend or []
             aging = {
-                "0-30":  float(ar.aging_0_30    or 0),
-                "31-60": float(ar.aging_31_60   or 0),
-                "61-90": float(ar.aging_61_90   or 0),
-                "90+":   float(ar.aging_90_plus or 0),
+                "0-30": float(ar.aging_0_30 or 0),
+                "31-60": float(ar.aging_31_60 or 0),
+                "61-90": float(ar.aging_61_90 or 0),
+                "90+": float(ar.aging_90_plus or 0),
             }
         except Exception as e:
             logger.warning(f"Error fetching finance summary data for tenant {tenant_id}: {str(e)}")
-            pass
 
         revenue = float(profit.get("total_revenue") or 0)
         expense = float(profit.get("total_expense") or 0)
-        net     = float(profit["total_profit"]) if profit.get("total_profit") is not None else (revenue - expense)
-        margin  = float(profit.get("overall_margin_percent") or 0)
-        if not margin and revenue:
-            margin = round(net / revenue * 100, 1)
-        revenue = float(profit.get("total_revenue") or 0)
-        expense = float(profit.get("total_expense") or 0)
-        net     = float(profit["total_profit"]) if profit.get("total_profit") is not None else (revenue - expense)
-        margin  = float(profit.get("overall_margin_percent") or 0)
+        net = float(profit["total_profit"]) if profit.get("total_profit") is not None else (revenue - expense)
+        margin = float(profit.get("overall_margin_percent") or 0)
         if not margin and revenue:
             margin = round(net / revenue * 100, 1)
 
         gst = 0.0
         try:
             from app.models.sales import Invoice
+
             gst = sum(
                 float(i.sgst_amount or 0) + float(i.cgst_amount or 0) + float(i.igst_amount or 0)
                 for i in db.scalars(select(Invoice).where(Invoice.tenant_id == tenant_id)).all()
             )
         except Exception as e:
             logger.warning(f"Error fetching GST data for tenant {tenant_id}: {str(e)}")
-            pass
 
         cash_net = 0.0
         if cash_flow_data:
-            last     = cash_flow_data[-1]
-            cash_net = float(last.get("inflow", 0) or 0) - float(last.get("outflow", 0) or 0)
-        working_capital = receivables - payables
-        cash_net = 0.0
-        if cash_flow_data:
-            last     = cash_flow_data[-1]
+            last = cash_flow_data[-1]
             cash_net = float(last.get("inflow", 0) or 0) - float(last.get("outflow", 0) or 0)
         working_capital = receivables - payables
 
         kpis = [
-            _kpi("revenue",         "Revenue",                 revenue,                     None, None, "currency", "month"),
-            _kpi("expenses",        "Expenses",                expense,                     None, None, "currency", "expense"),
-            _kpi("profit",          "Net Profit",              net,                         None, None, "currency", "profit"),
-            _kpi("margin",          "Margin",                  margin,                      None, "%",  "percent",  "margin"),
-            _kpi("cashflow",        "Cash Flow",               cash_net,                    None, None, "currency", "cashflow"),
-            _kpi("receivables",     "Outstanding Receivables", receivables,                 None, None, "currency", "receivables"),
-            _kpi("payables",        "Outstanding Payables",    payables,                    None, None, "currency", "payables"),
-            _kpi("gst",             "GST Collected",           gst,                         None, None, "currency", "gst"),
-            _kpi("operating",       "Operating Cost",          expense,                     None, None, "currency", "expense"),
-            _kpi("monthly_profit",  "Monthly Profit",          round(net / 12, 2) if net else 0, None, None, "currency", "profit"),
-            _kpi("ebitda",          "EBITDA",                  net,                         None, None, "currency", "profit"),
-            _kpi("working_capital", "Working Capital",         working_capital,             None, None, "currency", "capital"),
-        ]
-        kpis = [
-            _kpi("revenue",         "Revenue",                 revenue,                     None, None, "currency", "month"),
-            _kpi("expenses",        "Expenses",                expense,                     None, None, "currency", "expense"),
-            _kpi("profit",          "Net Profit",              net,                         None, None, "currency", "profit"),
-            _kpi("margin",          "Margin",                  margin,                      None, "%",  "percent",  "margin"),
-            _kpi("cashflow",        "Cash Flow",               cash_net,                    None, None, "currency", "cashflow"),
-            _kpi("receivables",     "Outstanding Receivables", receivables,                 None, None, "currency", "receivables"),
-            _kpi("payables",        "Outstanding Payables",    payables,                    None, None, "currency", "payables"),
-            _kpi("gst",             "GST Collected",           gst,                         None, None, "currency", "gst"),
-            _kpi("operating",       "Operating Cost",          expense,                     None, None, "currency", "expense"),
-            _kpi("monthly_profit",  "Monthly Profit",          round(net / 12, 2) if net else 0, None, None, "currency", "profit"),
-            _kpi("ebitda",          "EBITDA",                  net,                         None, None, "currency", "profit"),
-            _kpi("working_capital", "Working Capital",         working_capital,             None, None, "currency", "capital"),
+            _kpi("revenue", "Revenue", revenue, None, None, "currency", "month"),
+            _kpi("expenses", "Expenses", expense, None, None, "currency", "expense"),
+            _kpi("profit", "Net Profit", net, None, None, "currency", "profit"),
+            _kpi("margin", "Margin", margin, None, "%", "percent", "margin"),
+            _kpi("cashflow", "Cash Flow", cash_net, None, None, "currency", "cashflow"),
+            _kpi("receivables", "Outstanding Receivables", receivables, None, None, "currency", "receivables"),
+            _kpi("payables", "Outstanding Payables", payables, None, None, "currency", "payables"),
+            _kpi("gst", "GST Collected", gst, None, None, "currency", "gst"),
+            _kpi("operating", "Operating Cost", expense, None, None, "currency", "expense"),
+            _kpi("monthly_profit", "Monthly Profit", round(net / 12, 2) if net else 0, None, None, "currency", "profit"),
+            _kpi("ebitda", "EBITDA", net, None, None, "currency", "profit"),
+            _kpi("working_capital", "Working Capital", working_capital, None, None, "currency", "capital"),
         ]
 
-        monthly      = profit.get("monthly") or []
-        rev_exp      = [ChartPoint(label=m["month"], value=m.get("revenue", 0), value2=m.get("expense", 0)) for m in monthly]
-        cash_flow    = [ChartPoint(label=c["month"], value=c.get("inflow", 0),  value2=c.get("outflow", 0)) for c in cash_flow_data]
+        monthly = profit.get("monthly") or []
+        rev_exp = [ChartPoint(label=m["month"], value=m.get("revenue", 0), value2=m.get("expense", 0)) for m in monthly]
+        cash_flow = [ChartPoint(label=c["month"], value=c.get("inflow", 0), value2=c.get("outflow", 0)) for c in cash_flow_data]
         profit_trend = (
             [ChartPoint(label=p["month"], value=p.get("profit", p.get("amount", 0))) for p in profit_trend_data]
             if profit_trend_data
             else [ChartPoint(label=m["month"], value=m.get("profit", 0)) for m in monthly]
         )
         recv_aging = [
-            ChartPoint(label="0-30 Days",  value=aging["0-30"]),
+            ChartPoint(label="0-30 Days", value=aging["0-30"]),
             ChartPoint(label="31-60 Days", value=aging["31-60"]),
             ChartPoint(label="61-90 Days", value=aging["61-90"]),
-            ChartPoint(label="90+ Days",   value=aging["90+"]),
+            ChartPoint(label="90+ Days", value=aging["90+"]),
         ]
         monthly_margin = [ChartPoint(label=m["month"], value=m.get("margin_percent", 0)) for m in monthly]
-        drill: list = [{"level": "year", "label": str(y), "value": revenue}]
-        if monthly:
-            best = max(monthly, key=lambda m: float(m.get("revenue") or 0))
-            drill.append({"level": "month", "label": best.get("month", ""), "value": best.get("revenue", 0)})
-        monthly      = profit.get("monthly") or []
-        rev_exp      = [ChartPoint(label=m["month"], value=m.get("revenue", 0), value2=m.get("expense", 0)) for m in monthly]
-        cash_flow    = [ChartPoint(label=c["month"], value=c.get("inflow", 0),  value2=c.get("outflow", 0)) for c in cash_flow_data]
-        profit_trend = (
-            [ChartPoint(label=p["month"], value=p.get("profit", p.get("amount", 0))) for p in profit_trend_data]
-            if profit_trend_data
-            else [ChartPoint(label=m["month"], value=m.get("profit", 0)) for m in monthly]
-        )
-        recv_aging = [
-            ChartPoint(label="0-30 Days",  value=aging["0-30"]),
-            ChartPoint(label="31-60 Days", value=aging["31-60"]),
-            ChartPoint(label="61-90 Days", value=aging["61-90"]),
-            ChartPoint(label="90+ Days",   value=aging["90+"]),
-        ]
-        monthly_margin = [ChartPoint(label=m["month"], value=m.get("margin_percent", 0)) for m in monthly]
+
         drill: list = [{"level": "year", "label": str(y), "value": revenue}]
         if monthly:
             best = max(monthly, key=lambda m: float(m.get("revenue") or 0))
@@ -1015,36 +965,61 @@ def get_finance_analytics(db: Session, tenant_id: int, year=None) -> FinanceAnal
 
         alerts: list = []
         if payables > 0 and receivables < payables:
-            alerts.append(AlertItem(type="cashflow", severity="warning",
-                message="Payables exceed receivables \u2014 review cash position"))
+            alerts.append(
+                AlertItem(
+                    type="cashflow",
+                    severity="warning",
+                    message="Payables exceed receivables — review cash position",
+                )
+            )
         if aging["90+"] > 0:
-            alerts.append(AlertItem(type="receivables", severity="danger",
-                message=f"\u20b9{aging['90+']:,.0f} receivables aged 90+ days"))
+            alerts.append(
+                AlertItem(
+                    type="receivables",
+                    severity="danger",
+                    message=f"₹{aging['90+']:,.0f} receivables aged 90+ days",
+                )
+            )
 
         return FinanceAnalyticsRead(
-            kpis=kpis, alerts=alerts,
-            revenue_vs_expense=rev_exp, cash_flow=cash_flow,
-            profit_trend=profit_trend, expense_category=[],
-            receivable_aging=recv_aging, monthly_margin=monthly_margin,
-            drill_revenue=drill, last_updated=_now_iso(),
+            kpis=kpis,
+            alerts=alerts,
+            revenue_vs_expense=rev_exp,
+            cash_flow=cash_flow,
+            profit_trend=profit_trend,
+            expense_category=[],
+            receivable_aging=recv_aging,
+            monthly_margin=monthly_margin,
+            drill_revenue=drill,
+            last_updated=_now_iso(),
         )
     except SQLAlchemyError as e:
         logger.error(f"Database error in get_finance_analytics for tenant {tenant_id}: {str(e)}")
         return FinanceAnalyticsRead(
-            kpis=[], alerts=[AlertItem(type="error", severity="danger",
-                message="Unable to load finance analytics. Please try again.")],
-            revenue_vs_expense=[], cash_flow=[], profit_trend=[],
-            expense_category=[], receivable_aging=[], monthly_margin=[],
-            drill_revenue=[], last_updated=_now_iso(),
+            kpis=[],
+            alerts=[AlertItem(type="error", severity="danger", message="Unable to load finance analytics. Please try again.")],
+            revenue_vs_expense=[],
+            cash_flow=[],
+            profit_trend=[],
+            expense_category=[],
+            receivable_aging=[],
+            monthly_margin=[],
+            drill_revenue=[],
+            last_updated=_now_iso(),
         )
     except Exception as e:
         logger.error(f"Unexpected error in get_finance_analytics for tenant {tenant_id}: {str(e)}")
         return FinanceAnalyticsRead(
-            kpis=[], alerts=[AlertItem(type="error", severity="danger",
-                message="An unexpected error occurred while loading finance analytics.")],
-            revenue_vs_expense=[], cash_flow=[], profit_trend=[],
-            expense_category=[], receivable_aging=[], monthly_margin=[],
-            drill_revenue=[], last_updated=_now_iso(),
+            kpis=[],
+            alerts=[AlertItem(type="error", severity="danger", message="An unexpected error occurred while loading finance analytics.")],
+            revenue_vs_expense=[],
+            cash_flow=[],
+            profit_trend=[],
+            expense_category=[],
+            receivable_aging=[],
+            monthly_margin=[],
+            drill_revenue=[],
+            last_updated=_now_iso(),
         )
 
 

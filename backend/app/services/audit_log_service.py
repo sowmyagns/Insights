@@ -237,7 +237,6 @@ class AuditLogService:
             module = module_name or resolve_module(action, resource)
             email = email_override or actor["email"]
 
-            # Prefer explicit session id; generate on login/login_failed attempt; else reuse open session or generate tracking ID
             sid = session_id
             if sid is None and request and hasattr(request, "state") and getattr(request.state, "session_id", None):
                 sid = getattr(request.state, "session_id")
@@ -286,27 +285,9 @@ class AuditLogService:
                 "details": details,
             }
 
-        # Force SQL INSERT with all columns (avoids ORM metadata drift issues)
-        try:
             result = db.execute(insert(AccessLog).values(**values))
             new_id = result.inserted_primary_key[0] if result.inserted_primary_key else None
 
-            # Backward-compatible mirror into audit_logs (legacy table)
-            try:
-                db.add(
-                    AuditLog(
-                        tenant_id=int(tenant_id),
-                        user_id=actor["user_id"],
-                        action=(action or "")[:32],
-                        resource=(resource or module or "system")[:128],
-                        resource_id=resource_id,
-                        details=details,
-                        ip_address=ip,
-                    )
-                )
-            except Exception:
-                logger.exception("legacy_audit_mirror_failed")
-            # Backward-compatible mirror into audit_logs (legacy table)
             try:
                 db.add(
                     AuditLog(
@@ -326,20 +307,6 @@ class AuditLogService:
                 db.commit()
             else:
                 db.flush()
-        except SQLAlchemyError as e:
-            logger.error(
-                f"Database error in AuditLogService.log() - action={action}, tenant_id={tenant_id}: {str(e)}"
-            )
-            if commit:
-                db.rollback()
-            return None
-        except Exception as e:
-            logger.error(
-                f"Unexpected error in AuditLogService.log() - action={action}, tenant_id={tenant_id}: {str(e)}"
-            )
-            if commit:
-                db.rollback()
-            return None
 
             row = db.get(AccessLog, new_id) if new_id else None
             logger.info(
@@ -359,12 +326,14 @@ class AuditLogService:
             return row
         except SQLAlchemyError as exc:
             logger.exception("AuditLogService.log database error: %s", exc)
-            db.rollback()
-            raise
+            if commit:
+                db.rollback()
+            return None
         except Exception as exc:
             logger.exception("AuditLogService.log unexpected error: %s", exc)
-            db.rollback()
-            raise
+            if commit:
+                db.rollback()
+            return None
 
     @classmethod
     def log_login_success(
@@ -469,48 +438,10 @@ class AuditLogService:
                 )
                 .order_by(AccessLog.logged_at.desc())
             ).first()
-        try:
-            now = _utcnow()
-            open_login = db.scalars(
-                select(AccessLog)
-                .where(
-                    AccessLog.user_id == user.id,
-                    AccessLog.action == "login",
-                    AccessLog.login_status == "Success",
-                    AccessLog.logout_at.is_(None),
-                )
-                .order_by(AccessLog.logged_at.desc())
-            ).first()
 
             session_id = open_login.session_id if open_login else None
             login_at = open_login.login_at if open_login else None
-            session_id = open_login.session_id if open_login else None
-            login_at = open_login.login_at if open_login else None
 
-            # Deduplication check: prevent creating duplicate logout records for the same session ID or recent request
-            if session_id:
-                existing_logout = db.scalars(
-                    select(AccessLog).where(
-                        AccessLog.user_id == user.id,
-                        AccessLog.action == "logout",
-                        AccessLog.session_id == session_id,
-                    )
-                ).first()
-                if existing_logout:
-                    logger.info("log_logout_skip_duplicate user_id=%s session_id=%s", user.id, session_id)
-                    return existing_logout
-            else:
-                recent_logout = db.scalars(
-                    select(AccessLog).where(
-                        AccessLog.user_id == user.id,
-                        AccessLog.action == "logout",
-                        AccessLog.logged_at >= now - timedelta(seconds=5),
-                    )
-                ).first()
-                if recent_logout:
-                    logger.info("log_logout_skip_recent user_id=%s", user.id)
-                    return recent_logout
-            # Deduplication check: prevent creating duplicate logout records for the same session ID or recent request
             if session_id:
                 existing_logout = db.scalars(
                     select(AccessLog).where(
@@ -538,18 +469,7 @@ class AuditLogService:
                 db.execute(
                     update(AccessLog)
                     .where(AccessLog.id == open_login.id)
-                    .values(
-                        logout_at=now,
-                    )
-                )
-                db.commit()
-            if open_login:
-                db.execute(
-                    update(AccessLog)
-                    .where(AccessLog.id == open_login.id)
-                    .values(
-                        logout_at=now,
-                    )
+                    .values(logout_at=now)
                 )
                 db.commit()
 
@@ -666,9 +586,6 @@ def query_audit_logs(
     try:
         page = max(1, page)
         page_size = min(max(1, page_size), 500)
-    try:
-        page = max(1, page)
-        page_size = min(max(1, page_size), 500)
 
         if scope == "me":
             stmt = select(AccessLog).where(AccessLog.user_id == current_user.id)
@@ -691,57 +608,7 @@ def query_audit_logs(
                 )
             else:
                 stmt = select(AccessLog).where(AccessLog.user_id == current_user.id)
-        if scope == "me":
-            stmt = select(AccessLog).where(AccessLog.user_id == current_user.id)
-        elif scope == "company":
-            if not user_is_admin(current_user):
-                raise HTTPException(status_code=403, detail="Administrator privileges are required.")
-            stmt = select(AccessLog).where(
-                or_(
-                    AccessLog.company_id == current_user.tenant_id,
-                    AccessLog.tenant_id == current_user.tenant_id,
-                )
-            )
-        else:
-            if user_is_admin(current_user):
-                stmt = select(AccessLog).where(
-                    or_(
-                        AccessLog.company_id == current_user.tenant_id,
-                        AccessLog.tenant_id == current_user.tenant_id,
-                    )
-                )
-            else:
-                stmt = select(AccessLog).where(AccessLog.user_id == current_user.id)
 
-        filters = []
-        if search:
-            q = f"%{search.strip().lower()}%"
-            filters.append(
-                or_(
-                    func.lower(AccessLog.full_name).like(q),
-                    func.lower(AccessLog.email).like(q),
-                    func.lower(AccessLog.action).like(q),
-                    func.lower(AccessLog.module_name).like(q),
-                    func.lower(AccessLog.company_name).like(q),
-                    AccessLog.ip_address.like(q),
-                )
-            )
-        if action:
-            filters.append(AccessLog.action == action)
-        if role:
-            filters.append(AccessLog.role == role)
-        if module_name:
-            filters.append(AccessLog.module_name == module_name)
-        if login_status:
-            filters.append(AccessLog.login_status == login_status)
-        if user_id:
-            filters.append(AccessLog.user_id == user_id)
-        if date_from:
-            filters.append(AccessLog.logged_at >= date_from)
-        if date_to:
-            filters.append(AccessLog.logged_at <= date_to)
-        if filters:
-            stmt = stmt.where(and_(*filters))
         filters = []
         if search:
             q = f"%{search.strip().lower()}%"

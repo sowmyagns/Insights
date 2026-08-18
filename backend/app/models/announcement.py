@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Date, Text
-from app.core.database import Base
+from app.models.base import Base
 
 
 class Announcement(Base):

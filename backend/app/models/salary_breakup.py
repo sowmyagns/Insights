@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from app.core.database import Base
+from app.models.base import Base
 
 
 class SalaryBreakup(Base):

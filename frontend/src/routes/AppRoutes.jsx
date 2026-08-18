@@ -701,6 +701,48 @@ export default function AppRoutes() {
       <Route path="/iot/drones" element={<ProtectedRoute><P.Drones /></ProtectedRoute>} />
       <Route path="/iot/smart-packaging" element={<ProtectedRoute><P.SmartPackaging /></ProtectedRoute>} />
       <Route path="/iot/live-operations" element={<ProtectedRoute><P.LiveOperations /></ProtectedRoute>} />
+      {/* ── HR ────────────────────────────────────────────────────────────── */}
+      <Route path="/hr" element={<ProtectedRoute><P.HRDashboard /></ProtectedRoute>} />
+      {/* Employee Management */}
+      <Route path="/hr/register" element={<ProtectedRoute><P.HRRegister /></ProtectedRoute>} />
+      <Route path="/hr/onboarding" element={<ProtectedRoute><P.HREmployeeOnboarding /></ProtectedRoute>} />
+      <Route path="/hr/preboarding" element={<ProtectedRoute><P.HRPreboarding /></ProtectedRoute>} />
+      <Route path="/hr/departments" element={<ProtectedRoute><P.HRDepartments /></ProtectedRoute>} />
+      <Route path="/hr/asset-management" element={<ProtectedRoute><P.HRAssetManagement /></ProtectedRoute>} />
+      <Route path="/hr/announcements" element={<ProtectedRoute><P.HRAnnouncements /></ProtectedRoute>} />
+      <Route path="/hr/site-visits" element={<ProtectedRoute><P.HRSiteVisits /></ProtectedRoute>} />
+      {/* Attendance */}
+      <Route path="/hr/attendance" element={<ProtectedRoute><P.HRAttendance /></ProtectedRoute>} />
+      <Route path="/hr/shifts-overtime" element={<ProtectedRoute><P.HRShiftsOvertime /></ProtectedRoute>} />
+      <Route path="/hr/set-weekly-off" element={<ProtectedRoute><P.HRSetWeeklyOff /></ProtectedRoute>} />
+      <Route path="/hr/manage-monthly-shifts" element={<ProtectedRoute><P.HRManageMonthlyShifts /></ProtectedRoute>} />
+      <Route path="/hr/manage-shifts" element={<ProtectedRoute><P.HRManageShifts /></ProtectedRoute>} />
+      <Route path="/hr/attendance-approval" element={<ProtectedRoute><P.HRAttendanceApproval /></ProtectedRoute>} />
+      {/* Leave Management */}
+      <Route path="/hr/leave" element={<ProtectedRoute><P.HRLeave /></ProtectedRoute>} />
+      <Route path="/hr/leave-plans" element={<ProtectedRoute><P.HRLeavePlans /></ProtectedRoute>} />
+      <Route path="/hr/leave-approvals" element={<ProtectedRoute><P.HRLeaveApprovals /></ProtectedRoute>} />
+      <Route path="/hr/leave-adjustment" element={<ProtectedRoute><P.HRLeaveAdjustment /></ProtectedRoute>} />
+      <Route path="/hr/holidays" element={<ProtectedRoute><P.HRHoliday /></ProtectedRoute>} />
+      {/* Payroll */}
+      <Route path="/hr/payroll" element={<ProtectedRoute><P.HRPayroll /></ProtectedRoute>} />
+      <Route path="/hr/salary-breakup" element={<ProtectedRoute><P.HRSalaryBreakup /></ProtectedRoute>} />
+      <Route path="/hr/statutory-components" element={<ProtectedRoute><P.HRStatutoryComponents /></ProtectedRoute>} />
+      <Route path="/hr/monthly-pay" element={<ProtectedRoute><P.HRMonthlyPay /></ProtectedRoute>} />
+      <Route path="/hr/salary-on-hold" element={<ProtectedRoute><P.HRSalaryOnHold /></ProtectedRoute>} />
+      <Route path="/hr/pay-slips" element={<ProtectedRoute><P.HRPaySlips /></ProtectedRoute>} />
+      {/* Expenses */}
+      <Route path="/hr/expenses" element={<ProtectedRoute><P.HRExpenses /></ProtectedRoute>} />
+      {/* Reports */}
+      <Route path="/hr/employee-report" element={<ProtectedRoute><P.HREmployeeReport /></ProtectedRoute>} />
+      <Route path="/hr/leave-report" element={<ProtectedRoute><P.HRLeaveReport /></ProtectedRoute>} />
+      <Route path="/hr/expense-report" element={<ProtectedRoute><P.HRExpenseReport /></ProtectedRoute>} />
+      <Route path="/hr/site-visit-report" element={<ProtectedRoute><P.HRSiteVisitReport /></ProtectedRoute>} />
+      <Route path="/hr/mis-reports" element={<ProtectedRoute><P.HRMISReports /></ProtectedRoute>} />
+      {/* Settings */}
+      <Route path="/hr/organization-setup" element={<ProtectedRoute><P.HROrganizationSetup /></ProtectedRoute>} />
+      <Route path="/hr/roles-permission" element={<ProtectedRoute><P.HRRolesPermission /></ProtectedRoute>} />
+      <Route path="/hr/settings" element={<ProtectedRoute><P.HRSettings /></ProtectedRoute>} />
       <Route path="*" element={<P.NotFound />} />
     </Routes>
   );

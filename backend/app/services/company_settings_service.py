@@ -1,10 +1,8 @@
 import json
 import logging
-import logging
 
 from fastapi import HTTPException
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -15,19 +13,11 @@ from app.models.tenant import Tenant
 from app.schemas.company_settings import CompanySettingsRead, CompanySettingsUpdate
 from app.utils.field_crypto import decrypt_field, encrypt_field
 
-logger = logging.getLogger(__name__)
-
 _SENSITIVE_FIELDS = ("bank_account_number", "bank_ifsc")
 
 
 def get_or_create_settings(db: Session, tenant_id: int) -> CompanySettings:
     """Return settings for tenant. Flush only — never commit (callers own the txn)."""
-    try:
-        settings = db.scalars(
-            select(CompanySettings).where(CompanySettings.tenant_id == tenant_id)
-        ).first()
-        if settings:
-            return settings
     try:
         settings = db.scalars(
             select(CompanySettings).where(CompanySettings.tenant_id == tenant_id)

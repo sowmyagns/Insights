@@ -1,0 +1,2 @@
+ERROR:root:Failed to retrieve alerts for tenant 1: list_alerts() got an unexpected keyword argument 'status'
+OK

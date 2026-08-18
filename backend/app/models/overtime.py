@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, Float, Date, String, ForeignKey
 from sqlalchemy.orm import relationship
-from app.core.database import Base
+from app.models.base import Base
 
 
 class OvertimeRecord(Base):
@@ -15,4 +15,4 @@ class OvertimeRecord(Base):
     status = Column(String(20), default="pending")  # pending, approved, rejected
     notes = Column(String(255))
 
-    employee = relationship("Employee", back_populates="overtime_records")
+    employee = relationship("Employee", foreign_keys=[employee_id])

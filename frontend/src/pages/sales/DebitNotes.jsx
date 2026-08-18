@@ -10,8 +10,6 @@ import { cancelInvoice, downloadInvoicePdf, getInvoicesV2 } from "../../api/sale
 import { apiErrorMessage } from "../../utils/apiError";
 import { formatInr } from "../../data/salesMasterData";
 
-const YELLOW = "#0025D4";
-const PAGE_BG = "var(--color-bg)";
 const YELLOW = "var(--color-primary)";
 const PAGE_BG = "#F5F5F5";
 const PAGE_SIZES = [10, 25, 50];

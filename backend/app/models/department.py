@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
-from app.core.database import Base
+from app.models.base import Base
 
 
 class Department(Base):
@@ -10,4 +10,3 @@ class Department(Base):
     name = Column(String(100), nullable=False)
     description = Column(String(255))
 
-    employees = relationship("Employee", back_populates="department")

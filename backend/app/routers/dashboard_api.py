@@ -34,4 +34,5 @@ def erp_dashboard(
     except Exception as exc:
         db.rollback()
         logger.exception("Failed to retrieve ERP dashboard for user_id=%s, tenant_id=%s: %s", user.id, tenant_id, exc)
-        raise HTTPException(status_code=500, detail="Failed to retrieve ERP dashboard") from exc
+        import traceback
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc} | {traceback.format_exc()[-500:]}") from exc

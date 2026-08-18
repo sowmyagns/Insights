@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, Float, Date, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from app.core.database import Base
+from app.models.base import Base
 
 
 class SiteVisit(Base):
@@ -19,4 +19,4 @@ class SiteVisit(Base):
     photo_url = Column(String(500))
     document_url = Column(String(500))
 
-    employee = relationship("Employee", back_populates="site_visits")
+    employee = relationship("Employee", foreign_keys=[employee_id])

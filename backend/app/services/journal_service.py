@@ -250,6 +250,69 @@ def post_sales_invoice_journal(
         raise
 
 
+def reverse_sales_invoice_journal(
+    db: Session,
+    tenant_id: int,
+    *,
+    invoice_number: str,
+    issue_date: date,
+    subtotal: float,
+    discount: float,
+    sgst: float,
+    cgst: float,
+    igst: float,
+    round_off: float,
+    grand_total: float,
+) -> JournalEntry | None:
+    """Create a reversed sales-invoice journal entry for cancellation or correction."""
+    net_sales = round(float(subtotal or 0) - float(discount or 0), 2)
+    legs: list[dict] = [
+        {"account": "Accounts Receivable", "debit": 0, "credit": float(grand_total)},
+        {"account": "Sales Revenue", "debit": float(net_sales), "credit": 0},
+    ]
+    if float(sgst or 0) > 0:
+        legs.append({"account": "Output SGST", "debit": float(sgst), "credit": 0})
+    if float(cgst or 0) > 0:
+        legs.append({"account": "Output CGST", "debit": float(cgst), "credit": 0})
+    if float(igst or 0) > 0:
+        legs.append({"account": "Output IGST", "debit": float(igst), "credit": 0})
+    if float(round_off or 0) != 0:
+        if float(round_off) > 0:
+            legs.append({"account": "Round Off", "debit": float(round_off), "credit": 0})
+        else:
+            legs.append({"account": "Round Off", "debit": 0, "credit": abs(float(round_off))})
+
+    debit = sum(float(l["debit"]) for l in legs)
+    credit = sum(float(l["credit"]) for l in legs)
+    diff = round(abs(debit - credit), 2)
+    if diff >= 0.01:
+        raise ValueError(
+            f"Invalid reversed invoice journal totals for invoice {invoice_number}: "
+            f"total debit ({debit:.2f}) does not match total credit ({credit:.2f})"
+        )
+
+    try:
+        return post_journal_entry(
+            db,
+            tenant_id,
+            entry_date=issue_date,
+            reference=invoice_number,
+            description=f"Reverse sales invoice {invoice_number}",
+            legs=legs,
+            commit=False,
+        )
+    except ValueError:
+        db.rollback()
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Database error reversing sales invoice journal invoice=%s", invoice_number)
+        raise RuntimeError("Sales invoice reversal failed: Database error") from exc
+    except Exception:
+        db.rollback()
+        raise
+
+
 def post_sales_payment_journal(
     db: Session,
     tenant_id: int,

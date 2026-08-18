@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import app.api.hr as m; r=m.router; print(r.prefix); [print(x.path) for x in r.routes]
+    ^^^^^^^^^^^^^^^^^^^^^^
+  File "c:\Users\gogul\Downloads\Insights\Insights\GNS Insights\backend\app\api\hr.py", line 34, in <module>
+    from app.schemas.hr_extended import EmployeeListRead, EmployeeSummaryRead
+ModuleNotFoundError: No module named 'app.schemas.hr_extended'

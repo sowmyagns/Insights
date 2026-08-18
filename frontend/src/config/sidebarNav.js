@@ -1,4 +1,4 @@
-﻿import {
+import {
   BarChart3,
   Bell,
   Boxes,
@@ -81,6 +81,55 @@ export const SIDEBAR_NAV = [
       { label: "Payments Made", to: "/purchases/payments-made", module: "procurement" },
       { label: "Debit Note", to: "/purchases/debit-notes", module: "procurement" },
       { label: "Purchase Order", to: "/procurement/purchase-orders", module: "procurement" },
+    ],
+  },
+  {
+    key: "hr",
+    label: "HR",
+    labelKey: "erpNav.hr",
+    icon: Users,
+    children: [
+      // Dashboard
+      { label: "HR Dashboard", to: "/hr", module: "hr", end: true },
+      // Employee Management
+      { label: "Employee Onboarding", to: "/hr/onboarding", module: "hr" },
+      { label: "Preboarding", to: "/hr/preboarding", module: "hr" },
+      { label: "Departments", to: "/hr/departments", module: "hr" },
+      { label: "Asset Management", to: "/hr/asset-management", module: "hr" },
+      { label: "Announcements", to: "/hr/announcements", module: "hr" },
+      { label: "Site Visits", to: "/hr/site-visits", module: "hr" },
+      // Attendance
+      { label: "Attendance", to: "/hr/attendance", module: "hr" },
+      { label: "Shifts & Overtime", to: "/hr/shifts-overtime", module: "hr" },
+      { label: "Set Weekly Off", to: "/hr/set-weekly-off", module: "hr" },
+      { label: "Manage Monthly Shifts", to: "/hr/manage-monthly-shifts", module: "hr" },
+      { label: "Manage Shifts", to: "/hr/manage-shifts", module: "hr" },
+      { label: "Attendance Approval", to: "/hr/attendance-approval", module: "hr" },
+      // Leave Management
+      { label: "Leave", to: "/hr/leave", module: "hr" },
+      { label: "Leave Plans", to: "/hr/leave-plans", module: "hr" },
+      { label: "Leave Approvals", to: "/hr/leave-approvals", module: "hr" },
+      { label: "Leave Adjustment", to: "/hr/leave-adjustment", module: "hr" },
+      { label: "Holidays", to: "/hr/holidays", module: "hr" },
+      // Payroll
+      { label: "Payroll", to: "/hr/payroll", module: "hr" },
+      { label: "Salary Breakup", to: "/hr/salary-breakup", module: "hr" },
+      { label: "Statutory Components", to: "/hr/statutory-components", module: "hr" },
+      { label: "Monthly Pay", to: "/hr/monthly-pay", module: "hr" },
+      { label: "Salary On Hold", to: "/hr/salary-on-hold", module: "hr" },
+      { label: "Pay Slips", to: "/hr/pay-slips", module: "hr" },
+      // Expenses
+      { label: "HR Expenses", to: "/hr/expenses", module: "hr" },
+      // Reports
+      { label: "Employee Report", to: "/hr/employee-report", module: "hr" },
+      { label: "Leave Report", to: "/hr/leave-report", module: "hr" },
+      { label: "Expense Report", to: "/hr/expense-report", module: "hr" },
+      { label: "Site Visit Report", to: "/hr/site-visit-report", module: "hr" },
+      { label: "MIS Reports", to: "/hr/mis-reports", module: "hr" },
+      // Settings
+      { label: "Organization Setup", to: "/hr/organization-setup", module: "hr" },
+      { label: "Roles & Permissions", to: "/hr/roles-permission", module: "hr" },
+      { label: "HR Settings", to: "/hr/settings", module: "hr" },
     ],
   },
   {

@@ -217,4 +217,43 @@ export const CreateProduct = lazy(() => import("../pages/masters/CreateProduct")
 export const BomMaster = lazy(() => import("../pages/masters/BomMaster"));
 export const DepartmentManagement = lazy(() => import("../pages/masters/DepartmentManagement"));
 export const RoleWorkflowBoard = lazy(() => import("../pages/manufacturing/RoleWorkflowBoard"));
+
+// ── HR ─────────────────────────────────────────────────────────────────────
+// Components that need props → use wrapper pages that provide the data
+export const HRDashboard = lazy(() => import("../pages/hr/HRDashboardPage"));
+export const HRRegister = lazy(() => import("../pages/hr/HRRegisterPage"));
+export const HRAttendance = lazy(() => import("../pages/hr/HRAttendancePage"));
+export const HRLeave = lazy(() => import("../pages/hr/HRLeavePage"));
+export const HRShiftsOvertime = lazy(() => import("../pages/hr/HRShiftsOvertimePage"));
+export const HRSiteVisits = lazy(() => import("../pages/hr/HRSiteVisitsPage"));
+export const HRExpenses = lazy(() => import("../pages/hr/HRExpensesPage"));
+export const HRPayroll = lazy(() => import("../pages/hr/HRPayrollPage"));
+export const HRMISReports = lazy(() => import("../pages/hr/HRMISReportsPage"));
+// Standalone components (no props needed)
+export const HREmployeeOnboarding = lazy(() => import("../pages/hr/EmployeeOnboarding"));
+export const HRPreboarding = lazy(() => import("../pages/hr/Preboarding"));
+export const HRDepartments = lazy(() => import("../pages/hr/Departments"));
+export const HRAssetManagement = lazy(() => import("../pages/hr/AssetManagement"));
+export const HRAnnouncements = lazy(() => import("../pages/hr/Announcements"));
+export const HRSetWeeklyOff = lazy(() => import("../pages/hr/SetWeeklyOff"));
+export const HRManageMonthlyShifts = lazy(() => import("../pages/hr/ManageMonthlyShifts"));
+export const HRManageShifts = lazy(() => import("../pages/hr/ManageShifts"));
+export const HRAttendanceApproval = lazy(() => import("../pages/hr/AttendanceApproval"));
+export const HRLeavePlans = lazy(() => import("../pages/hr/LeavePlans"));
+export const HRLeaveApprovals = lazy(() => import("../pages/hr/LeaveApprovals"));
+export const HRLeaveAdjustment = lazy(() => import("../pages/hr/LeaveAdjustment"));
+export const HRHoliday = lazy(() => import("../pages/hr/Holiday"));
+export const HRSalaryBreakup = lazy(() => import("../pages/hr/SalaryBreakup"));
+export const HRStatutoryComponents = lazy(() => import("../pages/hr/StautoryComponents"));
+export const HRMonthlyPay = lazy(() => import("../pages/hr/MonthlyPay"));
+export const HRSalaryOnHold = lazy(() => import("../pages/hr/SalaryOnHold"));
+export const HRPaySlips = lazy(() => import("../pages/hr/PaySlips"));
+export const HREmployeeReport = lazy(() => import("../pages/hr/EmployeeReport"));
+export const HRLeaveReport = lazy(() => import("../pages/hr/LeaveReport"));
+export const HRExpenseReport = lazy(() => import("../pages/hr/ExpenseReport"));
+export const HRSiteVisitReport = lazy(() => import("../pages/hr/SiteVisitReport"));
+export const HROrganizationSetup = lazy(() => import("../pages/hr/OrganizationSetup"));
+export const HRRolesPermission = lazy(() => import("../pages/hr/RolesPermission"));
+export const HRSettings = lazy(() => import("../pages/hr/Settings"));
+
 export const NotFound = lazy(() => import("../pages/NotFound"));

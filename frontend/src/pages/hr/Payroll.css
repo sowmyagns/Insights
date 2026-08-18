@@ -1,0 +1,3 @@
+.payroll-page .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+.payroll-page h1 { font-size: 1.75rem; }
+.net-salary { font-weight: 600; color: var(--accent); }

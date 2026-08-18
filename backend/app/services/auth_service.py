@@ -266,7 +266,8 @@ def issue_auth_response_data(
         clear_login_failures(db, user)
         now = datetime.now(timezone.utc)
         user.last_login_at = now
-        user.tokens_revoked_at = now
+        # Do not invalidate the freshly issued token on successful login.
+        # The token revocation timestamp is reserved for explicit logout / forced sign-out flows.
         db.commit()
         db.refresh(user, ["roles", "tenant"])
         access = build_access_token_for_user(user, role_name=role_name)

@@ -16,6 +16,7 @@ from app.core.config import get_settings
 from app.core.logging_config import get_logger, setup_logging
 
 from app.api.accounts import router as accounts_router
+from app.api.hr import router as hr_router
 from app.api.admin import router as admin_router
 from app.api.ai_assistant import router as ai_assistant_router
 from app.api.alerts import router as alerts_router
@@ -57,7 +58,7 @@ from app.routers import (
     production_api_router,
     settings_api_router,
 )
-from app.core.database import engine
+from app.core.database import engine, ensure_sqlite_schema
 
 # Import all models so they register with Base.metadata
 from app.models import (  # noqa: F401
@@ -169,11 +170,26 @@ async def security_headers_middleware(request: Request, call_next):
             "form-action 'self'"
         )
     else:
-        # Strict CSP for all authenticated ERP / API responses
+        # Keep the API responses strict enough to deny embedding, while allowing
+        # the frontend dev server and localhost backend origins to make XHR/fetch
+        # requests during local development and test deployments.
         response.headers["Content-Security-Policy"] = (
             "default-src 'none'; "
+            "connect-src 'self' http://localhost:5173 http://127.0.0.1:5173 "
+            "https://localhost:5173 https://127.0.0.1:5173 "
+            "http://localhost:8000 http://127.0.0.1:8000 "
+            "https://localhost:8000 https://127.0.0.1:8000 "
+            "ws://localhost:5173 ws://127.0.0.1:5173 "
+            "wss://localhost:5173 wss://127.0.0.1:5173 "
+            "ws://localhost:8000 ws://127.0.0.1:8000 "
+            "wss://localhost:8000 wss://127.0.0.1:8000; "
+            "img-src 'self' data: blob: https:; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' data: https://fonts.gstatic.com; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
+            "object-src 'none'; "
             "form-action 'self'"
         )
     if settings.is_production:
@@ -347,6 +363,8 @@ def on_startup():
     from app.models.sales import Invoice as InvoiceModel
     from app.models.tenant import Tenant
 
+    ensure_sqlite_schema()
+
     db = SessionLocal()
     try:
         seed_tenant(db)  # Ensure tenant 1 exists
@@ -387,6 +405,7 @@ app.include_router(rbac_api_router)
 app.include_router(rbac_api_router, prefix="/api")
 
 # ERP domain modules (Sales, Finance, Procurement, Quality, Maintenance, Analytics, Inventory)
+app.include_router(hr_router)
 app.include_router(sales_router)
 app.include_router(business_documents_router)
 app.include_router(accounts_router)

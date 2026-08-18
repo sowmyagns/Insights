@@ -73,13 +73,6 @@ def record_login_history(
         full_name = None
         user_id = None
         resolved_role = role
-    try:
-        parsed = parse_user_agent(user_agent)
-        company_id = None
-        company_name = None
-        full_name = None
-        user_id = None
-        resolved_role = role
 
         if user is not None:
             user_id = user.id
