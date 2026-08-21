@@ -41,6 +41,7 @@ async function withApiErrorHandling(label, operation, context = {}) {
 }
 
 export async function superAdminLogin(email, password) {
+<<<<<<< HEAD
   return withApiErrorHandling(
     "superAdminLogin",
     async () => {
@@ -76,6 +77,38 @@ export async function superAdminResendOtp(challengeToken) {
     },
     { challengeToken }
   );
+=======
+  const { data } = await api.post(
+    "/platform/auth/login",
+    { email, password },
+    { skipGlobalError: true }
+  );
+  return data;
+}
+
+export async function superAdminVerifyOtp(challengeToken, otp, firebaseToken = null) {
+  const { data } = await api.post(
+    "/platform/auth/verify-otp",
+    {
+      challenge_token: challengeToken,
+      otp,
+      firebase_token: firebaseToken || undefined,
+    },
+    { skipGlobalError: true }
+  );
+  return data;
+}
+
+export async function superAdminResendOtp(challengeToken) {
+  const { data } = await api.post(
+    "/platform/auth/resend-otp",
+    {
+      challenge_token: challengeToken,
+    },
+    { skipGlobalError: true }
+  );
+  return data;
+>>>>>>> 2d0140ee5d6b7bf219d6621ff732a45bcb0870d0
 }
 
 export async function getSuperAdminProfile() {

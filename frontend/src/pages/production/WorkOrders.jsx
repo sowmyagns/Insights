@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   ClipboardList,
   Eye,
   FileSpreadsheet,
@@ -69,7 +72,7 @@ import { exportToExcel, exportToPdf } from "../../utils/exportUtils";
 import { printWorkOrder } from "../../utils/printUtils";
 import { cleanProductLabel } from "../../utils/productLabel";
 
-const PAGE_SIZES = [20, 50, 100];
+const PAGE_SIZES = [20, 50, 100, 200, 500];
 
 function isServerWoId(id) {
   return typeof id === "number" || (typeof id === "string" && /^\d+$/.test(id));
@@ -136,6 +139,8 @@ function WoRowActions({
   issuing,
 }) {
   const [open, setOpen] = useState(false);
+  const menuBtnRef = useRef(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const serverId = isServerWoId(row.id);
 
   const more = [];
@@ -150,6 +155,21 @@ function WoRowActions({
   if (canWoStop(row.status)) more.push({ label: "Stop", onClick: () => onStop(row) });
   more.push({ label: "Print", onClick: () => onPrint(row) });
   more.push({ label: "Export PDF", onClick: () => onPdf(row) });
+
+  const openMenu = (e) => {
+    e?.stopPropagation?.();
+    const rect = menuBtnRef.current?.getBoundingClientRect();
+    if (rect) {
+      const menuHeight = more.length * 36 + 16;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = spaceBelow < menuHeight ? Math.max(8, rect.top - menuHeight - 4) : rect.bottom + 4;
+      setMenuPos({
+        top,
+        left: Math.max(8, rect.right - 192),
+      });
+    }
+    setOpen(true);
+  };
 
   return (
     <div className="flex items-center justify-end gap-1 whitespace-nowrap">
@@ -168,47 +188,86 @@ function WoRowActions({
       ) : null}
       {more.length ? (
         <div className="relative">
-          <IconButton
-            aria-label="More actions"
-            title="More actions"
-            onClick={(e) => {
-              e?.stopPropagation?.();
-              setOpen((v) => !v);
-            }}
-          >
-            <MoreVertical className="h-3.5 w-3.5" />
-          </IconButton>
-          {open ? (
-            <>
-              <button type="button" className="fixed inset-0 z-40 cursor-default" aria-label="Close menu" onClick={() => setOpen(false)} />
-              <div className="absolute right-0 z-50 mt-1 w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-lg">
-                {more.map((item) => (
+          <span ref={menuBtnRef} className="inline-flex">
+            <IconButton
+              aria-label="More actions"
+              title="More actions"
+              onClick={openMenu}
+            >
+              <MoreVertical className="h-3.5 w-3.5" />
+            </IconButton>
+          </span>
+          {open
+            ? createPortal(
+                <>
                   <button
-                    key={item.label}
                     type="button"
-                    disabled={item.disabled}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
-                    onClick={() => {
-                      setOpen(false);
-                      item.onClick?.();
-                    }}
+                    className="fixed inset-0 z-[80] cursor-default"
+                    aria-label="Close menu"
+                    onClick={() => setOpen(false)}
+                  />
+                  <div
+                    className="fixed z-[90] w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] py-1 shadow-lg"
+                    style={{ top: menuPos.top, left: menuPos.left }}
                   >
-                    {item.label === "Pause" ? <Pause className="h-3.5 w-3.5" /> : null}
-                    {item.label === "Print" ? <Printer className="h-3.5 w-3.5" /> : null}
-                    {item.label === "Export PDF" ? <FileText className="h-3.5 w-3.5" /> : null}
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : null}
+                    {more.map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        disabled={item.disabled}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
+                        onClick={() => {
+                          setOpen(false);
+                          item.onClick?.();
+                        }}
+                      >
+                        {item.label === "Pause" ? <Pause className="h-3.5 w-3.5" /> : null}
+                        {item.label === "Print" ? <Printer className="h-3.5 w-3.5" /> : null}
+                        {item.label === "Export PDF" ? <FileText className="h-3.5 w-3.5" /> : null}
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </>,
+                document.body
+              )
+            : null}
         </div>
       ) : null}
     </div>
   );
 }
 
+const KPI_TONE_RING = {
+  primary: "hover:ring-2 hover:ring-[var(--kpi-primary)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-primary)]",
+  info: "hover:ring-2 hover:ring-[var(--kpi-info)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-info)]",
+  success: "hover:ring-2 hover:ring-[var(--kpi-success)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-success)]",
+  warning: "hover:ring-2 hover:ring-[var(--kpi-warning)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-warning)]",
+  danger: "hover:ring-2 hover:ring-[var(--kpi-danger)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-danger)]",
+  yellow: "hover:ring-2 hover:ring-[var(--kpi-warning)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-warning)]",
+  violet: "hover:ring-2 hover:ring-[var(--kpi-violet)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-violet)]",
+  teal: "hover:ring-2 hover:ring-[var(--kpi-teal)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-teal)]",
+  orange: "hover:ring-2 hover:ring-[var(--kpi-orange)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-orange)]",
+  neutral: "hover:ring-2 hover:ring-[var(--kpi-neutral)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-neutral)]",
+};
+
+function ClickableKpiCard({ onClick, title, tone, children }) {
+  const resolvedTone = tone || children?.props?.tone || "primary";
+  const ringClass = KPI_TONE_RING[resolvedTone] || KPI_TONE_RING.primary;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`h-full w-full rounded-[var(--radius-lg)] text-left transition focus:outline-none ${ringClass}`}
+      title={title}
+    >
+      {children}
+    </button>
+  );
+}
+
 const defaultFilters = {
+  search: "",
   work_order_number: "",
   production_order: "",
   product: "",
@@ -221,6 +280,8 @@ const defaultFilters = {
   status: "",
   date_from: "",
   date_to: "",
+  delayed: false,
+  preset: "all",
 };
 
 function formatDate(val) {
@@ -238,7 +299,7 @@ const PENDING_VIEW_STATUSES = new Set([
 export default function WorkOrders() {
   const { user } = useAuth();
   const { addToast } = useToast();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const poFilter = searchParams.get("production_order_id");
   // view=pending → show only non-completed orders (from Pending Orders dashboard widget)
   const pendingView = searchParams.get("view") === "pending";
@@ -247,6 +308,7 @@ export default function WorkOrders() {
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState(null);
   const [filters, setFilters] = useState(defaultFilters);
+  const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [startModal, setStartModal] = useState(null);
   const [startChecks, setStartChecks] = useState([]);
@@ -369,16 +431,64 @@ export default function WorkOrders() {
   useEffect(() => { load(); }, [load]);
   useManufacturingRefresh(load);
 
+  const handleApplyFilters = useCallback(() => {
+    setAppliedFilters({ ...filters });
+    setPage(1);
+  }, [filters]);
+
+  const handleClearFilters = useCallback(() => {
+    setFilters({ ...defaultFilters });
+    setAppliedFilters({ ...defaultFilters });
+    setSearchParams({});
+    setPage(1);
+  }, [setSearchParams]);
+
+  const applyWorkOrderPreset = (preset) => {
+    if (preset === "all") {
+      handleClearFilters();
+      setShowAdvanced(false);
+      return;
+    }
+    if (preset === "delayed") {
+      const updated = { ...defaultFilters, preset: "delayed", delayed: true };
+      setFilters(updated);
+      setAppliedFilters(updated);
+      setShowAdvanced(false);
+      setPage(1);
+      return;
+    }
+    if (preset === "high_priority") {
+      const updated = { ...defaultFilters, preset: "high_priority", priority: "high" };
+      setFilters(updated);
+      setAppliedFilters(updated);
+      setShowAdvanced(false);
+      setPage(1);
+      return;
+    }
+    const updated = { ...defaultFilters, preset, status: preset };
+    setFilters(updated);
+    setAppliedFilters(updated);
+    setShowAdvanced(false);
+    setPage(1);
+  };
+
+  const handleFilterKeyDown = (e) => {
+    if (e.key === "Enter") {
+      handleApplyFilters();
+    }
+  };
+
   const filtered = useMemo(() => {
     return workOrders.filter((w) => {
       // When navigated from Pending Orders widget, only show non-completed orders
       if (pendingView && !PENDING_VIEW_STATUSES.has(w.status)) return false;
       if (poFilter && String(w.production_order_id) !== poFilter) return false;
-      if (filters.work_order_number) {
-        const q = filters.work_order_number.toLowerCase();
+      if (appliedFilters.search) {
+        const q = appliedFilters.search.toLowerCase();
         const hay = [
           w.work_order_number,
           w.production_order_number,
+          w.order_number,
           w.product_name,
           w.customer_name,
           w.machine_name,
@@ -389,22 +499,93 @@ export default function WorkOrders() {
           .toLowerCase();
         if (!hay.includes(q)) return false;
       }
-      if (filters.production_order && !String(w.production_order_number || "").toLowerCase().includes(filters.production_order.toLowerCase())) return false;
-      if (filters.product && !String(w.product_name || "").toLowerCase().includes(filters.product.toLowerCase())) return false;
-      if (filters.customer && !String(w.customer_name || "").toLowerCase().includes(filters.customer.toLowerCase())) return false;
-      if (filters.machine && !String(w.machine_name || "").toLowerCase().includes(filters.machine.toLowerCase())) return false;
-      if (filters.operator && !String(w.operator_name || "").toLowerCase().includes(filters.operator.toLowerCase())) return false;
-      if (filters.department && w.department !== filters.department) return false;
-      if (filters.shift && w.shift !== filters.shift) return false;
-      if (filters.priority && w.priority !== filters.priority) return false;
-      if (filters.status && w.status !== filters.status) return false;
+      if (
+        appliedFilters.work_order_number &&
+        !String(w.work_order_number || w.id || "")
+          .toLowerCase()
+          .includes(appliedFilters.work_order_number.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.production_order &&
+        !String(w.production_order_number || w.production_order_id || "")
+          .toLowerCase()
+          .includes(appliedFilters.production_order.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.product &&
+        !String(w.product_name || w.item_name || "")
+          .toLowerCase()
+          .includes(appliedFilters.product.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.customer &&
+        !String(w.customer_name || w.customer || "")
+          .toLowerCase()
+          .includes(appliedFilters.customer.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.machine &&
+        !String(w.machine_name || w.machine || "")
+          .toLowerCase()
+          .includes(appliedFilters.machine.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.operator &&
+        !String(w.operator_name || w.operator || "")
+          .toLowerCase()
+          .includes(appliedFilters.operator.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        appliedFilters.department &&
+        String(w.department || "").toLowerCase() !== appliedFilters.department.toLowerCase()
+      ) {
+        return false;
+      }
+      if (appliedFilters.shift) {
+        const shiftVal = typeof w.shift === "object" ? (w.shift?.id || w.shift?.label || "") : String(w.shift || "");
+        if (shiftVal.toLowerCase() !== appliedFilters.shift.toLowerCase()) return false;
+      }
+      if (
+        appliedFilters.priority &&
+        String(w.priority || "").toLowerCase() !== appliedFilters.priority.toLowerCase()
+      ) {
+        return false;
+      }
+      if (appliedFilters.delayed && !w.is_delayed) {
+        return false;
+      }
+      if (appliedFilters.status) {
+        const targetStatus = appliedFilters.status.toLowerCase();
+        const rowStatus = String(w.status || "").toLowerCase();
+        if (targetStatus === "completed" || targetStatus === "closed" || targetStatus === "done") {
+          if (!["completed", "closed", "done"].includes(rowStatus)) return false;
+        } else if (targetStatus === "in_progress" || targetStatus === "running") {
+          if (!["in_progress", "running"].includes(rowStatus)) return false;
+        } else if (targetStatus === "planned" || targetStatus === "draft" || targetStatus === "pending") {
+          if (!["planned", "draft", "pending", "material_ready", "machine_ready"].includes(rowStatus)) return false;
+        } else if (rowStatus !== targetStatus) {
+          return false;
+        }
+      }
       return true;
     });
-  }, [workOrders, filters, poFilter, pendingView]);
+  }, [workOrders, appliedFilters, poFilter, pendingView]);
 
   useEffect(() => {
     setPage(1);
-  }, [filters, pageSize]);
+  }, [appliedFilters, pageSize]);
 
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
@@ -419,7 +600,7 @@ export default function WorkOrders() {
   // differ from the enriched status on the frontend (e.g. "completed" when
   // produced >= planned). Using the enriched list keeps the summary cards
   // in sync with what is shown in the table.
-  const summary = useMemo(() => computeWorkOrderSummary(filtered), [filtered]);
+  const summary = useMemo(() => computeWorkOrderSummary(workOrders), [workOrders]);
 
   const openWo = async (wo) => {
     setSelected(wo);
@@ -713,12 +894,24 @@ export default function WorkOrders() {
         )}
 
         <div className="ui-grid-kpi print:hidden">
-          <KpiCard label="Total Work Orders" value={summary.total_work_orders} icon={ClipboardList} color="bg-[var(--color-primary)]" />
-          <KpiCard label="Planned" value={summary.planned_orders} icon={FileText} color="bg-blue-500" />
-          <KpiCard label="In Progress" value={summary.in_progress_orders} icon={Play} color="bg-amber-500" />
-          <KpiCard label="Completed" value={summary.completed_orders} icon={CheckCircle2} color="bg-green-500" />
-          <KpiCard label="Delayed" value={summary.delayed_orders} icon={AlertTriangle} color="bg-red-500" />
-          <KpiCard label="High Priority" value={summary.high_priority_orders} icon={Star} color="bg-purple-500" />
+          <ClickableKpiCard onClick={() => applyWorkOrderPreset("all")} title="Show all work orders" tone="primary">
+            <KpiCard label="Total Work Orders" value={summary.total_work_orders} icon={ClipboardList} tone="primary" meta="Click to filter" />
+          </ClickableKpiCard>
+          <ClickableKpiCard onClick={() => applyWorkOrderPreset("planned")} title="Show planned work orders" tone="info">
+            <KpiCard label="Planned" value={summary.planned_orders} icon={FileText} tone="info" meta="Click to filter" />
+          </ClickableKpiCard>
+          <ClickableKpiCard onClick={() => applyWorkOrderPreset("in_progress")} title="Show in-progress work orders" tone="warning">
+            <KpiCard label="In Progress" value={summary.in_progress_orders} icon={Play} tone="warning" meta="Click to filter" />
+          </ClickableKpiCard>
+          <ClickableKpiCard onClick={() => applyWorkOrderPreset("completed")} title="Show completed work orders" tone="success">
+            <KpiCard label="Completed" value={summary.completed_orders} icon={CheckCircle2} tone="success" meta="Click to filter" />
+          </ClickableKpiCard>
+          <ClickableKpiCard onClick={() => applyWorkOrderPreset("delayed")} title="Show delayed work orders" tone="danger">
+            <KpiCard label="Delayed" value={summary.delayed_orders} icon={AlertTriangle} tone="danger" meta="Click to filter" />
+          </ClickableKpiCard>
+          <ClickableKpiCard onClick={() => applyWorkOrderPreset("high_priority")} title="Show high priority work orders" tone="violet">
+            <KpiCard label="High Priority" value={summary.high_priority_orders} icon={Star} tone="violet" meta="Click to filter" />
+          </ClickableKpiCard>
         </div>
 
         <div className="ui-card min-w-0 p-4 sm:p-5 print:border-0 print:bg-white print:p-0 print:shadow-none">
@@ -727,9 +920,13 @@ export default function WorkOrders() {
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-icon)]" />
               <input
                 type="search"
-                placeholder="Search WO, product, customer, machine…"
-                value={filters.work_order_number}
-                onChange={(e) => setFilters((f) => ({ ...f, work_order_number: e.target.value }))}
+                placeholder="Search"
+                value={filters.search}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFilters((f) => ({ ...f, search: val }));
+                  setAppliedFilters((f) => ({ ...f, search: val }));
+                }}
                 className="ui-input !rounded-full pl-10"
               />
             </div>
@@ -761,33 +958,108 @@ export default function WorkOrders() {
 
           {showAdvanced && (
             <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 print:hidden">
-              <input placeholder="WO Number" value={filters.work_order_number} onChange={(e) => setFilters((f) => ({ ...f, work_order_number: e.target.value }))} className="ui-input" />
-              <input placeholder="Production Order" value={filters.production_order} onChange={(e) => setFilters((f) => ({ ...f, production_order: e.target.value }))} className="ui-input" />
-              <input placeholder="Product" value={filters.product} onChange={(e) => setFilters((f) => ({ ...f, product: e.target.value }))} className="ui-input" />
-              <input placeholder="Customer" value={filters.customer} onChange={(e) => setFilters((f) => ({ ...f, customer: e.target.value }))} className="ui-input" />
-              <input placeholder="Machine" value={filters.machine} onChange={(e) => setFilters((f) => ({ ...f, machine: e.target.value }))} className="ui-input" />
-              <input placeholder="Operator" value={filters.operator} onChange={(e) => setFilters((f) => ({ ...f, operator: e.target.value }))} className="ui-input" />
-              <select value={filters.department} onChange={(e) => setFilters((f) => ({ ...f, department: e.target.value }))} className="ui-select">
+              <input
+                placeholder="WO Number"
+                value={filters.work_order_number}
+                onChange={(e) => setFilters((f) => ({ ...f, work_order_number: e.target.value }))}
+                onKeyDown={handleFilterKeyDown}
+                className="ui-input"
+              />
+              <input
+                placeholder="Production Order"
+                value={filters.production_order}
+                onChange={(e) => setFilters((f) => ({ ...f, production_order: e.target.value }))}
+                onKeyDown={handleFilterKeyDown}
+                className="ui-input"
+              />
+              <input
+                placeholder="Product"
+                value={filters.product}
+                onChange={(e) => setFilters((f) => ({ ...f, product: e.target.value }))}
+                onKeyDown={handleFilterKeyDown}
+                className="ui-input"
+              />
+              <input
+                placeholder="Customer"
+                value={filters.customer}
+                onChange={(e) => setFilters((f) => ({ ...f, customer: e.target.value }))}
+                onKeyDown={handleFilterKeyDown}
+                className="ui-input"
+              />
+              <input
+                placeholder="Machine"
+                value={filters.machine}
+                onChange={(e) => setFilters((f) => ({ ...f, machine: e.target.value }))}
+                onKeyDown={handleFilterKeyDown}
+                className="ui-input"
+              />
+              <input
+                placeholder="Operator"
+                value={filters.operator}
+                onChange={(e) => setFilters((f) => ({ ...f, operator: e.target.value }))}
+                onKeyDown={handleFilterKeyDown}
+                className="ui-input"
+              />
+              <select
+                value={filters.department}
+                onChange={(e) => setFilters((f) => ({ ...f, department: e.target.value }))}
+                className="ui-select"
+              >
                 <option value="">Department</option>
-                {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                {DEPARTMENTS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
               </select>
-              <select value={filters.shift} onChange={(e) => setFilters((f) => ({ ...f, shift: e.target.value }))} className="ui-select">
+              <select
+                value={filters.shift}
+                onChange={(e) => setFilters((f) => ({ ...f, shift: e.target.value }))}
+                className="ui-select"
+              >
                 <option value="">Shift</option>
                 {SHIFTS.map((s) => {
                   const id = typeof s === "object" ? s.id : s;
                   const label = typeof s === "object" ? s.label : s;
-                  return <option key={id} value={id}>{label}</option>;
+                  return (
+                    <option key={id} value={id}>
+                      {label}
+                    </option>
+                  );
                 })}
               </select>
-              <select value={filters.priority} onChange={(e) => setFilters((f) => ({ ...f, priority: e.target.value }))} className="ui-select">
+              <select
+                value={filters.priority}
+                onChange={(e) => setFilters((f) => ({ ...f, priority: e.target.value }))}
+                className="ui-select"
+              >
                 <option value="">Priority</option>
-                {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+                {PRIORITIES.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
               </select>
-              <select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))} className="ui-select">
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
+                className="ui-select"
+              >
                 <option value="">Status</option>
-                {WO_STATUSES.map((s) => <option key={s} value={s}>{woStatusLabel(s)}</option>)}
+                {WO_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {woStatusLabel(s)}
+                  </option>
+                ))}
               </select>
-              <Button variant="secondary" type="button" onClick={() => setFilters(defaultFilters)}>Clear</Button>
+              <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-4 xl:col-span-5">
+                <Button variant="primary" type="button" onClick={handleApplyFilters}>
+                  Apply Filters
+                </Button>
+                <Button variant="secondary" type="button" onClick={handleClearFilters}>
+                  Clear
+                </Button>
+              </div>
             </div>
           )}
 
@@ -802,12 +1074,10 @@ export default function WorkOrders() {
                   icon="clipboard"
                   title="No work orders found"
                   description={
-                    Object.values(filters).some(Boolean)
+                    Object.values(appliedFilters).some(Boolean) || poFilter || pendingView
                       ? "No work orders match your filters. Clear filters or adjust search."
                       : "Create a work order to start production execution and open its Job Card."
                   }
-                  actionLabel={!isOperator(user) ? "New Work Order" : undefined}
-                  onAction={!isOperator(user) ? () => setShowQuickModal(true) : undefined}
                 />
               }
             />
@@ -837,6 +1107,7 @@ export default function WorkOrders() {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="ui-page-btn"
                 aria-label="Previous page"
+                title="Previous page"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -852,6 +1123,7 @@ export default function WorkOrders() {
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 className="ui-page-btn"
                 aria-label="Next page"
+                title="Next page"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>

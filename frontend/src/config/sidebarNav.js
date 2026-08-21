@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Factory,
   FolderOpen,
-  GitBranch,
   Landmark,
   Layers,
   LayoutDashboard,
@@ -31,15 +30,6 @@ export const SIDEBAR_NAV = [
     end: true,
   },
   {
-    key: "manufacturing-workflow",
-    labelKey: "erpNav.roleWorkflow",
-    label: "Manufacturing Workflow",
-    to: "/manufacturing/workflow",
-    icon: GitBranch,
-    module: "dashboard",
-    end: true,
-  },
-  {
     key: "masters",
     labelKey: "erpNav.masters",
     label: "Masters",
@@ -58,7 +48,6 @@ export const SIDEBAR_NAV = [
       { labelKey: "erpNav.productionPlanning", to: "/production/planning", module: "production" },
       { labelKey: "erpNav.workOrders", to: "/production/work-orders", module: "production" },
       { labelKey: "erpNav.jobCard", label: "Job Card", to: "/production/job-card", module: "production" },
-      { labelKey: "erpNav.roleWorkflow", label: "Manufacturing Workflow", to: "/manufacturing/workflow", module: "production" },
       { labelKey: "erpNav.productionSchedule", to: "/production/schedule", module: "production" },
       { labelKey: "erpNav.machineAllocation", to: "/production/tasks", module: "production" },
       { labelKey: "erpNav.dailyProductionReports", to: "/production/reports", module: "production" },
@@ -203,27 +192,9 @@ export const SIDEBAR_NAV = [
     labelKey: "erpNav.sales",
     icon: Wallet,
     children: [
-      { label: "Invoices", to: "/sales/invoices", module: "sales" },
-      { label: "Quotations", to: "/sales/quotations", module: "sales" },
-      { label: "Payment Receipts", to: "/sales/payment-receipts", module: "sales" },
-      { label: "Refund Vouchers", to: "/sales/refund-vouchers", module: "sales" },
-      { label: "Proforma Invoice", to: "/sales/proforma-invoices", module: "sales" },
-      { label: "Export Invoice", to: "/sales/export-invoices", module: "sales" },
-      { label: "Export Proforma Invoice", to: "/sales/export-proforma-invoices", module: "sales" },
-      { label: "Delivery Challans", to: "/sales/delivery-challans", module: "sales" },
-      { label: "Credit Note", to: "/sales/credit-notes", module: "sales" },
-      { label: "e-Invoice", to: "/sales/e-invoice", module: "sales" },
-      { label: "Sales Debit Note", to: "/sales/debit-notes", module: "sales" },
-      { label: "E-Waybill Login", to: "/ewaybill/login", module: "sales" },
-      { label: "Digital Signature", to: "/digital-signature", module: "sales" },
+      { labelKey: "erpNav.workOrders", label: "Work Orders", to: "/production/work-orders", module: "sales" },
+      { labelKey: "erpNav.jobCard", label: "Job Card", to: "/production/job-card", module: "sales" },
     ],
-  },
-  {
-    key: "expense",
-    label: "Expense",
-    to: "/accounts/expenses",
-    icon: Wallet,
-    module: "accounts",
   },
   {
     key: "finance",
@@ -231,6 +202,19 @@ export const SIDEBAR_NAV = [
     labelKey: "erpNav.finance",
     icon: Landmark,
     children: [
+      { label: "Invoices", to: "/sales/invoices", module: "accounts" },
+      { label: "Quotations", to: "/sales/quotations", module: "accounts" },
+      { label: "Payment Receipts", to: "/sales/payment-receipts", module: "accounts" },
+      { label: "Refund Vouchers", to: "/sales/refund-vouchers", module: "accounts" },
+      { label: "Proforma Invoice", to: "/sales/proforma-invoices", module: "accounts" },
+      { label: "Export Invoice", to: "/sales/export-invoices", module: "accounts" },
+      { label: "Export Proforma Invoice", to: "/sales/export-proforma-invoices", module: "accounts" },
+      { label: "Delivery Challans", to: "/sales/delivery-challans", module: "accounts" },
+      { label: "Credit Note", to: "/sales/credit-notes", module: "accounts" },
+      { label: "e-Invoice", to: "/sales/e-invoice", module: "accounts" },
+      { label: "Sales Debit Note", to: "/sales/debit-notes", module: "accounts" },
+      { label: "E-Waybill Login", to: "/ewaybill/login", module: "accounts" },
+      { label: "Digital Signature", to: "/digital-signature", module: "accounts" },
       { label: "Ledger", to: "/accounts/ledger", module: "accounts" },
       { label: "Expense", to: "/accounts/expenses", module: "accounts" },
       { label: "Expense Settings", to: "/accounts/expenses/settings", module: "accounts" },
@@ -330,7 +314,9 @@ export const SIDEBAR_NAV = [
     key: "settings",
     label: "Settings",
     labelKey: "erpNav.settings",
+    to: "/settings",
     icon: Settings,
+<<<<<<< HEAD
     children: [
 
       { label: "Workflow", to: "/manufacturing/workflow", module: "dashboard"},
@@ -343,6 +329,9 @@ export const SIDEBAR_NAV = [
       { label: "Inventory Settings", to: "/inventory/settings", module: "settings" },
       { label: "Sequence Reset Setting", to: "/settings/sequence-reset", module: "settings" },
     ],
+=======
+    module: "settings",
+>>>>>>> 2d0140ee5d6b7bf219d6621ff732a45bcb0870d0
   },
 ];
 

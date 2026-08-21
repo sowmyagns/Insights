@@ -20,6 +20,15 @@ export async function login(email, password, role) {
   }
 }
 
+export async function phoneLogin(phone, role, idToken = null) {
+  const { data } = await api.post("/auth/phone-login", {
+    phone,
+    role,
+    id_token: idToken || undefined,
+  });
+  return data;
+}
+
 export async function getCurrentUser() {
   try {
     const { data } = await api.get("/auth/me");

@@ -2,7 +2,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { superAdminLogin } from "../../api/platformApi";
-import BrandLogo from "../../components/common/BrandLogo";
 import "./SuperAdminLogin.css";
 
 /* ── inline SVG icons ── */
@@ -59,6 +58,7 @@ export default function SuperAdminLogin() {
         state: {
           challengeToken:      data.challenge_token,
           maskedMobile:        data.masked_mobile,
+          mobile:              data.mobile || data.masked_mobile,
           expiresInSeconds:    data.expires_in_seconds,
           resendAfterSeconds:  data.resend_after_seconds,
           devOtp:              data.dev_otp || null,
@@ -121,9 +121,6 @@ export default function SuperAdminLogin() {
 
           {/* logo + heading */}
           <div className="sa-card__header">
-            <div className="sa-card__logo">
-              <BrandLogo size="lg" />
-            </div>
             <h1 className="sa-card__title">Insights Iva Admin Portal</h1>
             <p className="sa-card__subtitle">Super Admin sign in</p>
           </div>

@@ -7,6 +7,8 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   ClipboardList,
   Eye,
   FileSpreadsheet,
@@ -74,7 +76,7 @@ import { cleanProductLabel } from "../../utils/productLabel";
 import QuickWorkOrderModal from "../../components/production/QuickWorkOrderModal";
 import IssueMaterialsModal from "../../components/production/IssueMaterialsModal";
 
-const PAGE_SIZES = [20, 50, 100];
+const PAGE_SIZES = [20, 50, 100, 200, 500];
 
 function statusTone(row) {
   if (row?.is_delayed) return "danger";
@@ -147,8 +149,11 @@ function OrderActions({
     e?.stopPropagation?.();
     const rect = menuBtnRef.current?.getBoundingClientRect();
     if (rect) {
+      const menuHeight = more.length * 36 + 16;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = spaceBelow < menuHeight ? Math.max(8, rect.top - menuHeight - 4) : rect.bottom + 4;
       setMenuPos({
-        top: rect.bottom + 4,
+        top,
         left: Math.max(8, rect.right - 192),
       });
     }
@@ -247,12 +252,27 @@ const PLANNED_STATUSES = ["draft", "planned", "pending", "material_ready", "mach
 const IN_PROGRESS_STATUSES = ["in_progress", "running", "quality_check"];
 const COMPLETED_STATUSES = ["completed", "closed", "done"];
 
-function ClickableKpiCard({ onClick, title, children }) {
+const KPI_TONE_RING = {
+  primary: "hover:ring-2 hover:ring-[var(--kpi-primary)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-primary)]",
+  info: "hover:ring-2 hover:ring-[var(--kpi-info)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-info)]",
+  success: "hover:ring-2 hover:ring-[var(--kpi-success)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-success)]",
+  warning: "hover:ring-2 hover:ring-[var(--kpi-warning)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-warning)]",
+  danger: "hover:ring-2 hover:ring-[var(--kpi-danger)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-danger)]",
+  yellow: "hover:ring-2 hover:ring-[var(--kpi-warning)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-warning)]",
+  violet: "hover:ring-2 hover:ring-[var(--kpi-violet)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-violet)]",
+  teal: "hover:ring-2 hover:ring-[var(--kpi-teal)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-teal)]",
+  orange: "hover:ring-2 hover:ring-[var(--kpi-orange)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-orange)]",
+  neutral: "hover:ring-2 hover:ring-[var(--kpi-neutral)] focus-visible:ring-2 focus-visible:ring-[var(--kpi-neutral)]",
+};
+
+function ClickableKpiCard({ onClick, title, tone, children }) {
+  const resolvedTone = tone || children?.props?.tone || "primary";
+  const ringClass = KPI_TONE_RING[resolvedTone] || KPI_TONE_RING.primary;
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full rounded-[var(--radius-lg)] text-left transition hover:ring-2 hover:ring-[var(--color-focus-ring)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]"
+      className={`h-full w-full rounded-[var(--radius-lg)] text-left transition focus:outline-none ${ringClass}`}
       title={title}
     >
       {children}
@@ -330,6 +350,7 @@ export default function ProductionPlanning() {
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState(null);
   const [filters, setFilters] = useState(defaultFilters);
+  const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [startModal, setStartModal] = useState(null);
   const [startChecks, setStartChecks] = useState([]);
@@ -401,7 +422,9 @@ export default function ProductionPlanning() {
     const date_from = searchParams.get("date_from") ?? "";
     const date_to = searchParams.get("date_to") ?? "";
     if (date_from || date_to) {
-      setFilters({ ...defaultFilters, preset: "today", date_from, date_to });
+      const updated = { ...defaultFilters, preset: "today", date_from, date_to };
+      setFilters(updated);
+      setAppliedFilters(updated);
       setShowAdvanced(true);
     }
   }, [searchParams]);
@@ -417,7 +440,7 @@ export default function ProductionPlanning() {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
-      const q = String(filters.q || "").trim().toLowerCase();
+      const q = String(appliedFilters.q || "").trim().toLowerCase();
       if (q) {
         const hay = [
           o.order_number,
@@ -432,34 +455,34 @@ export default function ProductionPlanning() {
           .toLowerCase();
         if (!hay.includes(q)) return false;
       }
-      if (filters.order_number && !String(o.order_number).toLowerCase().includes(filters.order_number.toLowerCase())) return false;
-      if (filters.product && !String(o.product_name || "").toLowerCase().includes(filters.product.toLowerCase())) return false;
-      if (filters.customer && !String(o.customer_name || o.buyer_company || "").toLowerCase().includes(filters.customer.toLowerCase())) return false;
-      if (filters.work_order && !String(o.work_order_number || "").toLowerCase().includes(filters.work_order.toLowerCase())) return false;
-      if (filters.machine && !String(o.machine_name || "").toLowerCase().includes(filters.machine.toLowerCase())) return false;
-      if (filters.department && o.department !== filters.department) return false;
-      if (filters.shift && o.shift !== filters.shift) return false;
-      if (filters.priority && o.priority !== filters.priority) return false;
+      if (appliedFilters.order_number && !String(o.order_number).toLowerCase().includes(appliedFilters.order_number.toLowerCase())) return false;
+      if (appliedFilters.product && !String(o.product_name || "").toLowerCase().includes(appliedFilters.product.toLowerCase())) return false;
+      if (appliedFilters.customer && !String(o.customer_name || o.buyer_company || "").toLowerCase().includes(appliedFilters.customer.toLowerCase())) return false;
+      if (appliedFilters.work_order && !String(o.work_order_number || "").toLowerCase().includes(appliedFilters.work_order.toLowerCase())) return false;
+      if (appliedFilters.machine && !String(o.machine_name || "").toLowerCase().includes(appliedFilters.machine.toLowerCase())) return false;
+      if (appliedFilters.department && o.department !== appliedFilters.department) return false;
+      if (appliedFilters.shift && o.shift !== appliedFilters.shift) return false;
+      if (appliedFilters.priority && o.priority !== appliedFilters.priority) return false;
 
       const status = String(o.status || "").toLowerCase();
-      if (filters.preset === "planned" && !PLANNED_STATUSES.includes(status)) return false;
-      if (filters.preset === "in_progress" && !IN_PROGRESS_STATUSES.includes(status)) return false;
-      if (filters.preset === "completed" && !COMPLETED_STATUSES.includes(status)) return false;
-      if (filters.preset === "delayed" && !o.is_delayed && status !== "delayed") return false;
+      if (appliedFilters.preset === "planned" && !PLANNED_STATUSES.includes(status)) return false;
+      if (appliedFilters.preset === "in_progress" && !IN_PROGRESS_STATUSES.includes(status)) return false;
+      if (appliedFilters.preset === "completed" && !COMPLETED_STATUSES.includes(status)) return false;
+      if (appliedFilters.preset === "delayed" && !o.is_delayed && status !== "delayed") return false;
 
-      if (filters.status && o.status !== filters.status) return false;
+      if (appliedFilters.status && o.status !== appliedFilters.status) return false;
       const startDate = o.start_date ? String(o.start_date).slice(0, 10) : "";
       const createdDate = o.created_at ? String(o.created_at).slice(0, 10) : "";
       const effectiveDate = startDate || createdDate;
-      if (filters.date_from && (!effectiveDate || effectiveDate < filters.date_from)) return false;
-      if (filters.date_to && (!effectiveDate || effectiveDate > filters.date_to)) return false;
+      if (appliedFilters.date_from && (!effectiveDate || effectiveDate < appliedFilters.date_from)) return false;
+      if (appliedFilters.date_to && (!effectiveDate || effectiveDate > appliedFilters.date_to)) return false;
       return true;
     });
-  }, [orders, filters]);
+  }, [orders, appliedFilters]);
 
   useEffect(() => {
     setPage(1);
-  }, [filters, pageSize]);
+  }, [appliedFilters, pageSize]);
 
   const total = filteredOrders.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
@@ -471,7 +494,7 @@ export default function ProductionPlanning() {
 
   const summary = useMemo(() => {
     const computed = computePlanningSummary(filteredOrders);
-    const filtersActive = Object.entries(filters).some(([key, val]) => {
+    const filtersActive = Object.entries(appliedFilters).some(([key, val]) => {
       if (key === "preset" && (!val || val === "all")) return false;
       return Boolean(val);
     });
@@ -488,14 +511,34 @@ export default function ProductionPlanning() {
       };
     }
     return computed;
-  }, [apiSummary, filteredOrders, filters]);
+  }, [apiSummary, filteredOrders, appliedFilters]);
 
   const showTodayStartOrders = () => {
     const today = new Date().toISOString().slice(0, 10);
-    setFilters({ ...defaultFilters, preset: "today", date_from: today, date_to: today });
+    const updated = { ...defaultFilters, preset: "today", date_from: today, date_to: today };
+    setFilters(updated);
+    setAppliedFilters(updated);
     setSearchParams({ date_from: today, date_to: today });
     setShowAdvanced(true);
     setPage(1);
+  };
+
+  const handleApplyFilters = useCallback(() => {
+    setAppliedFilters({ ...filters });
+    setPage(1);
+  }, [filters]);
+
+  const handleClearFilters = useCallback(() => {
+    setFilters({ ...defaultFilters });
+    setAppliedFilters({ ...defaultFilters });
+    setSearchParams({});
+    setPage(1);
+  }, [setSearchParams]);
+
+  const handleFilterKeyDown = (e) => {
+    if (e.key === "Enter") {
+      handleApplyFilters();
+    }
   };
 
   const applyPlanningPreset = (preset) => {
@@ -504,13 +547,13 @@ export default function ProductionPlanning() {
       return;
     }
     if (preset === "all") {
-      setFilters({ ...defaultFilters, preset: "all" });
-      setSearchParams({});
+      handleClearFilters();
       setShowAdvanced(false);
-      setPage(1);
       return;
     }
-    setFilters({ ...defaultFilters, preset });
+    const updated = { ...defaultFilters, preset };
+    setFilters(updated);
+    setAppliedFilters(updated);
     setSearchParams({});
     setShowAdvanced(true);
     setPage(1);
@@ -936,22 +979,22 @@ export default function ProductionPlanning() {
           />
 
           <div className="ui-grid-kpi print:hidden">
-            <ClickableKpiCard onClick={() => applyPlanningPreset("all")} title="Show all production orders">
+            <ClickableKpiCard onClick={() => applyPlanningPreset("all")} title="Show all production orders" tone="primary">
               <KpiCard label="Total Orders" value={summary.total_orders ?? 0} icon={ClipboardList} tone="primary" meta="Click to filter" />
             </ClickableKpiCard>
-            <ClickableKpiCard onClick={() => applyPlanningPreset("planned")} title="Show planned orders">
+            <ClickableKpiCard onClick={() => applyPlanningPreset("planned")} title="Show planned orders" tone="yellow">
               <KpiCard label="Planned" value={summary.planned_orders ?? 0} icon={FileText} tone="yellow" meta="Click to filter" />
             </ClickableKpiCard>
-            <ClickableKpiCard onClick={() => applyPlanningPreset("in_progress")} title="Show in-progress orders">
+            <ClickableKpiCard onClick={() => applyPlanningPreset("in_progress")} title="Show in-progress orders" tone="warning">
               <KpiCard label="In Progress" value={summary.in_progress_orders ?? 0} icon={Play} tone="warning" meta="Click to filter" />
             </ClickableKpiCard>
-            <ClickableKpiCard onClick={() => applyPlanningPreset("completed")} title="Show completed orders">
+            <ClickableKpiCard onClick={() => applyPlanningPreset("completed")} title="Show completed orders" tone="success">
               <KpiCard label="Completed" value={summary.completed_orders ?? 0} icon={CheckCircle2} tone="success" meta="Click to filter" />
             </ClickableKpiCard>
-            <ClickableKpiCard onClick={() => applyPlanningPreset("delayed")} title="Show delayed orders">
+            <ClickableKpiCard onClick={() => applyPlanningPreset("delayed")} title="Show delayed orders" tone="danger">
               <KpiCard label="Delayed" value={summary.delayed_orders ?? 0} icon={AlertTriangle} tone="danger" meta="Click to filter" />
             </ClickableKpiCard>
-            <ClickableKpiCard onClick={showTodayStartOrders} title="Show orders starting today">
+            <ClickableKpiCard onClick={showTodayStartOrders} title="Show orders starting today" tone="violet">
               <KpiCard
                 label="Today's Production"
                 value={summary.todays_production?.toLocaleString?.() ?? summary.todays_production ?? 0}
@@ -968,7 +1011,7 @@ export default function ProductionPlanning() {
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-icon)]" />
                 <input
                   type="search"
-                  placeholder="Search order, product, customer…"
+                  placeholder="Search"
                   value={filters.q}
                   onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value, preset: "" }))}
                   className="ui-input !rounded-full pl-10"
@@ -1012,39 +1055,118 @@ export default function ProductionPlanning() {
             </div>
 
             {showAdvanced ? (
-              <div className="mb-4 grid gap-3 rounded-[var(--radius-md)] border border-[#f0e0a8] bg-[#fffbeb] p-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 print:hidden">
-                <input placeholder="Order No." value={filters.order_number} onChange={(e) => patchFilters({ order_number: e.target.value })} className="ui-input !bg-white" />
-                <input placeholder="Product" value={filters.product} onChange={(e) => patchFilters({ product: e.target.value })} className="ui-input !bg-white" />
-                <input placeholder="Customer" value={filters.customer} onChange={(e) => patchFilters({ customer: e.target.value })} className="ui-input !bg-white" />
-                <input placeholder="Work Order" value={filters.work_order} onChange={(e) => patchFilters({ work_order: e.target.value })} className="ui-input !bg-white" />
-                <input placeholder="Machine" value={filters.machine} onChange={(e) => patchFilters({ machine: e.target.value })} className="ui-input !bg-white" />
-                <div className="mr-0.5">
-                  <select value={filters.department} onChange={(e) => patchFilters({ department: e.target.value })} className="ui-select w-full !bg-white">
+              <div className="mb-4 rounded-[24px] border border-[#dfe7e3] bg-[#f3f5f4] p-3 print:hidden">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                  <input
+                    placeholder="Order No."
+                    value={filters.order_number}
+                    onChange={(e) => patchFilters({ order_number: e.target.value })}
+                    onKeyDown={handleFilterKeyDown}
+                    className="ui-input !min-h-[44px] !rounded-[18px] !border-[#dfe7e3] !bg-[#edf3f1] !text-[14px] !text-[#1f2b2d] placeholder:!text-[#64748b]"
+                  />
+                  <input
+                    placeholder="Product"
+                    value={filters.product}
+                    onChange={(e) => patchFilters({ product: e.target.value })}
+                    onKeyDown={handleFilterKeyDown}
+                    className="ui-input !min-h-[44px] !rounded-[18px] !border-[#dfe7e3] !bg-[#edf3f1] !text-[14px] !text-[#1f2b2d] placeholder:!text-[#64748b]"
+                  />
+                  <input
+                    placeholder="Customer"
+                    value={filters.customer}
+                    onChange={(e) => patchFilters({ customer: e.target.value })}
+                    onKeyDown={handleFilterKeyDown}
+                    className="ui-input !min-h-[44px] !rounded-[18px] !border-[#dfe7e3] !bg-[#edf3f1] !text-[14px] !text-[#1f2b2d] placeholder:!text-[#64748b]"
+                  />
+                  <input
+                    placeholder="Work Order"
+                    value={filters.work_order}
+                    onChange={(e) => patchFilters({ work_order: e.target.value })}
+                    onKeyDown={handleFilterKeyDown}
+                    className="ui-input !min-h-[44px] !rounded-[18px] !border-[#dfe7e3] !bg-[#edf3f1] !text-[14px] !text-[#1f2b2d] placeholder:!text-[#64748b]"
+                  />
+                  <input
+                    placeholder="Machine"
+                    value={filters.machine}
+                    onChange={(e) => patchFilters({ machine: e.target.value })}
+                    onKeyDown={handleFilterKeyDown}
+                    className="ui-input !min-h-[44px] !rounded-[18px] !border-[#dfe7e3] !bg-[#edf3f1] !text-[14px] !text-[#1f2b2d] placeholder:!text-[#64748b]"
+                  />
+                  <select
+                    value={filters.department}
+                    onChange={(e) => patchFilters({ department: e.target.value })}
+                    className="ui-select !min-h-[44px] !rounded-[18px] !border-[#dfe7e3] !bg-[#edf3f1] !text-[14px] !text-[#1f2b2d]"
+                  >
                     <option value="">Department</option>
-                    {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                    {DEPARTMENTS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
                   </select>
+                  <select
+                    value={filters.shift}
+                    onChange={(e) => patchFilters({ shift: e.target.value })}
+                    className="ui-select !min-h-[44px] !rounded-[18px] !border-[#dfe7e3] !bg-[#edf3f1] !text-[14px] !text-[#1f2b2d]"
+                  >
+                    <option value="">Shift</option>
+                    {SHIFTS.map((s) => {
+                      const id = typeof s === "object" ? s.id : s;
+                      const label = typeof s === "object" ? s.label : s;
+                      return (
+                        <option key={id} value={id}>
+                          {label}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <select
+                    value={filters.priority}
+                    onChange={(e) => patchFilters({ priority: e.target.value })}
+                    className="ui-select !min-h-[44px] !rounded-[18px] !border-[#dfe7e3] !bg-[#edf3f1] !text-[14px] !text-[#1f2b2d]"
+                  >
+                    <option value="">Priority</option>
+                    {PRIORITIES.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={filters.status}
+                    onChange={(e) => patchFilters({ status: e.target.value })}
+                    className="ui-select !min-h-[44px] !rounded-[18px] !border-[#dfe7e3] !bg-[#edf3f1] !text-[14px] !text-[#1f2b2d]"
+                  >
+                    <option value="">Status</option>
+                    {ORDER_STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {statusLabel(s)}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="date"
+                    value={filters.date_from}
+                    onChange={(e) => patchFilters({ date_from: e.target.value })}
+                    onKeyDown={handleFilterKeyDown}
+                    className="ui-input !min-h-[44px] !rounded-[18px] !border-[#dfe7e3] !bg-[#edf3f1] !text-[14px] !text-[#1f2b2d]"
+                  />
+                  <input
+                    type="date"
+                    value={filters.date_to}
+                    onChange={(e) => patchFilters({ date_to: e.target.value })}
+                    onKeyDown={handleFilterKeyDown}
+                    className="ui-input !min-h-[44px] !rounded-[18px] !border-[#dfe7e3] !bg-[#edf3f1] !text-[14px] !text-[#1f2b2d]"
+                  />
                 </div>
-                <select value={filters.shift} onChange={(e) => patchFilters({ shift: e.target.value })} className="ui-select !bg-white">
-                  <option value="">Shift</option>
-                  {SHIFTS.map((s) => {
-                    const id = typeof s === "object" ? s.id : s;
-                    const label = typeof s === "object" ? s.label : s;
-                    return <option key={id} value={id}>{label}</option>;
-                  })}
-                </select>
-                <select value={filters.priority} onChange={(e) => patchFilters({ priority: e.target.value })} className="ui-select !bg-white">
-                  <option value="">Priority</option>
-                  {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
-                <select value={filters.status} onChange={(e) => patchFilters({ status: e.target.value })} className="ui-select !bg-white">
-                  <option value="">Status</option>
-                  {ORDER_STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
-                </select>
-                <input type="date" value={filters.date_from} onChange={(e) => patchFilters({ date_from: e.target.value })} className="ui-input !bg-white" />
-                <input type="date" value={filters.date_to} onChange={(e) => patchFilters({ date_to: e.target.value })} className="ui-input !bg-white" />
-                <Button variant="secondary" type="button" onClick={() => applyPlanningPreset("all")}>
-                  Clear filters
-                </Button>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <Button variant="primary" type="button" onClick={handleApplyFilters} className="!min-h-[40px] !rounded-[14px] !px-5 !text-[14px]">
+                    Apply Filters
+                  </Button>
+                  <Button variant="secondary" type="button" onClick={handleClearFilters} className="!min-h-[40px] !rounded-[14px] !px-5 !text-[14px] !bg-transparent !border-[#dfe7e3] !text-[#1f2b2d]">
+                    Clear
+                  </Button>
+                </div>
               </div>
             ) : null}
 
@@ -1057,27 +1179,41 @@ export default function ProductionPlanning() {
                 emptyState={
                   <div className="px-4 py-16 text-center">
                     <ClipboardList className="mx-auto h-14 w-14 text-[var(--color-text-icon)]" strokeWidth={1.25} />
-                    <p className="mt-4 text-sm font-semibold text-[var(--color-text)]">No production orders yet</p>
+                    <p className="mt-4 text-sm font-semibold text-[var(--color-text)]">
+                      {Object.values(filters).some(Boolean)
+                        ? "No production orders match your filters."
+                        : "No production orders yet"}
+                    </p>
                     <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                      Create an order to start planning, or review material requests for shortages.
+                      {Object.values(filters).some(Boolean)
+                        ? "Clear filters or adjust search to view all orders."
+                        : "Create an order to start planning, or review material requests for shortages."}
                     </p>
                     <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                      {canCreate ? (
-                        <Button
-                          variant="success"
-                          type="button"
-                          onClick={() => {
-                            setEditModalOrder(null);
-                            setCreateOrderModalOpen(true);
-                          }}
-                        >
-                          <Plus className="h-4 w-4" />
-                          New Production Order
+                      {Object.values(filters).some(Boolean) ? (
+                        <Button variant="secondary" type="button" onClick={handleClearFilters}>
+                          Clear Filters
                         </Button>
-                      ) : null}
-                      <Button variant="secondary" to="/procurement/material-requests">
-                        Material Requests
-                      </Button>
+                      ) : (
+                        <>
+                          {canCreate ? (
+                            <Button
+                              variant="success"
+                              type="button"
+                              onClick={() => {
+                                setEditModalOrder(null);
+                                setCreateOrderModalOpen(true);
+                              }}
+                            >
+                              <Plus className="h-4 w-4" />
+                              New Production Order
+                            </Button>
+                          ) : null}
+                          <Button variant="secondary" to="/procurement/material-requests">
+                            Material Requests
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 }
@@ -1086,7 +1222,7 @@ export default function ProductionPlanning() {
 
             <div className="mt-4 flex flex-wrap items-center justify-end gap-3 text-[12px] text-[var(--color-text-muted)] print:hidden">
               <div className="mr-auto flex items-center gap-2">
-                <span>Rows per page</span>
+                <span>Rows per page:</span>
                 <select
                   value={pageSize}
                   onChange={(e) => setPageSize(Number(e.target.value))}
@@ -1107,6 +1243,7 @@ export default function ProductionPlanning() {
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   className="ui-page-btn"
                   aria-label="Previous page"
+                  title="Previous page"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -1119,6 +1256,7 @@ export default function ProductionPlanning() {
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   className="ui-page-btn"
                   aria-label="Next page"
+                  title="Next page"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
