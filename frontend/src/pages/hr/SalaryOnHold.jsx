@@ -1,12 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 
-const MOCK = [
-  { id:1, emp:"Ravi Kumar",   dept:"Engineering", month:"2025-06", paidDays:0,  deduct:6750,  gross:50000, net:43250, reason:"Pending documents",  status:"On Hold",  updatedBy:"HR Admin" },
-  { id:2, emp:"Priya Sharma", dept:"HR",          month:"2025-07", paidDays:26, deduct:5700,  gross:40000, net:34300, reason:"Disciplinary action", status:"On Hold",  updatedBy:"HR Admin" },
-  { id:3, emp:"Arjun Singh",  dept:"Sales",       month:"2025-05", paidDays:26, deduct:6300,  gross:50000, net:43700, reason:"Salary revision",     status:"Released", updatedBy:"HR Admin" },
-];
-
 const INR = (n) => "₹" + Number(n).toLocaleString("en-IN");
 const MONTHS_OPTS = Array.from({ length:12 }, (_, i) => {
   const d = new Date(2025, i, 1);
@@ -55,7 +49,7 @@ function HoldModal({ onClose, onSave }) {
 }
 
 export default function SalaryOnHold() {
-  const [records, setRecords] = useState(MOCK);
+  const [records, setRecords] = useState([]);
   const [month, setMonth] = useState("");
   const [empSearch, setEmpSearch] = useState("");
   const [showHold, setShowHold] = useState(false);

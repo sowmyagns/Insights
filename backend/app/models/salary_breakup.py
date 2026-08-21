@@ -7,6 +7,7 @@ class SalaryBreakup(Base):
     __tablename__ = "salary_breakups"
 
     id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     employee_id = Column(Integer, ForeignKey("employees.id"))
     department_id = Column(Integer, ForeignKey("departments.id"))
     ctc_annual = Column(Float, default=0)

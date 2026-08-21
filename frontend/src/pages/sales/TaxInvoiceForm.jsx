@@ -139,30 +139,6 @@ function lineTotals(row) {
   return { taxable, gst, total: money(taxable + gst) };
 }
 
-function FieldLabel({ children }) {
-  return <span className="mb-1.5 block text-[12px] font-medium text-[#6b6b76]">{children}</span>;
-}
-
-function SoftInput({ className = "", ...props }) {
-  return (
-    <input
-      {...props}
-      className={`w-full rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-3 py-2.5 text-[13px] text-[#1a1a1f] placeholder:text-[#a0a0ab] focus:border-[#6b4eff] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#c4b5fd] ${className}`}
-    />
-  );
-}
-
-function SoftSelect({ className = "", children, ...props }) {
-  return (
-    <select
-      {...props}
-      className={`w-full rounded-md border border-[#d0d0d8] bg-[#f7f7f9] px-3 py-2.5 text-[13px] text-[#1a1a1f] focus:border-[#6b4eff] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#c4b5fd] ${className}`}
-    >
-      {children}
-    </select>
-  );
-}
-
 function SideDropdown({ className = "", iconClassName = "", children, ...props }) {
   return (
     <div className="relative">
@@ -174,37 +150,6 @@ function SideDropdown({ className = "", iconClassName = "", children, ...props }
       </select>
       <ChevronDown className={`pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#6b6b76] ${iconClassName}`} />
     </div>
-  );
-}
-
-function Pill({ active, onClick, children, soft }) {
-  if (soft) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition ${
-          active
-            ? "border-[#6b4eff] bg-[#efeaf8] text-[#4a3fd0]"
-            : "border-[#e4e4ea] bg-[#f7f7f9] text-[#4a4a55] hover:bg-[#efefef]"
-        }`}
-      >
-        {children}
-      </button>
-    );
-  }
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-3 py-1.5 text-[12px] font-medium transition ${
-        active
-          ? "bg-[#2d2a4a] text-white"
-          : "bg-[#f0f0f3] text-[#4a4a55] hover:bg-[#e4e4ea]"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 

@@ -220,7 +220,7 @@ export const RoleWorkflowBoard = lazy(() => import("../pages/manufacturing/RoleW
 // ── HR ─────────────────────────────────────────────────────────────────────
 // Components that need props → use wrapper pages that provide the data
 export const HRDashboard = lazy(() => import("../pages/hr/HRDashboardPage"));
-export const HRRegister = lazy(() => import("../pages/hr/HRRegisterPage"));
+
 export const HRAttendance = lazy(() => import("../pages/hr/HRAttendancePage"));
 export const HRLeave = lazy(() => import("../pages/hr/HRLeavePage"));
 export const HRShiftsOvertime = lazy(() => import("../pages/hr/HRShiftsOvertimePage"));
@@ -231,7 +231,6 @@ export const HRMISReports = lazy(() => import("../pages/hr/HRMISReportsPage"));
 // Standalone components (no props needed)
 export const HREmployeeOnboarding = lazy(() => import("../pages/hr/EmployeeOnboarding"));
 export const HRPreboarding = lazy(() => import("../pages/hr/Preboarding"));
-export const HRDepartments = lazy(() => import("../pages/hr/Departments"));
 export const HRAssetManagement = lazy(() => import("../pages/hr/AssetManagement"));
 export const HRAnnouncements = lazy(() => import("../pages/hr/Announcements"));
 export const HRSetWeeklyOff = lazy(() => import("../pages/hr/SetWeeklyOff"));

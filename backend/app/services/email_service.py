@@ -92,6 +92,7 @@ def _send_via_smtplib(
         msg.add_attachment(content, maintype=maintype, subtype=subtype or "octet-stream", filename=filename)
 
     try:
+        logger.info("email_send_start to=%s subject=%s via=smtplib", to, subject)
         with smtplib.SMTP(s.smtp_host, s.smtp_port, timeout=30) as server:
             try:
                 server.ehlo()
@@ -156,7 +157,9 @@ async def _send_via_fastapi_mail(
         subtype=MessageType.html if html else MessageType.plain,
     )
     try:
+        logger.info("email_send_start to=%s subject=%s via=fastapi_mail", to, subject)
         await FastMail(conf).send_message(message)
+        logger.info("email_send_success to=%s subject=%s via=fastapi_mail", to, subject)
     except Exception as exc:
         logger.error("FastAPI-Mail send failed to=%s subject=%s: %s", to, subject, str(exc))
         raise EmailDeliveryError(f"FastAPI-Mail delivery failed: {str(exc)}") from exc

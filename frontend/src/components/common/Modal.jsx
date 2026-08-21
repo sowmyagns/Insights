@@ -1,4 +1,4 @@
-export default function Modal({ title, open, onClose, children }) {
+export default function Modal({ title, open = true, onClose, actions, children }) {
   if (!open) return null;
   return (
     <div className="ui-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
@@ -14,6 +14,7 @@ export default function Modal({ title, open, onClose, children }) {
           </button>
         </div>
         <div>{children}</div>
+        {actions ? <div className="mt-5 flex justify-end gap-2 border-t border-[var(--color-border-muted)] pt-4">{actions}</div> : null}
       </div>
     </div>
   );

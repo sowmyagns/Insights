@@ -1,45 +1,221 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import axiosInstance from "../../api/axiosConfig";
+import { inputClass } from "../../design-system/classes";
 
-const MOCK = [
-  { id:1, name:"Ananya Krishnan",  designation:"Software Engineer", branch:"Head Office", dept:"Engineering",  email:"ananya@example.com", phone:"9876543210", doj:"2025-08-01", status:"Offer Sent",    task:"Document Collection" },
-  { id:2, name:"Rohit Verma",      designation:"Sales Executive",   branch:"Branch 1",    dept:"Sales",        email:"rohit@example.com",  phone:"9876543211", doj:"2025-08-05", status:"Docs Pending",  task:"ID Verification" },
-  { id:3, name:"Sneha Iyer",       designation:"HR Executive",      branch:"Head Office", dept:"HR",           email:"sneha@example.com",  phone:"9876543212", doj:"2025-08-10", status:"Ready to Join", task:"System Access" },
-  { id:4, name:"Kiran Babu",       designation:"Accountant",        branch:"Branch 2",    dept:"Finance",      email:"kiran@example.com",  phone:"9876543213", doj:"2025-08-15", status:"Offer Sent",    task:"Document Collection" },
+const PAGE_SIZES = [20, 50, 100];
+const PANEL_CLASS =
+  "flex max-h-[90vh] w-full max-w-[440px] flex-col overflow-hidden rounded-l-xl bg-white shadow-2xl animate-[slideInRight_0.28s_ease-out]";
+
+const DEPARTMENTS = ["Sales", "Accountant", "Production", "Operator", "Storage", "HR"];
+const STATUSES = ["Offer Sent", "Docs Pending", "Ready to Join"];
+const TASKS = ["Document Collection", "ID Verification", "System Access", "Joining Confirmation"];
+
+const STATUS_COLORS = {
+  "Offer Sent":    { bg: "#dcfce7", text: "#15803d" },
+  "Docs Pending":  { bg: "#fef9c3", text: "#854d0e" },
+  "Ready to Join": { bg: "#dcfce7", text: "#15803d" },
+};
+
+const WORKFLOW_STEPS = [
+  { id: "offers",  label: "Manage Offers",    detail: "Track offer progress" },
+  { id: "docs",    label: "Manage Documents", detail: "Collect candidate files" },
+  { id: "joiners", label: "New Joiners",      detail: "Prepare employee handoff" },
 ];
 
-const EMPTY_FORM = { firstName:"", lastName:"", gender:"", designation:"", email:"", mobile:"", employmentType:"", branch:"", department:"", doj:"" };
-const STATUS_STYLE = { "Offer Sent":["#eff6ff","#1d4ed8"], "Docs Pending":["#fef9c3","#854d0e"], "Ready to Join":["#dcfce7","#15803d"] };
+const EMPTY = {
+  full_name: "", email: "", phone: "", designation: "",
+  department: "", expected_joining: "", status: "Offer Sent", next_task: "Document Collection",
+};
 
-function AddModal({ onClose, onSave }) {
-  const [form, setForm] = useState(EMPTY_FORM);
+function SoftField({ label, required, children }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[12px] font-medium text-[#8a8a95]">
+        {label}{required ? <span className="text-[#e11d48]"> *</span> : null}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function CandidateFormPanel({ open, candidate, onClose, onSaved }) {
+  const [form, setForm] = useState(EMPTY);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    if (candidate) {
+      setForm({
+        full_name: candidate.full_name || "",
+        email: candidate.email || "",
+        phone: candidate.phone || "",
+        designation: candidate.designation || "",
+        department: candidate.department || "",
+        expected_joining: candidate.expected_joining || "",
+        status: candidate.status || "Offer Sent",
+        next_task: candidate.next_task || "Document Collection",
+      });
+    } else {
+      setForm(EMPTY);
+    }
+    setError("");
+  }, [open, candidate]);
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.full_name.trim()) { setError("Full name is required."); return; }
+    if (!form.email.trim()) { setError("Email is required."); return; }
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) { setError("Enter a valid email address."); return; }
+    setSaving(true); setError("");
+    try {
+      const payload = {
+        full_name: form.full_name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim() || null,
+        designation: form.designation.trim() || null,
+        department: form.department || null,
+        expected_joining: form.expected_joining || null,
+        status: form.status,
+        next_task: form.next_task || null,
+      };
+      const response = candidate?.id
+        ? await axiosInstance.patch(`/hr/preboarding/${candidate.id}`, payload)
+        : await axiosInstance.post("/hr/preboarding", payload);
+      onSaved(response.data);
+    } catch (err) {
+      setError(err?.response?.data?.detail || err?.message || "Save failed.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!open) return null;
+
   return createPortal(
-    <div style={{ position:"fixed",inset:0,zIndex:80,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(15,17,23,0.45)",backdropFilter:"blur(2px)",padding:16 }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background:"var(--color-surface)",borderRadius:16,width:"100%",maxWidth:600,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.18)",display:"flex",flexDirection:"column" }}>
-        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 22px 14px",borderBottom:"1px solid var(--color-border-soft)" }}>
-          <h3 style={{ margin:0,fontSize:16,fontWeight:700,color:"var(--color-text)" }}>Add Candidate</h3>
-          <button onClick={onClose} style={{ width:28,height:28,borderRadius:"50%",border:"none",background:"var(--color-surface-muted)",cursor:"pointer",fontSize:15,color:"var(--color-text-muted)" }}>✕</button>
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-end bg-black/40"
+      role="presentation"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
+    >
+      <form onSubmit={handleSubmit} className={PANEL_CLASS} onMouseDown={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-[#ececf0] px-5 py-3.5">
+          <h2 className="text-[17px] font-bold text-[#1a1a1f]">
+            {candidate ? "Edit Candidate" : "Add Candidate"}
+          </h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-[#1a1a1f] hover:bg-[#f5f5f7]" aria-label="Close">
+            <X className="h-4 w-4" />
+          </button>
         </div>
-        <div style={{ padding:"18px 22px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:14 }}>
-          <div><label className="ui-label">First Name *</label><input className="ui-input" placeholder="First name" value={form.firstName} onChange={set("firstName")} /></div>
-          <div><label className="ui-label">Last Name *</label><input className="ui-input" placeholder="Last name" value={form.lastName} onChange={set("lastName")} /></div>
-          <div><label className="ui-label">Gender</label><select className="ui-select" value={form.gender} onChange={set("gender")}><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select></div>
-          <div><label className="ui-label">Designation *</label><input className="ui-input" placeholder="e.g. Software Engineer" value={form.designation} onChange={set("designation")} /></div>
-          <div><label className="ui-label">Email *</label><input className="ui-input" type="email" placeholder="Email address" value={form.email} onChange={set("email")} /></div>
-          <div><label className="ui-label">Mobile *</label><input className="ui-input" placeholder="Mobile number" value={form.mobile} onChange={set("mobile")} /></div>
-          <div><label className="ui-label">Employment Type</label><select className="ui-select" value={form.employmentType} onChange={set("employmentType")}><option value="">Select</option><option>Permanent</option><option>Contract</option><option>Intern</option></select></div>
-          <div><label className="ui-label">Branch</label><select className="ui-select" value={form.branch} onChange={set("branch")}><option value="">Select</option><option>Head Office</option><option>Branch 1</option><option>Branch 2</option></select></div>
-          <div><label className="ui-label">Department</label><input className="ui-input" placeholder="Department" value={form.department} onChange={set("department")} /></div>
-          <div><label className="ui-label">Expected Date of Joining</label><input className="ui-input" type="date" value={form.doj} onChange={set("doj")} /></div>
+
+        {/* Body */}
+        <div className="overflow-y-auto px-5 py-4">
+          <div className="space-y-3">
+            <SoftField label="Full Name" required>
+              <input value={form.full_name} onChange={set("full_name")} placeholder="Enter full name" className={inputClass} />
+            </SoftField>
+
+            <div className="grid grid-cols-2 gap-3">
+              <SoftField label="Email" required>
+                <input type="email" value={form.email} onChange={set("email")} placeholder="Enter email" className={inputClass} />
+              </SoftField>
+              <SoftField label="Phone">
+                <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Mobile number" className={inputClass} />
+              </SoftField>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <SoftField label="Designation">
+                <input value={form.designation} onChange={set("designation")} placeholder="e.g. Engineer" className={inputClass} />
+              </SoftField>
+              <SoftField label="Department">
+                <select value={form.department} onChange={set("department")} className={inputClass}>
+                  <option value="">Select Department</option>
+                  {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
+                </select>
+              </SoftField>
+            </div>
+
+            <SoftField label="Expected Joining Date">
+              <input type="date" value={form.expected_joining} onChange={set("expected_joining")} className={inputClass} />
+            </SoftField>
+
+            <div className="mt-3 border-t border-[#ececf0] pt-3">
+              <p className="mb-2 text-[12px] font-semibold text-[#1a1a1f]">Preboarding Stage</p>
+              <div className="flex flex-wrap gap-2">
+                {STATUSES.map((s) => {
+                  const active = form.status === s;
+                  const c = STATUS_COLORS[s] || { bg: "#f3f4f6", text: "#6b7280" };
+                  return (
+                    <button
+                      key={s} type="button"
+                      onClick={() => setForm((f) => ({ ...f, status: s }))}
+                      className="rounded-full border px-3 py-1.5 text-[12px] font-semibold transition"
+                      style={{
+                        background: active ? c.bg : "#f9f9fb",
+                        color: active ? c.text : "#6b6b76",
+                        borderColor: active ? c.text : "#e2e2e8",
+                      }}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="border-t border-[#ececf0] pt-3">
+              <SoftField label="Next Task">
+                <select value={form.next_task} onChange={set("next_task")} className={inputClass}>
+                  {TASKS.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </SoftField>
+            </div>
+
+            {error && (
+              <div className="rounded-lg bg-[var(--color-danger-soft)] px-3 py-2.5 text-[13px] text-[var(--color-danger)]">{error}</div>
+            )}
+          </div>
         </div>
-        <div style={{ display:"flex",justifyContent:"flex-end",gap:10,padding:"12px 22px 18px",borderTop:"1px solid var(--color-border-soft)" }}>
-          <button className="ui-btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="ui-btn-primary" onClick={() => {
-            if (!form.firstName.trim() || !form.email.trim()) return;
-            onSave({ id:Date.now(), name:`${form.firstName} ${form.lastName}`.trim(), designation:form.designation, branch:form.branch||"Head Office", dept:form.department, email:form.email, phone:form.mobile, doj:form.doj, status:"Offer Sent", task:"Document Collection" });
-          }}>Save</button>
+
+        {/* Footer */}
+        <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-[#ececf0] px-5 py-3.5">
+          <button type="button" onClick={onClose} className="ui-btn-secondary w-full py-3 text-[14px]">Cancel</button>
+          <button type="submit" disabled={saving} className="ui-btn-primary py-3 text-[14px] disabled:opacity-60">
+            {saving ? "Saving…" : "Submit"}
+          </button>
+        </div>
+      </form>
+    </div>,
+    document.body
+  );
+}
+
+function DeleteModal({ open, busy, onClose, onConfirm }) {
+  if (!open) return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 p-4"
+      onMouseDown={(e) => e.target === e.currentTarget && !busy && onClose()}
+    >
+      <div className="w-full max-w-[420px] rounded-2xl bg-white px-8 py-8 text-center shadow-2xl">
+        <div className="mx-auto mb-5 grid h-[72px] w-[72px] place-items-center rounded-full bg-[#fee2e2]">
+          <Trash2 className="h-9 w-9 text-[#ef4444]" strokeWidth={1.75} />
+        </div>
+        <h3 className="text-[24px] font-bold leading-tight text-[#1a1a1f]">Delete Candidate?</h3>
+        <p className="mt-3 text-[14px] leading-relaxed text-[#5a5a66]">
+          This action cannot be undone.
+        </p>
+        <div className="mt-7 grid grid-cols-2 gap-4">
+          <button type="button" disabled={busy} onClick={onClose} className="ui-btn-secondary w-full py-3 text-[14px]">No</button>
+          <button type="button" disabled={busy} onClick={onConfirm} className="ui-btn-danger w-full py-3 text-[14px]">
+            {busy ? "Deleting…" : "Delete"}
+          </button>
         </div>
       </div>
     </div>,
@@ -48,121 +224,348 @@ function AddModal({ onClose, onSave }) {
 }
 
 export default function Preboarding() {
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [tab, setTab] = useState("manage");
   const [step, setStep] = useState("offers");
-  const [records, setRecords] = useState(MOCK);
-  const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [deletingBusy, setDeletingBusy] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  const active   = records.filter((r) => r.status !== "Archived");
-  const archived = records.filter((r) => r.status === "Archived");
-  const list     = (tab === "manage" ? active : archived).filter((r) => !search || r.name.toLowerCase().includes(search.toLowerCase()));
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+    try {
+      const res = await axiosInstance.get("/hr/preboarding");
+      setRecords(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setRecords([]);
+      setLoadError(err?.response?.data?.detail || err?.message || "Could not load preboarding candidates.");
+    }
+    finally { setLoading(false); }
+  }, []);
 
-  const KPI = ({ label, value, color }) => (
-    <div className="ui-card" style={{ padding:"12px 16px" }}>
-      <div style={{ fontSize:11,fontWeight:600,color:"var(--color-text-muted)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4 }}>{label}</div>
-      <div style={{ fontSize:24,fontWeight:800,color }}>{value}</div>
-    </div>
+  useEffect(() => { load(); }, [load]);
+
+  const active   = records.filter((r) => !r.is_archived);
+  const archived = records.filter((r) => r.is_archived);
+
+  const stepRecords = step === "docs"
+    ? active.filter((r) => r.status === "Docs Pending")
+    : step === "joiners"
+      ? active.filter((r) => r.status === "Ready to Join")
+      : active;
+
+  const sourceRecords = tab === "manage" ? stepRecords : archived;
+  const list = sourceRecords.filter((r) =>
+    !search || (r.full_name || "").toLowerCase().includes(search.toLowerCase())
   );
 
+  const total = list.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const rows = list.slice((page - 1) * pageSize, page * pageSize);
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   const thisWeek = active.filter((r) => {
-    if (!r.doj) return false;
-    const d = new Date(r.doj), now = new Date();
-    const diff = (d - now) / 86400000;
+    if (!r.expected_joining) return false;
+    const diff = (new Date(r.expected_joining) - new Date()) / 86400000;
     return diff >= 0 && diff <= 7;
   }).length;
 
+  const quickUpdate = async (id, patch) => {
+    try {
+      const response = await axiosInstance.patch(`/hr/preboarding/${id}`, patch);
+      setRecords((current) => current.map((record) => record.id === id ? response.data : record));
+    } catch (err) {
+      setLoadError(err?.response?.data?.detail || err?.message || "Could not update candidate.");
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    setDeletingBusy(true);
+    try {
+      await axiosInstance.delete(`/hr/preboarding/${deleting.id}`);
+      setRecords((current) => current.filter((record) => record.id !== deleting.id));
+      setDeleting(null);
+    } catch (err) {
+      setLoadError(err?.response?.data?.detail || err?.message || "Could not delete candidate.");
+    }
+    finally { setDeletingBusy(false); }
+  };
+
+  const COLS_OFFERS  = ["SR No.", "Candidate", "Designation", "Department", "Expected Joining", "Status", "Actions"];
+  const COLS_DOCS    = ["SR No.", "Candidate", "Email", "Next Task", "Status", "Actions"];
+  const COLS_JOINERS = ["SR No.", "Candidate", "Designation", "Department", "Joining Date", "Contact", "Actions"];
+  const COLS_ARCH    = ["SR No.", "Candidate", "Designation", "Department", "Status", "Actions"];
+  const cols = tab === "archived" ? COLS_ARCH : step === "docs" ? COLS_DOCS : step === "joiners" ? COLS_JOINERS : COLS_OFFERS;
+
   return (
-    <div className="ui-page" style={{ paddingTop:20,paddingBottom:32 }}>
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:12 }}>
-        <div>
-          <h1 style={{ margin:0,fontSize:20,fontWeight:700,color:"var(--color-text)" }}>Preboarding</h1>
-          <p style={{ margin:"4px 0 0",fontSize:13,color:"var(--color-text-muted)" }}>Manage candidates before they officially join.</p>
+    <div className="min-h-full" style={{ background: "var(--color-bg)" }}>
+      <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
+
+        {/* Page header */}
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[22px] font-bold tracking-tight text-[var(--color-text)]">Preboarding</h1>
+            <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">Manage candidates before they officially join.</p>
+          </div>
+          <button
+            onClick={() => { setEditing(null); setFormOpen(true); }}
+            className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-[13px] font-semibold text-white hover:opacity-90 transition-opacity"
+          >
+            <Plus className="h-4 w-4" /> Add Candidate
+          </button>
         </div>
-        <button className="ui-btn-primary ui-btn--sm" onClick={() => setShowAdd(true)}>+ Add Candidate</button>
-      </div>
 
-      {/* KPI strip */}
-      <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16 }}>
-        <KPI label="Total Preboarding"  value={active.length}                                                    color="var(--color-primary)" />
-        <KPI label="Docs Pending"       value={active.filter((r) => r.status === "Docs Pending").length}         color="#854d0e" />
-        <KPI label="Joining This Week"  value={thisWeek}                                                         color="#1d4ed8" />
-        <KPI label="Ready to Join"      value={active.filter((r) => r.status === "Ready to Join").length}        color="#15803d" />
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display:"flex",alignItems:"center",gap:4,borderBottom:"2px solid var(--color-border)",marginBottom:0 }}>
-        {[{ id:"manage",label:"Manage Candidates" },{ id:"archived",label:"Archived Candidates" }].map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{ padding:"8px 18px",fontSize:13,fontWeight:600,border:"none",background:"transparent",cursor:"pointer",color: tab===t.id ? "var(--color-primary)" : "var(--color-text-muted)",borderBottom: tab===t.id ? "2px solid var(--color-primary)" : "2px solid transparent",marginBottom:-2,transition:"all .15s" }}>{t.label}</button>
-        ))}
-      </div>
-
-      {/* Sub-steps */}
-      {tab === "manage" && (
-        <div style={{ display:"flex",gap:6,padding:"12px 0",borderBottom:"1px solid var(--color-border-muted)",marginBottom:14 }}>
-          {[{ id:"offers",label:"Manage Offers" },{ id:"docs",label:"Manage Documents" },{ id:"joiners",label:"New Joiners" }].map((s) => (
-            <button key={s.id} onClick={() => setStep(s.id)} style={{ padding:"5px 14px",fontSize:12,fontWeight:600,borderRadius:20,border:"1.5px solid",borderColor: step===s.id ? "var(--color-primary)" : "var(--color-border)",background: step===s.id ? "var(--color-primary)" : "transparent",color: step===s.id ? "#fff" : "var(--color-text-muted)",cursor:"pointer",transition:"all .15s" }}>{s.label}</button>
+        {/* KPI strip */}
+        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: "Total Preboarding", value: active.length,                                           color: "#0f6d84" },
+            { label: "Docs Pending",      value: active.filter((r) => r.status === "Docs Pending").length,  color: "#854d0e" },
+            { label: "Joining This Week", value: thisWeek,                                                color: "#1d4ed8" },
+            { label: "Ready to Join",     value: active.filter((r) => r.status === "Ready to Join").length, color: "#15803d" },
+          ].map((k) => (
+            <div key={k.label} className="rounded-xl border border-[#e4e4ea] bg-white px-4 py-3.5 shadow-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#6b6b76]">{k.label}</p>
+              <p className="mt-1.5 text-[22px] font-bold tabular-nums" style={{ color: k.color }}>{k.value}</p>
+            </div>
           ))}
         </div>
-      )}
 
-      {/* Search */}
-      <div style={{ position:"relative",marginBottom:14,maxWidth:280 }}>
-        <span style={{ position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"var(--color-text-muted)",fontSize:14,pointerEvents:"none" }}>🔍</span>
-        <input className="ui-input" style={{ paddingLeft:32,minHeight:34,fontSize:12 }} placeholder="Search candidate…" value={search} onChange={(e) => setSearch(e.target.value)} />
-      </div>
+        <div className="rounded-xl border border-[#e4e4ea] bg-white shadow-sm">
+          {/* Tabs */}
+          <div className="flex gap-1 border-b border-[#ececf0] px-5">
+            {[{ id: "manage", label: "Manage Candidates" }, { id: "archived", label: "Archived" }].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => { setTab(t.id); setPage(1); }}
+                className={`border-b-2 px-4 py-3 text-[13px] font-semibold transition-all ${
+                  tab === t.id
+                    ? "border-[var(--color-primary)] text-[var(--color-primary)]"
+                    : "border-transparent text-[#6b6b76] hover:text-[#1a1a1f]"
+                }`}
+                style={{ marginBottom: -1 }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
 
-      <div className="ui-card" style={{ padding:0,overflow:"hidden" }}>
-        <div style={{ overflowX:"auto" }}>
-          <table style={{ width:"100%",borderCollapse:"collapse",minWidth:900 }}>
-            <thead>
-              <tr style={{ background:"var(--color-surface-thead)" }}>
-                {["SR No.","Candidate Name","Designation","Branch","Department","Contact Info","Date of Joining","Task","Status","Action"].map((h) => (
-                  <th key={h} style={{ padding:"10px 14px",textAlign:"left",fontSize:11.5,fontWeight:700,color:"var(--color-text-secondary)",borderBottom:"1px solid var(--color-border)",whiteSpace:"nowrap" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {list.length === 0 ? (
-                <tr><td colSpan={10} className="ui-empty">No records found</td></tr>
-              ) : list.map((r, i) => {
-                const [bg, fg] = STATUS_STYLE[r.status] || ["#f3f3f6","#6b6b76"];
-                return (
-                  <tr key={r.id} style={{ borderBottom:"1px solid var(--color-border-muted)" }}>
-                    <td style={{ padding:"10px 14px",fontSize:13,color:"var(--color-text-muted)" }}>{i+1}</td>
-                    <td style={{ padding:"10px 14px" }}>
-                      <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                        <div style={{ width:30,height:30,borderRadius:"50%",background:"var(--color-primary-soft)",color:"var(--color-primary)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0 }}>{r.name[0]}</div>
-                        <span style={{ fontSize:13,fontWeight:600,color:"var(--color-text)" }}>{r.name}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding:"10px 14px",fontSize:13,color:"var(--color-text-secondary)" }}>{r.designation}</td>
-                    <td style={{ padding:"10px 14px",fontSize:13,color:"var(--color-text-secondary)" }}>{r.branch}</td>
-                    <td style={{ padding:"10px 14px",fontSize:13,color:"var(--color-text-secondary)" }}>{r.dept}</td>
-                    <td style={{ padding:"10px 14px",fontSize:12,color:"var(--color-text-muted)" }}>{r.email}<br/>{r.phone}</td>
-                    <td style={{ padding:"10px 14px",fontSize:13,color:"var(--color-text-secondary)" }}>{r.doj || "—"}</td>
-                    <td style={{ padding:"10px 14px",fontSize:12,color:"var(--color-text-secondary)" }}>{r.task}</td>
-                    <td style={{ padding:"10px 14px" }}>
-                      <span style={{ fontSize:11,fontWeight:600,padding:"3px 10px",borderRadius:20,background:bg,color:fg }}>{r.status}</span>
-                    </td>
-                    <td style={{ padding:"10px 14px" }}>
-                      <div style={{ display:"flex",gap:5 }}>
-                        <button title="Convert to Employee" onClick={() => setRecords((p) => p.map((x) => x.id===r.id ? { ...x,status:"Ready to Join" } : x))} style={{ padding:"4px 8px",fontSize:11,fontWeight:600,borderRadius:6,border:"none",background:"var(--color-primary-soft)",color:"var(--color-primary)",cursor:"pointer" }}>Convert</button>
-                        <button title="Archive" onClick={() => setRecords((p) => p.map((x) => x.id===r.id ? { ...x,status:"Archived" } : x))} style={{ width:26,height:26,borderRadius:"50%",border:"none",background:"var(--color-surface-muted)",color:"var(--color-text-muted)",cursor:"pointer",fontSize:12 }}>📦</button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          {/* Workflow steps */}
+          {tab === "manage" && (
+            <div className="flex flex-wrap gap-2 border-b border-[#f0f0f4] px-5 py-4">
+              {WORKFLOW_STEPS.map((ws, idx) => (
+                <button
+                  key={ws.id}
+                  onClick={() => { setStep(ws.id); setPage(1); }}
+                  className={`flex items-center gap-2 rounded-full border px-3.5 py-2 text-[12px] font-semibold transition-all ${
+                    step === ws.id
+                      ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
+                      : "border-[#e2e2e8] bg-white text-[#6b6b76] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                  }`}
+                >
+                  <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${
+                    step === ws.id ? "bg-white/25 text-white" : "bg-[#f0f0f4] text-[#6b6b76]"
+                  }`}>
+                    {idx + 1}
+                  </span>
+                  {ws.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Search toolbar */}
+          <div className="flex flex-wrap items-center gap-3 border-b border-[#f0f0f4] px-5 py-4">
+            <div className="relative min-w-[10rem] flex-1">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
+              <input
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                placeholder="Search candidate…"
+                className="w-full rounded-lg border border-[#e8e8ee] bg-[#f8f8fb] py-2 pl-10 pr-4 text-[13px] outline-none placeholder:text-[#a0a0ab] focus:border-[var(--color-primary)] focus:bg-white transition-colors"
+              />
+            </div>
+            {search && (
+              <button onClick={() => setSearch("")} className="h-9 rounded-lg border border-[#e2e2e8] bg-white px-3 text-[12px] font-semibold text-[#6b6b76] hover:bg-[#f5f5f7] transition-colors">
+                ✕ Clear
+              </button>
+            )}
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] border-collapse text-left text-[13px]">
+              <thead>
+                <tr className="border-b border-[#e8e8ee] bg-[#f8f8fb]">
+                  {cols.map((h) => (
+                    <th key={h} className="px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-[#6b6b76] whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={cols.length} className="px-4 py-16 text-center text-[13px] text-[#8a8a96]">Loading…</td></tr>
+                  ) : loadError ? (
+                    <tr>
+                      <td colSpan={cols.length} className="px-4 py-12 text-center">
+                        <p className="text-[13px] font-semibold text-[var(--color-danger)]">{loadError}</p>
+                        <button type="button" onClick={load} className="mt-3 text-[12px] font-semibold text-[var(--color-primary)] hover:underline">
+                          Try again
+                        </button>
+                      </td>
+                    </tr>
+                  ) : rows.length === 0 ? (
+                    <tr><td colSpan={cols.length} className="px-4 py-16 text-center text-[13px] text-[#8a8a96]">No candidates found</td></tr>
+                  ) : rows.map((r, i) => {
+                    const sc = STATUS_COLORS[r.status] || { bg: "#f3f4f6", text: "#6b7280" };
+                    return (
+                      <tr key={r.id} className="border-b border-[#f0f0f4] last:border-b-0 hover:bg-[#fafafa] transition-colors">
+                        <td className="px-4 py-3.5 text-[#6b6b76]">{(page - 1) * pageSize + i + 1}</td>
+
+                        {/* Candidate name cell - always col 2 */}
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-soft)] text-[13px] font-bold text-[var(--color-primary)]">
+                              {(r.full_name || "?")[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="text-[13px] font-semibold text-[#1a1a1f]">{r.full_name || "—"}</div>
+                              {tab !== "archived" && step === "docs" && <div className="text-[11px] text-[#6b6b76]">{r.email || ""}</div>}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Offers columns */}
+                        {tab !== "archived" && step === "offers" && <>
+                          <td className="px-4 py-3.5 text-[#4a4a55]">{r.designation || "—"}</td>
+                          <td className="px-4 py-3.5 text-[#4a4a55]">{r.department || "—"}</td>
+                          <td className="px-4 py-3.5 text-[#4a4a55] whitespace-nowrap">{r.expected_joining || "Not set"}</td>
+                          <td className="px-4 py-3.5">
+                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold" style={{ background: sc.bg, color: sc.text }}>{r.status}</span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <button disabled={r.status === "Ready to Join"} onClick={() => quickUpdate(r.id, { status: r.status === "Offer Sent" ? "Docs Pending" : "Ready to Join" })}
+                                className="rounded-lg border border-[#e2e2e8] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#1a1a1f] hover:bg-[#f5f5f7] disabled:cursor-not-allowed disabled:opacity-40">
+                                {r.status === "Offer Sent" ? "→ Docs" : r.status === "Docs Pending" ? "→ Ready" : "Ready"}
+                              </button>
+                              <button onClick={() => { setEditing(r); setFormOpen(true); }} className="grid h-8 w-8 place-items-center rounded-full bg-[var(--color-primary-soft)] text-[var(--color-primary)] hover:bg-[#e4e6fc]" title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => setDeleting(r)} className="grid h-8 w-8 place-items-center rounded-full bg-[#fde8e8] text-[#ef4444] hover:bg-[#fcdada]" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
+                            </div>
+                          </td>
+                        </>}
+
+                        {/* Docs columns */}
+                        {tab !== "archived" && step === "docs" && <>
+                          <td className="px-4 py-3.5 text-[#4a4a55]">{r.email || "—"}</td>
+                          <td className="px-4 py-3.5 text-[#4a4a55]">{r.next_task || "Document Collection"}</td>
+                          <td className="px-4 py-3.5">
+                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold" style={{ background: sc.bg, color: sc.text }}>{r.status}</span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => quickUpdate(r.id, { status: "Ready to Join" })}
+                                className="rounded-lg border border-[#e2e2e8] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#1a1a1f] hover:bg-[#f5f5f7]">
+                                → Ready
+                              </button>
+                              <button onClick={() => { setEditing(r); setFormOpen(true); }} className="grid h-8 w-8 place-items-center rounded-full bg-[var(--color-primary-soft)] text-[var(--color-primary)] hover:bg-[#e4e6fc]" title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => setDeleting(r)} className="grid h-8 w-8 place-items-center rounded-full bg-[#fde8e8] text-[#ef4444] hover:bg-[#fcdada]" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
+                            </div>
+                          </td>
+                        </>}
+
+                        {/* Joiners columns */}
+                        {tab !== "archived" && step === "joiners" && <>
+                          <td className="px-4 py-3.5 text-[#4a4a55]">{r.designation || "—"}</td>
+                          <td className="px-4 py-3.5 text-[#4a4a55]">{r.department || "—"}</td>
+                          <td className="px-4 py-3.5 text-[#4a4a55] whitespace-nowrap">{r.expected_joining || "Not set"}</td>
+                          <td className="px-4 py-3.5 text-[#4a4a55]">{r.email || r.phone || "—"}</td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => quickUpdate(r.id, { is_archived: true })}
+                                className="rounded-lg bg-[var(--color-primary)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90">
+                                Complete Handoff
+                              </button>
+                              <button onClick={() => { setEditing(r); setFormOpen(true); }} className="grid h-8 w-8 place-items-center rounded-full bg-[var(--color-primary-soft)] text-[var(--color-primary)] hover:bg-[#e4e6fc]" title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
+                            </div>
+                          </td>
+                        </>}
+
+                        {/* Archived columns */}
+                        {tab === "archived" && <>
+                          <td className="px-4 py-3.5 text-[#4a4a55]">{r.designation || "—"}</td>
+                          <td className="px-4 py-3.5 text-[#4a4a55]">{r.department || "—"}</td>
+                          <td className="px-4 py-3.5">
+                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold" style={{ background: sc.bg, color: sc.text }}>{r.status}</span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <button onClick={() => setDeleting(r)} className="grid h-8 w-8 place-items-center rounded-full bg-[#fde8e8] text-[#ef4444] hover:bg-[#fcdada]" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </td>
+                        </>}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#f0f0f4] px-5 py-3.5 text-[12px] text-[#6b6b76]">
+            <div className="flex items-center gap-2">
+              <span>Rows per page:</span>
+              <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="rounded border border-[#e2e2e8] bg-white px-2 py-1 outline-none">
+                {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <span>{total === 0 ? "0-0 of 0" : `${from}-${to} of ${total}`}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="grid h-8 w-8 place-items-center rounded-lg border border-[#e2e2e8] bg-white disabled:opacity-40 hover:bg-[#f5f5f7] transition-colors" aria-label="Previous page">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button type="button" className="grid h-8 min-w-[32px] place-items-center rounded-lg border px-2 text-[13px] font-semibold text-white" style={{ background: "var(--color-primary)", borderColor: "var(--color-primary)" }}>
+                {page}
+              </button>
+              <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="grid h-8 w-8 place-items-center rounded-lg border border-[#e2e2e8] bg-white disabled:opacity-40 hover:bg-[#f5f5f7] transition-colors" aria-label="Next page">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
-        <div style={{ padding:"10px 16px",borderTop:"1px solid var(--color-border-muted)",fontSize:12,color:"var(--color-text-muted)" }}>
-          Showing {list.length} of {(tab==="manage"?active:archived).length} entries
-        </div>
-      </div>
 
-      {showAdd && <AddModal onClose={() => setShowAdd(false)} onSave={(r) => { setRecords((p) => [...p,r]); setShowAdd(false); }} />}
-    </div>
+      <CandidateFormPanel
+        open={formOpen}
+        candidate={editing}
+        onClose={() => { setFormOpen(false); setEditing(null); }}
+        onSaved={(saved) => {
+          setRecords((current) => {
+            const exists = current.some((record) => record.id === saved.id);
+            return exists
+              ? current.map((record) => record.id === saved.id ? saved : record)
+              : [saved, ...current];
+          });
+          setFormOpen(false);
+          setEditing(null);
+        }}
+      />
+      <DeleteModal
+        open={Boolean(deleting)}
+        busy={deletingBusy}
+        onClose={() => !deletingBusy && setDeleting(null)}
+        onConfirm={confirmDelete}
+      />
+      </div>
   );
 }

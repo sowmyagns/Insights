@@ -10,6 +10,7 @@ MODULE_CATALOG = [
     {"code": "accounts", "label": "Accounts & Reports"},
     {"code": "quality", "label": "Quality Control"},
     {"code": "maintenance", "label": "Maintenance"},
+    {"code": "hr", "label": "HR & Employees"},
     {"code": "analytics", "label": "Analytics"},
     {"code": "alerts", "label": "Alerts & Notifications"},
     {"code": "documents", "label": "Documents"},
@@ -134,8 +135,8 @@ PERMISSION_MATRIX = {
         "description": "Full Vendor Master and procurement operations access.",
     },
     "HR Manager": {
-        "modules": ["dashboard", "analytics", "alerts", "documents", "masters", "meetings"],
-        "description": "Dashboard, departments master, documents, and alerts.",
+        "modules": ["dashboard", "hr", "analytics", "alerts", "documents", "masters", "meetings"],
+        "description": "HR dashboard, employee management, attendance, payroll, reports, and configuration.",
     },
     "Accountant": {
         "modules": [
@@ -404,6 +405,116 @@ SIDEBAR_MENU_CATALOG = [
             {"label": "Inventory KPI", "path": "/analytics/inventory", "module": "analytics"},
             {"label": "Sales KPI", "path": "/analytics/sales", "module": "analytics"},
             {"label": "Finance KPI", "path": "/analytics/finance", "module": "analytics"},
+        ],
+    },
+    {
+        "key": "hr",
+        "label": "HR",
+        "path": None,
+        "module": "hr",
+        "children": [
+            {"label": "HR Dashboard", "path": "/hr", "module": "hr"},
+            {
+                "key": "hr-employees",
+                "label": "Employee Management",
+                "path": None,
+                "module": "hr",
+                "children": [
+                    {"label": "Preboarding", "path": "/hr/preboarding", "module": "hr"},
+                    {"label": "All Employees", "path": "/hr/onboarding", "module": "hr"},
+                ],
+            },
+            {
+                "key": "hr-attendance",
+                "label": "Attendance",
+                "path": None,
+                "module": "hr",
+                "children": [
+                    {"label": "View", "path": "/hr/attendance", "module": "hr"},
+                    {"label": "Approval", "path": "/hr/attendance-approval", "module": "hr"},
+                    {"label": "Overtime", "path": "/hr/shifts-overtime", "module": "hr"},
+                ],
+            },
+            {
+                "key": "hr-shifts",
+                "label": "Shift Management",
+                "path": None,
+                "module": "hr",
+                "children": [
+                    {"label": "Manage Shifts", "path": "/hr/manage-shifts", "module": "hr"},
+                    {"label": "Manage Monthly Shift", "path": "/hr/manage-monthly-shifts", "module": "hr"},
+                    {"label": "Set Weekly Off", "path": "/hr/set-weekly-off", "module": "hr"},
+                ],
+            },
+            {
+                "key": "hr-leaves",
+                "label": "Leave Tracker",
+                "path": None,
+                "module": "hr",
+                "children": [
+                    {"label": "My Leaves", "path": "/hr/leave", "module": "hr"},
+                    {"label": "Leave Approvals", "path": "/hr/leave-approvals", "module": "hr"},
+                    {"label": "Holiday", "path": "/hr/holidays", "module": "hr"},
+                    {"label": "Leave Adjustment", "path": "/hr/leave-adjustment", "module": "hr"},
+                    {"label": "Leave Plans", "path": "/hr/leave-plans", "module": "hr"},
+                ],
+            },
+            {
+                "key": "hr-expenses",
+                "label": "Expense Management",
+                "path": None,
+                "module": "hr",
+                "children": [
+                    {"label": "Overview", "path": "/hr/expenses?view=expenses-overview", "module": "hr"},
+                ],
+            },
+            {"label": "Site Visit", "path": "/hr/site-visits", "module": "hr"},
+            {
+                "key": "hr-assets",
+                "label": "Asset Management",
+                "path": None,
+                "module": "hr",
+                "children": [
+                    {"label": "Company Assets", "path": "/hr/asset-management", "module": "hr"},
+                ],
+            },
+            {
+                "key": "hr-payroll",
+                "label": "Payroll",
+                "path": None,
+                "module": "hr",
+                "children": [
+                    {"label": "Salary Components", "path": "/hr/salary-breakup", "module": "hr"},
+                    {"label": "Statutory Components", "path": "/hr/statutory-components", "module": "hr"},
+                    {"label": "Salary Breakup", "path": "/hr/salary-breakup", "module": "hr"},
+                    {"label": "Monthly Pay", "path": "/hr/monthly-pay", "module": "hr"},
+                    {"label": "Salary On Hold", "path": "/hr/salary-on-hold", "module": "hr"},
+                    {"label": "My Payslips", "path": "/hr/pay-slips", "module": "hr"},
+                    {"label": "Settings", "path": "/hr/settings", "module": "hr"},
+                ],
+            },
+            {
+                "key": "hr-reports",
+                "label": "MIS Reports",
+                "path": None,
+                "module": "hr",
+                "children": [
+                    {"label": "Employee Report", "path": "/hr/employee-report", "module": "hr"},
+                    {"label": "Leave Report", "path": "/hr/leave-report", "module": "hr"},
+                    {"label": "Expense Report", "path": "/hr/expense-report", "module": "hr"},
+                    {"label": "Site Visit Report", "path": "/hr/site-visit-report", "module": "hr"},
+                ],
+            },
+            {
+                "key": "hr-configuration",
+                "label": "Configuration",
+                "path": None,
+                "module": "hr",
+                "children": [
+                    {"label": "Organization Setup", "path": "/hr/organization-setup", "module": "hr"},
+                ],
+            },
+            {"label": "Announcements", "path": "/hr/announcements", "module": "hr"},
         ],
     },
     {

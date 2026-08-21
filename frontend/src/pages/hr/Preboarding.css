@@ -1,0 +1,232 @@
+.preboarding-page {
+  --preboarding-accent: var(--color-primary, #3157d5);
+  --preboarding-border: var(--color-border-muted, #e5e7eb);
+}
+
+.preboarding-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.preboarding-title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.preboarding-subtitle {
+  margin: 5px 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.preboarding-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.preboarding-kpi {
+  min-height: 82px;
+  padding: 15px 16px;
+  border: 1px solid var(--preboarding-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.preboarding-kpi__label {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.preboarding-kpi__value {
+  margin-top: 7px;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.preboarding-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--preboarding-border);
+}
+
+.preboarding-tab {
+  padding: 10px 16px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.preboarding-tab.is-active {
+  border-bottom-color: var(--preboarding-accent);
+  color: var(--preboarding-accent);
+}
+
+.preboarding-subtabs {
+  display: flex;
+  gap: 7px;
+  padding: 12px 0;
+  overflow-x: auto;
+}
+
+.preboarding-subtab {
+  flex: 0 0 auto;
+  padding: 6px 13px;
+  border: 1px solid var(--preboarding-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.preboarding-subtab.is-active {
+  border-color: var(--preboarding-accent);
+  background: var(--preboarding-accent);
+  color: #fff;
+}
+
+.preboarding-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 14px;
+}
+
+.preboarding-search {
+  position: relative;
+  max-width: 320px;
+  flex: 1;
+}
+
+.preboarding-search input {
+  width: 100%;
+  padding-left: 32px;
+}
+
+.preboarding-search span {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.preboarding-table-wrap {
+  overflow-x: auto;
+}
+
+.preboarding-table {
+  width: 100%;
+  min-width: 1040px;
+  border-collapse: collapse;
+}
+
+.preboarding-table th {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--preboarding-border);
+  background: var(--color-surface-thead);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 750;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.preboarding-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--preboarding-border);
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  vertical-align: middle;
+}
+
+.preboarding-table tbody tr:hover {
+  background: var(--color-surface-muted);
+}
+
+.preboarding-modal {
+  width: min(600px, 100%);
+  max-height: min(720px, 92vh);
+  overflow: hidden;
+  border: 1px solid var(--preboarding-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22);
+}
+
+.preboarding-modal__body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  overflow-y: auto;
+  padding: 20px 22px;
+}
+
+.preboarding-modal__error {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .preboarding-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .preboarding-header button {
+    align-self: flex-start;
+  }
+
+  .preboarding-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .preboarding-toolbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .preboarding-search {
+    max-width: none;
+    flex-basis: 100%;
+  }
+
+  .preboarding-modal__body {
+    grid-template-columns: 1fr;
+  }
+
+  .preboarding-modal__error {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .preboarding-kpis {
+    grid-template-columns: 1fr;
+  }
+}

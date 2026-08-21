@@ -27,9 +27,6 @@ const GST_OPTIONS = ["0", "5", "12", "18", "28"];
 const TAX_TYPES = ["Exclusive", "Inclusive"];
 const CESS_MODES = ["Percent Wise", "Amount Wise"];
 
-const inputClass =
-  "w-full rounded-lg border border-[#dcdce3] bg-[#f3f3f6] px-3 py-2.5 text-[13px] text-[#1a1a1f] placeholder:text-[#a0a0ab] focus:outline-none";
-
 const EMPTY = {
   item_type: "goods",
   name: "",

@@ -1,191 +1,324 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { ChevronLeft, ChevronRight, Plus, Search, X } from "lucide-react";
+import axiosInstance from "../../api/axiosConfig";
+import { inputClass } from "../../design-system/classes";
 
-const MOCK = [
-  { id:1, emp:"Ravi Kumar",      type:"Sick Leave",        from:"2025-07-01", to:"2025-07-02", days:2, reason:"Fever",          status:"Pending",  createdBy:"Ravi Kumar" },
-  { id:2, emp:"Priya Sharma",    type:"Casual Leave",      from:"2025-07-05", to:"2025-07-05", days:1, reason:"Personal work",  status:"Pending",  createdBy:"Priya Sharma" },
-  { id:3, emp:"Arjun Singh",     type:"Earned Leave",      from:"2025-06-20", to:"2025-06-22", days:3, reason:"Family trip",    status:"Approved", createdBy:"Arjun Singh" },
-  { id:4, emp:"Meena Patel",     type:"Maternity Leave",   from:"2025-07-10", to:"2025-09-10", days:62,reason:"Maternity",      status:"Approved", createdBy:"Meena Patel" },
-  { id:5, emp:"Suresh Reddy",    type:"Leave Without Pay", from:"2025-07-08", to:"2025-07-09", days:2, reason:"Emergency",      status:"Rejected", createdBy:"Suresh Reddy" },
-  { id:6, emp:"Kavitha Nair",    type:"Compensatory Off",  from:"2025-07-12", to:"2025-07-12", days:1, reason:"Worked Sunday",  status:"Pending",  createdBy:"Kavitha Nair" },
-  { id:7, emp:"Deepak Joshi",    type:"Sick Leave",        from:"2025-07-15", to:"2025-07-16", days:2, reason:"Cold & cough",   status:"Pending",  createdBy:"Deepak Joshi" },
+const PAGE_SIZES = [20, 50, 100];
+const LEAVE_TYPES = [
+  "Casual Leave", "Compensatory Off", "Earned Leave", "Leave Without Pay",
+  "Maternity Leave", "Paternity Leave", "Sabbatical Leave", "Sick Leave",
 ];
-
 const STATUS_STYLE = {
-  Pending:  ["#fef9c3","#854d0e"],
-  Approved: ["#dcfce7","#15803d"],
-  Rejected: ["#fde8e8","#dc2626"],
+  pending:  { bg: "#fef9c3", text: "#854d0e" },
+  approved: { bg: "#dcfce7", text: "#15803d" },
+  rejected: { bg: "#fde8e8", text: "#dc2626" },
 };
+const PANEL_CLASS =
+  "flex max-h-[90vh] w-full max-w-[460px] flex-col overflow-hidden rounded-l-xl bg-white shadow-2xl animate-[slideInRight_0.28s_ease-out]";
 
-const LEAVE_TYPES = ["Casual Leave","Compensatory Off","Earned Leave","Leave Without Pay","Maternity Leave","Paternity Leave","Sabbatical Leave","Sick Leave"];
+function calcDays(s, e) {
+  if (!s || !e) return 0;
+  return Math.max(1, Math.ceil((new Date(e) - new Date(s)) / 86400000) + 1);
+}
 
-function ApplyModal({ onClose, onSave }) {
-  const [form, setForm] = useState({ emp:"", type:"", from:"", to:"", reason:"" });
+function SoftField({ label, required, children }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[12px] font-medium text-[#8a8a95]">
+        {label}{required && <span className="text-[#e11d48]"> *</span>}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function ApplyPanel({ open, employees, onClose, onSaved }) {
+  const [form, setForm] = useState({ employee_id: "", leave_type: "", start_date: "", end_date: "", reason: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({ employee_id: String(employees[0]?.id || ""), leave_type: "", start_date: "", end_date: "", reason: "" });
+    setError("");
+  }, [open, employees]);
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const days = form.from && form.to ? Math.max(0, Math.round((new Date(form.to) - new Date(form.from)) / 86400000) + 1) : 0;
+  const days = calcDays(form.start_date, form.end_date);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.employee_id || !form.leave_type || !form.start_date || !form.end_date) {
+      setError("Please fill all required fields."); return;
+    }
+    if (form.end_date < form.start_date) { setError("End date cannot be before start date."); return; }
+    setSaving(true); setError("");
+    try {
+      await axiosInstance.post("/hr/leaves", {
+        employee_id: parseInt(form.employee_id),
+        leave_type: form.leave_type,
+        start_date: form.start_date,
+        end_date: form.end_date,
+        reason: form.reason || null,
+        status: "pending",
+      });
+      onSaved();
+    } catch (err) {
+      setError(err?.response?.data?.detail || err?.message || "Save failed.");
+    } finally { setSaving(false); }
+  };
+
+  if (!open) return null;
   return createPortal(
-    <div style={{ position:"fixed",inset:0,zIndex:80,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(15,17,23,0.45)",backdropFilter:"blur(2px)",padding:16 }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background:"var(--color-surface)",borderRadius:16,width:"100%",maxWidth:500,boxShadow:"0 20px 60px rgba(0,0,0,0.18)",display:"flex",flexDirection:"column" }}>
-        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 22px 14px",borderBottom:"1px solid var(--color-border-soft)" }}>
-          <h3 style={{ margin:0,fontSize:16,fontWeight:700,color:"var(--color-text)" }}>Leave Request</h3>
-          <button onClick={onClose} style={{ width:28,height:28,borderRadius:"50%",border:"none",background:"var(--color-surface-muted)",cursor:"pointer",fontSize:15,color:"var(--color-text-muted)" }}>✕</button>
+    <div className="fixed inset-0 z-[80] flex items-center justify-end bg-black/40"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
+      <form onSubmit={handleSubmit} className={PANEL_CLASS} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="flex shrink-0 items-center justify-between border-b border-[#ececf0] px-5 py-3.5">
+          <h2 className="text-[17px] font-bold text-[#1a1a1f]">New Leave Request</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 hover:bg-[#f5f5f7]"><X className="h-4 w-4" /></button>
         </div>
-        <div style={{ padding:"18px 22px",display:"flex",flexDirection:"column",gap:14 }}>
-          <div>
-            <label className="ui-label">Employee *</label>
-            <input className="ui-input" placeholder="Employee name" value={form.emp} onChange={set("emp")} />
-          </div>
-          <div>
-            <label className="ui-label">Leave Type *</label>
-            <select className="ui-select" value={form.type} onChange={set("type")}>
+        <div className="overflow-y-auto px-5 py-4 space-y-3">
+          <SoftField label="Employee" required>
+            <select value={form.employee_id} onChange={set("employee_id")} className={inputClass}>
+              <option value="">Select Employee</option>
+              {employees.map((e) => <option key={e.id} value={e.id}>{e.full_name || e.name}</option>)}
+            </select>
+          </SoftField>
+          <SoftField label="Leave Type" required>
+            <select value={form.leave_type} onChange={set("leave_type")} className={inputClass}>
               <option value="">Select Leave Type</option>
               {LEAVE_TYPES.map((t) => <option key={t}>{t}</option>)}
             </select>
+          </SoftField>
+          <div className="grid grid-cols-2 gap-3">
+            <SoftField label="From Date" required>
+              <input type="date" value={form.start_date} onChange={set("start_date")} className={inputClass} />
+            </SoftField>
+            <SoftField label="To Date" required>
+              <input type="date" value={form.end_date} onChange={set("end_date")} className={inputClass} />
+            </SoftField>
           </div>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12 }}>
-            <div><label className="ui-label">From *</label><input className="ui-input" type="date" value={form.from} onChange={set("from")} /></div>
-            <div><label className="ui-label">To *</label><input className="ui-input" type="date" value={form.to} onChange={set("to")} /></div>
+          <div className="flex gap-6 rounded-lg bg-[#f5f5f8] px-4 py-2.5 text-[12px]">
+            <span className="text-[#6b6b76]">Days: <b className="text-[#1a1a1f]">{days}</b></span>
+            <span className="text-[#6b6b76]">Remaining: <b className="text-[#1a1a1f]">—</b></span>
           </div>
-          <div style={{ display:"flex",gap:20,fontSize:12,color:"var(--color-text-muted)",background:"var(--color-surface-muted)",padding:"8px 12px",borderRadius:8 }}>
-            <span>Number of days: <b style={{ color:"var(--color-text)" }}>{days}</b></span>
-            <span>Remaining Leaves: <b style={{ color:"var(--color-text)" }}>10</b></span>
-          </div>
-          <div><label className="ui-label">Reason *</label><textarea className="ui-textarea" placeholder="Enter reason" rows={3} value={form.reason} onChange={set("reason")} /></div>
-          <div><label className="ui-label">Attachment</label><button className="ui-btn-outline ui-btn--sm">＋ Upload Document</button></div>
+          <SoftField label="Reason">
+            <textarea value={form.reason} onChange={set("reason")} placeholder="Enter reason" rows={3} className={inputClass + " resize-none"} />
+          </SoftField>
+          <SoftField label="Attachment">
+            <button type="button" className="ui-btn-outline ui-btn--sm">＋ Upload Document</button>
+          </SoftField>
+          {error && <div className="rounded-lg bg-[var(--color-danger-soft)] px-3 py-2.5 text-[13px] text-[var(--color-danger)]">{error}</div>}
         </div>
-        <div style={{ display:"flex",justifyContent:"flex-end",gap:10,padding:"12px 22px 18px",borderTop:"1px solid var(--color-border-soft)" }}>
-          <button className="ui-btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="ui-btn-primary" onClick={() => {
-            if (!form.emp.trim() || !form.type || !form.from || !form.to) return;
-            onSave({ id: Date.now(), emp: form.emp, type: form.type, from: form.from, to: form.to, days, reason: form.reason, status:"Pending", createdBy: form.emp });
-          }}>Save</button>
+        <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-[#ececf0] px-5 py-3.5">
+          <button type="button" onClick={onClose} className="ui-btn-secondary w-full py-3 text-[14px]">Cancel</button>
+          <button type="submit" disabled={saving} className="ui-btn-primary py-3 text-[14px] disabled:opacity-60">
+            {saving ? "Saving…" : "Submit"}
+          </button>
         </div>
-      </div>
+      </form>
     </div>,
     document.body
   );
 }
 
 export default function LeaveApprovals() {
-  const [records, setRecords] = useState(MOCK);
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [empSearch, setEmpSearch] = useState("");
-  const [showApply, setShowApply] = useState(false);
+  const [records, setRecords] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  const navMonth = (d) => {
-    const [y, m] = month.split("-").map(Number);
-    setMonth(new Date(y, m - 1 + d, 1).toISOString().slice(0, 7));
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [lv, emp] = await Promise.all([
+        axiosInstance.get("/hr/leaves"),
+        axiosInstance.get("/hr/employees"),
+      ]);
+      setRecords(Array.isArray(lv.data) ? lv.data : []);
+      setEmployees(Array.isArray(emp.data) ? emp.data : []);
+    } catch { setRecords([]); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = useMemo(() => {
+    let list = records;
+    if (statusFilter !== "all") list = list.filter((r) => (r.status || "").toLowerCase() === statusFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((r) => [r.employee_name, r.leave_type, r.reason].filter(Boolean).join(" ").toLowerCase().includes(q));
+    }
+    return list;
+  }, [records, statusFilter, search]);
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const rows = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+
+  const act = async (id, status) => {
+    try { await axiosInstance.patch(`/hr/leaves/${id}/approve`, { status }); load(); } catch { /* ignore */ }
   };
 
-  const filtered = records.filter((r) => {
-    const inMonth = r.from.startsWith(month);
-    const byStatus = statusFilter === "All" || r.status === statusFilter;
-    const byEmp = !empSearch || r.emp.toLowerCase().includes(empSearch.toLowerCase());
-    return inMonth && byStatus && byEmp;
-  });
-
-  const approve = (id) => setRecords((p) => p.map((r) => r.id === id ? { ...r, status:"Approved" } : r));
-  const reject  = (id) => setRecords((p) => p.map((r) => r.id === id ? { ...r, status:"Rejected" } : r));
-  const remove  = (id) => setRecords((p) => p.filter((r) => r.id !== id));
-
-  const total    = records.length;
-  const pending  = records.filter((r) => r.status === "Pending").length;
-  const approved = records.filter((r) => r.status === "Approved").length;
-  const rejected = records.filter((r) => r.status === "Rejected").length;
-
-  const KPI = ({ label, value, color }) => (
-    <div className="ui-card" style={{ padding:"12px 16px" }}>
-      <div style={{ fontSize:11,fontWeight:600,color:"var(--color-text-muted)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4 }}>{label}</div>
-      <div style={{ fontSize:24,fontWeight:800,color }}>{value}</div>
-    </div>
-  );
+  const kpis = [
+    { label: "Total Requests", value: records.length, color: "var(--color-primary)" },
+    { label: "Pending", value: records.filter((r) => r.status === "pending").length, color: "#854d0e" },
+    { label: "Approved", value: records.filter((r) => r.status === "approved").length, color: "#15803d" },
+    { label: "Rejected", value: records.filter((r) => r.status === "rejected").length, color: "#dc2626" },
+  ];
 
   return (
-    <div className="ui-page" style={{ paddingTop:20,paddingBottom:32 }}>
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:12 }}>
-        <div>
-          <h1 style={{ margin:0,fontSize:20,fontWeight:700,color:"var(--color-text)" }}>Leave Approvals</h1>
-          <p style={{ margin:"4px 0 0",fontSize:13,color:"var(--color-text-muted)" }}>Review and approve employee leave requests.</p>
-        </div>
-        <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-          <button className="ui-btn-outline ui-btn--sm" onClick={() => navMonth(-1)}>‹</button>
-          <span style={{ fontSize:13,fontWeight:600,color:"var(--color-text)",minWidth:90,textAlign:"center" }}>
-            {new Date(month + "-01").toLocaleString("default", { month:"short", year:"numeric" })}
-          </span>
-          <button className="ui-btn-outline ui-btn--sm" onClick={() => navMonth(1)}>›</button>
-          <button className="ui-btn-primary ui-btn--sm" onClick={() => setShowApply(true)}>+ Leave Request</button>
-        </div>
-      </div>
+    <div className="min-h-full" style={{ background: "var(--color-bg)" }}>
+      <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
 
-      {/* KPI strip */}
-      <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16 }}>
-        <KPI label="Total Requests" value={total}    color="var(--color-primary)" />
-        <KPI label="Pending"        value={pending}  color="#854d0e" />
-        <KPI label="Approved"       value={approved} color="#15803d" />
-        <KPI label="Rejected"       value={rejected} color="#dc2626" />
-      </div>
-
-      {/* Filters */}
-      <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:14,flexWrap:"wrap" }}>
-        <div style={{ position:"relative",flex:1,minWidth:200 }}>
-          <span style={{ position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"var(--color-text-muted)",fontSize:14,pointerEvents:"none" }}>🔍</span>
-          <input className="ui-input" style={{ paddingLeft:32,minHeight:36,fontSize:13 }} placeholder="Search employee…" value={empSearch} onChange={(e) => setEmpSearch(e.target.value)} />
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[20px] font-bold text-[var(--color-text)]">Leave Approvals</h1>
+            <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">Review and approve employee leave requests.</p>
+          </div>
+          <button
+            onClick={() => setPanelOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" /> Leave Request
+          </button>
         </div>
-        {["All","Pending","Approved","Rejected"].map((s) => (
-          <button key={s} onClick={() => setStatusFilter(s)} style={{ padding:"6px 14px",fontSize:12,fontWeight:600,borderRadius:20,border:"1.5px solid",borderColor: statusFilter===s ? "var(--color-primary)" : "var(--color-border)",background: statusFilter===s ? "var(--color-primary)" : "transparent",color: statusFilter===s ? "#fff" : "var(--color-text-muted)",cursor:"pointer",transition:"all .15s" }}>{s}</button>
-        ))}
-      </div>
 
-      <div className="ui-card" style={{ padding:0,overflow:"hidden" }}>
-        <div style={{ overflowX:"auto" }}>
-          <table style={{ width:"100%",borderCollapse:"collapse",minWidth:900 }}>
-            <thead>
-              <tr style={{ background:"var(--color-surface-thead)" }}>
-                {["SR No.","Employee","Leave Type","From","To","Days","Reason","Status","Action"].map((h) => (
-                  <th key={h} style={{ padding:"10px 14px",textAlign:"left",fontSize:11.5,fontWeight:700,color:"var(--color-text-secondary)",borderBottom:"1px solid var(--color-border)",whiteSpace:"nowrap" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={9} className="ui-empty">No records found</td></tr>
-              ) : filtered.map((r, i) => {
-                const [bg, fg] = STATUS_STYLE[r.status] || ["#f3f3f6","#6b6b76"];
-                return (
-                  <tr key={r.id} style={{ borderBottom:"1px solid var(--color-border-muted)" }}>
-                    <td style={{ padding:"10px 14px",fontSize:13,color:"var(--color-text-muted)" }}>{i+1}</td>
-                    <td style={{ padding:"10px 14px",fontSize:13,fontWeight:600,color:"var(--color-text)" }}>{r.emp}</td>
-                    <td style={{ padding:"10px 14px",fontSize:13,color:"var(--color-text-secondary)" }}>{r.type}</td>
-                    <td style={{ padding:"10px 14px",fontSize:13,color:"var(--color-text-secondary)" }}>{r.from}</td>
-                    <td style={{ padding:"10px 14px",fontSize:13,color:"var(--color-text-secondary)" }}>{r.to}</td>
-                    <td style={{ padding:"10px 14px",fontSize:13,fontWeight:600,color:"var(--color-text)" }}>{r.days}</td>
-                    <td style={{ padding:"10px 14px",fontSize:12,color:"var(--color-text-muted)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{r.reason}</td>
-                    <td style={{ padding:"10px 14px" }}>
-                      <span style={{ fontSize:11,fontWeight:600,padding:"3px 10px",borderRadius:20,background:bg,color:fg }}>{r.status}</span>
-                    </td>
-                    <td style={{ padding:"10px 14px" }}>
-                      <div style={{ display:"flex",gap:5 }}>
-                        {r.status === "Pending" && <>
-                          <button title="Approve" onClick={() => approve(r.id)} style={{ padding:"4px 10px",fontSize:11,fontWeight:700,borderRadius:6,border:"none",background:"#dcfce7",color:"#15803d",cursor:"pointer" }}>✓ Approve</button>
-                          <button title="Reject"  onClick={() => reject(r.id)}  style={{ padding:"4px 10px",fontSize:11,fontWeight:700,borderRadius:6,border:"none",background:"#fde8e8",color:"#dc2626",cursor:"pointer" }}>✕ Reject</button>
-                        </>}
-                        <button title="Delete" onClick={() => remove(r.id)} style={{ width:26,height:26,borderRadius:"50%",border:"none",background:"var(--color-surface-muted)",color:"var(--color-text-muted)",cursor:"pointer",fontSize:12 }}>🗑</button>
-                      </div>
-                    </td>
+        {/* KPIs */}
+        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {kpis.map((k) => (
+            <div key={k.label} className="rounded-xl border border-[#e4e4ea] bg-white px-4 py-3">
+              <p className="text-[11px] font-medium text-[#6b6b76]">{k.label}</p>
+              <p className="mt-0.5 text-[22px] font-bold tabular-nums" style={{ color: k.color }}>{k.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="ui-card p-4 sm:p-5">
+          {/* Filters */}
+          <div className="mb-4 flex flex-wrap items-center gap-2.5">
+            <div className="relative min-w-[10rem] flex-1">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
+              <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                placeholder="Search employee or leave type…"
+                className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] py-2.5 pl-10 pr-4 text-[13px] outline-none placeholder:text-[#a0a0ab] focus:border-[#d0d0d8] focus:bg-white" />
+            </div>
+            {["all", "pending", "approved", "rejected"].map((s) => (
+              <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }}
+                className={`rounded-full border px-3.5 py-1.5 text-[12px] font-semibold capitalize transition ${
+                  statusFilter === s
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-white"
+                    : "border-[#e2e2e8] bg-white text-[#6b6b76] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                }`}>
+                {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* Table */}
+          <div className="overflow-hidden rounded-lg border border-[#ececf0]">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] border-collapse text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-[#e8e8ee] bg-[#f5f5f5] text-[12px] font-medium text-[#6b6b76]">
+                    {["SR No.", "Employee", "Leave Type", "From", "To", "Days", "Reason", "Status", "Actions"].map((h) => (
+                      <th key={h} className="px-4 py-3 font-medium whitespace-nowrap">{h}</th>
+                    ))}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 16px",borderTop:"1px solid var(--color-border-muted)",flexWrap:"wrap",gap:8 }}>
-          <span style={{ fontSize:12,color:"var(--color-text-muted)" }}>Showing {filtered.length} of {records.length} entries</span>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={9} className="px-4 py-16 text-center text-[13px] text-[#8a8a96]">Loading…</td></tr>
+                  ) : rows.length === 0 ? (
+                    <tr><td colSpan={9} className="px-4 py-16 text-center text-[13px] text-[#8a8a96]">No records found</td></tr>
+                  ) : rows.map((r, i) => {
+                    const sc = STATUS_STYLE[(r.status || "").toLowerCase()] || { bg: "#f3f4f6", text: "#6b7280" };
+                    return (
+                      <tr key={r.id} className="border-b border-[#f0f0f4] last:border-b-0 hover:bg-[#fafafa]">
+                        <td className="px-4 py-3.5 text-[#6b6b76]">{(page - 1) * pageSize + i + 1}</td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-soft)] text-[12px] font-bold text-[var(--color-primary)]">
+                              {(r.employee_name || "?")[0].toUpperCase()}
+                            </div>
+                            <span className="font-semibold text-[#1a1a1f]">{r.employee_name || "—"}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 text-[#4a4a55]">{r.leave_type}</td>
+                        <td className="px-4 py-3.5 whitespace-nowrap text-[#4a4a55]">{r.start_date || "—"}</td>
+                        <td className="px-4 py-3.5 whitespace-nowrap text-[#4a4a55]">{r.end_date || "—"}</td>
+                        <td className="px-4 py-3.5 font-semibold text-[#1a1a1f]">{r.days ?? "—"}</td>
+                        <td className="px-4 py-3.5 text-[#6b6b76] max-w-[160px] truncate">{r.reason || "—"}</td>
+                        <td className="px-4 py-3.5">
+                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize"
+                            style={{ background: sc.bg, color: sc.text }}>{r.status}</span>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          {r.status === "pending" ? (
+                            <div className="flex items-center gap-1.5">
+                              <button onClick={() => act(r.id, "approved")}
+                                className="rounded-lg bg-[#dcfce7] px-2.5 py-1 text-[11px] font-semibold text-[#15803d] hover:bg-[#bbf7d0]">
+                                ✓ Approve
+                              </button>
+                              <button onClick={() => act(r.id, "rejected")}
+                                className="rounded-lg bg-[#fde8e8] px-2.5 py-1 text-[11px] font-semibold text-[#dc2626] hover:bg-[#fecaca]">
+                                ✕ Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[12px] text-[#9a9aa5]">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Pagination */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[12px] text-[#6b6b76]">
+            <div className="flex items-center gap-2">
+              <span>Rows per page:</span>
+              <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                className="rounded border border-[#e2e2e8] bg-white px-2 py-1 outline-none">
+                {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <span>{total === 0 ? "0-0 of 0" : `${from}-${to} of ${total}`}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="grid h-8 w-8 place-items-center rounded border border-[#e2e2e8] bg-white disabled:opacity-40">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button className="grid h-8 min-w-8 place-items-center rounded border px-2 text-[13px] font-semibold text-white"
+                style={{ background: "var(--color-action-teal)", borderColor: "var(--color-action-teal)" }}>
+                {page}
+              </button>
+              <button disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="grid h-8 w-8 place-items-center rounded border border-[#e2e2e8] bg-white disabled:opacity-40">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {showApply && <ApplyModal onClose={() => setShowApply(false)} onSave={(r) => { setRecords((p) => [...p, r]); setShowApply(false); }} />}
+      <ApplyPanel
+        open={panelOpen}
+        employees={employees}
+        onClose={() => setPanelOpen(false)}
+        onSaved={() => { setPanelOpen(false); load(); }}
+      />
     </div>
   );
 }

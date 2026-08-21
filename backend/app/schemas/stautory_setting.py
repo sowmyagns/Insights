@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any
 
 
 class StatutorySettingBase(BaseModel):
+    tenant_id: Optional[int] = None
     setting_type: str  # pf, pt, esic
     data: Optional[Dict[str, Any]] = None
     is_active: Optional[int] = 1

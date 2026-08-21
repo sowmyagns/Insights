@@ -233,9 +233,11 @@ class PermissionItemResponse(BaseModel):
 
 
 class SidebarChildResponse(BaseModel):
+    key: str | None = None
     label: str
-    path: str
+    path: str | None = None
     module: str
+    children: list["SidebarChildResponse"] = Field(default_factory=list)
 
 
 class SidebarItemResponse(BaseModel):
@@ -243,4 +245,4 @@ class SidebarItemResponse(BaseModel):
     label: str
     path: str | None = None
     module: str
-    children: list[SidebarChildResponse] = []
+    children: list[SidebarChildResponse] = Field(default_factory=list)

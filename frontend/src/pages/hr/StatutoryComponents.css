@@ -1,0 +1,67 @@
+.statutory-page { max-width: 1400px; padding-top: 20px; padding-bottom: 40px; }
+.statutory-header { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:22px; }
+.statutory-eyebrow { margin:0 0 5px; color:var(--color-action-teal); font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.statutory-header-status { border:1px solid var(--color-primary-soft); border-radius:999px; background:var(--color-primary-soft); color:var(--color-action-teal); padding:7px 12px; font-size:12px; font-weight:700; }
+.statutory-error { display:flex; justify-content:space-between; gap:12px; margin-bottom:14px; border:1px solid var(--color-danger-soft); border-radius:8px; background:#fff7f7; padding:11px 13px; color:var(--color-danger); font-size:13px; }
+.statutory-error button { border:0; background:transparent; color:inherit; font-weight:700; text-decoration:underline; cursor:pointer; }
+.statutory-shell { overflow:hidden; border:1px solid #e4e4ea; border-radius:12px; background:var(--color-surface); box-shadow:0 1px 3px rgb(26 46 40 / 6%); }
+.statutory-tabs { display:flex; gap:4px; overflow-x:auto; border-bottom:1px solid #ececf0; background:#f7f7f8; padding:8px 10px 0; scrollbar-width:none; }
+.statutory-tabs::-webkit-scrollbar { display:none; }
+.statutory-tabs button { display:flex; flex:1 0 190px; align-items:center; gap:10px; min-width:190px; border:0; border-bottom:3px solid transparent; background:transparent; padding:12px 14px; color:var(--color-text-muted); text-align:left; cursor:pointer; }
+.statutory-tabs button.is-active { border-bottom-color:var(--color-action-teal); background:var(--color-surface); color:var(--color-text); }
+.statutory-tabs button > b { display:grid; width:30px; height:30px; place-items:center; border-radius:7px; background:var(--color-border-muted); color:var(--color-text-muted); font-size:10px; }
+.statutory-tabs button.is-active > b { background:var(--color-primary-soft); color:var(--color-action-teal); }
+.statutory-tabs strong, .statutory-tabs small { display:block; }
+.statutory-tabs strong { font-size:12px; }
+.statutory-tabs small { margin-top:3px; color:var(--color-text-faint); font-size:11px; }
+.statutory-content { min-height:360px; padding:24px 26px 28px; }
+.statutory-section-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px; }
+.statutory-section-heading h2 { margin:0; color:var(--color-text); font-size:17px; }
+.statutory-section-heading p { margin:4px 0 0; color:var(--color-text-muted); font-size:12px; }
+.statutory-summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 32px; }
+.statutory-summary-row { display:flex; justify-content:space-between; gap:16px; min-height:52px; border-bottom:1px solid var(--color-border-muted); padding:15px 0; }
+.statutory-summary-row span { color:var(--color-text-muted); font-size:12px; }
+.statutory-summary-row strong { color:var(--color-text); font-size:13px; text-align:right; }
+.statutory-active-note { margin-top:22px; border:1px solid var(--color-border-muted); border-radius:8px; background:var(--color-surface-muted); padding:12px 14px; color:var(--color-text-muted); font-size:12px; }
+.statutory-active-note.is-active { border-color:var(--color-primary-soft); background:var(--color-primary-soft); color:var(--color-action-teal); }
+.statutory-form-stack { display:flex; flex-direction:column; gap:22px; }
+.statutory-grid { display:grid; gap:16px; }
+.statutory-grid-two { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.statutory-grid-three { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.statutory-field { position:relative; display:block; min-width:0; }
+.statutory-field > span, .statutory-field-label { display:block; margin-bottom:6px; color:var(--color-text-secondary); font-size:12px; font-weight:700; }
+.input-suffix { position:relative; }
+.input-suffix .ui-input { padding-right:150px; }
+.input-suffix span { position:absolute; top:50%; right:11px; color:var(--color-text-muted); font-size:11px; transform:translateY(-50%); }
+.statutory-toggle { display:flex; align-items:center; gap:8px; color:var(--color-text-muted); font-size:12px; cursor:pointer; }
+.statutory-toggle input { position:absolute; opacity:0; }
+.statutory-toggle i { position:relative; display:block; width:38px; height:22px; border-radius:99px; background:var(--color-border); transition:.2s; }
+.statutory-toggle i::after { position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:white; content:""; transition:.2s; box-shadow:0 1px 3px rgb(0 0 0 / 18%); }
+.statutory-toggle input:checked + i { background:var(--color-action-teal); }
+.statutory-toggle input:checked + i::after { left:19px; }
+.statutory-toggle b { font-weight:700; }
+.statutory-component-picker { position:relative; }
+.statutory-picker-button { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:40px; text-align:left; }
+.statutory-picker-menu { position:absolute; top:69px; right:0; left:0; z-index:10; overflow:hidden; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); box-shadow:0 10px 24px rgb(26 46 40 / 12%); }
+.statutory-picker-menu label, .statutory-picker-menu > button { display:flex; width:100%; gap:9px; border:0; background:transparent; padding:9px 12px; color:var(--color-text); text-align:left; cursor:pointer; }
+.statutory-picker-menu label:hover, .statutory-picker-menu > button:hover { background:var(--color-primary-soft); }
+.statutory-picker-search { display:flex; align-items:center; gap:7px; border-bottom:1px solid var(--color-border-muted); padding:8px 10px; color:var(--color-text-icon); }
+.statutory-picker-search input { width:100%; border:0; outline:0; color:var(--color-text); font-size:12px; }
+.statutory-options { display:flex; flex-direction:column; gap:11px; }
+.statutory-check { display:flex; align-items:flex-start; gap:9px; color:var(--color-text); font-size:13px; line-height:1.45; cursor:pointer; }
+.statutory-check input { width:15px; height:15px; margin-top:2px; accent-color:var(--color-action-teal); }
+.statutory-info { border:1px solid var(--color-border-muted); border-radius:8px; background:var(--color-surface-muted); padding:13px 14px; color:var(--color-text-muted); font-size:12px; line-height:1.6; }
+.statutory-info strong, .statutory-info span { display:block; }
+.statutory-info strong { margin-bottom:3px; color:var(--color-text); }
+.statutory-subheading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.statutory-subheading h3 { margin:0; color:var(--color-text); font-size:14px; }
+.statutory-subheading p { margin:3px 0 0; color:var(--color-text-muted); font-size:12px; }
+.statutory-slab-head, .statutory-slab-row { display:grid; grid-template-columns:1fr 1fr 1fr 36px; gap:10px; align-items:center; }
+.statutory-slab-head { padding:0 10px 7px; color:var(--color-text-secondary); font-size:11px; font-weight:700; }
+.statutory-slab-row { margin-bottom:8px; }
+.statutory-remove { display:grid; width:32px; height:32px; place-items:center; border:1px solid var(--color-danger-soft); border-radius:6px; background:#fff7f7; color:var(--color-danger); cursor:pointer; }
+.statutory-remove:disabled { opacity:.35; cursor:not-allowed; }
+.statutory-form-footer { display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--color-border-muted); padding-top:22px; }
+.statutory-form-footer .ui-btn { min-width:120px; justify-content:center; }
+.statutory-field .ui-input, .statutory-field .ui-select { width:100%; }
+@media (max-width:700px) { .statutory-page { padding-top:16px; } .statutory-header { align-items:flex-start; flex-direction:column; } .statutory-header-status { align-self:flex-start; } .statutory-content { min-height:0; padding:18px 16px 20px; } .statutory-tabs { padding-left:6px; } .statutory-tabs button { flex-basis:155px; min-width:155px; padding:10px; } .statutory-summary-grid, .statutory-grid-two, .statutory-grid-three { grid-template-columns:1fr; } .statutory-summary-row { align-items:flex-start; flex-direction:column; gap:5px; } .statutory-summary-row strong { text-align:left; } .statutory-section-heading { align-items:flex-start; flex-direction:column; } .statutory-section-heading .ui-btn { width:100%; justify-content:center; } .statutory-form-footer { flex-direction:column-reverse; } .statutory-form-footer .ui-btn { width:100%; } .statutory-slab-head { display:none; } .statutory-slab-row { grid-template-columns:1fr 1fr; gap:8px; padding:8px; border:1px solid var(--color-border-muted); border-radius:8px; } .statutory-slab-row .statutory-remove { grid-column:2; justify-self:end; } }

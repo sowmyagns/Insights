@@ -7,7 +7,9 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 from app.models.hr import (
     AttendanceRecord,
+    AttendanceCorrectionRequest,
     Employee,
+    HROvertimeRequest,
     HrAsset,
     LeaveRequest,
     PayrollRecord,
@@ -17,6 +19,7 @@ from app.models.hr import (
 )
 from app.schemas.hr import (
     AttendanceRecordCreate,
+    AttendanceCorrectionCreate,
     EmployeeCreate,
     HrAssetCreate,
     HrAssetUpdate,
@@ -27,6 +30,7 @@ from app.schemas.hr import (
     SafetyIncidentCreate,
     SafetyIncidentUpdate,
     ShiftCreate,
+    OvertimeRequestCreate,
 )
 from app.schemas.hr_extended import EmployeeListRead, EmployeeSummaryRead
 
@@ -216,6 +220,15 @@ def list_shifts(db: Session, tenant_id: int) -> list[Shift]:
     return list(db.scalars(stmt).all())
 
 
+def delete_shift(db: Session, tenant_id: int, shift_id: int) -> bool:
+    shift = db.scalar(select(Shift).where(Shift.id == shift_id, Shift.tenant_id == tenant_id))
+    if not shift:
+        return False
+    db.delete(shift)
+    db.commit()
+    return True
+
+
 def create_attendance_record(
     db: Session, payload: AttendanceRecordCreate
 ) -> AttendanceRecord:
@@ -350,6 +363,70 @@ def list_attendance(
     return list(db.scalars(stmt).all())
 
 
+def list_attendance_corrections(db: Session, tenant_id: int) -> list[dict]:
+    rows = db.scalars(
+        select(AttendanceCorrectionRequest)
+        .where(AttendanceCorrectionRequest.tenant_id == tenant_id)
+        .order_by(AttendanceCorrectionRequest.created_at.desc())
+    ).all()
+    employees = {employee.id: employee.full_name for employee in list_employees(db, tenant_id)}
+    return [{**row.__dict__, "emp": employees.get(row.employee_id, f"Employee {row.employee_id}"), "date": str(row.record_date)} for row in rows]
+
+
+def create_attendance_correction(db: Session, tenant_id: int, payload: AttendanceCorrectionCreate, created_by: str | None) -> dict:
+    request = AttendanceCorrectionRequest(
+        tenant_id=tenant_id,
+        created_by=created_by,
+        **payload.model_dump(),
+    )
+    db.add(request)
+    db.commit()
+    db.refresh(request)
+    return request
+
+
+def update_attendance_correction_status(db: Session, tenant_id: int, request_id: int, status: str, approved_by: str | None) -> AttendanceCorrectionRequest | None:
+    request = db.scalar(select(AttendanceCorrectionRequest).where(AttendanceCorrectionRequest.id == request_id, AttendanceCorrectionRequest.tenant_id == tenant_id))
+    if not request:
+        return None
+    request.approval_status = status
+    request.approved_by = approved_by
+    db.commit()
+    db.refresh(request)
+    return request
+
+
+def list_overtime_requests(db: Session, tenant_id: int, month: str | None = None) -> list[dict]:
+    stmt = select(HROvertimeRequest).where(HROvertimeRequest.tenant_id == tenant_id)
+    if month:
+        year, month_number = (int(part) for part in month.split("-", 1))
+        start = date(year, month_number, 1)
+        end = date(year + (month_number == 12), 1 if month_number == 12 else month_number + 1, 1)
+        stmt = stmt.where(HROvertimeRequest.request_date >= start, HROvertimeRequest.request_date < end)
+    rows = db.scalars(stmt.order_by(HROvertimeRequest.request_date.desc())).all()
+    employees = {employee.id: employee.full_name for employee in list_employees(db, tenant_id)}
+    return [{**row.__dict__, "date": str(row.request_date), "employee_name": employees.get(row.employee_id, f"Employee {row.employee_id}")} for row in rows]
+
+
+def create_overtime_request(db: Session, tenant_id: int, payload: OvertimeRequestCreate, created_by: str | None) -> HROvertimeRequest:
+    request = HROvertimeRequest(tenant_id=tenant_id, created_by=created_by, **payload.model_dump())
+    db.add(request)
+    db.commit()
+    db.refresh(request)
+    return request
+
+
+def update_overtime_status(db: Session, tenant_id: int, request_id: int, status: str, approved_by: str | None) -> HROvertimeRequest | None:
+    request = db.scalar(select(HROvertimeRequest).where(HROvertimeRequest.id == request_id, HROvertimeRequest.tenant_id == tenant_id))
+    if not request:
+        return None
+    request.status = status
+    request.approved_by = approved_by
+    db.commit()
+    db.refresh(request)
+    return request
+
+
 def create_payroll_record(db: Session, payload: PayrollRecordCreate) -> PayrollRecord:
     """
     Create a payroll record with database error handling.
@@ -464,19 +541,29 @@ def list_performance_reviews(
 
 
 def get_hr_dashboard(db: Session, tenant_id: int) -> dict:
+    today = date.today()
+    month_start = today.replace(day=1)
     emp_count = db.scalar(select(func.count(Employee.id)).where(
         Employee.tenant_id == tenant_id, Employee.is_active
+    )) or 0
+    hired_this_month = db.scalar(select(func.count(Employee.id)).where(
+        Employee.tenant_id == tenant_id,
+        Employee.hire_date >= month_start,
+        Employee.hire_date <= today,
+    )) or 0
+    inactive_count = db.scalar(select(func.count(Employee.id)).where(
+        Employee.tenant_id == tenant_id, ~Employee.is_active
     )) or 0
     attendance_today = db.scalar(
         select(func.count(AttendanceRecord.id)).where(
             AttendanceRecord.tenant_id == tenant_id,
-            AttendanceRecord.record_date == date.today(),
+            AttendanceRecord.record_date == today,
         )
     ) or 0
     total_overtime = db.scalar(
         select(func.coalesce(func.sum(AttendanceRecord.overtime_hours), 0)).where(
             AttendanceRecord.tenant_id == tenant_id,
-            AttendanceRecord.record_date >= date.today() - timedelta(days=30),
+            AttendanceRecord.record_date >= today - timedelta(days=30),
         )
     ) or 0
     payroll_pending = db.scalar(
@@ -491,6 +578,8 @@ def get_hr_dashboard(db: Session, tenant_id: int) -> dict:
     ) or 0
     return {
         "headcount": emp_count,
+        "hired": hired_this_month,
+        "exits": inactive_count,
         "attendance_today": attendance_today,
         "total_overtime_30d": float(total_overtime),
         "payroll_pending": payroll_pending,
@@ -670,7 +759,9 @@ def update_hr_asset(
         ).first()
         if not row:
             return None
-        for field, value in payload.model_dump(exclude_unset=True).items():
+        # Frontend always sends all fields — apply them all directly.
+        # This correctly handles assigned_to=null (clearing an allocation).
+        for field, value in payload.model_dump().items():
             setattr(row, field, value)
         db.commit()
         db.refresh(row)
@@ -821,3 +912,182 @@ def delete_safety_incident(db: Session, tenant_id: int, incident_id: int) -> boo
         db.rollback()
         logger.error(f"Unexpected error deleting safety incident {incident_id}: {str(e)}")
         raise
+
+
+# ── Leave Approval / Deletion ──────────────────────────────────────────────
+
+def approve_leave_request(
+    db: Session, tenant_id: int, leave_id: int, status: str
+) -> LeaveRequest | None:
+    """Approve or reject a leave request (status: 'approved' | 'rejected')."""
+    try:
+        lv = db.scalar(
+            select(LeaveRequest).where(
+                LeaveRequest.id == leave_id,
+                LeaveRequest.tenant_id == tenant_id,
+            )
+        )
+        if not lv:
+            return None
+        lv.status = status.lower()
+        db.commit()
+        db.refresh(lv)
+        return lv
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Leave approval failed for leave {leave_id}: {e}")
+        raise RuntimeError(str(e)) from e
+
+
+def delete_leave_request(db: Session, tenant_id: int, leave_id: int) -> bool:
+    """Delete a leave request. Returns True on success."""
+    try:
+        lv = db.scalar(
+            select(LeaveRequest).where(
+                LeaveRequest.id == leave_id,
+                LeaveRequest.tenant_id == tenant_id,
+            )
+        )
+        if not lv:
+            return False
+        db.delete(lv)
+        db.commit()
+        return True
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Leave deletion failed for leave {leave_id}: {e}")
+        raise RuntimeError(str(e)) from e
+
+
+# ── Payslips ───────────────────────────────────────────────────────────────
+
+def list_payslips(
+    db: Session, tenant_id: int, employee_id: int | None = None
+) -> list[PayrollRecord]:
+    """Return PayrollRecord rows that have been calculated (status != 'draft')."""
+    stmt = select(PayrollRecord).where(
+        PayrollRecord.tenant_id == tenant_id,
+        PayrollRecord.status != "draft",
+    ).order_by(PayrollRecord.period_end.desc())
+    if employee_id:
+        stmt = stmt.where(PayrollRecord.employee_id == employee_id)
+    return list(db.scalars(stmt).all())
+
+
+def get_payroll_breakdown(
+    db: Session, tenant_id: int, payroll_id: int
+) -> dict | None:
+    """Return a PayrollRecord plus its calculated breakdown."""
+    pr = db.scalar(
+        select(PayrollRecord).where(
+            PayrollRecord.id == payroll_id,
+            PayrollRecord.tenant_id == tenant_id,
+        )
+    )
+    if not pr:
+        return None
+
+    # Re-compute breakdown from payroll calc service
+    try:
+        from app.services.payroll_calc_service import calculate_payroll_for_employee
+        period_start = pr.period_start
+        year, month = period_start.year, period_start.month
+        breakdown = calculate_payroll_for_employee(db, tenant_id, pr.employee_id, year, month)
+        if breakdown:
+            breakdown["payroll_record_id"] = pr.id
+            return breakdown
+    except Exception as e:
+        logger.warning(f"Could not compute breakdown for payroll {payroll_id}: {e}")
+
+    # Fallback: return basic fields
+    return {
+        "id": pr.id,
+        "employee_id": pr.employee_id,
+        "period_start": str(pr.period_start),
+        "period_end": str(pr.period_end),
+        "gross_pay": float(pr.gross_pay or 0),
+        "deductions": float(pr.deductions or 0),
+        "net_pay": float(pr.net_pay or 0),
+        "status": pr.status,
+    }
+
+
+# ── Attendance Check-In / Check-Out ────────────────────────────────────────
+
+def record_attendance_checkin(
+    db: Session, tenant_id: int, employee_id: int,
+    lat: float | None = None, lng: float | None = None
+) -> AttendanceRecord:
+    """Create or update today's AttendanceRecord with clock_in = now."""
+    today = date.today()
+    now = datetime.now()
+
+    existing = db.scalar(
+        select(AttendanceRecord).where(
+            AttendanceRecord.tenant_id == tenant_id,
+            AttendanceRecord.employee_id == employee_id,
+            AttendanceRecord.record_date == today,
+        )
+    )
+    if existing:
+        changed = False
+        if not existing.clock_in:
+            existing.clock_in = now
+            existing.status = "present"
+            changed = True
+        elif not existing.status:
+            existing.status = "present"
+            changed = True
+        if changed:
+            db.commit()
+            db.refresh(existing)
+        return existing
+
+    rec = AttendanceRecord(
+        tenant_id=tenant_id,
+        employee_id=employee_id,
+        record_date=today,
+        clock_in=now,
+        status="present",
+        capacity_hours=8.0,
+    )
+    db.add(rec)
+    db.commit()
+    db.refresh(rec)
+    return rec
+
+
+def record_attendance_checkout(
+    db: Session, tenant_id: int, employee_id: int
+) -> AttendanceRecord | None:
+    """Update today's AttendanceRecord with clock_out = now and compute work_hours."""
+    today = date.today()
+    now = datetime.now()
+
+    rec = db.scalar(
+        select(AttendanceRecord).where(
+            AttendanceRecord.tenant_id == tenant_id,
+            AttendanceRecord.employee_id == employee_id,
+            AttendanceRecord.record_date == today,
+        )
+    )
+    if not rec or not rec.clock_in:
+        return None
+
+    rec.clock_out = now
+    duration_hours = (now - rec.clock_in).total_seconds() / 3600
+    break_hours = float(rec.break_minutes or 0) / 60
+    work = max(0.0, duration_hours - break_hours)
+    rec.work_hours = round(work, 2)
+    capacity = float(rec.capacity_hours or 8.0)
+    if work >= capacity:
+        rec.overtime_hours = round(work - capacity, 2)
+        rec.status = "present"
+    elif work >= capacity / 2:
+        rec.status = "half-day"
+    else:
+        rec.status = "present"
+    db.commit()
+    db.refresh(rec)
+    return rec
+

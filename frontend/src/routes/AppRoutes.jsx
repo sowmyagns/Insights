@@ -719,10 +719,8 @@ export default function AppRoutes() {
       {/* ── HR ────────────────────────────────────────────────────────────── */}
       <Route path="/hr" element={<ProtectedRoute><P.HRDashboard /></ProtectedRoute>} />
       {/* Employee Management */}
-      <Route path="/hr/register" element={<ProtectedRoute><P.HRRegister /></ProtectedRoute>} />
       <Route path="/hr/onboarding" element={<ProtectedRoute><P.HREmployeeOnboarding /></ProtectedRoute>} />
       <Route path="/hr/preboarding" element={<ProtectedRoute><P.HRPreboarding /></ProtectedRoute>} />
-      <Route path="/hr/departments" element={<ProtectedRoute><P.HRDepartments /></ProtectedRoute>} />
       <Route path="/hr/asset-management" element={<ProtectedRoute><P.HRAssetManagement /></ProtectedRoute>} />
       <Route path="/hr/announcements" element={<ProtectedRoute><P.HRAnnouncements /></ProtectedRoute>} />
       <Route path="/hr/site-visits" element={<ProtectedRoute><P.HRSiteVisits /></ProtectedRoute>} />

@@ -5,6 +5,11 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot\..
 
+$python = Join-Path (Get-Location) "venv\Scripts\python.exe"
+if (-not (Test-Path $python)) {
+    $python = "python"
+}
+
 Write-Host ""
 Write-Host "=== Insights Iva - PostgreSQL setup ===" -ForegroundColor Cyan
 Write-Host ""
@@ -41,14 +46,14 @@ $adminPassword = $null
 
 Write-Host ""
 Write-Host "Creating role insights_user and database insights_iva..." -ForegroundColor Green
-python scripts/setup_postgres_local.py
+& $python scripts/setup_postgres_local.py
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
 Write-Host ""
 Write-Host "Applying Alembic schema (alembic upgrade head)..." -ForegroundColor Green
-alembic upgrade head
+& $python -m alembic upgrade head
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
@@ -58,13 +63,13 @@ $migrate = Read-Host "Copy data from smrt.db into PostgreSQL now? (y/N)"
 if ($migrate -match "^[Yy]$") {
     Write-Host "Migrating data from SQLite (smrt.db is read-only)..." -ForegroundColor Green
     $env:SOURCE_DATABASE_URL = "sqlite:///./smrt.db"
-    python scripts/migrate_sqlite_to_postgres.py
+    & $python scripts/migrate_sqlite_to_postgres.py
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
 
     Write-Host "Validating row counts..." -ForegroundColor Green
-    python scripts/validate_migration.py
+    & $python scripts/validate_migration.py
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }

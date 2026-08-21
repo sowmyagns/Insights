@@ -177,7 +177,7 @@ export default function Customers() {
     if (!deleting) return;
     setDeletingBusy(true);
     try {
-      if (typeof deleting.id === "number") await deleteCustomer(deleting.id);
+      if (deleting.id != null) await deleteCustomer(deleting.id);
       setCustomers((prev) => prev.filter((c) => c.id !== deleting.id));
       setDeleting(null);
       addToast("Customer deleted", "success");
@@ -195,10 +195,17 @@ export default function Customers() {
   return (
     <div className="min-h-full" style={{ background: PAGE_BG }}>
       <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mb-4 grid grid-cols-3 gap-3">
+        <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">Customers</h1>
+            <p className="mt-1 text-[13px] text-[#6b6b76]">Manage customer records, tax details, contacts, and billing addresses.</p>
+          </div>
+          <span className="rounded-full bg-[#e6f4f6] px-3 py-1 text-[12px] font-semibold text-[#0f6d84]">Customer master</span>
+        </header>
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
             { label: "Total Customers", value: customers.length, color: "#0f6d84" },
-            { label: "Filtered", value: filtered.length, color: "#6b4eff" },
+            { label: "Filtered", value: filtered.length, color: "#0f6d84" },
             { label: "With GSTIN", value: withGstin, color: "#16a34a" },
           ].map((k) => (
             <div key={k.label} className="rounded-xl border border-[#e4e4ea] bg-white px-4 py-3">
@@ -214,8 +221,9 @@ export default function Customers() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search"
-                className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] py-2.5 pl-10 pr-4 text-[13px] outline-none placeholder:text-[#a0a0ab] focus:border-[#d0d0d8] focus:bg-white"
+                placeholder="Search customers"
+                aria-label="Search customers"
+                className="ui-input w-full rounded-full pl-10 pr-4"
               />
             </div>
             <Button
@@ -265,7 +273,7 @@ export default function Customers() {
                 </thead>
                 <tbody>
                   {rows.map((c, rowIndex) => (
-                    <tr key={c.id} className="border-b border-[#f0f0f4] text-[#1a1a1f] last:border-b-0">
+                    <tr key={c.id} className="border-b border-[#f0f0f4] text-[#1a1a1f] last:border-b-0 hover:bg-[#fafcfc]">
                       <SerialNumberCell rowIndex={rowIndex} page={page} pageSize={pageSize} />
                       <td className="max-w-[220px] truncate px-4 py-3.5 font-medium text-[#1a1a1f]" title={c.company || c.name || ""}>
                         {c.company || c.name || ""}

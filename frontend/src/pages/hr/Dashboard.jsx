@@ -66,10 +66,7 @@ export default function Dashboard({
         from: "25 Feb 2026",
         to: "31 Mar 2026",
       }))
-    : [
-        { label: "General", start: "10:00 AM", end: "07:00 PM", from: "25 Feb 2026", to: "28 Feb 2026" },
-        { label: "General", start: "10:00 AM", end: "07:00 PM", from: "01 Mar 2026", to: "31 Mar 2026" },
-      ];
+    : [];
 
   return (
     <div className="dashboard-otu">
@@ -188,7 +185,7 @@ export default function Dashboard({
         <div className="dash-card">
           <div className="dash-card-title">Shift Schedule</div>
           <div className="dash-shifts">
-            {displayShifts.map((s, i) => (
+            {displayShifts.length === 0 ? <div className="dash-empty-text">No Shifts Configured</div> : displayShifts.map((s, i) => (
               <div key={i} className="dash-shift-item">
                 <div className="dash-shift-avatar">G</div>
                 <div>

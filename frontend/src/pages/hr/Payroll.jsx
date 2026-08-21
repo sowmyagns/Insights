@@ -1,158 +1,145 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Download, Play, Search } from "lucide-react";
+
+import Loader from "../../components/common/Loader";
+import { useToast } from "../../context/ToastContext";
 import { api } from "../api";
-import { MONTHS } from "../data/mockData";
-import { fmtMoney } from "../utils/format";
-import Avatar from "../components/Avatar";
-import { DEPT_COLORS } from "../data/mockData";
+import "./Payroll.css";
 
-export default function Payroll({ employees, apiMode }) {
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [apiRecords, setApiRecords] = useState([]);
-  const [records, setRecords] = useState(() =>
-    employees.filter((e) => e.status === "Active").map((e) => {
-      const base = e.salary / 12;
-      const bonus = 300 + Math.floor(Math.random() * 900);
-      const ded = 200 + Math.floor(Math.random() * 300);
-      return { id: e.id, employee: e, base: Math.round(base), bonus, ded, net: Math.round(base + bonus - ded), status: "Processed" };
-    })
-  );
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const periodKey = (year, month) => `${year}-${String(month).padStart(2, "0")}`;
+const periodEnd = (year, month) => new Date(year, month, 0).toISOString().slice(0, 10);
 
-  useEffect(() => {
-    if (apiMode) api.payroll.list().then(setApiRecords).catch(() => setApiRecords([]));
-  }, [apiMode]);
+function statusClass(status) {
+  if (["paid", "approved", "calculated"].includes(status)) return "bg-[#dcfce7] text-[#15803d]";
+  if (status === "rejected") return "bg-[#fde8e8] text-[#dc2626]";
+  return "bg-[#fef9c3] text-[#854d0e]";
+}
 
-  const ym = `${year}-${String(month).padStart(2, "0")}`;
-  const apiRows = apiRecords.filter((r) => r.month === ym);
+export default function Payroll() {
+  const { addToast } = useToast();
+  const current = new Date();
+  const [year, setYear] = useState(current.getFullYear());
+  const [month, setMonth] = useState(current.getMonth() + 1);
+  const [employees, setEmployees] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState("");
 
-  const generate = async () => {
-    if (apiMode && employees) {
-      for (const emp of employees.filter((e) => e.status === "Active")) {
-        await api.payroll.create({ employee_id: emp.id, month: ym, basic_salary: emp.salary || 0, allowances: 0, deductions: 0 });
-      }
-      setApiRecords(await api.payroll.list());
-      return;
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [employeeRows, payrollRows] = await Promise.all([api.employees.list(), api.payroll.list({ month: periodKey(year, month) })]);
+      setEmployees(Array.isArray(employeeRows) ? employeeRows : []);
+      setRows(Array.isArray(payrollRows) ? payrollRows : []);
+    } catch (requestError) {
+      setEmployees([]);
+      setRows([]);
+      setError(requestError.response?.data?.detail || "Could not load payroll records.");
+    } finally {
+      setLoading(false);
     }
-    setRecords(employees.filter((e) => e.status === "Active").map((e) => {
-      const base = e.salary / 12;
-      const bonus = 300 + Math.floor(Math.random() * 900);
-      const ded = 200 + Math.floor(Math.random() * 300);
-      return { id: e.id, employee: e, base: Math.round(base), bonus, ded, net: Math.round(base + bonus - ded), status: "Processed" };
-    }));
+  }, [year, month]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const employeeMap = useMemo(() => Object.fromEntries(employees.map((employee) => [employee.id, employee])), [employees]);
+  const period = periodKey(year, month);
+  const filtered = useMemo(() => rows.filter((row) => {
+    if (String(row.period_start || "").slice(0, 7) !== period) return false;
+    const employee = employeeMap[row.employee_id] || {};
+    const name = employee.full_name || employee.name || `Employee #${row.employee_id}`;
+    return !query.trim() || `${name} ${employee.department || ""} ${row.status || ""}`.toLowerCase().includes(query.trim().toLowerCase());
+  }), [rows, employeeMap, period, query]);
+
+  const totals = filtered.reduce((result, row) => ({
+    gross: result.gross + Number(row.gross_pay || 0),
+    deductions: result.deductions + Number(row.deductions || 0),
+    net: result.net + Number(row.net_pay || 0),
+  }), { gross: 0, deductions: 0, net: 0 });
+
+  const runPayroll = async () => {
+    setRunning(true);
+    try {
+      const result = await api.payroll.run({ year, month });
+      addToast(`Payroll processed for ${result.processed || 0} employees.`, "success");
+      await load();
+    } catch (requestError) {
+      addToast(requestError.response?.data?.detail || "Payroll calculation failed.", "error");
+    } finally {
+      setRunning(false);
+    }
   };
 
-  const displayRecords = apiMode
-    ? apiRows.map((p) => {
-        const emp = employees?.find((e) => e.id === p.employee_id);
-        return { id: p.id, employee: emp || { name: `Emp ${p.employee_id}`, dept: "", role: "" }, base: p.basic_salary || 0, bonus: p.allowances || 0, ded: p.deductions || 0, net: p.net_salary || 0 };
-      })
-    : records;
-
-  const totalBase = displayRecords.reduce((a, p) => a + p.base, 0);
-  const totalBonus = displayRecords.reduce((a, p) => a + p.bonus, 0);
-  const totalDed = displayRecords.reduce((a, p) => a + p.ded, 0);
-  const totalNet = displayRecords.reduce((a, p) => a + p.net, 0);
-
-  const deptPay = {};
-  displayRecords.forEach((p) => { const d = p.employee?.dept || "Other"; deptPay[d] = (deptPay[d] || 0) + p.net; });
-  const maxDp = Math.max(...Object.values(deptPay), 1);
-
-  const kpiCards = [
-    { label: "Base Salaries", value: fmtMoney(totalBase), color: "var(--color-primary)", bg: "var(--color-primary-soft)" },
-    { label: "Bonuses", value: fmtMoney(totalBonus), color: "#15803d", bg: "#dcfce7" },
-    { label: "Deductions", value: fmtMoney(totalDed), color: "var(--color-danger)", bg: "var(--color-danger-soft)" },
-    { label: "Net Payroll", value: fmtMoney(totalNet), color: "var(--color-action-teal)", bg: "#e6f4f4" },
-  ];
+  const approvePayroll = async (row) => {
+    try {
+      await api.payroll.updateStatus(row.id, "approved");
+      addToast("Payroll record approved.", "success");
+      await load();
+    } catch (requestError) {
+      addToast(requestError.response?.data?.detail || "Could not approve payroll record.", "error");
+    }
+  };
 
   return (
-    <div className="ui-page" style={{ paddingTop: 20, paddingBottom: 32 }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--color-text)" }}>Payroll</h1>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--color-text-muted)" }}>Generate and manage employee payroll.</p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <select className="ui-select" style={{ width: 120, minHeight: 36, fontSize: 13 }} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-            {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-          </select>
-          <select className="ui-select" style={{ width: 90, minHeight: 36, fontSize: 13 }} value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {[2023, 2024, 2025, 2026].map((y) => <option key={y}>{y}</option>)}
-          </select>
-          <button className="ui-btn-primary ui-btn--sm" onClick={generate}>⚡ Generate Payroll</button>
-          {apiMode && <button className="ui-btn-outline ui-btn--sm" onClick={() => api.reports.payrollExcel(ym)}>📥 Export</button>}
-          <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{apiMode ? apiRows.length : records.length} employees</span>
-        </div>
-      </div>
-
-      {/* KPI row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
-        {kpiCards.map(({ label, value, color, bg }) => (
-          <div key={label} className="ui-kpi" style={{ background: bg, border: `1px solid ${color}22` }}>
-            <div className="ui-kpi__top">
-              <span className="ui-kpi__label" style={{ color }}>{label}</span>
-            </div>
-            <div className="ui-kpi__value" style={{ color }}>{value}</div>
-            <div className="ui-kpi__meta">{MONTHS[month - 1]} {year}</div>
+    <div className="payroll-page min-h-full" style={{ background: "var(--color-bg)" }}>
+      <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
+        <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-[22px] font-semibold tracking-tight text-[#1a1a1f]">Payroll</h1>
+            <p className="mt-1 text-[13px] text-[#6b6b76]">Calculate, review, approve, and export employee payroll.</p>
           </div>
-        ))}
-      </div>
-
-      {/* Table + dept breakdown */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 14 }}>
-        <div className="ui-card" style={{ padding: 0, overflow: "hidden" }}>
-          <div className="ui-table-wrap" style={{ border: "none" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
-              <thead>
-                <tr style={{ background: "var(--color-surface-thead)" }}>
-                  {["Employee","Dept","Base","Bonus","Deduct","Net"].map((h) => (
-                    <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11.5, fontWeight: 700, color: "var(--color-text-secondary)", borderBottom: "1px solid var(--color-border)" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {displayRecords.map((p) => (
-                  <tr key={p.id} style={{ borderBottom: "1px solid var(--color-border-muted)" }}>
-                    <td style={{ padding: "10px 14px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <Avatar name={p.employee.name} dept={p.employee.dept} size={28} />
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text)" }}>{p.employee.name.split(" ")[0]}</div>
-                          <div style={{ fontSize: 10.5, color: "var(--color-text-muted)" }}>{p.employee.role}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: "10px 14px" }}>
-                      <span style={{ fontSize: 11, color: DEPT_COLORS[p.employee.dept] || "var(--color-primary)", fontWeight: 600 }}>{(p.employee.dept || "").slice(0, 4)}</span>
-                    </td>
-                    <td style={{ padding: "10px 14px", fontSize: 12 }}>{fmtMoney(p.base)}</td>
-                    <td style={{ padding: "10px 14px", fontSize: 12, color: "#15803d" }}>+{fmtMoney(p.bonus)}</td>
-                    <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--color-danger)" }}>-{fmtMoney(p.ded)}</td>
-                    <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 800, color: "var(--color-primary)" }}>{fmtMoney(p.net)}</td>
-                  </tr>
-                ))}
-                {!displayRecords.length && <tr><td colSpan={6} className="ui-empty">No payroll records</td></tr>}
-              </tbody>
-            </table>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setYear((value) => value - 1)} className="grid h-9 w-9 place-items-center rounded-lg border border-[#e2e2e8] bg-white"><ChevronLeft className="h-4 w-4" /></button>
+            <span className="min-w-[3rem] text-center text-[14px] font-semibold">{year}</span>
+            <button type="button" onClick={() => setYear((value) => value + 1)} className="grid h-9 w-9 place-items-center rounded-lg border border-[#e2e2e8] bg-white"><ChevronRight className="h-4 w-4" /></button>
+            <select value={month} onChange={(event) => setMonth(Number(event.target.value))} className="ui-select h-9 min-w-[125px] text-[13px]">
+              {MONTHS.map((label, index) => <option key={label} value={index + 1}>{label}</option>)}
+            </select>
+            <button type="button" onClick={() => api.reports.payrollExcel(period)} className="ui-btn-secondary inline-flex items-center gap-2"><Download className="h-4 w-4" /> Export</button>
+            <button type="button" onClick={runPayroll} disabled={running} className="ui-btn-primary inline-flex items-center gap-2 disabled:opacity-50"><Play className="h-4 w-4" /> {running ? "Calculating..." : "Run Payroll"}</button>
           </div>
-        </div>
+        </header>
 
-        <div className="ui-card" style={{ padding: "16px 18px" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text)", marginBottom: 4 }}>By Department</div>
-          <div style={{ fontSize: 11.5, color: "var(--color-text-muted)", marginBottom: 14 }}>Net distribution</div>
-          {Object.entries(deptPay).map(([dept, amt]) => (
-            <div key={dept} style={{ marginBottom: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 4 }}>
-                <span style={{ color: DEPT_COLORS[dept] || "var(--color-primary)", fontWeight: 600 }}>{dept}</span>
-                <span style={{ fontWeight: 700, color: "var(--color-text)" }}>{fmtMoney(amt)}</span>
-              </div>
-              <div style={{ height: 6, borderRadius: 99, background: "var(--color-border)", overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: 99, width: `${(amt / maxDp) * 100}%`, background: DEPT_COLORS[dept] || "var(--color-primary)", transition: "width .4s ease" }} />
-              </div>
+        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[{ label: "Employees", value: filtered.length, color: "#0f6d84" }, { label: "Gross Pay", value: money(totals.gross), color: "#15803d" }, { label: "Deductions", value: money(totals.deductions), color: "#dc2626" }, { label: "Net Pay", value: money(totals.net), color: "#1d4ed8" }].map((item) => (
+            <div key={item.label} className="rounded-xl border border-[#e4e4ea] bg-white px-4 py-3">
+              <p className="text-[11px] font-medium text-[#6b6b76]">{item.label}</p>
+              <p className="mt-1 text-[22px] font-bold tabular-nums" style={{ color: item.color }}>{item.value}</p>
+              <p className="mt-0.5 text-[11px] text-[#9a9aa5]">{MONTHS[month - 1]} {year}</p>
             </div>
           ))}
-          {!Object.keys(deptPay).length && <div style={{ fontSize: 12, color: "var(--color-text-faint)", textAlign: "center", padding: "20px 0" }}>No data</div>}
         </div>
+
+        <section className="ui-card p-4 sm:p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="relative min-w-[14rem] flex-1 sm:max-w-sm">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search employee or department" className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] py-2.5 pl-10 pr-4 text-[13px] outline-none focus:bg-white" />
+            </div>
+            <div className="inline-flex items-center gap-2 text-[12px] text-[#6b6b76]"><CalendarDays className="h-4 w-4" /> {MONTHS[month - 1]} {year}</div>
+          </div>
+          {error ? <div className="mb-4 flex justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700"><span>{error}</span><button type="button" onClick={load} className="font-semibold underline">Retry</button></div> : null}
+          <div className="overflow-hidden rounded-lg border border-[#ececf0]">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] border-collapse text-left text-[13px]">
+                <thead><tr className="border-b border-[#e8e8ee] bg-[#f5f5f5] text-[12px] font-medium text-[#6b6b76]"><th className="px-4 py-3">SR No.</th><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Department</th><th className="px-4 py-3">Base Salary</th><th className="px-4 py-3">Gross Pay</th><th className="px-4 py-3">Deductions</th><th className="px-4 py-3">Net Pay</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Action</th></tr></thead>
+                <tbody>
+                  {loading ? <tr><td colSpan={9}><Loader label="Loading payroll..." /></td></tr> : filtered.map((row, index) => {
+                    const employee = employeeMap[row.employee_id] || {};
+                    const name = employee.full_name || employee.name || `Employee #${row.employee_id}`;
+                    return <tr key={row.id} className="border-b border-[#f0f0f4] last:border-b-0 hover:bg-[#fafafa]"><td className="px-4 py-3.5 text-[#6b6b76]">{index + 1}</td><td className="px-4 py-3.5 font-semibold">{name}</td><td className="px-4 py-3.5 text-[#4a4a55]">{employee.department || employee.dept || "-"}</td><td className="px-4 py-3.5">{money(row.base_salary)}</td><td className="px-4 py-3.5 font-semibold text-[#15803d]">{money(row.gross_pay)}</td><td className="px-4 py-3.5 font-semibold text-[#dc2626]">{money(row.deductions)}</td><td className="px-4 py-3.5 font-bold text-[#0f6d84]">{money(row.net_pay)}</td><td className="px-4 py-3.5"><span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${statusClass(row.status)}`}>{row.status || "draft"}</span></td><td className="px-4 py-3.5 text-right">{row.status !== "approved" && row.status !== "paid" ? <button type="button" onClick={() => approvePayroll(row)} className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-semibold text-[#0f6d84] hover:bg-[#e6f4f6]" title="Approve payroll"><Check className="h-3.5 w-3.5" />Approve</button> : <span className="text-[12px] text-[#8a8a95]">Reviewed</span>}</td></tr>;
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {!loading && !filtered.length ? <div className="px-4 py-16 text-center text-[13px] text-[#8a8a95]">No payroll records for {MONTHS[month - 1]} {year}. Run payroll to calculate this period.</div> : null}
+          </div>
+        </section>
       </div>
     </div>
   );

@@ -1,8 +1,1 @@
-.leave-page .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-.leave-page h1 { font-size: 1.75rem; }
-.status-badge.pending { background: rgba(255, 217, 61, 0.2); color: var(--warning); }
-.status-badge.approved { background: rgba(0, 212, 170, 0.2); color: var(--success); }
-.status-badge.rejected { background: rgba(255, 107, 107, 0.2); color: var(--danger); }
-.btn-sm.approve { color: var(--success); border-color: var(--success); }
-.btn-sm.reject { color: var(--danger); border-color: var(--danger); margin-right: 0.5rem; }
-
+/* Leave tracker styles are now handled by Tailwind + design-system tokens */

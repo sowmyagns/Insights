@@ -86,8 +86,6 @@ function parseReceiptMeta(notes) {
   return {};
 }
 
-const inputClass = "ui-input mt-1.5";
-
 export default function PaymentReceiptForm() {
   const tenantId = useTenantId();
   const navigate = useNavigate();

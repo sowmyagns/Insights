@@ -98,38 +98,19 @@ export default function OrganizationSetup() {
 
       {tab === "designation" && (
         <TableWrap headers={["Sr. No","Designation","Created By","Updated By","Action"]}>
-          <tr style={{ borderBottom: "1px solid var(--color-border-muted)" }}>
-            <td style={{ padding: "10px 14px", fontSize: 13 }}>1.</td>
-            <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600 }}>CEO</td>
-            <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--color-text-muted)" }}>Admin</td>
-            <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--color-text-muted)" }}>—</td>
-            <td style={{ padding: "10px 14px" }}><button className="ui-btn-ghost ui-btn--sm" onClick={() => setModal("edit-designation")}>✎</button></td>
-          </tr>
+          <tr><td colSpan={5} className="ui-empty">No records found</td></tr>
         </TableWrap>
       )}
 
       {tab === "department" && (
         <TableWrap headers={["Sr. No","Department","Default Weekly Off","Created By","Updated By","Action"]}>
-          <tr style={{ borderBottom: "1px solid var(--color-border-muted)" }}>
-            <td style={{ padding: "10px 14px", fontSize: 13 }}>1.</td>
-            <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600 }}>IT</td>
-            <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--color-text-muted)" }}>Organization Default</td>
-            <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--color-text-muted)" }}>Admin</td>
-            <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--color-text-muted)" }}>—</td>
-            <td style={{ padding: "10px 14px" }}><button className="ui-btn-ghost ui-btn--sm" onClick={() => setModal("edit-department")}>✎</button></td>
-          </tr>
+          <tr><td colSpan={6} className="ui-empty">No records found</td></tr>
         </TableWrap>
       )}
 
       {tab === "employment" && (
         <TableWrap headers={["Sr. No","Employment Type","Created By","Updated By","Action"]}>
-          <tr style={{ borderBottom: "1px solid var(--color-border-muted)" }}>
-            <td style={{ padding: "10px 14px", fontSize: 13 }}>1.</td>
-            <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600 }}>Permanent</td>
-            <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--color-text-muted)" }}>Admin</td>
-            <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--color-text-muted)" }}>—</td>
-            <td style={{ padding: "10px 14px" }}><button className="ui-btn-ghost ui-btn--sm" onClick={() => setModal("edit-employment")}>✎</button></td>
-          </tr>
+          <tr><td colSpan={5} className="ui-empty">No records found</td></tr>
         </TableWrap>
       )}
 
@@ -142,16 +123,7 @@ export default function OrganizationSetup() {
 
       {tab === "branch" && (
         <TableWrap headers={["Branch","State","District","Address","Default Weekly Off","Created By","Updated By","Action"]}>
-          <tr style={{ borderBottom: "1px solid var(--color-border-muted)" }}>
-            <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600 }}>Head Office</td>
-            <td style={{ padding: "10px 14px", fontSize: 13 }}>Telangana</td>
-            <td style={{ padding: "10px 14px", fontSize: 13 }}>Suryapet</td>
-            <td style={{ padding: "10px 14px", fontSize: 13 }}>—</td>
-            <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--color-text-muted)" }}>Organization Default</td>
-            <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--color-text-muted)" }}>Admin</td>
-            <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--color-text-muted)" }}>—</td>
-            <td style={{ padding: "10px 14px" }}><button className="ui-btn-ghost ui-btn--sm" onClick={() => setModal("edit-branch")}>✎</button></td>
-          </tr>
+          <tr><td colSpan={8} className="ui-empty">No records found</td></tr>
         </TableWrap>
       )}
 

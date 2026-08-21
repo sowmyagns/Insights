@@ -1,3 +1,8 @@
 .payroll-page .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 .payroll-page h1 { font-size: 1.75rem; }
+.payroll-page table th { white-space: nowrap; }
+.payroll-page table td { vertical-align: middle; }
+.payroll-page button:focus-visible,
+.payroll-page input:focus-visible,
+.payroll-page select:focus-visible { outline: 2px solid var(--color-action-teal); outline-offset: 2px; }
 .net-salary { font-weight: 600; color: var(--accent); }

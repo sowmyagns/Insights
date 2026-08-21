@@ -70,6 +70,7 @@ from app.models import (  # noqa: F401
     department,
     document,
     erp_notification,
+    hr,
     inventory,
     machine,
     maintenance,
@@ -84,10 +85,12 @@ from app.models import (  # noqa: F401
     role,
     sales,
     security,
+    statutory_setting,
     task,
     tenant,
     user,
 )
+from app.models import site_visit  # noqa: F401  — registers SiteVisit table
 
 settings = get_settings()
 setup_logging("INFO")
@@ -364,6 +367,13 @@ def on_startup():
     from app.models.tenant import Tenant
 
     ensure_sqlite_schema()
+
+    # Create any new tables that don't exist yet (safe / idempotent)
+    try:
+        from app.models.base import Base
+        Base.metadata.create_all(bind=engine, checkfirst=True)
+    except Exception:
+        logger.exception("create_all warning during startup")
 
     db = SessionLocal()
     try:

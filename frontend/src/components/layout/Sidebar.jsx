@@ -21,6 +21,7 @@ import {
   Wallet,
   Wrench,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
@@ -113,6 +114,19 @@ function FactorySkyline() {
   );
 }
 
+function mapApiChildToNav(child) {
+  const children = (child.children || [])
+    .map(mapApiChildToNav)
+    .filter((item) => item.to || item.children?.length);
+  return {
+    key: child.key,
+    label: child.label,
+    to: child.path,
+    module: child.module,
+    children,
+  };
+}
+
 function mapApiMenusToNav(menus) {
   return (menus || []).map((section) => {
     const Icon = ICON_BY_KEY[section.key] || LayoutDashboard;
@@ -132,12 +146,8 @@ function mapApiMenusToNav(menus) {
       icon: Icon,
       module: section.module,
       children: (section.children || [])
-        .filter((c) => c?.path)
-        .map((c) => ({
-          label: c.label,
-          to: c.path,
-          module: c.module,
-        })),
+        .map(mapApiChildToNav)
+        .filter((item) => item.to || item.children?.length),
     };
   });
 }
@@ -320,11 +330,16 @@ export default function Sidebar({ collapsed = false, onToggleCollapse, onClose }
   useEffect(() => {
     setExpanded((prev) => {
       const next = { ...prev };
-      visibleNav.forEach((section) => {
-        if (section.children && sectionHasActiveChild(location.pathname, section)) {
-          next[section.key] = true;
-        }
-      });
+      const expandActive = (items, parentKey) => {
+        items.forEach((item) => {
+          if (item.children && sectionHasActiveChild(location.pathname, item)) {
+            const key = parentKey ? `${parentKey}-${item.key || item.label}` : item.key;
+            next[key] = true;
+            expandActive(item.children, key);
+          }
+        });
+      };
+      expandActive(visibleNav, "");
       return next;
     });
   }, [location.pathname, visibleNav]);
@@ -377,6 +392,40 @@ export default function Sidebar({ collapsed = false, onToggleCollapse, onClose }
 
   const sectionLabel = (section) => section.label || (section.labelKey ? t(section.labelKey) : section.key);
   const childLabel = (child) => child.label || (child.labelKey ? t(child.labelKey) : child.to);
+
+  const renderChildren = (items, parentKey, level = 0) => items.map((child) => {
+    if (child.to) {
+      return (
+        <NavLink
+          key={`${parentKey}-${child.to}-${child.label || child.key}`}
+          to={child.to}
+          end={child.end}
+          onClick={() => onClose?.()}
+          className={({ isActive }) => `${childLinkClass({ isActive })} ${level > 0 ? "ml-3" : ""}`}
+        >
+          {childLabel(child)}
+        </NavLink>
+      );
+    }
+
+    const childKey = `${parentKey}-${child.key || child.label}`;
+    const childOpen = expanded[childKey];
+    const childActive = sectionHasActiveChild(location.pathname, child);
+    return (
+      <div key={childKey} className="space-y-0.5">
+        <button
+          type="button"
+          onClick={() => toggleSection(childKey)}
+          className={`flex w-full items-center justify-between rounded-lg py-2 pl-9 pr-3 text-[13px] transition-colors ${childActive ? "text-white" : "text-slate-400 hover:bg-white/10 hover:text-slate-200"}`}
+          aria-expanded={childOpen}
+        >
+          <span>{childLabel(child)}</span>
+          {childOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
+        {childOpen && <div className="space-y-0.5">{renderChildren(child.children || [], childKey, level + 1)}</div>}
+      </div>
+    );
+  });
 
   return (
     <aside className="relative flex h-full w-full shrink-0 flex-col bg-[var(--color-nav-bg)] text-white">
@@ -464,22 +513,12 @@ export default function Sidebar({ collapsed = false, onToggleCollapse, onClose }
                   {!collapsed && <span className="truncate text-left">{label}</span>}
                 </span>
                 {!collapsed && (
-                  isOpen ? <ChevronDown className="h-4 w-4 shrink-0 opacity-70" /> : <ChevronRight className="h-4 w-4 shrink-0 opacity-70" />
+                  isOpen ? <ChevronUp className="h-4 w-4 shrink-0 opacity-70" /> : <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
                 )}
               </button>
               {!collapsed && isOpen && (
                 <div className="space-y-0.5 pb-1">
-                  {section.children.map((child) => (
-                    <NavLink
-                      key={`${section.key}-${child.to}-${child.label || child.key}`}
-                      to={child.to}
-                      end={child.end}
-                      onClick={() => onClose?.()}
-                      className={childLinkClass}
-                    >
-                      {childLabel(child)}
-                    </NavLink>
-                  ))}
+                  {renderChildren(section.children, section.key)}
                 </div>
               )}
             </div>

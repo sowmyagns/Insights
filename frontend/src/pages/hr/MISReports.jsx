@@ -9,9 +9,18 @@ export default function MISReports({ apiMode }) {
     if (!apiMode) return;
     setLoading(true);
     try {
-      if (type === "attendance") await api.reports.attendanceExcel(month);
-      else if (type === "payroll") await api.reports.payrollExcel(month);
-      else if (type === "employees") await api.reports.employeesExcel();
+      const response = type === "attendance"
+        ? await api.reports.attendanceExcel(month)
+        : type === "payroll"
+          ? await api.reports.payrollExcel(month)
+          : await api.reports.employeesExcel();
+      const blob = response.data;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${type}-${type === "employees" ? "all" : month}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
     } catch (e) {
       alert(e.message || "Export failed");
     }
@@ -28,7 +37,7 @@ export default function MISReports({ apiMode }) {
     <div className="ui-page" style={{ paddingTop: 20, paddingBottom: 32 }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--color-text)" }}>MIS Reports</h1>
-        <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--color-text-muted)" }}>Export management information reports to Excel.</p>
+        <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--color-text-muted)" }}>Download management information reports as CSV files.</p>
       </div>
 
       <div className="ui-card" style={{ padding: "20px 22px" }}>
@@ -54,7 +63,7 @@ export default function MISReports({ apiMode }) {
                 <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 2 }}>{desc}</div>
               </div>
               <button className="ui-btn-primary ui-btn--sm" style={{ alignSelf: "flex-start", marginTop: 4 }} onClick={() => exportReport(key)} disabled={loading || !apiMode}>
-                {loading ? "Exporting..." : "📥 Export Excel"}
+                {loading ? "Preparing..." : "📥 Download CSV"}
               </button>
             </div>
           ))}
@@ -62,7 +71,7 @@ export default function MISReports({ apiMode }) {
 
         {!apiMode && (
           <div style={{ marginTop: 16, padding: "10px 14px", borderRadius: 8, background: "var(--color-warning-soft)", border: "1px solid var(--color-warning)", fontSize: 12, color: "#7a5a00" }}>
-            ⚠️ Connect to API to export Excel reports.
+            ⚠️ Connect to API to download reports.
           </div>
         )}
       </div>

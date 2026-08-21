@@ -1,17 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-
-const MOCK_HOLIDAYS = [
-  { id: 1, name: "New Year's Day",      date: "2025-01-01", type: "Public",   branch: "All" },
-  { id: 2, name: "Republic Day",        date: "2025-01-26", type: "Public",   branch: "All" },
-  { id: 3, name: "Holi",               date: "2025-03-14", type: "Public",   branch: "All" },
-  { id: 4, name: "Good Friday",         date: "2025-04-18", type: "Optional", branch: "All" },
-  { id: 5, name: "Independence Day",    date: "2025-08-15", type: "Public",   branch: "All" },
-  { id: 6, name: "Gandhi Jayanti",      date: "2025-10-02", type: "Public",   branch: "All" },
-  { id: 7, name: "Diwali",             date: "2025-10-20", type: "Public",   branch: "All" },
-  { id: 8, name: "Christmas",          date: "2025-12-25", type: "Public",   branch: "All" },
-  { id: 9, name: "Company Foundation", date: "2025-06-15", type: "Company",  branch: "Head Office" },
-];
+import { loadHolidays, saveHolidays } from "./holidayStorage";
 
 const EMPTY = { name: "", date: "", type: "Public", branch: "All" };
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -61,18 +50,21 @@ function HolidayModal({ holiday, onClose, onSave }) {
 
 export default function Holiday() {
   const [year, setYear] = useState(new Date().getFullYear());
-  const [holidays, setHolidays] = useState(MOCK_HOLIDAYS);
+  const [holidays, setHolidays] = useState(loadHolidays);
   const [modal, setModal] = useState(null); // null | { mode:"add"|"edit", holiday? }
   const [deleteId, setDeleteId] = useState(null);
 
   const filtered = holidays.filter((h) => new Date(h.date).getFullYear() === year);
 
   const handleSave = (form) => {
+    let next;
     if (modal.mode === "edit") {
-      setHolidays((prev) => prev.map((h) => h.id === modal.holiday.id ? { ...h, ...form } : h));
+      next = holidays.map((h) => h.id === modal.holiday.id ? { ...h, ...form } : h);
     } else {
-      setHolidays((prev) => [...prev, { id: Date.now(), ...form }]);
+      next = [...holidays, { id: Date.now(), ...form }];
     }
+    setHolidays(next);
+    saveHolidays(next);
     setModal(null);
   };
 
@@ -91,9 +83,7 @@ export default function Holiday() {
           <p style={{ margin:"4px 0 0",fontSize:13,color:"var(--color-text-muted)" }}>Manage public and company holidays.</p>
         </div>
         <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-          <button className="ui-btn-outline ui-btn--sm" onClick={() => setYear((y) => y - 1)}>‹</button>
-          <span style={{ fontSize:14,fontWeight:700,color:"var(--color-text)",minWidth:52,textAlign:"center" }}>{year}</span>
-          <button className="ui-btn-outline ui-btn--sm" onClick={() => setYear((y) => y + 1)}>›</button>
+          
           <button className="ui-btn-primary ui-btn--sm" onClick={() => setModal({ mode:"add" })}>+ Add Holiday</button>
         </div>
       </div>
@@ -119,7 +109,7 @@ export default function Holiday() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={7} className="ui-empty">No holidays found for {year}</td></tr>
-              ) : filtered.sort((a,b) => a.date.localeCompare(b.date)).map((h, i) => {
+              ) : [...filtered].sort((a,b) => a.date.localeCompare(b.date)).map((h, i) => {
                 const d = new Date(h.date);
                 const [bg, fg] = TYPE_COLORS[h.type] || ["#f3f3f6","#6b6b76"];
                 return (
@@ -156,7 +146,12 @@ export default function Holiday() {
             <p style={{ margin:"0 0 20px",fontSize:13,color:"var(--color-text-muted)" }}>This action cannot be undone.</p>
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10 }}>
               <button className="ui-btn-secondary" onClick={() => setDeleteId(null)}>Cancel</button>
-              <button className="ui-btn-danger" onClick={() => { setHolidays((p) => p.filter((h) => h.id !== deleteId)); setDeleteId(null); }}>Delete</button>
+              <button className="ui-btn-danger" onClick={() => {
+                const next = holidays.filter((h) => h.id !== deleteId);
+                setHolidays(next);
+                saveHolidays(next);
+                setDeleteId(null);
+              }}>Delete</button>
             </div>
           </div>
         </div>,

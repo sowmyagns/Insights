@@ -15,7 +15,7 @@ export const ROLES = [
 
 export const MODULES = [
   "dashboard", "masters", "production", "inventory", "procurement",
-  "sales", "accounts", "quality", "maintenance", "analytics", "alerts", "admin",
+  "sales", "accounts", "quality", "maintenance", "analytics", "alerts", "hr", "admin",
   "documents", "documents_ops", "factoryMonitor", "iot", "settings", "meetings",
 ];
 
@@ -51,8 +51,8 @@ export const ROLE_PERMISSIONS = {
   procurement_manager: [
     "dashboard", "procurement", "inventory", "masters", "accounts", "alerts", "documents", "analytics",
   ],
-  "HR Manager": ["dashboard", "analytics", "alerts", "documents", "masters", "meetings"],
-  hr_manager: ["dashboard", "analytics", "alerts", "documents", "masters", "meetings"],
+  "HR Manager": ["dashboard", "hr", "analytics", "alerts", "documents", "masters", "meetings"],
+  hr_manager: ["dashboard", "hr", "analytics", "alerts", "documents", "masters", "meetings"],
   Accountant: ["dashboard", "accounts", "sales", "documents", "analytics", "alerts", "masters", "meetings"],
   accountant: ["dashboard", "accounts", "sales", "documents", "analytics", "alerts", "masters", "meetings"],
   Operator: [
@@ -97,6 +97,7 @@ export const ROUTE_MODULE_OVERRIDES = {
   "/analytics/sales": "analytics",
   "/analytics/finance": "analytics",
   "/manufacturing/workflow": "dashboard",
+  "/hr": "hr",
   "/ewaybill/login": "sales",
   "/digital-signature": "sales",
   "/purchases": "procurement",

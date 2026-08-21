@@ -1,28 +1,162 @@
 import { useState, useEffect, useCallback, useContext } from "react";
 import { createPortal } from "react-dom";
+import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import axiosInstance from "../../api/axiosConfig";
 import { AuthContext } from "../../context/AuthContext";
+import { inputClass } from "../../design-system/classes";
+
+const PAGE_SIZES = [20, 50, 100];
+const PANEL_CLASS =
+  "flex max-h-[90vh] w-full max-w-[440px] flex-col overflow-hidden rounded-l-xl bg-white shadow-2xl animate-[slideInRight_0.28s_ease-out]";
 
 const EMPTY_FORM = {
-  first_name: "", last_name: "", gender: "", designation: "",
-  email: "", mobile: "", employment_type: "", branch: "",
-  department: "", date_of_joining: "", reporting_to: "",
+  first_name: "", last_name: "", gender: "", dob: "",
+  designation: "", email: "", mobile: "", employment_type: "",
+  branch: "", department: "", date_of_joining: "", reporting_to: "",
 };
 
-function Field({ label, required, children }) {
+const EMPTY_PERSONAL = { gender: "", dob: "" };
+const EMPTY_EMPLOYMENT = { employment_type: "", branch: "", department: "", reporting_to: "", date_of_joining: "" };
+
+function SoftField({ label, required, children }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-      <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)" }}>
-        {label}{required && <span style={{ color: "var(--color-danger)", marginLeft: 2 }}>*</span>}
-      </label>
+    <label className="block">
+      <span className="mb-1 block text-[12px] font-medium text-[#8a8a95]">
+        {label}{required ? <span className="text-[#e11d48]"> *</span> : null}
+      </span>
       {children}
-    </div>
+    </label>
+  );
+}
+
+function PersonalDetailsModal({ open, onClose, initial, onSave }) {
+  const [form, setForm] = useState(EMPTY_PERSONAL);
+  useEffect(() => {
+    if (!open) return;
+    setForm({ gender: initial?.gender || "", dob: initial?.dob || "" });
+  }, [open, initial]);
+  if (!open) return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
+    >
+      <form
+        onSubmit={(e) => { e.preventDefault(); onSave?.(form); onClose?.(); }}
+        className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-[#ececf0] bg-white px-5 py-4">
+          <h2 className="text-[17px] font-bold text-[#1a1a1f]">Personal Details</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-[#9a9aa5] hover:bg-[#f5f5f7]" aria-label="Close">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="space-y-4 bg-[#f3f3f6] px-5 py-5">
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-[#8a8a95]">Gender</label>
+            <select value={form.gender} onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))} className={inputClass}>
+              <option value="">Select Gender</option>
+              <option>Male</option><option>Female</option><option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-[#8a8a95]">Date of Birth</label>
+            <input type="date" value={form.dob} onChange={(e) => setForm((f) => ({ ...f, dob: e.target.value }))} className={inputClass} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 border-t border-[#ececf0] bg-white px-5 py-4">
+          <button type="button" onClick={onClose} className="ui-btn-secondary w-full py-2.5 text-[14px]">Cancel</button>
+          <button type="submit" className="ui-btn-primary w-full py-2.5 text-[14px]">Save</button>
+        </div>
+      </form>
+    </div>,
+    document.body
+  );
+}
+
+function EmploymentDetailsModal({ open, onClose, initial, onSave }) {
+  const [form, setForm] = useState(EMPTY_EMPLOYMENT);
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      employment_type: initial?.employment_type || "",
+      branch: initial?.branch || "",
+      department: initial?.department || "",
+      reporting_to: initial?.reporting_to || "",
+      date_of_joining: initial?.date_of_joining || "",
+    });
+  }, [open, initial]);
+  if (!open) return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
+    >
+      <form
+        onSubmit={(e) => { e.preventDefault(); onSave?.(form); onClose?.(); }}
+        className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-[#ececf0] bg-white px-5 py-4">
+          <h2 className="text-[17px] font-bold text-[#1a1a1f]">Employment Details</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-[#9a9aa5] hover:bg-[#f5f5f7]" aria-label="Close">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="space-y-4 bg-[#f3f3f6] px-5 py-5">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-[#8a8a95]">Employment Type</label>
+              <select value={form.employment_type} onChange={(e) => setForm((f) => ({ ...f, employment_type: e.target.value }))} className={inputClass}>
+                <option value="">Select Type</option>
+                <option>Permanent</option><option>Contract</option><option>Intern</option><option>Part-time</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-[#8a8a95]">Branch</label>
+              <select value={form.branch} onChange={(e) => setForm((f) => ({ ...f, branch: e.target.value }))} className={inputClass}>
+                <option value="">Select Branch</option>
+                <option>Head Office</option><option>Branch 1</option><option>Branch 2</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-[#8a8a95]">Department</label>
+              <select value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} className={inputClass}>
+                <option value="">Select Department</option>
+                <option>Sales</option><option>Accountant</option><option>Production</option>
+                <option>Operator</option><option>Storage</option><option>HR</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-[#8a8a95]">Reporting To</label>
+              <input value={form.reporting_to} onChange={(e) => setForm((f) => ({ ...f, reporting_to: e.target.value }))} placeholder="Manager name" className={inputClass} />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[13px] font-medium text-[#8a8a95]">Date of Joining</label>
+            <input type="date" value={form.date_of_joining} onChange={(e) => setForm((f) => ({ ...f, date_of_joining: e.target.value }))} className={inputClass} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 border-t border-[#ececf0] bg-white px-5 py-4">
+          <button type="button" onClick={onClose} className="ui-btn-secondary w-full py-2.5 text-[14px]">Cancel</button>
+          <button type="submit" className="ui-btn-primary w-full py-2.5 text-[14px]">Save</button>
+        </div>
+      </form>
+    </div>,
+    document.body
   );
 }
 
 function EmployeeFormModal({ open, employee, onClose, onSaved }) {
   const { user } = useContext(AuthContext);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [personalDetails, setPersonalDetails] = useState(null);
+  const [personalOpen, setPersonalOpen] = useState(false);
+  const [employmentDetails, setEmploymentDetails] = useState(null);
+  const [employmentOpen, setEmploymentOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -34,160 +168,205 @@ function EmployeeFormModal({ open, employee, onClose, onSaved }) {
       setForm({
         first_name: parts[0] || "",
         last_name: parts.slice(1).join(" ") || "",
-        gender: employee.gender || "",
-        designation: employee.designation || "",
         email: employee.email || "",
         mobile: employee.phone || employee.mobile || "",
+        designation: employee.designation || "",
+      });
+      setPersonalDetails({ gender: employee.gender || "", dob: employee.dob || "" });
+      setEmploymentDetails({
         employment_type: employee.employment_type || "",
         branch: employee.branch || "",
         department: employee.department || "",
-        date_of_joining: employee.hire_date || employee.date_of_joining || "",
         reporting_to: employee.reporting_manager || employee.reporting_to || "",
+        date_of_joining: employee.hire_date || employee.date_of_joining || "",
       });
     } else {
       setForm(EMPTY_FORM);
+      setPersonalDetails(null);
+      setEmploymentDetails(null);
     }
     setError("");
   }, [open, employee]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const handleSave = async () => {
+  const handleSave = async (e) => {
+    e.preventDefault();
     if (!form.first_name.trim()) { setError("First name is required."); return; }
+    if (!form.designation.trim()) { setError("Designation is required."); return; }
     if (!form.email.trim()) { setError("Email is required."); return; }
-    setSaving(true);
-    setError("");
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) { setError("Enter a valid email address."); return; }
+    setSaving(true); setError("");
     try {
       const fullName = `${form.first_name.trim()} ${form.last_name.trim()}`.trim();
       const payload = {
         full_name: fullName,
         email: form.email.trim(),
         phone: form.mobile.trim(),
-        department: form.department,
         designation: form.designation,
-        reporting_manager: form.reporting_to,
-        hire_date: form.date_of_joining || null,
-        employment_type: form.employment_type,
-        branch: form.branch,
-        gender: form.gender,
+        gender: personalDetails?.gender || "",
+        dob: personalDetails?.dob || null,
+        department: employmentDetails?.department || "",
+        reporting_manager: employmentDetails?.reporting_to || "",
+        hire_date: employmentDetails?.date_of_joining || null,
+        employment_type: employmentDetails?.employment_type || "",
+        branch: employmentDetails?.branch || "",
         is_active: true,
       };
       if (employee?.id) {
         await axiosInstance.put(`/hr/employees/${employee.id}`, payload);
       } else {
-        // Generate employee_code from name + timestamp (required by schema)
         const code = "EMP-" + Date.now().toString().slice(-6);
-        await axiosInstance.post("/hr/employees", {
-          ...payload,
-          employee_code: code,
-          tenant_id: user?.tenant_id ?? 1,
-        });
+        await axiosInstance.post("/hr/employees", { ...payload, employee_code: code, tenant_id: user?.tenant_id ?? 1 });
       }
       onSaved();
-    } catch (e) {
-      setError(e?.response?.data?.detail || e?.message || "Save failed.");
+    } catch (err) {
+      setError(err?.response?.data?.detail || err?.message || "Save failed.");
     } finally {
       setSaving(false);
     }
   };
 
-  if (!open) return null;
+  const personalText = personalDetails
+    ? [personalDetails.gender, personalDetails.dob].filter(Boolean).join(" · ")
+    : null;
 
-  const inputStyle = {
-    width: "100%", padding: "8px 12px", fontSize: 13,
-    border: "1px solid var(--color-border)", borderRadius: 8,
-    background: "var(--color-surface)", color: "var(--color-text)",
-    outline: "none", boxSizing: "border-box",
-  };
+  const employmentText = employmentDetails
+    ? [employmentDetails.employment_type, employmentDetails.department, employmentDetails.branch].filter(Boolean).join(" · ")
+    : null;
+
+  if (!open) return null;
 
   return createPortal(
     <div
-      style={{ position: "fixed", inset: 0, zIndex: 90, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15,17,23,0.5)", backdropFilter: "blur(3px)", padding: 16 }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}
+      className="fixed inset-0 z-[80] flex items-center justify-end bg-black/40"
+      role="presentation"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
     >
-      <div style={{ background: "var(--color-surface)", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.22)" }}>
+      <form onSubmit={handleSave} className={PANEL_CLASS} onMouseDown={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "20px 24px 16px", borderBottom: "1px solid var(--color-border-muted)" }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--color-text)" }}>
-              {employee ? "Edit Employee" : "Add Employee"}
-            </h3>
-            <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--color-text-muted)" }}>
-              {employee ? "Update employee details." : "Fill in the details to onboard a new employee."}
-            </p>
-          </div>
-          <button
-            onClick={onClose} disabled={saving}
-            style={{ background: "var(--color-surface-muted)", border: "none", width: 30, height: 30, borderRadius: "50%", cursor: "pointer", fontSize: 14, color: "var(--color-text-muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-          >✕</button>
+        <div className="flex shrink-0 items-center justify-between border-b border-[#ececf0] px-5 py-3.5">
+          <h2 className="text-[17px] font-bold text-[#1a1a1f]">
+            {employee ? "Edit Employee" : "Add Employee"}
+          </h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-[#1a1a1f] hover:bg-[#f5f5f7]" aria-label="Close">
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Body */}
-        <div style={{ overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Field label="First Name" required>
-              <input style={inputStyle} placeholder="Enter first name" value={form.first_name} onChange={set("first_name")} />
-            </Field>
-            <Field label="Last Name">
-              <input style={inputStyle} placeholder="Enter last name" value={form.last_name} onChange={set("last_name")} />
-            </Field>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Field label="Gender">
-              <select style={inputStyle} value={form.gender} onChange={set("gender")}>
-                <option value="">Select Gender</option>
-                <option>Male</option><option>Female</option><option>Other</option>
-              </select>
-            </Field>
-            <Field label="Designation">
-              <input style={inputStyle} placeholder="e.g. Software Engineer" value={form.designation} onChange={set("designation")} />
-            </Field>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Field label="Email" required>
-              <input style={inputStyle} type="email" placeholder="Enter email" value={form.email} onChange={set("email")} />
-            </Field>
-            <Field label="Mobile Number">
-              <input style={inputStyle} placeholder="Enter mobile number" value={form.mobile} onChange={set("mobile")} />
-            </Field>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Field label="Employment Type">
-              <select style={inputStyle} value={form.employment_type} onChange={set("employment_type")}>
-                <option value="">Select Type</option>
-                <option>Permanent</option><option>Contract</option><option>Intern</option><option>Part-time</option>
-              </select>
-            </Field>
-            <Field label="Branch">
-              <input style={inputStyle} placeholder="Enter branch" value={form.branch} onChange={set("branch")} />
-            </Field>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Field label="Department">
-              <input style={inputStyle} placeholder="Enter department" value={form.department} onChange={set("department")} />
-            </Field>
-            <Field label="Reporting To">
-              <input style={inputStyle} placeholder="Manager name" value={form.reporting_to} onChange={set("reporting_to")} />
-            </Field>
-          </div>
-          <Field label="Date of Joining">
-            <input style={{ ...inputStyle, maxWidth: 220 }} type="date" value={form.date_of_joining} onChange={set("date_of_joining")} />
-          </Field>
-          {error && (
-            <div style={{ padding: "10px 14px", background: "var(--color-danger-soft)", color: "var(--color-danger)", borderRadius: 8, fontSize: 13 }}>
-              {error}
+        <div className="overflow-y-auto px-5 py-4">
+          <div className="space-y-3">
+            {/* Name row */}
+            <div className="grid grid-cols-2 gap-3">
+              <SoftField label="First Name" required>
+                <input value={form.first_name} onChange={set("first_name")} placeholder="Enter first name" className={inputClass} />
+              </SoftField>
+              <SoftField label="Last Name">
+                <input value={form.last_name} onChange={set("last_name")} placeholder="Enter last name" className={inputClass} />
+              </SoftField>
             </div>
+
+            {/* Email + Mobile */}
+            <div className="grid grid-cols-2 gap-3">
+              <SoftField label="Email" required>
+                <input type="email" value={form.email} onChange={set("email")} placeholder="Enter email" className={inputClass} />
+              </SoftField>
+              <SoftField label="Mobile Number">
+                <input value={form.mobile} onChange={(e) => setForm((f) => ({ ...f, mobile: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Enter mobile" className={inputClass} />
+              </SoftField>
+            </div>
+
+            {/* Designation */}
+            <SoftField label="Designation" required>
+              <input value={form.designation} onChange={set("designation")} placeholder="e.g. Software Engineer" className={inputClass} />
+            </SoftField>
+          </div>
+
+          {/* Personal Details subsection */}
+          <div className="mt-3 border-t border-[#ececf0] pt-3">
+            {personalText ? (
+              <div className="rounded-lg border border-[#ececf0] bg-white px-3 py-2.5">
+                <div className="mb-0.5 text-[12px] font-semibold text-[#1a1a1f]">Personal Details</div>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[13px] text-[#4a4a55]">{personalText}</p>
+                  <button type="button" onClick={() => setPersonalOpen(true)}>
+                    <Pencil className="h-4 w-4 text-[var(--color-action-teal)]" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-[#1a1a1f]">Personal Details</p>
+                  <p className="truncate text-[11px] text-[#6b6b76]">Gender, Date of Birth</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPersonalOpen(true)}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--color-primary)] bg-[var(--color-primary-soft)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+                >
+                  <Plus className="h-3 w-3" /> Add
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Employment Details subsection */}
+          <div className="mt-2 border-t border-[#ececf0] pt-3">
+            {employmentText ? (
+              <div className="rounded-lg border border-[#ececf0] bg-white px-3 py-2.5">
+                <div className="mb-0.5 text-[12px] font-semibold text-[#1a1a1f]">Employment Details</div>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[13px] text-[#4a4a55]">{employmentText}</p>
+                  <button type="button" onClick={() => setEmploymentOpen(true)}>
+                    <Pencil className="h-4 w-4 text-[var(--color-action-teal)]" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-[#1a1a1f]">Employment Details</p>
+                  <p className="truncate text-[11px] text-[#6b6b76]">Type, Branch, Department, Reporting To, Joining Date</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEmploymentOpen(true)}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--color-primary)] bg-[var(--color-primary-soft)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+                >
+                  <Plus className="h-3 w-3" /> Add
+                </button>
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="mt-3 rounded-lg bg-[var(--color-danger-soft)] px-3 py-2.5 text-[13px] text-[var(--color-danger)]">{error}</div>
           )}
         </div>
 
         {/* Footer */}
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "14px 24px", borderTop: "1px solid var(--color-border-muted)" }}>
-          <button className="ui-btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="ui-btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : employee ? "Update Employee" : "Add Employee"}
+        <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-[#ececf0] px-5 py-3.5">
+          <button type="button" onClick={onClose} className="ui-btn-secondary w-full py-3 text-[14px]">Cancel</button>
+          <button type="submit" disabled={saving} className="ui-btn-primary py-3 text-[14px] disabled:opacity-60">
+            {saving ? "Saving…" : "Submit"}
           </button>
         </div>
-      </div>
+      </form>
+
+      <PersonalDetailsModal
+        open={personalOpen}
+        onClose={() => setPersonalOpen(false)}
+        initial={personalDetails || EMPTY_PERSONAL}
+        onSave={setPersonalDetails}
+      />
+      <EmploymentDetailsModal
+        open={employmentOpen}
+        onClose={() => setEmploymentOpen(false)}
+        initial={employmentDetails || EMPTY_EMPLOYMENT}
+        onSave={setEmploymentDetails}
+      />
     </div>,
     document.body
   );
@@ -197,16 +376,22 @@ function DeleteModal({ open, busy, onClose, onConfirm }) {
   if (!open) return null;
   return createPortal(
     <div
-      style={{ position: "fixed", inset: 0, zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15,17,23,0.45)", backdropFilter: "blur(2px)", padding: 16 }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 p-4"
+      onMouseDown={(e) => e.target === e.currentTarget && !busy && onClose()}
     >
-      <div style={{ background: "var(--color-surface)", borderRadius: 16, padding: "32px 28px", maxWidth: 400, width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.18)" }}>
-        <div style={{ width: 60, height: 60, borderRadius: "50%", background: "var(--color-danger-soft)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 26 }}>🗑️</div>
-        <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 700, color: "var(--color-text)" }}>Delete Employee?</h3>
-        <p style={{ margin: "0 0 24px", fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.6 }}>This action cannot be undone.</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <button className="ui-btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="ui-btn-danger" onClick={onConfirm} disabled={busy}>{busy ? "Deleting…" : "Delete"}</button>
+      <div className="w-full max-w-[420px] rounded-2xl bg-white px-8 py-8 text-center shadow-2xl">
+        <div className="mx-auto mb-5 grid h-[72px] w-[72px] place-items-center rounded-full bg-[#fee2e2]">
+          <Trash2 className="h-9 w-9 text-[#ef4444]" strokeWidth={1.75} />
+        </div>
+        <h3 className="text-[28px] font-bold leading-tight text-[#1a1a1f]">Delete Employee?</h3>
+        <p className="mt-3 text-[14px] leading-relaxed text-[#5a5a66]">
+          Are you sure you want to delete this employee?<br />This action is not reversible.
+        </p>
+        <div className="mt-7 grid grid-cols-2 gap-4">
+          <button type="button" disabled={busy} onClick={onClose} className="ui-btn-secondary w-full py-3 text-[14px]">No</button>
+          <button type="button" disabled={busy} onClick={onConfirm} className="ui-btn-danger w-full py-3 text-[14px]">
+            {busy ? "Deleting…" : "Delete"}
+          </button>
         </div>
       </div>
     </div>,
@@ -227,41 +412,43 @@ export default function EmployeeOnboarding() {
   const [deleting, setDeleting] = useState(null);
   const [deletingBusy, setDeletingBusy] = useState(false);
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 25;
+  const [pageSize, setPageSize] = useState(20);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await axiosInstance.get("/hr/employees");
-      setEmployees(res.data?.results ?? res.data ?? []);
+      const data = res.data?.results ?? res.data ?? [];
+      setEmployees(Array.isArray(data) ? data : []);
     } catch { setEmployees([]); }
     finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const departments = [...new Set(employees.map((e) => e.department).filter(Boolean))];
-  const branches = [...new Set(employees.map((e) => e.branch).filter(Boolean))];
+  const departments = [...new Set(employees.map((e) => e.department).filter(Boolean))].sort();
+  const branches    = [...new Set(employees.map((e) => e.branch).filter(Boolean))].sort();
+  const empTypes    = [...new Set(employees.map((e) => e.employment_type).filter(Boolean))].sort();
 
   const filtered = employees.filter((e) => {
     const q = search.toLowerCase();
-    if (q && ![e.full_name, e.name, e.email, e.designation, e.department, e.branch].filter(Boolean).join(" ").toLowerCase().includes(q)) return false;
-    if (filterDept && e.department !== filterDept) return false;
-    if (filterBranch && e.branch !== filterBranch) return false;
-    if (filterStatus === "active" && e.is_active === false) return false;
-    if (filterStatus === "inactive" && e.is_active !== false) return false;
-    if (filterType && e.employment_type !== filterType) return false;
+    if (q && ![e.full_name, e.name, e.email, e.phone, e.designation, e.department, e.branch, e.employee_code, e.reporting_manager].filter(Boolean).join(" ").toLowerCase().includes(q)) return false;
+    if (filterDept   && (e.department     || "").trim().toLowerCase() !== filterDept.trim().toLowerCase()) return false;
+    if (filterBranch && (e.branch         || "").trim().toLowerCase() !== filterBranch.trim().toLowerCase()) return false;
+    if (filterType   && (e.employment_type || "").trim().toLowerCase() !== filterType.trim().toLowerCase()) return false;
+    if (filterStatus === "active"   && !e.is_active) return false;
+    if (filterStatus === "inactive" && e.is_active)  return false;
     return true;
   });
 
   const hasFilters = filterDept || filterBranch || filterStatus || filterType;
-  const clearFilters = () => { setFilterDept(""); setFilterBranch(""); setFilterStatus(""); setFilterType(""); setPage(1); };
+  const clearFilters = () => { setSearch(""); setFilterDept(""); setFilterBranch(""); setFilterStatus(""); setFilterType(""); setPage(1); };
 
   const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const rows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const to = Math.min(page * PAGE_SIZE, total);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const rows = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
 
   const confirmDelete = async () => {
     if (!deleting) return;
@@ -274,131 +461,161 @@ export default function EmployeeOnboarding() {
     finally { setDeletingBusy(false); }
   };
 
-  const TableFooter = () => (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderTop: "1px solid var(--color-border-muted)", flexWrap: "wrap", gap: 8 }}>
-      <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
-        {total === 0 ? "No entries" : `${from}–${to} of ${total} entries`}
-      </span>
-      <div style={{ display: "flex", gap: 4 }}>
-        <button className="ui-page-btn" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>‹</button>
-        <button className="ui-page-btn ui-page-btn--active">{page}</button>
-        <button className="ui-page-btn" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>›</button>
-      </div>
-    </div>
-  );
+  const withActive = employees.filter((e) => e.is_active !== false).length;
 
   return (
-    <div className="ui-page" style={{ paddingTop: 20, paddingBottom: 32 }}>
-      {/* Page header */}
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--color-text)" }}>Employee Onboarding</h1>
-        <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--color-text-muted)" }}>Onboard employees individually or in bulk.</p>
-      </div>
+    <div className="min-h-full" style={{ background: "var(--color-bg)" }}>
+      <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
 
-      {/* KPI strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
-        {[
-          { label: "Total Employees", value: employees.length, color: "var(--color-primary)" },
-          { label: "Active", value: employees.filter((e) => e.is_active !== false).length, color: "#15803d" },
-          { label: "Filtered", value: filtered.length, color: "#6b4eff" },
-        ].map((k) => (
-          <div key={k.label} className="ui-card" style={{ padding: "12px 16px" }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 4 }}>{k.label}</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: k.color, fontVariantNumeric: "tabular-nums" }}>{k.value}</div>
+        {/* KPI strip */}
+        <div className="mb-4 grid grid-cols-3 gap-3">
+          {[
+            { label: "Total Employees", value: employees.length, color: "#0f6d84" },
+            { label: "Active", value: withActive, color: "#16a34a" },
+            { label: "Inactive", value: employees.length - withActive, color: "#dc2626" },
+          ].map((k) => (
+            <div key={k.label} className="rounded-xl border border-[#e4e4ea] bg-white px-4 py-3">
+              <p className="text-[11px] font-medium text-[#6b6b76]">{k.label}</p>
+              <p className="mt-0.5 text-[22px] font-bold tabular-nums" style={{ color: k.color }}>{k.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="ui-card p-4 sm:p-5">
+          {/* Toolbar */}
+          <div className="mb-4 flex flex-wrap items-center gap-2.5">
+            <div className="relative min-w-[10rem] flex-1">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a9aa5]" />
+              <input
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                placeholder="Search employees…"
+                className="w-full rounded-full border border-[#e8e8ee] bg-[#f3f3f6] py-2.5 pl-10 pr-4 text-[13px] outline-none placeholder:text-[#a0a0ab] focus:border-[#d0d0d8] focus:bg-white"
+              />
+            </div>
+            <select className="h-9 rounded-lg border border-[#e2e2e8] bg-white px-2 text-[12px] outline-none" value={filterDept} onChange={(e) => { setFilterDept(e.target.value); setPage(1); }}>
+              <option value="">All Departments</option>
+              {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <select className="h-9 rounded-lg border border-[#e2e2e8] bg-white px-2 text-[12px] outline-none" value={filterBranch} onChange={(e) => { setFilterBranch(e.target.value); setPage(1); }}>
+              <option value="">All Branches</option>
+              {branches.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <select className="h-9 rounded-lg border border-[#e2e2e8] bg-white px-2 text-[12px] outline-none" value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}>
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <select className="h-9 rounded-lg border border-[#e2e2e8] bg-white px-2 text-[12px] outline-none" value={filterType} onChange={(e) => { setFilterType(e.target.value); setPage(1); }}>
+              <option value="">All Types</option>
+              <option value="Permanent">Permanent</option>
+              <option value="Contractual">Contractual</option>
+              <option value="Contract">Contract</option>
+              <option value="Full-time">Full-time</option>
+              <option value="Part-time">Part-time</option>
+              <option value="Intern">Intern</option>
+            </select>
+            {hasFilters && (
+              <button onClick={clearFilters} className="h-9 rounded-lg border border-[#e2e2e8] bg-white px-3 text-[12px] text-[#6b6b76] hover:bg-[#f5f5f7]">✕ Clear</button>
+            )}
+            <button
+              onClick={() => { setEditing(null); setFormOpen(true); }}
+              className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 text-[13px] font-semibold text-white hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" /> Add Employee
+            </button>
           </div>
-        ))}
-      </div>
 
-      {/* Toolbar + Table */}
-      <div className="ui-card" style={{ padding: "14px 16px" }}>
-        {/* Toolbar: search + filters + action */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-          <input className="ui-input" style={{ flex: 1, minWidth: 180, height: 32, fontSize: 12 }} placeholder="Search employees…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-          <select className="ui-select" style={{ height: 32, fontSize: 12, width: 130 }} value={filterDept} onChange={(e) => { setFilterDept(e.target.value); setPage(1); }}>
-            <option value="">All Departments</option>
-            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-          <select className="ui-select" style={{ height: 32, fontSize: 12, width: 110 }} value={filterBranch} onChange={(e) => { setFilterBranch(e.target.value); setPage(1); }}>
-            <option value="">All Branches</option>
-            {branches.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-          <select className="ui-select" style={{ height: 32, fontSize: 12, width: 100 }} value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}>
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-          <select className="ui-select" style={{ height: 32, fontSize: 12, width: 130 }} value={filterType} onChange={(e) => { setFilterType(e.target.value); setPage(1); }}>
-            <option value="">All Types</option>
-            <option value="Permanent">Permanent</option>
-            <option value="Contract">Contract</option>
-            <option value="Intern">Intern</option>
-            <option value="Part-time">Part-time</option>
-          </select>
-          {hasFilters && (
-            <button className="ui-btn-outline ui-btn--sm" onClick={clearFilters} style={{ height: 32, fontSize: 12, padding: "0 10px" }}>✕ Clear</button>
-          )}
-          <button className="ui-btn-primary ui-btn--sm" style={{ height: 32, marginLeft: "auto" }} onClick={() => { setEditing(null); setFormOpen(true); }}>+ Add Employee</button>
+          {/* Table */}
+          <div className="overflow-hidden rounded-lg border border-[#ececf0]">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1040px] border-collapse text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-[#e8e8ee] bg-[#f5f5f5] text-[12px] font-medium text-[#6b6b76]">
+                    {["SR No.", "Employee Name", "Phone Number", "Designation", "Reporting To", "Branch", "Department", "Date of Joining", "Status", "Actions"].map((h) => (
+                      <th key={h} className="px-4 py-3 font-medium whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={10} className="px-4 py-16 text-center text-[13px] text-[#8a8a96]">Loading…</td></tr>
+                  ) : rows.length ? rows.map((emp, i) => (
+                    <tr key={emp.id} className="border-b border-[#f0f0f4] text-[#1a1a1f] last:border-b-0">
+                      <td className="px-4 py-3.5 text-[#6b6b76]">{(page - 1) * pageSize + i + 1}</td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-soft)] text-[13px] font-bold text-[var(--color-primary)]">
+                            {(emp.full_name || emp.name || "?")[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="text-[13px] font-semibold text-[#1a1a1f]">{emp.full_name || emp.name || "—"}</div>
+                            <div className="text-[11px] text-[#6b6b76]">{emp.email || ""}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-[#4a4a55] whitespace-nowrap">{emp.phone || emp.mobile || "—"}</td>
+                      <td className="px-4 py-3.5 text-[#4a4a55]">{emp.designation || "—"}</td>
+                      <td className="px-4 py-3.5 text-[#4a4a55]">{emp.reporting_manager || emp.reporting_to || "—"}</td>
+                      <td className="px-4 py-3.5 text-[#4a4a55]">{emp.branch || "—"}</td>
+                      <td className="px-4 py-3.5 text-[#4a4a55]">{emp.department || "—"}</td>
+                      <td className="px-4 py-3.5 text-[#4a4a55] whitespace-nowrap">{emp.hire_date || emp.date_of_joining || "—"}</td>
+                      <td className="px-4 py-3.5">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${emp.is_active !== false ? "bg-[#dcfce7] text-[#15803d]" : "bg-[#f3f4f6] text-[#6b7280]"}`}>
+                          {emp.is_active !== false ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { setEditing(emp); setFormOpen(true); }}
+                            className="grid h-8 w-8 place-items-center rounded-full bg-[var(--color-primary-soft)] text-[var(--color-primary)] hover:bg-[#e4e6fc]"
+                            title="Edit"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleting(emp)}
+                            className="grid h-8 w-8 place-items-center rounded-full bg-[#fde8e8] text-[#ef4444] hover:bg-[#fcdada]"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan={10} className="px-4 py-16 text-center text-[13px] text-[#8a8a96]">No employees found</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Pagination */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[12px] text-[#6b6b76]">
+            <div className="flex items-center gap-2">
+              <span>Rows per page:</span>
+              <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="rounded border border-[#e2e2e8] bg-white px-2 py-1 outline-none">
+                {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <span>{total === 0 ? "0-0 of 0" : `${from}-${to} of ${total}`}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="grid h-8 w-8 place-items-center rounded border border-[#e2e2e8] bg-white disabled:opacity-40" aria-label="Previous page">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button type="button" className="grid h-8 min-w-8 place-items-center rounded border border-[var(--color-action-teal)] px-2 text-[13px] font-semibold text-white" style={{ background: "var(--color-action-teal)" }}>
+                {page}
+              </button>
+              <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="grid h-8 w-8 place-items-center rounded border border-[#e2e2e8] bg-white disabled:opacity-40" aria-label="Next page">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
-
-        <div style={{ overflowX: "auto", borderRadius: 10, border: "1px solid var(--color-border-muted)" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
-            <thead>
-              <tr style={{ background: "var(--color-surface-thead)" }}>
-                {["SR No.", "Employee Name", "Designation", "Reporting To", "Branch", "Department", "Date of Joining", "Status", "Action"].map((h) => (
-                  <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11.5, fontWeight: 700, color: "var(--color-text-secondary)", borderBottom: "1px solid var(--color-border)", whiteSpace: "nowrap" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={9} style={{ padding: "32px 0", textAlign: "center", fontSize: 13, color: "var(--color-text-muted)" }}>Loading…</td></tr>
-              ) : rows.length ? rows.map((emp, i) => (
-                <tr key={emp.id} style={{ borderBottom: "1px solid var(--color-border-muted)" }}>
-                  <td style={{ padding: "10px 14px", fontSize: 13, color: "var(--color-text-muted)" }}>{(page - 1) * PAGE_SIZE + i + 1}</td>
-                  <td style={{ padding: "10px 14px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--color-primary-soft)", color: "var(--color-primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-                        {(emp.full_name || emp.name || "?")[0].toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{emp.full_name || emp.name || "—"}</div>
-                        <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{emp.email || ""}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: "10px 14px", fontSize: 13, color: "var(--color-text-secondary)" }}>{emp.designation || "—"}</td>
-                  <td style={{ padding: "10px 14px", fontSize: 13, color: "var(--color-text-secondary)" }}>{emp.reporting_manager || emp.reporting_to || "—"}</td>
-                  <td style={{ padding: "10px 14px", fontSize: 13, color: "var(--color-text-secondary)" }}>{emp.branch || "—"}</td>
-                  <td style={{ padding: "10px 14px", fontSize: 13, color: "var(--color-text-secondary)" }}>{emp.department || "—"}</td>
-                  <td style={{ padding: "10px 14px", fontSize: 13, color: "var(--color-text-secondary)" }}>{emp.hire_date || emp.date_of_joining || "—"}</td>
-                  <td style={{ padding: "10px 14px" }}>
-                    <span className={`ui-badge ${emp.is_active !== false ? "ui-badge-success" : "ui-badge-neutral"}`}>
-                      {emp.is_active !== false ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td style={{ padding: "10px 14px" }}>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button
-                        title="Edit"
-                        onClick={() => { setEditing(emp); setFormOpen(true); }}
-                        style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: "var(--color-primary-soft)", color: "var(--color-primary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}
-                      >✎</button>
-                      <button
-                        title="Delete"
-                        onClick={() => setDeleting(emp)}
-                        style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: "var(--color-danger-soft)", color: "var(--color-danger)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}
-                      >🗑</button>
-                    </div>
-                  </td>
-                </tr>
-              )) : (
-                <tr><td colSpan={9} className="ui-empty">No employees found</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <TableFooter />
       </div>
 
       <EmployeeFormModal
@@ -407,7 +624,6 @@ export default function EmployeeOnboarding() {
         onClose={() => { setFormOpen(false); setEditing(null); }}
         onSaved={() => { setFormOpen(false); setEditing(null); load(); }}
       />
-
       <DeleteModal
         open={Boolean(deleting)}
         busy={deletingBusy}

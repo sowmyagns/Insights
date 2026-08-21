@@ -12,7 +12,7 @@ class ShiftBase(BaseModel):
 
 
 class ShiftCreate(ShiftBase):
-    pass
+    tenant_id: int | None = None
 
 
 class ShiftRead(ShiftBase):
@@ -40,6 +40,35 @@ class AttendanceRecordCreate(AttendanceRecordBase):
 class AttendanceRecordRead(AttendanceRecordBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
+
+
+class AttendanceCorrectionCreate(BaseModel):
+    employee_id: int
+    record_date: date
+    old_check_in: str | None = None
+    new_check_in: str | None = None
+    old_check_out: str | None = None
+    new_check_out: str | None = None
+    old_status: str | None = None
+    new_status: str | None = None
+    old_hours: str | None = None
+    new_hours: str | None = None
+    reason: str | None = None
+
+
+class AttendanceCorrectionStatus(BaseModel):
+    status: str
+
+
+class OvertimeRequestCreate(BaseModel):
+    employee_id: int
+    request_date: date
+    hours: float
+    notes: str | None = None
+
+
+class OvertimeStatusUpdate(BaseModel):
+    status: str
 
 
 class PayrollRecordBase(BaseModel):
@@ -94,7 +123,7 @@ class LeaveRequestBase(BaseModel):
 
 
 class LeaveRequestCreate(LeaveRequestBase):
-    pass
+    tenant_id: int | None = None
 
 
 class LeaveRequestUpdate(BaseModel):
@@ -125,6 +154,12 @@ class EmployeeBase(BaseModel):
     hire_date: date | None = None
     hourly_rate: float | None = None
     is_active: bool = True
+    # Extra fields present on the model & sent by the frontend
+    employment_type: str | None = None
+    branch: str | None = None
+    gender: str | None = None
+    status: str | None = None
+    salary: float | None = None
 
 
 class EmployeeCreate(EmployeeBase):
@@ -198,3 +233,53 @@ class SafetyIncidentRead(SafetyIncidentBase):
     id: int
     tenant_id: int
     model_config = ConfigDict(from_attributes=True)
+
+
+# ── Payroll Run ────────────────────────────────────────────────────────────
+
+class PayrollRunRequest(BaseModel):
+    year: int
+    month: int  # 1–12
+
+
+class PayrollBreakdownItem(BaseModel):
+    employee_id: int
+    employee_name: str
+    working_days: int
+    present_days: float
+    half_days: float
+    paid_leave_days: float
+    lop_days: float
+    payable_days: float
+    gross_pay: float
+    ot_hours: float
+    ot_pay: float
+    basic: float
+    pf_deduction: float
+    pt_deduction: float
+    total_deductions: float
+    net_pay: float
+    payroll_record_id: int | None = None
+
+
+class PayrollRunResponse(BaseModel):
+    processed: int
+    total_gross: float
+    total_deductions: float
+    total_net: float
+    records: list[PayrollBreakdownItem]
+
+
+class PayslipRead(BaseModel):
+    id: int
+    tenant_id: int
+    employee_id: int
+    period_start: date
+    period_end: date
+    base_salary: float
+    gross_pay: float
+    deductions: float
+    net_pay: float
+    status: str
+    model_config = ConfigDict(from_attributes=True)
+

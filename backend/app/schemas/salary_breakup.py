@@ -1,16 +1,16 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 from datetime import date
 
 
 class SalaryBreakupBase(BaseModel):
-    employee_id: Optional[int] = None
+    employee_id: int
     department_id: Optional[int] = None
-    ctc_annual: Optional[float] = 0
-    effective_from: Optional[date] = None
+    ctc_annual: float = 0
+    effective_from: date
     created_by: Optional[str] = None
     updated_by: Optional[str] = None
-    data: Optional[Dict[str, Any]] = None
+    data: Dict[str, Any] = Field(default_factory=dict)
     created_at: Optional[date] = None
 
 
